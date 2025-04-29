@@ -21,18 +21,13 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 
 	// Summary panel as table
 	summary := tview.NewTable().SetBorders(false)
-	summary.SetBorder(true)
-	summary.SetTitle("Node Summary")
-
-	// Model panel as table
-	modelTable := tview.NewTable().SetBorders(false)
-	modelTable.SetBorder(true)
-	modelTable.SetTitle("Node CPU")
-
-	// Combined summary and model into a flex for right-aligned modelTable
-	summaryFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(summary, 0, 4, false).
-		AddItem(modelTable, 0, 1, false)
+	// Model info text below summary
+	modelInfo := tview.NewTextView().SetDynamicColors(true)
+	// Wrap summary and modelInfo in a panel
+	summaryPanel := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(summary, 2, 0, false).
+		AddItem(modelInfo, 1, 0, false)
+	summaryPanel.SetBorder(true).SetTitle("Node Summary")
 
 	// Node tree
 	nodes, err := client.ListNodes()
@@ -228,29 +223,17 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 			summary.SetCell(0, 3, tview.NewTableCell(pveVer).SetTextColor(tcell.ColorWhite))
 			summary.SetCell(0, 4, tview.NewTableCell("Kernel").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(0, 5, tview.NewTableCell(kernelRel).SetTextColor(tcell.ColorWhite))
-			// Row 1: CPU, Mem, Load
+			// Row 1: CPU, Mem, Load, RootFS
 			summary.SetCell(1, 0, tview.NewTableCell("CPU").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%.2f%%", cpuPercent)).SetTextColor(tcell.ColorWhite))
 			summary.SetCell(1, 2, tview.NewTableCell("Mem").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 3, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", memUsed/1024/1024, memTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
 			summary.SetCell(1, 4, tview.NewTableCell("Load").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 5, tview.NewTableCell(loadStr).SetTextColor(tcell.ColorWhite))
-			// Row 2: RootFS only
-			summary.SetCell(2, 0, tview.NewTableCell("RootFS").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
-			summary.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", rfUsed/1024/1024, rfTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
-			// Clear remaining summary columns
-			summary.SetCell(2, 2, tview.NewTableCell(""))
-			summary.SetCell(2, 3, tview.NewTableCell(""))
-			summary.SetCell(2, 4, tview.NewTableCell(""))
-			summary.SetCell(2, 5, tview.NewTableCell(""))
-			// Populate modelTable with Model, Cores, Threads
-			modelTable.Clear()
-			modelTable.SetCell(0, 0, tview.NewTableCell("Model").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
-			modelTable.SetCell(0, 1, tview.NewTableCell(model).SetTextColor(tcell.ColorWhite))
-			modelTable.SetCell(1, 0, tview.NewTableCell("Cores").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
-			modelTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%d", cores)).SetTextColor(tcell.ColorWhite))
-			modelTable.SetCell(2, 0, tview.NewTableCell("Threads").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
-			modelTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%d", threads)).SetTextColor(tcell.ColorWhite))
+			summary.SetCell(1, 6, tview.NewTableCell("RootFS").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			summary.SetCell(1, 7, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", rfUsed/1024/1024, rfTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
+			// Update model info below summary table
+			modelInfo.SetText(fmt.Sprintf("[yellow]Model:[white] %s  [yellow]Cores:[white] %d  [yellow]Threads:[white] %d", model, cores, threads))
 			// Update VMs/LXCs tab
 			vmsTable.Clear()
 			vmsTable.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
@@ -342,7 +325,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Main layout: summary, pages, footer
 	mainFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(summaryFlex, 5, 0, false).
+		AddItem(summaryPanel, 5, 0, false).
 		AddItem(pages, 0, 1, true).
 		AddItem(footer, 1, 0, false)
 	return mainFlex
