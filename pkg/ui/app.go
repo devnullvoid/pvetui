@@ -12,6 +12,43 @@ import (
 	"github.com/rivo/tview"
 )
 
+// newSummary returns a summary table with initial loading placeholder.
+func newSummary() *tview.Table {
+	summary := tview.NewTable().SetBorders(false)
+	summary.Clear()
+	summary.SetCell(0, 0, tview.NewTableCell("Loading summary...").SetTextColor(tcell.ColorWhite))
+	return summary
+}
+
+// newDetails returns a details table with initial loading placeholder.
+func newDetails() *tview.Table {
+	details := tview.NewTable().SetBorders(false)
+	details.Clear()
+	details.SetCell(0, 0, tview.NewTableCell("Loading...").SetTextColor(tcell.ColorWhite))
+	return details
+}
+
+// newNodeList builds a node list UI component from nodes.
+func newNodeList(nodes []api.Node) *tview.List {
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(true).SetTitle("Nodes")
+	for _, n := range nodes {
+		list.AddItem(n.Name, "", 0, nil)
+	}
+	return list
+}
+
+// newVmsTable builds a VMs/LXCs table with header.
+func newVmsTable() *tview.Table {
+	tbl := tview.NewTable().SetBorders(true)
+	tbl.SetBorder(true).SetTitle("VMs/LXCs")
+	tbl.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
+	tbl.SetCell(0, 1, tview.NewTableCell("Name").SetAttributes(tcell.AttrBold))
+	tbl.SetCell(0, 2, tview.NewTableCell("Node").SetAttributes(tcell.AttrBold))
+	tbl.SetCell(0, 3, tview.NewTableCell("Type").SetAttributes(tcell.AttrBold))
+	return tbl
+}
+
 // NewAppUI creates the root UI component with node tree and VM list.
 func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Header
@@ -20,15 +57,12 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		SetText("Proxmox CLI UI")
 
 	// Summary panel as table
-	summary := tview.NewTable().SetBorders(false)
+	summary := newSummary()
 
 	// Wrap summary in a panel (3 rows: two for key metrics, one for model/cores/threads)
 	summaryPanel := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(summary, 3, 0, false)
 	summaryPanel.SetBorder(true).SetTitle("Node Summary")
-	// Initial loading indicator in summary table
-	summary.Clear()
-	summary.SetCell(0, 0, tview.NewTableCell("Loading summary...").SetTextColor(tcell.ColorWhite))
 
 	// Nodes tab: list on left, details on right
 	nodes, err := client.ListNodes()
@@ -36,19 +70,12 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		header.SetText(fmt.Sprintf("Error listing nodes: %v", err))
 		nodes = []api.Node{}
 	}
-	nodeList := tview.NewList().ShowSecondaryText(false)
-	nodeList.SetBorder(true)
-	nodeList.SetTitle("Nodes")
-	for _, n := range nodes {
-		nodeList.AddItem(n.Name, "", 0, nil)
-	}
+	nodeList := newNodeList(nodes)
 	// Track application active and highlighted node indices
 	activeIndex := 0
 	highlightedIndex := 0
 	// Details panel for this tab
-	detailsTable := tview.NewTable().SetBorders(false)
-	// Initial loading indicator for details
-	detailsTable.SetCell(0, 0, tview.NewTableCell("Loading...").SetTextColor(tcell.ColorRed))
+	detailsTable := newDetails()
 	detailsPanel := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(detailsTable, 0, 1, false)
 	detailsPanel.SetBorder(true).SetTitle("Details")
@@ -118,14 +145,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Nodes tab
 	pages.AddPage("Nodes", nodesContent, true, true)
 	// VMs/LXCs tab
-	vmsTable := tview.NewTable().SetBorders(true)
-	vmsTable.SetBorder(true)
-	vmsTable.SetTitle("VMs/LXCs")
-	// Table header
-	vmsTable.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
-	vmsTable.SetCell(0, 1, tview.NewTableCell("Name").SetAttributes(tcell.AttrBold))
-	vmsTable.SetCell(0, 2, tview.NewTableCell("Node").SetAttributes(tcell.AttrBold))
-	vmsTable.SetCell(0, 3, tview.NewTableCell("Type").SetAttributes(tcell.AttrBold))
+	vmsTable := newVmsTable()
 	// Populate all VMs
 	row := 1
 	for _, n := range nodes {
