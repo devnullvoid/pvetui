@@ -38,6 +38,16 @@ func newNodeList(nodes []api.Node) *tview.List {
 	return list
 }
 
+// newVmList builds a VM list UI component from VMs.
+func newVmList(vms []api.VM) *tview.List {
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(true).SetTitle("VMs")
+	for _, vm := range vms {
+		list.AddItem(fmt.Sprintf("%d - %s", vm.ID, vm.Name), "", 0, nil)
+	}
+	return list
+}
+
 // newVmsTable builds a VMs/LXCs table with header.
 func newVmsTable() *tview.Table {
 	tbl := tview.NewTable().SetBorders(true)
@@ -47,6 +57,27 @@ func newVmsTable() *tview.Table {
 	tbl.SetCell(0, 2, tview.NewTableCell("Node").SetAttributes(tcell.AttrBold))
 	tbl.SetCell(0, 3, tview.NewTableCell("Type").SetAttributes(tcell.AttrBold))
 	return tbl
+}
+
+// newVmDetails returns an empty VM details table.
+func newVmDetails() *tview.Table {
+	tbl := tview.NewTable().SetBorders(false)
+	tbl.Clear()
+	tbl.SetCell(0, 0, tview.NewTableCell("Select a VM").SetTextColor(tcell.ColorWhite))
+	return tbl
+}
+
+// populateVmDetails fills the VM details table for the given VM.
+func populateVmDetails(tbl *tview.Table, vm api.VM) {
+	tbl.Clear()
+	tbl.SetCell(0, 0, tview.NewTableCell("VM ID").SetTextColor(tcell.ColorYellow))
+	tbl.SetCell(0, 1, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)).SetTextColor(tcell.ColorWhite))
+	tbl.SetCell(1, 0, tview.NewTableCell("Name").SetTextColor(tcell.ColorYellow))
+	tbl.SetCell(1, 1, tview.NewTableCell(vm.Name).SetTextColor(tcell.ColorWhite))
+	tbl.SetCell(2, 0, tview.NewTableCell("Node").SetTextColor(tcell.ColorYellow))
+	tbl.SetCell(2, 1, tview.NewTableCell(vm.Node).SetTextColor(tcell.ColorWhite))
+	tbl.SetCell(3, 0, tview.NewTableCell("Type").SetTextColor(tcell.ColorYellow))
+	tbl.SetCell(3, 1, tview.NewTableCell(vm.Type).SetTextColor(tcell.ColorWhite))
 }
 
 // NewAppUI creates the root UI component with node tree and VM list.
@@ -83,82 +114,38 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		AddItem(nodeList, 0, 1, true).
 		AddItem(detailsPanel, 0, 3, false)
 
-	// VM table
-	table := tview.NewTable().SetBorders(true)
-	table.SetBorder(true)
-	table.SetTitle("VMs")
-	// Table header
-	table.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
-	table.SetCell(0, 1, tview.NewTableCell("Name").SetAttributes(tcell.AttrBold))
-	table.SetCell(0, 2, tview.NewTableCell("Type").SetAttributes(tcell.AttrBold))
-
-	// Helper to convert various types to float64
-	toFloat := func(val interface{}) float64 {
-		if val == nil {
-			return 0
-		}
-		switch t := val.(type) {
-		case float64:
-			return t
-		case float32:
-			return float64(t)
-		case int:
-			return float64(t)
-		case int8:
-			return float64(t)
-		case int16:
-			return float64(t)
-		case int32:
-			return float64(t)
-		case int64:
-			return float64(t)
-		case uint:
-			return float64(t)
-		case uint8:
-			return float64(t)
-		case uint16:
-			return float64(t)
-		case uint32:
-			return float64(t)
-		case uint64:
-			return float64(t)
-		case json.Number:
-			if f, err := t.Float64(); err == nil {
-				return f
-			}
-		case string:
-			if f, err := strconv.ParseFloat(t, 64); err == nil {
-				return f
-			}
-		}
-		// Fallback: try generic string representation
-		if s := fmt.Sprint(val); s != "" {
-			if f, err := strconv.ParseFloat(s, 64); err == nil {
-				return f
-			}
-		}
-		return 0
+	// VMs/LXCs tab: list and details
+	var vmsAll []api.VM
+	for _, n := range nodes {
+		vms, _ := client.ListVMs(n.Name)
+		vmsAll = append(vmsAll, vms...)
 	}
+	vmList := newVmList(vmsAll)
+	vmDetails := newVmDetails()
+	// Details panel for VMs: wrap table in FlexRow for border
+	vmDetailsPanel := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(vmDetails, 0, 1, false)
+	vmDetailsPanel.SetBorder(true).SetTitle("VM Details")
+	vmList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
+		if index >= 0 && index < len(vmsAll) {
+			populateVmDetails(vmDetails, vmsAll[index])
+		}
+	})
+	// Initial VM details population
+	if len(vmsAll) > 0 {
+		populateVmDetails(vmDetails, vmsAll[0])
+		vmList.SetCurrentItem(0)
+	}
+	vmContent := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(vmList, 0, 1, true).
+		AddItem(vmDetailsPanel, 0, 3, false)
 
 	// Prepare pages (tabs)
 	pages := tview.NewPages()
 	// Nodes tab
 	pages.AddPage("Nodes", nodesContent, true, true)
 	// VMs/LXCs tab
-	vmsTable := newVmsTable()
-	// Populate all VMs
-	row := 1
-	for _, n := range nodes {
-		vms, _ := client.ListVMs(n.Name)
-		for _, vm := range vms {
-			vmsTable.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)))
-			vmsTable.SetCell(row, 1, tview.NewTableCell(vm.Name))
-			vmsTable.SetCell(row, 2, tview.NewTableCell(vm.Node))
-			vmsTable.SetCell(row, 3, tview.NewTableCell(vm.Type))
-			row++
-		}
-	}
-	pages.AddPage("VMs/LXCs", vmsTable, true, false)
+	pages.AddPage("VMs/LXCs", vmContent, true, false)
 	// Storage tab (TODO)
 	storageView := tview.NewTextView().SetText("[::b]Storage view coming soon")
 	storageView.SetBorder(true)
@@ -262,22 +249,22 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 			summary.SetCell(2, 4, tview.NewTableCell("🔀 Threads").SetTextColor(tcell.ColorYellow))
 			summary.SetCell(2, 5, tview.NewTableCell(fmt.Sprintf("%d", threads)).SetTextColor(tcell.ColorWhite))
 			// Update VMs/LXCs tab
-			vmsTable.Clear()
-			vmsTable.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
-			vmsTable.SetCell(0, 1, tview.NewTableCell("Name").SetAttributes(tcell.AttrBold))
-			vmsTable.SetCell(0, 2, tview.NewTableCell("Node").SetAttributes(tcell.AttrBold))
-			vmsTable.SetCell(0, 3, tview.NewTableCell("Type").SetAttributes(tcell.AttrBold))
-			vms, err := client.ListVMs(n.Name)
-			if err != nil {
-				header.SetText(fmt.Sprintf("Error listing VMs: %v", err))
-			} else {
-				for i, vm := range vms {
-					vmsTable.SetCell(i+1, 0, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)))
-					vmsTable.SetCell(i+1, 1, tview.NewTableCell(vm.Name))
-					vmsTable.SetCell(i+1, 2, tview.NewTableCell(vm.Node))
-					vmsTable.SetCell(i+1, 3, tview.NewTableCell(vm.Type))
-				}
-			}
+			// vmsTable.Clear()
+			// vmsTable.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
+			// vmsTable.SetCell(0, 1, tview.NewTableCell("Name").SetAttributes(tcell.AttrBold))
+			// vmsTable.SetCell(0, 2, tview.NewTableCell("Node").SetAttributes(tcell.AttrBold))
+			// vmsTable.SetCell(0, 3, tview.NewTableCell("Type").SetAttributes(tcell.AttrBold))
+			// vms, err := client.ListVMs(n.Name)
+			// if err != nil {
+			// 	header.SetText(fmt.Sprintf("Error listing VMs: %v", err))
+			// } else {
+			// 	for i, vm := range vms {
+			// 		vmsTable.SetCell(i+1, 0, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)))
+			// 		vmsTable.SetCell(i+1, 1, tview.NewTableCell(vm.Name))
+			// 		vmsTable.SetCell(i+1, 2, tview.NewTableCell(vm.Node))
+			// 		vmsTable.SetCell(i+1, 3, tview.NewTableCell(vm.Type))
+			// 	}
+			// }
 		}
 	}
 
@@ -482,4 +469,52 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		AddItem(pages, 0, 1, true).
 		AddItem(footer, 1, 0, false)
 	return mainFlex
+}
+
+// Helper to convert various types to float64
+func toFloat(val interface{}) float64 {
+	if val == nil {
+		return 0
+	}
+	switch t := val.(type) {
+	case float64:
+		return t
+	case float32:
+		return float64(t)
+	case int:
+		return float64(t)
+	case int8:
+		return float64(t)
+	case int16:
+		return float64(t)
+	case int32:
+		return float64(t)
+	case int64:
+		return float64(t)
+	case uint:
+		return float64(t)
+	case uint8:
+		return float64(t)
+	case uint16:
+		return float64(t)
+	case uint32:
+		return float64(t)
+	case uint64:
+		return float64(t)
+	case json.Number:
+		if f, err := t.Float64(); err == nil {
+			return f
+		}
+	case string:
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return f
+		}
+	}
+	// Fallback: try generic string representation
+	if s := fmt.Sprint(val); s != "" {
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			return f
+		}
+	}
+	return 0
 }
