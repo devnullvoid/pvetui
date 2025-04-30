@@ -21,35 +21,39 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 
 	// Summary panel as table
 	summary := tview.NewTable().SetBorders(false)
-	// Model info text below summary
-	modelInfo := tview.NewTextView().SetDynamicColors(true)
-	// Wrap summary and modelInfo in a panel
-	summaryPanel := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(summary, 2, 0, false).
-		AddItem(modelInfo, 1, 0, false)
-	summaryPanel.SetBorder(true).SetTitle("Node Summary")
 
-	// Node tree
+	// Wrap summary in a panel (3 rows: two for key metrics, one for model/cores/threads)
+	summaryPanel := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(summary, 3, 0, false)
+	summaryPanel.SetBorder(true).SetTitle("Node Summary")
+	// Initial loading indicator in summary table
+	summary.Clear()
+	summary.SetCell(0, 0, tview.NewTableCell("Loading summary...").SetTextColor(tcell.ColorWhite))
+
+	// Nodes tab: list on left, details on right
 	nodes, err := client.ListNodes()
 	if err != nil {
 		header.SetText(fmt.Sprintf("Error listing nodes: %v", err))
+		nodes = []api.Node{}
 	}
-	rootNode := tview.NewTreeNode("Nodes").SetColor(tcell.ColorGreen)
-	tree := tview.NewTreeView().
-		SetRoot(rootNode).
-		SetCurrentNode(rootNode)
-	tree.SetBorder(true)
-	tree.SetTitle("Nodes")
+	nodeList := tview.NewList().ShowSecondaryText(false)
+	nodeList.SetBorder(true)
+	nodeList.SetTitle("Nodes")
 	for _, n := range nodes {
-		node := tview.NewTreeNode(n.Name).
-			SetReference(n).
-			SetSelectable(true)
-		rootNode.AddChild(node)
+		nodeList.AddItem(n.Name, "", 0, nil)
 	}
-	// Auto-select first child node by default
-	if len(rootNode.GetChildren()) > 0 {
-		tree.SetCurrentNode(rootNode.GetChildren()[0])
-	}
+	// Track globally selected node index
+	selectedIndex := 0
+	// Details panel for this tab
+	detailsTable := tview.NewTable().SetBorders(false)
+	// Initial loading indicator for details
+	detailsTable.SetCell(0, 0, tview.NewTableCell("Loading...").SetTextColor(tcell.ColorWhite))
+	detailsPanel := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(detailsTable, 0, 1, false)
+	detailsPanel.SetBorder(true).SetTitle("Details")
+	nodesContent := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nodeList, 0, 1, true).
+		AddItem(detailsPanel, 0, 3, false)
 
 	// VM table
 	table := tview.NewTable().SetBorders(true)
@@ -111,10 +115,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Prepare pages (tabs)
 	pages := tview.NewPages()
 	// Nodes tab
-	nodesContent := tview.NewFlex().
-		SetDirection(tview.FlexColumn).
-		AddItem(tree, 0, 1, true)
-	pages.AddPage("Nodes", nodesContent, true, false)
+	pages.AddPage("Nodes", nodesContent, true, true)
 	// VMs/LXCs tab
 	vmsTable := tview.NewTable().SetBorders(true)
 	vmsTable.SetBorder(true)
@@ -136,7 +137,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 			row++
 		}
 	}
-	pages.AddPage("VMs/LXCs", vmsTable, true, true)
+	pages.AddPage("VMs/LXCs", vmsTable, true, false)
 	// Storage tab (TODO)
 	storageView := tview.NewTextView().SetText("[::b]Storage view coming soon")
 	storageView.SetBorder(true)
@@ -207,13 +208,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 					kernelRel = strings.Split(rs, " ")[0]
 				}
 			}
-			// CPU info
-			cores := int(toFloat(status["cpuinfo"].(map[string]interface{})["cores"]))
-			threads := int(toFloat(status["cpuinfo"].(map[string]interface{})["cpus"]))
-			model := ""
-			if m, ok := status["cpuinfo"].(map[string]interface{})["model"].(string); ok {
-				model = m
-			}
+			// CPU hardware info handled in details panel
 			// Populate summary: 3-item rows with colored labels and values
 			summary.Clear()
 			// Row 0: Node, PVE, Kernel
@@ -232,8 +227,19 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 			summary.SetCell(1, 5, tview.NewTableCell(loadStr).SetTextColor(tcell.ColorWhite))
 			summary.SetCell(1, 6, tview.NewTableCell("RootFS").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 7, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", rfUsed/1024/1024, rfTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
-			// Update model info below summary table
-			modelInfo.SetText(fmt.Sprintf("[yellow]Model:[white] %s  [yellow]Cores:[white] %d  [yellow]Threads:[white] %d", model, cores, threads))
+			// Model, cores, and threads in one row
+			cores := int(toFloat(status["cpuinfo"].(map[string]interface{})["cores"]))
+			threads := int(toFloat(status["cpuinfo"].(map[string]interface{})["cpus"]))
+			model := ""
+			if m, ok := status["cpuinfo"].(map[string]interface{})["model"].(string); ok {
+				model = m
+			}
+			summary.SetCell(2, 0, tview.NewTableCell("Model").SetTextColor(tcell.ColorYellow))
+			summary.SetCell(2, 1, tview.NewTableCell(model).SetTextColor(tcell.ColorWhite))
+			summary.SetCell(2, 2, tview.NewTableCell("Cores").SetTextColor(tcell.ColorYellow))
+			summary.SetCell(2, 3, tview.NewTableCell(fmt.Sprintf("%d", cores)).SetTextColor(tcell.ColorWhite))
+			summary.SetCell(2, 4, tview.NewTableCell("Threads").SetTextColor(tcell.ColorYellow))
+			summary.SetCell(2, 5, tview.NewTableCell(fmt.Sprintf("%d", threads)).SetTextColor(tcell.ColorWhite))
 			// Update VMs/LXCs tab
 			vmsTable.Clear()
 			vmsTable.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
@@ -254,19 +260,90 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		}
 	}
 
-	// On node select, refresh for selected node
-	tree.SetSelectedFunc(func(node *tview.TreeNode) {
-		if ref := node.GetReference(); ref != nil {
-			if n, ok := ref.(api.Node); ok {
-				updateSelected(n)
+	// Update details on list change
+	updateDetails := func(index int, mainText string, secondaryText string, shortcut rune) {
+		if index < 0 || index >= len(nodes) {
+			return
+		}
+		n := nodes[index]
+		status, err := client.GetNodeStatus(n.Name)
+		if err != nil {
+			detailsTable.Clear()
+			detailsTable.SetCell(0, 0, tview.NewTableCell(fmt.Sprintf("Error: %v", err)).SetTextColor(tcell.ColorRed))
+			return
+		}
+		// Fill detailsTable like summary
+		detailsTable.Clear()
+		// Row 0: Node
+		detailsTable.SetCell(0, 0, tview.NewTableCell("Node").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(0, 1, tview.NewTableCell(n.Name).SetTextColor(tcell.ColorWhite))
+		// PVE and Kernel
+		var pveVer, kernelRel string
+		if pv, ok := status["pveversion"].(string); ok {
+			parts := strings.Split(pv, "/")
+			if len(parts) >= 2 {
+				pveVer = parts[1]
+			} else {
+				pveVer = pv
 			}
 		}
-	})
-
-	// Initial display: select first node by default
-	if len(nodes) > 0 {
-		updateSelected(nodes[0])
+		if ck, ok := status["current-kernel"].(map[string]interface{}); ok {
+			if rs, ok2 := ck["release"].(string); ok2 {
+				kernelRel = strings.Split(rs, " ")[0]
+			}
+		}
+		detailsTable.SetCell(1, 0, tview.NewTableCell("PVE").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(1, 1, tview.NewTableCell(pveVer).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(2, 0, tview.NewTableCell("Kernel").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(2, 1, tview.NewTableCell(kernelRel).SetTextColor(tcell.ColorWhite))
+		// CPU, Mem, Load, RootFS
+		cpuPercent := toFloat(status["cpu"]) * 100
+		var memUsed, memTotal float64
+		if mObj, ok := status["memory"].(map[string]interface{}); ok {
+			memUsed = toFloat(mObj["used"])
+			memTotal = toFloat(mObj["total"])
+		}
+		loadStr := ""
+		if la, ok := status["loadavg"].([]interface{}); ok {
+			var sa []string
+			for _, v := range la {
+				sa = append(sa, fmt.Sprint(v))
+			}
+			loadStr = strings.Join(sa, "/")
+		}
+		rfUsed := toFloat(status["rootfs"].(map[string]interface{})["used"])
+		rfTotal := toFloat(status["rootfs"].(map[string]interface{})["total"])
+		detailsTable.SetCell(3, 0, tview.NewTableCell("CPU").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.2f%%", cpuPercent)).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(4, 0, tview.NewTableCell("Mem").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(4, 1, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", memUsed/1024/1024, memTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(5, 0, tview.NewTableCell("Load").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(5, 1, tview.NewTableCell(loadStr).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(6, 0, tview.NewTableCell("RootFS").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(6, 1, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", rfUsed/1024/1024, rfTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
+		// Model/Cores/Threads as table rows
+		cores := int(toFloat(status["cpuinfo"].(map[string]interface{})["cores"]))
+		threads := int(toFloat(status["cpuinfo"].(map[string]interface{})["cpus"]))
+		model := ""
+		if m, ok := status["cpuinfo"].(map[string]interface{})["model"].(string); ok {
+			model = m
+		}
+		detailsTable.SetCell(7, 0, tview.NewTableCell("Model").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(7, 1, tview.NewTableCell(model).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(8, 0, tview.NewTableCell("Cores").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(8, 1, tview.NewTableCell(fmt.Sprintf("%d", cores)).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(9, 0, tview.NewTableCell("Threads").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(9, 1, tview.NewTableCell(fmt.Sprintf("%d", threads)).SetTextColor(tcell.ColorWhite))
 	}
+	nodeList.SetChangedFunc(updateDetails)
+	// Enter selects in global scope
+	nodeList.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
+		if index >= 0 && index < len(nodes) {
+			selectedIndex = index
+			updateSelected(nodes[index])
+			updateDetails(index, "", "", 0)
+		}
+	})
 
 	// Input capture: Tab/F-keys for navigation, Esc/Q to quit
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -278,6 +355,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		case tcell.KeyF1:
 			pages.SwitchToPage("Nodes")
 			currentTab = 0
+			updateDetails(nodeList.GetCurrentItem(), "", "", 0)
 			return nil
 		case tcell.KeyF2:
 			pages.SwitchToPage("VMs/LXCs")
@@ -306,21 +384,26 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		return event
 	})
 
-	// Auto-refresh summary every 5 seconds
+	// Auto-refresh summary every 5 seconds (details stay unchanged)
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			current := tree.GetCurrentNode()
-			if ref := current.GetReference(); ref != nil {
-				if n, ok := ref.(api.Node); ok {
-					app.QueueUpdateDraw(func() {
-						updateSelected(n)
-					})
-				}
+			if selectedIndex >= 0 && selectedIndex < len(nodes) {
+				app.QueueUpdateDraw(func() {
+					updateSelected(nodes[selectedIndex])
+				})
 			}
 		}
 	}()
+
+	// Initial summary and details load for selected node
+	if selectedIndex >= 0 && selectedIndex < len(nodes) {
+		updateSelected(nodes[selectedIndex])
+		updateDetails(selectedIndex, "", "", 0)
+	}
+	// Set initial focus to node list
+	app.SetFocus(nodeList)
 
 	// Main layout: summary, pages, footer
 	mainFlex := tview.NewFlex().
