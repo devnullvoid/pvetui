@@ -42,12 +42,13 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	for _, n := range nodes {
 		nodeList.AddItem(n.Name, "", 0, nil)
 	}
-	// Track globally selected node index
-	selectedIndex := 0
+	// Track application active and highlighted node indices
+	activeIndex := 0
+	highlightedIndex := 0
 	// Details panel for this tab
 	detailsTable := tview.NewTable().SetBorders(false)
 	// Initial loading indicator for details
-	detailsTable.SetCell(0, 0, tview.NewTableCell("Loading...").SetTextColor(tcell.ColorWhite))
+	detailsTable.SetCell(0, 0, tview.NewTableCell("Loading...").SetTextColor(tcell.ColorRed))
 	detailsPanel := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(detailsTable, 0, 1, false)
 	detailsPanel.SetBorder(true).SetTitle("Details")
@@ -211,34 +212,34 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 			// CPU hardware info handled in details panel
 			// Populate summary: 3-item rows with colored labels and values
 			summary.Clear()
-			// Row 0: Node, PVE, Kernel
-			summary.SetCell(0, 0, tview.NewTableCell("Node").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			// Row 0: Node, PVE, Kernel with icons
+			summary.SetCell(0, 0, tview.NewTableCell("📶 Node").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(0, 1, tview.NewTableCell(n.Name).SetTextColor(tcell.ColorWhite))
-			summary.SetCell(0, 2, tview.NewTableCell("PVE").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			summary.SetCell(0, 2, tview.NewTableCell("📛 PVE").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(0, 3, tview.NewTableCell(pveVer).SetTextColor(tcell.ColorWhite))
-			summary.SetCell(0, 4, tview.NewTableCell("Kernel").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			summary.SetCell(0, 4, tview.NewTableCell("🔌 Kernel").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(0, 5, tview.NewTableCell(kernelRel).SetTextColor(tcell.ColorWhite))
-			// Row 1: CPU, Mem, Load, RootFS
-			summary.SetCell(1, 0, tview.NewTableCell("CPU").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			// Row 1: CPU, Mem, Load, RootFS with icons
+			summary.SetCell(1, 0, tview.NewTableCell("🔝 CPU").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%.2f%%", cpuPercent)).SetTextColor(tcell.ColorWhite))
-			summary.SetCell(1, 2, tview.NewTableCell("Mem").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			summary.SetCell(1, 2, tview.NewTableCell("💾 Mem").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 3, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", memUsed/1024/1024, memTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
-			summary.SetCell(1, 4, tview.NewTableCell("Load").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			summary.SetCell(1, 4, tview.NewTableCell("📈 Load").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 5, tview.NewTableCell(loadStr).SetTextColor(tcell.ColorWhite))
-			summary.SetCell(1, 6, tview.NewTableCell("RootFS").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
+			summary.SetCell(1, 6, tview.NewTableCell("💽 RootFS").SetTextColor(tcell.ColorYellow).SetAttributes(tcell.AttrBold))
 			summary.SetCell(1, 7, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", rfUsed/1024/1024, rfTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
-			// Model, cores, and threads in one row
+			// Row 2: Model, Cores, Threads with icons
 			cores := int(toFloat(status["cpuinfo"].(map[string]interface{})["cores"]))
 			threads := int(toFloat(status["cpuinfo"].(map[string]interface{})["cpus"]))
 			model := ""
 			if m, ok := status["cpuinfo"].(map[string]interface{})["model"].(string); ok {
 				model = m
 			}
-			summary.SetCell(2, 0, tview.NewTableCell("Model").SetTextColor(tcell.ColorYellow))
+			summary.SetCell(2, 0, tview.NewTableCell("💻 Model").SetTextColor(tcell.ColorYellow))
 			summary.SetCell(2, 1, tview.NewTableCell(model).SetTextColor(tcell.ColorWhite))
-			summary.SetCell(2, 2, tview.NewTableCell("Cores").SetTextColor(tcell.ColorYellow))
+			summary.SetCell(2, 2, tview.NewTableCell("🧮 Cores").SetTextColor(tcell.ColorYellow))
 			summary.SetCell(2, 3, tview.NewTableCell(fmt.Sprintf("%d", cores)).SetTextColor(tcell.ColorWhite))
-			summary.SetCell(2, 4, tview.NewTableCell("Threads").SetTextColor(tcell.ColorYellow))
+			summary.SetCell(2, 4, tview.NewTableCell("🔀 Threads").SetTextColor(tcell.ColorYellow))
 			summary.SetCell(2, 5, tview.NewTableCell(fmt.Sprintf("%d", threads)).SetTextColor(tcell.ColorWhite))
 			// Update VMs/LXCs tab
 			vmsTable.Clear()
@@ -275,7 +276,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		// Fill detailsTable like summary
 		detailsTable.Clear()
 		// Row 0: Node
-		detailsTable.SetCell(0, 0, tview.NewTableCell("Node").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(0, 0, tview.NewTableCell("📶 Node").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(0, 1, tview.NewTableCell(n.Name).SetTextColor(tcell.ColorWhite))
 		// PVE and Kernel
 		var pveVer, kernelRel string
@@ -292,9 +293,9 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 				kernelRel = strings.Split(rs, " ")[0]
 			}
 		}
-		detailsTable.SetCell(1, 0, tview.NewTableCell("PVE").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(1, 0, tview.NewTableCell("📛 PVE").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(1, 1, tview.NewTableCell(pveVer).SetTextColor(tcell.ColorWhite))
-		detailsTable.SetCell(2, 0, tview.NewTableCell("Kernel").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(2, 0, tview.NewTableCell("🔌 Kernel").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(2, 1, tview.NewTableCell(kernelRel).SetTextColor(tcell.ColorWhite))
 		// CPU, Mem, Load, RootFS
 		cpuPercent := toFloat(status["cpu"]) * 100
@@ -313,13 +314,13 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		}
 		rfUsed := toFloat(status["rootfs"].(map[string]interface{})["used"])
 		rfTotal := toFloat(status["rootfs"].(map[string]interface{})["total"])
-		detailsTable.SetCell(3, 0, tview.NewTableCell("CPU").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(3, 0, tview.NewTableCell("🔝 CPU").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.2f%%", cpuPercent)).SetTextColor(tcell.ColorWhite))
-		detailsTable.SetCell(4, 0, tview.NewTableCell("Mem").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(4, 0, tview.NewTableCell("💾 Mem").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(4, 1, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", memUsed/1024/1024, memTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
-		detailsTable.SetCell(5, 0, tview.NewTableCell("Load").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(5, 0, tview.NewTableCell("📈 Load").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(5, 1, tview.NewTableCell(loadStr).SetTextColor(tcell.ColorWhite))
-		detailsTable.SetCell(6, 0, tview.NewTableCell("RootFS").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(6, 0, tview.NewTableCell("💽 RootFS").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(6, 1, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", rfUsed/1024/1024, rfTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
 		// Model/Cores/Threads as table rows
 		cores := int(toFloat(status["cpuinfo"].(map[string]interface{})["cores"]))
@@ -328,20 +329,66 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		if m, ok := status["cpuinfo"].(map[string]interface{})["model"].(string); ok {
 			model = m
 		}
-		detailsTable.SetCell(7, 0, tview.NewTableCell("Model").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(7, 0, tview.NewTableCell("💻 Model").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(7, 1, tview.NewTableCell(model).SetTextColor(tcell.ColorWhite))
-		detailsTable.SetCell(8, 0, tview.NewTableCell("Cores").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(8, 0, tview.NewTableCell("🧮 Cores").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(8, 1, tview.NewTableCell(fmt.Sprintf("%d", cores)).SetTextColor(tcell.ColorWhite))
-		detailsTable.SetCell(9, 0, tview.NewTableCell("Threads").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(9, 0, tview.NewTableCell("🔀 Threads").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(9, 1, tview.NewTableCell(fmt.Sprintf("%d", threads)).SetTextColor(tcell.ColorWhite))
+
+		// Cluster status details: IP, Status, Local
+		itemsMap, err := client.GetClusterStatus()
+		var ipStr, statusStr, localStr string
+		if err == nil {
+			if item, ok := itemsMap[n.Name]; ok {
+				if ip, ok2 := item["ip"].(string); ok2 {
+					ipStr = ip
+				}
+				// normalize online flag
+				var online bool
+				switch v := item["online"].(type) {
+				case float64:
+					online = v != 0
+				case bool:
+					online = v
+				}
+				if online {
+					statusStr = "🟢 online"
+				} else {
+					statusStr = "🔴 offline"
+				}
+				// normalize local flag
+				var local bool
+				switch v := item["local"].(type) {
+				case float64:
+					local = v != 0
+				case bool:
+					local = v
+				}
+				if local {
+					localStr = "✅"
+				} else {
+					localStr = "❌"
+				}
+			}
+		}
+		detailsTable.SetCell(10, 0, tview.NewTableCell("🌐 IP").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(10, 1, tview.NewTableCell(ipStr).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(11, 0, tview.NewTableCell("📶 Status").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(11, 1, tview.NewTableCell(statusStr).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(12, 0, tview.NewTableCell("⭐ Local").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(12, 1, tview.NewTableCell(localStr).SetTextColor(tcell.ColorWhite))
 	}
-	nodeList.SetChangedFunc(updateDetails)
-	// Enter selects in global scope
+	nodeList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
+		highlightedIndex = index
+		updateDetails(index, mainText, secondaryText, shortcut)
+	})
 	nodeList.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(nodes) {
-			selectedIndex = index
-			updateSelected(nodes[index])
-			updateDetails(index, "", "", 0)
+			activeIndex = index
+			highlightedIndex = index
+			updateSelected(nodes[activeIndex])
+			updateDetails(highlightedIndex, "", "", 0)
 		}
 	})
 
@@ -384,23 +431,26 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		return event
 	})
 
-	// Auto-refresh summary every 5 seconds (details stay unchanged)
+	// Auto-refresh summary (active) and details (highlighted) every 5 seconds
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			if selectedIndex >= 0 && selectedIndex < len(nodes) {
+			if activeIndex >= 0 && activeIndex < len(nodes) {
 				app.QueueUpdateDraw(func() {
-					updateSelected(nodes[selectedIndex])
+					updateSelected(nodes[activeIndex])
+					if highlightedIndex >= 0 && highlightedIndex < len(nodes) {
+						updateDetails(highlightedIndex, "", "", 0)
+					}
 				})
 			}
 		}
 	}()
 
-	// Initial summary and details load for selected node
-	if selectedIndex >= 0 && selectedIndex < len(nodes) {
-		updateSelected(nodes[selectedIndex])
-		updateDetails(selectedIndex, "", "", 0)
+	// Initial summary and details load for active/highlighted nodes
+	if activeIndex >= 0 && activeIndex < len(nodes) {
+		updateSelected(nodes[activeIndex])
+		updateDetails(highlightedIndex, "", "", 0)
 	}
 	// Set initial focus to node list
 	app.SetFocus(nodeList)

@@ -111,4 +111,29 @@ func (c *Client) GetNodeConfig(nodeName string) (map[string]interface{}, error) 
     return data, nil
 }
 
+// GetClusterStatus retrieves cluster status items from Proxmox API.
+// Parses the data array into a map keyed by node name.
+func (c *Client) GetClusterStatus() (map[string]map[string]interface{}, error) {
+    var res map[string]interface{}
+    if err := c.client.GetJsonRetryable(context.Background(), "/cluster/status", &res, 3); err != nil {
+        return nil, err
+    }
+    // Interpret data as a slice of node status objects
+    dataSlice, ok := res["data"].([]interface{})
+    if !ok {
+        return nil, fmt.Errorf("unexpected format for cluster status data")
+    }
+    items := make(map[string]map[string]interface{}, len(dataSlice))
+    for _, v := range dataSlice {
+        m, ok := v.(map[string]interface{})
+        if !ok {
+            continue
+        }
+        if name, ok := m["name"].(string); ok {
+            items[name] = m
+        }
+    }
+    return items, nil
+}
+
 // TODO: add methods: StartVM, StopVM, etc.
