@@ -12,74 +12,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// newSummary returns a summary table with initial loading placeholder.
-func newSummary() *tview.Table {
-	summary := tview.NewTable().SetBorders(false)
-	summary.Clear()
-	summary.SetCell(0, 0, tview.NewTableCell("Loading summary...").SetTextColor(tcell.ColorWhite))
-	return summary
-}
-
-// newDetails returns a details table with initial loading placeholder.
-func newDetails() *tview.Table {
-	details := tview.NewTable().SetBorders(false)
-	details.Clear()
-	details.SetCell(0, 0, tview.NewTableCell("Loading...").SetTextColor(tcell.ColorWhite))
-	return details
-}
-
-// newNodeList builds a node list UI component from nodes.
-func newNodeList(nodes []api.Node) *tview.List {
-	list := tview.NewList().ShowSecondaryText(false)
-	list.SetBorder(true).SetTitle("Nodes")
-	for _, n := range nodes {
-		list.AddItem(n.Name, "", 0, nil)
-	}
-	return list
-}
-
-// newVmList builds a VM list UI component from VMs.
-func newVmList(vms []api.VM) *tview.List {
-	list := tview.NewList().ShowSecondaryText(false)
-	list.SetBorder(true).SetTitle("VMs")
-	for _, vm := range vms {
-		list.AddItem(fmt.Sprintf("%d - %s", vm.ID, vm.Name), "", 0, nil)
-	}
-	return list
-}
-
-// newVmsTable builds a VMs/LXCs table with header.
-func newVmsTable() *tview.Table {
-	tbl := tview.NewTable().SetBorders(true)
-	tbl.SetBorder(true).SetTitle("VMs/LXCs")
-	tbl.SetCell(0, 0, tview.NewTableCell("VM ID").SetAttributes(tcell.AttrBold))
-	tbl.SetCell(0, 1, tview.NewTableCell("Name").SetAttributes(tcell.AttrBold))
-	tbl.SetCell(0, 2, tview.NewTableCell("Node").SetAttributes(tcell.AttrBold))
-	tbl.SetCell(0, 3, tview.NewTableCell("Type").SetAttributes(tcell.AttrBold))
-	return tbl
-}
-
-// newVmDetails returns an empty VM details table.
-func newVmDetails() *tview.Table {
-	tbl := tview.NewTable().SetBorders(false)
-	tbl.Clear()
-	tbl.SetCell(0, 0, tview.NewTableCell("Select a VM").SetTextColor(tcell.ColorWhite))
-	return tbl
-}
-
-// populateVmDetails fills the VM details table for the given VM.
-func populateVmDetails(tbl *tview.Table, vm api.VM) {
-	tbl.Clear()
-	tbl.SetCell(0, 0, tview.NewTableCell("VM ID").SetTextColor(tcell.ColorYellow))
-	tbl.SetCell(0, 1, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)).SetTextColor(tcell.ColorWhite))
-	tbl.SetCell(1, 0, tview.NewTableCell("Name").SetTextColor(tcell.ColorYellow))
-	tbl.SetCell(1, 1, tview.NewTableCell(vm.Name).SetTextColor(tcell.ColorWhite))
-	tbl.SetCell(2, 0, tview.NewTableCell("Node").SetTextColor(tcell.ColorYellow))
-	tbl.SetCell(2, 1, tview.NewTableCell(vm.Node).SetTextColor(tcell.ColorWhite))
-	tbl.SetCell(3, 0, tview.NewTableCell("Type").SetTextColor(tcell.ColorYellow))
-	tbl.SetCell(3, 1, tview.NewTableCell(vm.Type).SetTextColor(tcell.ColorWhite))
-}
-
 // NewAppUI creates the root UI component with node tree and VM list.
 func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Header
@@ -114,7 +46,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		AddItem(nodeList, 0, 1, true).
 		AddItem(detailsPanel, 0, 3, false)
 
-	// VMs/LXCs tab: list and details
+	// Guests tab: list and details
 	var vmsAll []api.VM
 	for _, n := range nodes {
 		vms, _ := client.ListVMs(n.Name)
@@ -122,30 +54,105 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	}
 	vmList := newVmList(vmsAll)
 	vmDetails := newVmDetails()
-	// Details panel for VMs: wrap table in FlexRow for border
-	vmDetailsPanel := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(vmDetails, 0, 1, false)
-	vmDetailsPanel.SetBorder(true).SetTitle("VM Details")
+
+	// updateVmDetails updates the VM details table with static and dynamic metrics.
+	/*
+		updateVmDetails := func(vm api.VM) {
+			populateVmDetails(vmDetails, vm)
+			status, err := client.GetVmStatus(vm)
+			if err != nil {
+				vmDetails.Clear()
+				vmDetails.SetCell(0, 0, tview.NewTableCell(fmt.Sprintf("Error: %v", err)).SetTextColor(tcell.ColorRed))
+				return
+			}
+			// CPU usage
+			cpu := toFloat(status["cpu"]) * 100
+			vmDetails.SetCell(4, 0, tview.NewTableCell("🔝 CPU").SetTextColor(tcell.ColorYellow))
+			vmDetails.SetCell(4, 1, tview.NewTableCell(fmt.Sprintf("%.2f%%", cpu)).SetTextColor(tcell.ColorWhite))
+			// Memory usage
+			memUsed := toFloat(status["mem"])
+			memTotal := toFloat(status["maxmem"])
+			vmDetails.SetCell(5, 0, tview.NewTableCell("💾 Mem").SetTextColor(tcell.ColorYellow))
+			vmDetails.SetCell(5, 1, tview.NewTableCell(fmt.Sprintf("%.0fMiB/%.0fMiB", memUsed/1024/1024, memTotal/1024/1024)).SetTextColor(tcell.ColorWhite))
+			// Uptime
+			if u, ok := status["uptime"].(float64); ok {
+				uptime := int(u)
+				vmDetails.SetCell(6, 0, tview.NewTableCell("⏱ Uptime").SetTextColor(tcell.ColorYellow))
+				vmDetails.SetCell(6, 1, tview.NewTableCell(fmt.Sprintf("%dh%dm", uptime/3600, (uptime%3600)/60)).SetTextColor(tcell.ColorWhite))
+			}
+			// Static config
+			if cfg, err := client.GetVmConfig(vm); err == nil {
+				if c, ok := cfg["cores"].(float64); ok {
+					vmDetails.SetCell(7, 0, tview.NewTableCell("🧮 Cores").SetTextColor(tcell.ColorYellow))
+					vmDetails.SetCell(7, 1, tview.NewTableCell(fmt.Sprintf("%d", int(c))).SetTextColor(tcell.ColorWhite))
+				}
+				if m, ok := cfg["memory"].(float64); ok {
+					vmDetails.SetCell(8, 0, tview.NewTableCell("💾 Alloc").SetTextColor(tcell.ColorYellow))
+					vmDetails.SetCell(8, 1, tview.NewTableCell(fmt.Sprintf("%dMiB", int(m))).SetTextColor(tcell.ColorWhite))
+				}
+				if net0, ok := cfg["net0"].(string); ok {
+					for _, part := range strings.Split(net0, " ") {
+						if strings.HasPrefix(part, "ip=") {
+							ip := strings.TrimPrefix(part, "ip=")
+							vmDetails.SetCell(9, 0, tview.NewTableCell("🌐 IP").SetTextColor(tcell.ColorYellow))
+							vmDetails.SetCell(9, 1, tview.NewTableCell(ip).SetTextColor(tcell.ColorWhite))
+							break
+						}
+					}
+				}
+			}
+			// Disk and network metrics
+			if dr, ok := status["diskread"].(float64); ok {
+				vmDetails.SetCell(10, 0, tview.NewTableCell("📀 Disk R").SetTextColor(tcell.ColorYellow))
+				vmDetails.SetCell(10, 1, tview.NewTableCell(fmt.Sprintf("%.2fMiB", dr/1024/1024)).SetTextColor(tcell.ColorWhite))
+			}
+			if dw, ok := status["diskwrite"].(float64); ok {
+				vmDetails.SetCell(11, 0, tview.NewTableCell("💽 Disk W").SetTextColor(tcell.ColorYellow))
+				vmDetails.SetCell(11, 1, tview.NewTableCell(fmt.Sprintf("%.2fMiB", dw/1024/1024)).SetTextColor(tcell.ColorWhite))
+			}
+			if ni, ok := status["netin"].(float64); ok {
+				vmDetails.SetCell(12, 0, tview.NewTableCell("📥 Net In").SetTextColor(tcell.ColorYellow))
+				vmDetails.SetCell(12, 1, tview.NewTableCell(fmt.Sprintf("%.2fMiB", ni/1024/1024)).SetTextColor(tcell.ColorWhite))
+			}
+			if no, ok := status["netout"].(float64); ok {
+				vmDetails.SetCell(13, 0, tview.NewTableCell("📤 Net Out").SetTextColor(tcell.ColorYellow))
+				vmDetails.SetCell(13, 1, tview.NewTableCell(fmt.Sprintf("%.2fMiB", no/1024/1024)).SetTextColor(tcell.ColorWhite))
+			}
+			if md, ok := status["maxdisk"].(float64); ok {
+				vmDetails.SetCell(14, 0, tview.NewTableCell("💽 Max Disk").SetTextColor(tcell.ColorYellow))
+				vmDetails.SetCell(14, 1, tview.NewTableCell(fmt.Sprintf("%.0fGiB", md/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
+			}
+			if st, ok := status["status"].(string); ok {
+				vmDetails.SetCell(15, 0, tview.NewTableCell("🔌 State").SetTextColor(tcell.ColorYellow))
+				vmDetails.SetCell(15, 1, tview.NewTableCell(st).SetTextColor(tcell.ColorWhite))
+			}
+		}
+	*/
+
+	// Update details on hover
 	vmList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(vmsAll) {
+			// 1) show static info right away
 			populateVmDetails(vmDetails, vmsAll[index])
 		}
 	})
-	// Initial VM details population
+
+	// Initial VM details
 	if len(vmsAll) > 0 {
+		// show static details immediately
 		populateVmDetails(vmDetails, vmsAll[0])
 		vmList.SetCurrentItem(0)
 	}
 	vmContent := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(vmList, 0, 1, true).
-		AddItem(vmDetailsPanel, 0, 3, false)
+		AddItem(vmDetails, 0, 3, false)
 
 	// Prepare pages (tabs)
 	pages := tview.NewPages()
 	// Nodes tab
 	pages.AddPage("Nodes", nodesContent, true, true)
-	// VMs/LXCs tab
-	pages.AddPage("VMs/LXCs", vmContent, true, false)
+	// Guests tab
+	pages.AddPage("Guests", vmContent, true, false)
 	// Storage tab (TODO)
 	storageView := tview.NewTextView().SetText("[::b]Storage view coming soon")
 	storageView.SetBorder(true)
@@ -163,14 +170,14 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	pages.AddPage("Tasks/Logs", tasksView, true, false)
 
 	// Tab navigation state
-	pageNames := []string{"Nodes", "VMs/LXCs", "Storage", "Network", "Tasks/Logs"}
+	pageNames := []string{"Nodes", "Guests", "Storage", "Network", "Tasks/Logs"}
 	currentTab := 0
 
 	// Footer with key hints
 	footer := tview.NewTextView().
 		SetTextAlign(tview.AlignCenter).
 		SetDynamicColors(true).
-		SetText("[yellow]F1:[white]Nodes  [yellow]F2:[white]VMs/LXCs  [yellow]F3:[white]Storage  [yellow]F4:[white]Network  [yellow]F5:[white]Tasks/Logs  [yellow]Tab:[white]Next Tab  [yellow]Q/Esc:[white]Quit")
+		SetText("[yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]F3:[white]Storage  [yellow]F4:[white]Network  [yellow]F5:[white]Tasks/Logs  [yellow]Tab:[white]Next Tab  [yellow]Q/Esc:[white]Quit")
 
 	// Define updateSelected: refresh summary and VMs tab for node n
 	updateSelected := func(n api.Node) {
@@ -412,7 +419,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 			updateDetails(nodeList.GetCurrentItem(), "", "", 0)
 			return nil
 		case tcell.KeyF2:
-			pages.SwitchToPage("VMs/LXCs")
+			pages.SwitchToPage("Guests")
 			currentTab = 1
 			return nil
 		case tcell.KeyF3:

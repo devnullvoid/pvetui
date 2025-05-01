@@ -136,4 +136,33 @@ func (c *Client) GetClusterStatus() (map[string]map[string]interface{}, error) {
     return items, nil
 }
 
+// GetVmStatus retrieves current status metrics for a VM or LXC.
+func (c *Client) GetVmStatus(vm VM) (map[string]interface{}, error) {
+    var res map[string]interface{}
+    // Use full=true to retrieve extended metrics (disk, network, maxdisk, etc.)
+    endpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current?full=1", vm.Node, vm.Type, vm.ID)
+    if err := c.client.GetJsonRetryable(context.Background(), endpoint, &res, 3); err != nil {
+        return nil, err
+    }
+    data, ok := res["data"].(map[string]interface{})
+    if !ok {
+        return nil, fmt.Errorf("unexpected format for VM status")
+    }
+    return data, nil
+}
+
+// GetVmConfig retrieves configuration for a given VM or LXC.
+func (c *Client) GetVmConfig(vm VM) (map[string]interface{}, error) {
+    var res map[string]interface{}
+    endpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", vm.Node, vm.Type, vm.ID)
+    if err := c.client.GetJsonRetryable(context.Background(), endpoint, &res, 3); err != nil {
+        return nil, err
+    }
+    data, ok := res["data"].(map[string]interface{})
+    if !ok {
+        return nil, fmt.Errorf("unexpected format for VM config")
+    }
+    return data, nil
+}
+
 // TODO: add methods: StartVM, StopVM, etc.
