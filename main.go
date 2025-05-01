@@ -12,10 +12,8 @@ import (
 )
 
 func main() {
+	// Set defaults from environment
 	defaultAddr := os.Getenv("PROXMOX_ADDR")
-	if defaultAddr == "" {
-		defaultAddr = "https://proxmox.example.com:8006"
-	}
 	defaultUser := os.Getenv("PROXMOX_USER")
 	defaultPassword := os.Getenv("PROXMOX_PASSWORD")
 	defaultInsecure := strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true"
@@ -32,13 +30,12 @@ func main() {
 	configPath := flag.String("config", "", "Path to YAML config file")
 	flag.Parse()
 
-	// Load config file if provided
+	// Load config file first if provided
 	if *configPath != "" {
 		data, err := os.ReadFile(*configPath)
 		if err != nil {
 			log.Fatalf("Error reading config file: %v", err)
 		}
-		// Parse config into a struct with distinct fields and tags
 		var cfg struct {
 			Addr     string `yaml:"addr"`
 			User     string `yaml:"user"`
@@ -66,6 +63,10 @@ func main() {
 		}
 	}
 
+	// Now validate required fields
+	if *addr == "" {
+		log.Fatal("Proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
+	}
 	if *user == "" || *password == "" {
 		log.Fatal("Credentials required: set -user & -password flags, PROXMOX_USER/PROXMOX_PASSWORD env vars, or config file")
 	}

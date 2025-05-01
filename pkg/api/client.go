@@ -5,6 +5,7 @@ import (
     "crypto/tls"
     "fmt"
     "net/http"
+    "time"
 
     "github.com/Telmate/proxmox-api-go/proxmox"
 )
@@ -17,7 +18,10 @@ type Client struct {
 // NewClient initializes a new Proxmox API client
 func NewClient(addr, user, password string, insecure bool) (*Client, error) {
     tlsConfig := &tls.Config{InsecureSkipVerify: insecure}
-    httpClient := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
+    httpClient := &http.Client{
+        Transport: &http.Transport{TLSClientConfig: tlsConfig},
+        Timeout:   15 * time.Second,
+    }
     proxClient, err := proxmox.NewClient(addr, httpClient, "", tlsConfig, "", 300)
     if err != nil {
         return nil, err
@@ -138,10 +142,12 @@ func (c *Client) GetClusterStatus() (map[string]map[string]interface{}, error) {
 
 // GetVmStatus retrieves current status metrics for a VM or LXC.
 func (c *Client) GetVmStatus(vm VM) (map[string]interface{}, error) {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
     var res map[string]interface{}
     // Use full=true to retrieve extended metrics (disk, network, maxdisk, etc.)
     endpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current?full=1", vm.Node, vm.Type, vm.ID)
-    if err := c.client.GetJsonRetryable(context.Background(), endpoint, &res, 3); err != nil {
+    if err := c.client.GetJsonRetryable(ctx, endpoint, &res, 3); err != nil {
         return nil, err
     }
     data, ok := res["data"].(map[string]interface{})
