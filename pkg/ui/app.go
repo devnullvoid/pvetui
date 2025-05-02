@@ -57,6 +57,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Set up handlers
 	SetupVMHandlers(vmList, vmDetails, vmsAll, client)
 	SetupNodeHandlers(app, client, nodeList, nodes, summary, detailsTable, header)
+	// Shell access is now handled in SetupKeyboardHandlers
 
 	// Set up keyboard shortcuts
 	pages = SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, vmDetails, header)
@@ -82,6 +83,15 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Set initial focus to node list
 	app.SetFocus(nodeList)
 
-	// Main layout: summary, pages, footer
-	return CreateMainLayout(summaryPanel, pages, footer)
+	// Main layout: header, summary, pages, footer
+	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(header, 1, 0, false).
+		AddItem(summaryPanel, 5, 0, false).
+		AddItem(pages, 0, 1, true).
+		AddItem(footer, 1, 0, false)
+
+	// Set up all keyboard handlers (including shell info functionality)
+	pages = SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, vmDetails, header)
+
+	return mainFlex
 }

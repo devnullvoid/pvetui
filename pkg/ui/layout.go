@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/lonepie/proxmox-util/pkg/api"
 	"github.com/rivo/tview"
@@ -25,11 +27,61 @@ func SetupKeyboardHandlers(
 	vmDetails *tview.Table,
 	header *tview.TextView,
 ) *tview.Pages {
+	// Create shell info panel for displaying shell commands
+	shellInfoPanel := CreateShellInfoPanel()
+	// Add the shell info panel to a new page
+	pages.AddPage("ShellInfo", shellInfoPanel, true, false)
+	
 	// Set up keyboard input handling
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// Handle global keys
+		// First, handle rune keys (like 'S')
+		if event.Key() == tcell.KeyRune {
+			// If 's' is pressed and we're on the Guests page with vmList focused
+			if (event.Rune() == 's' || event.Rune() == 'S') && vmList.HasFocus() {
+				curPage, _ := pages.GetFrontPage()
+				if curPage == "Guests" {
+					index := vmList.GetCurrentItem()
+					if index >= 0 && index < len(vms) {
+						vm := vms[index]
+						
+						// Get the shell command for this VM/container
+						shellCmd := GetShellCommand(vm)
+
+						// Format it nicely for display
+						var cmdText string
+						if vm.Type == "lxc" {
+							cmdText = fmt.Sprintf("[yellow]To open shell to LXC container %s (%d) on node %s:[white]\n\n%s\n\n[green]Press Escape to close this window[white]",
+								vm.Name, vm.ID, vm.Node, shellCmd)
+						} else if vm.Type == "qemu" && vm.IP != "" {
+							cmdText = fmt.Sprintf("[yellow]To open SSH shell to VM %s:[white]\n\n%s\n\n[green]Press Escape to close this window[white]",
+								vm.Name, shellCmd)
+						} else {
+							cmdText = fmt.Sprintf("[red]Cannot provide SSH command for %s:\nNo IP address available or unsupported VM type: %s[white]\n\n[green]Press Escape to close this window[white]",
+								vm.Name, vm.Type)
+						}
+
+						shellInfoPanel.SetText(cmdText)
+						pages.SwitchToPage("ShellInfo")
+						app.SetFocus(shellInfoPanel)
+						return nil
+					}
+				}
+			}
+		}
+		
+		// Then handle special keys
 		switch event.Key() {
-		case tcell.KeyEscape, tcell.KeyCtrlC:
+		case tcell.KeyEscape:
+			// Special handling for when in the shell info panel
+			if curPage, _ := pages.GetFrontPage(); curPage == "ShellInfo" {
+				pages.SwitchToPage("Guests")
+				app.SetFocus(vmList)
+				return nil
+			}
+			// Otherwise, exit the application
+			app.Stop()
+			return nil
+		case tcell.KeyCtrlC:
 			app.Stop()
 			return nil
 		case tcell.KeyTab:

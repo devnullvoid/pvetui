@@ -59,10 +59,12 @@ func (c *Client) ListNodes() ([]Node, error) {
 
 // VM represents a Proxmox VM or container.
 type VM struct {
-    ID   int
-    Name string
-    Node string
-    Type string
+    ID      int
+    Name    string
+    Node    string
+    Type    string
+    IP      string // Primary IP address (if available)
+    Status  string // Current status (running, stopped, etc.)
 }
 
 // ListVMs retrieves all virtual machines on the given node.
@@ -84,7 +86,15 @@ func (c *Client) ListVMs(nodeName string) ([]VM, error) {
         id := int(m["vmid"].(float64))
         name := m["name"].(string)
         tp, _ := m["type"].(string)
-        vms = append(vms, VM{ID: id, Name: name, Node: nodeName, Type: tp})
+        status, _ := m["status"].(string)
+        
+        // Extract IP if available (might be null)
+        var ip string
+        if ipValue, ok := m["ip"]; ok && ipValue != nil {
+            ip, _ = ipValue.(string)
+        }
+        
+        vms = append(vms, VM{ID: id, Name: name, Node: nodeName, Type: tp, Status: status, IP: ip})
     }
     return vms, nil
 }
