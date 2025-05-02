@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"github.com/lonepie/proxmox-util/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/api"
 	"github.com/rivo/tview"
 )
 
@@ -91,7 +91,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		AddItem(footer, 1, 0, false)
 
 	// Set up all keyboard handlers (including shell info functionality)
-	pages = SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, vmDetails, header)
+	SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, vmDetails, header)
 
 	return mainFlex
 }

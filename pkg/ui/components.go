@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/lonepie/proxmox-util/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/api"
 	"github.com/rivo/tview"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/rivo/tview"
-	"github.com/lonepie/proxmox-util/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/api"
 )
 
 // newNodeList builds a node list UI component from nodes.

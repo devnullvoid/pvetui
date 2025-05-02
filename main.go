@@ -7,8 +7,8 @@ import (
 	"strings"
 	"gopkg.in/yaml.v3"
 	"github.com/rivo/tview"
-	"github.com/lonepie/proxmox-util/pkg/api"
-	"github.com/lonepie/proxmox-util/pkg/ui"
+	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/ui"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 
     "github.com/gdamore/tcell/v2"
     "github.com/rivo/tview"
-    "github.com/lonepie/proxmox-util/pkg/api"
+    "github.com/lonepie/proxmox-tui/pkg/api"
 )
 
 // newVmsTable builds a VMs/LXCs table with header.
