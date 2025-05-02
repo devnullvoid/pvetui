@@ -31,7 +31,7 @@ func SetupKeyboardHandlers(
 	shellInfoPanel := CreateShellInfoPanel()
 	// Add the shell info panel to a new page
 	pages.AddPage("ShellInfo", shellInfoPanel, true, false)
-	
+
 	// Set up keyboard input handling
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// First, handle rune keys (like 'S')
@@ -43,7 +43,7 @@ func SetupKeyboardHandlers(
 					index := vmList.GetCurrentItem()
 					if index >= 0 && index < len(vms) {
 						vm := vms[index]
-						
+
 						// Get the shell command for this VM/container
 						shellCmd := GetShellCommand(vm)
 
@@ -66,9 +66,13 @@ func SetupKeyboardHandlers(
 						return nil
 					}
 				}
+			} else if event.Rune() == 'q' {
+				app.Stop()
+				return nil
 			}
+
 		}
-		
+
 		// Then handle special keys
 		switch event.Key() {
 		case tcell.KeyEscape:
@@ -111,7 +115,7 @@ func SetupKeyboardHandlers(
 		}
 		return event
 	})
-	
+
 	return pages
 }
 
@@ -131,7 +135,7 @@ func AddGuestsPage(pages *tview.Pages, vmList *tview.List, vmDetails *tview.Tabl
 	guestsContent := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(vmList, 0, 1, true).
 		AddItem(vmDetails, 0, 2, false)
-	
+
 	pages.AddPage("Guests", guestsContent, true, false)
 }
 
@@ -143,7 +147,7 @@ func SetupVMHandlers(vmList *tview.List, vmDetails *tview.Table, vms []api.VM, c
 			populateVmDetails(vmDetails, vms[index])
 		}
 	})
-	
+
 	// Update details on selection
 	vmList.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(vms) {
