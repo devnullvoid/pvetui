@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"github.com/gdamore/tcell/v2"
 	"github.com/lonepie/proxmox-tui/pkg/api"
 	"github.com/rivo/tview"
@@ -36,33 +34,14 @@ func SetupKeyboardHandlers(
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// First, handle rune keys (like 'S')
 		if event.Key() == tcell.KeyRune {
-			// If 's' is pressed and we're on the Guests page with vmList focused
+			// Handle shell session launch
 			if (event.Rune() == 's' || event.Rune() == 'S') && vmList.HasFocus() {
 				curPage, _ := pages.GetFrontPage()
 				if curPage == "Guests" {
 					index := vmList.GetCurrentItem()
 					if index >= 0 && index < len(vms) {
 						vm := vms[index]
-
-						// Get the shell command for this VM/container
-						shellCmd := GetShellCommand(vm)
-
-						// Format it nicely for display
-						var cmdText string
-						if vm.Type == "lxc" {
-							cmdText = fmt.Sprintf("[yellow]To open shell to LXC container %s (%d) on node %s:[white]\n\n%s\n\n[green]Press Escape to close this window[white]",
-								vm.Name, vm.ID, vm.Node, shellCmd)
-						} else if vm.Type == "qemu" && vm.IP != "" {
-							cmdText = fmt.Sprintf("[yellow]To open SSH shell to VM %s:[white]\n\n%s\n\n[green]Press Escape to close this window[white]",
-								vm.Name, shellCmd)
-						} else {
-							cmdText = fmt.Sprintf("[red]Cannot provide SSH command for %s:\nNo IP address available or unsupported VM type: %s[white]\n\n[green]Press Escape to close this window[white]",
-								vm.Name, vm.Type)
-						}
-
-						shellInfoPanel.SetText(cmdText)
-						pages.SwitchToPage("ShellInfo")
-						app.SetFocus(shellInfoPanel)
+						HandleShellExecution(app, vm)
 						return nil
 					}
 				}
