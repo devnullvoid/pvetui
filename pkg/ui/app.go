@@ -60,7 +60,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Shell access is now handled in SetupKeyboardHandlers
 
 	// Set up keyboard shortcuts
-	pages = SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, vmDetails, header)
+	pages = SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
 
 	// Tasks/Logs tab (TODO)
 	tasksView := tview.NewTextView().SetText("[::b]Tasks/Logs view coming soon")
@@ -91,7 +91,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		AddItem(footer, 1, 0, false)
 
 	// Set up all keyboard handlers (including shell info functionality)
-	SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, vmDetails, header)
+	SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
 
 	return mainFlex
 }

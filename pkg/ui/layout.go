@@ -22,6 +22,7 @@ func SetupKeyboardHandlers(
 	nodeList *tview.List,
 	vmList *tview.List,
 	vms []api.VM,
+	nodes []api.Node,
 	vmDetails *tview.Table,
 	header *tview.TextView,
 ) *tview.Pages {
@@ -42,6 +43,13 @@ func SetupKeyboardHandlers(
 					if index >= 0 && index < len(vms) {
 						vm := vms[index]
 						HandleShellExecution(app, vm)
+						return nil
+					}
+				} else if curPage == "Nodes" {
+					index := nodeList.GetCurrentItem()
+					if index >= 0 && index < len(nodes) {
+						node := nodes[index]
+						HandleShellExecution(app, node)
 						return nil
 					}
 				}
