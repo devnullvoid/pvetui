@@ -36,8 +36,24 @@ func SetupKeyboardHandlers(
 		// First, handle rune keys (like 'S')
 		if event.Key() == tcell.KeyRune {
 			// Handle shell session launch
-			if (event.Rune() == 's' || event.Rune() == 'S') && vmList.HasFocus() {
+			if event.Rune() == 's' || event.Rune() == 'S' {
 				curPage, _ := pages.GetFrontPage()
+				if curPage == "Guests" && vmList.HasFocus() {
+					index := vmList.GetCurrentItem()
+					if index >= 0 && index < len(vms) {
+						vm := vms[index]
+						HandleShellExecution(app, vm)
+						return nil
+					}
+				} else if curPage == "Nodes" && nodeList.HasFocus() {
+					index := nodeList.GetCurrentItem()
+					if index >= 0 && index < len(nodes) {
+						node := nodes[index]
+						HandleShellExecution(app, node)
+						return nil
+					}
+				}
+				curPage, _ = pages.GetFrontPage()
 				if curPage == "Guests" {
 					index := vmList.GetCurrentItem()
 					if index >= 0 && index < len(vms) {
@@ -75,22 +91,22 @@ func SetupKeyboardHandlers(
 		case tcell.KeyCtrlC:
 			app.Stop()
 			return nil
-		case tcell.KeyTab:
-			// Cycle focus between panels based on current page
-			if curPage, _ := pages.GetFrontPage(); curPage == "Nodes" {
-				if nodeList.HasFocus() {
-					app.SetFocus(vmList)
-				} else {
-					app.SetFocus(nodeList)
-				}
-			} else if curPage == "Guests" {
-				if vmList.HasFocus() {
-					app.SetFocus(vmDetails)
-				} else {
-					app.SetFocus(vmList)
-				}
-			}
-			return nil
+		// case tcell.KeyTab:
+		// 	// Cycle focus between panels based on current page
+		// 	if curPage, _ := pages.GetFrontPage(); curPage == "Nodes" {
+		// 		if nodeList.HasFocus() {
+		// 			app.SetFocus(vmList)
+		// 		} else {
+		// 			app.SetFocus(nodeList)
+		// 		}
+		// 	} else if curPage == "Guests" {
+		// 		if vmList.HasFocus() {
+		// 			app.SetFocus(vmDetails)
+		// 		} else {
+		// 			app.SetFocus(vmList)
+		// 		}
+		// 	}
+		// 	return nil
 		case tcell.KeyF1:
 			pages.SwitchToPage("Nodes")
 			app.SetFocus(nodeList)
