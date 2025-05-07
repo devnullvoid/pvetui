@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/lonepie/proxmox-tui/pkg/api"
 	"github.com/rivo/tview"
@@ -72,6 +74,40 @@ func SetupKeyboardHandlers(
 			} else if event.Rune() == 'q' {
 				app.Stop()
 				return nil
+			} else if event.Rune() == '/' {
+				// Handle search
+				var inputField *tview.InputField
+				inputField = tview.NewInputField().
+					SetLabel("Search: ").
+					SetDoneFunc(func(key tcell.Key) {
+						if key == tcell.KeyEnter {
+							searchTerm := inputField.GetText()
+							curPage, _ := pages.GetFrontPage()
+							if curPage == "Nodes" {
+								nodeList.Clear()
+								for _, node := range nodes {
+									if strings.Contains(strings.ToLower(node.Name), strings.ToLower(searchTerm)) {
+										nodeList.AddItem(node.Name, "", 0, nil) // Status placeholder
+									}
+								}
+							} else if curPage == "Guests" {
+								vmList.Clear()
+								for _, vm := range vms {
+									if strings.Contains(strings.ToLower(vm.Name), strings.ToLower(searchTerm)) {
+										vmList.AddItem(vm.Name, vm.Status, 0, nil)
+									}
+								}
+							}
+							pages.RemovePage("Search")
+							app.SetFocus(pages)
+						} else if key == tcell.KeyEscape {
+							pages.RemovePage("Search")
+							app.SetFocus(pages)
+						}
+					})
+				pages.AddPage("Search", inputField, true, true)
+				app.SetFocus(inputField)
+				return nil
 			}
 
 		}
@@ -91,22 +127,17 @@ func SetupKeyboardHandlers(
 		case tcell.KeyCtrlC:
 			app.Stop()
 			return nil
-		// case tcell.KeyTab:
-		// 	// Cycle focus between panels based on current page
-		// 	if curPage, _ := pages.GetFrontPage(); curPage == "Nodes" {
-		// 		if nodeList.HasFocus() {
-		// 			app.SetFocus(vmList)
-		// 		} else {
-		// 			app.SetFocus(nodeList)
-		// 		}
-		// 	} else if curPage == "Guests" {
-		// 		if vmList.HasFocus() {
-		// 			app.SetFocus(vmDetails)
-		// 		} else {
-		// 			app.SetFocus(vmList)
-		// 		}
-		// 	}
-		// 	return nil
+		case tcell.KeyTab:
+			// Cycle between pages
+			curPage, _ := pages.GetFrontPage()
+			if curPage == "Nodes" {
+				pages.SwitchToPage("Guests")
+				app.SetFocus(vmList)
+			} else if curPage == "Guests" {
+				pages.SwitchToPage("Nodes")
+				app.SetFocus(nodeList)
+			}
+			return nil
 		case tcell.KeyF1:
 			pages.SwitchToPage("Nodes")
 			app.SetFocus(nodeList)

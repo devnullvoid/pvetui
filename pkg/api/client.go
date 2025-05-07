@@ -42,8 +42,13 @@ func NewClient(addr, user, password string, insecure bool) (*Client, error) {
 
 // Node represents a Proxmox cluster node.
 type Node struct {
-	ID   string
-	Name string
+	ID          string
+	Name        string
+	CPUUsage    float64 // Current CPU load percentage
+	MemoryTotal int64   // Total memory in bytes
+	MemoryUsed  int64   // Used memory in bytes
+	Uptime      int64   // System uptime in seconds
+	Version     string  // Proxmox version string
 }
 
 // ListNodes retrieves all nodes from the cluster with caching
@@ -73,7 +78,30 @@ func (c *Client) ListNodes() ([]Node, error) {
 			return nil, fmt.Errorf("missing node name at index %d", i)
 		}
 
-		nodes[i] = Node{ID: nodeName, Name: nodeName}
+		node := Node{ID: nodeName, Name: nodeName}
+
+		// Enrich with status data
+		if status, err := c.GetNodeStatus(nodeName); err == nil {
+			if cpu, ok := status["cpu"].(float64); ok {
+				node.CPUUsage = cpu
+			}
+			if mem, ok := status["memory"].(map[string]interface{}); ok {
+				node.MemoryTotal = int64(mem["total"].(float64))
+				node.MemoryUsed = int64(mem["used"].(float64))
+			}
+			if uptime, ok := status["uptime"].(float64); ok {
+				node.Uptime = int64(uptime)
+			}
+		}
+
+		// Enrich with config data
+		if config, err := c.GetNodeConfig(nodeName); err == nil {
+			if version, ok := config["version"].(string); ok {
+				node.Version = version
+			}
+		}
+
+		nodes[i] = node
 	}
 	return nodes, nil
 }
