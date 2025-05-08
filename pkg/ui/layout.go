@@ -8,6 +8,10 @@ import (
 	"github.com/rivo/tview"
 )
 
+var (
+	lastSearchText string // Persists between search sessions
+)
+
 // CreateMainLayout creates the main application layout
 func CreateMainLayout(summaryPanel *tview.Flex, pages *tview.Pages, footer *tview.TextView) *tview.Flex {
 	return tview.NewFlex().
@@ -151,8 +155,42 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 	copy(originalVMs, vms)
 	currentPage, _ := pages.GetFrontPage() // Store current active page
 
-	inputField := tview.NewInputField().
+	// Create fresh input field each time
+	var inputField *tview.InputField
+	inputField = tview.NewInputField().
 		SetLabel("Search: ").
+		SetText(lastSearchText).
+		SetDoneFunc(func(key tcell.Key) {
+			pages.RemovePage("Search")
+			if key == tcell.KeyEnter {
+				// Save search text and keep filtered results
+				lastSearchText = inputField.GetText() // Now properly references the inputField
+				if currentPage == "Nodes" {
+					app.SetFocus(nodeList)
+				} else {
+					app.SetFocus(vmList)
+				}
+			} else {
+				// Escape pressed - clear search and restore original lists
+				lastSearchText = ""
+				nodeList.Clear()
+				for _, node := range originalNodes {
+					nodeList.AddItem(node.Name, "", 0, nil)
+				}
+				vmList.Clear()
+				for _, vm := range originalVMs {
+					vmList.AddItem(vm.Name, vm.Status, 0, nil)
+				}
+				if currentPage == "Nodes" {
+					app.SetFocus(nodeList)
+				} else {
+					app.SetFocus(vmList)
+				}
+			}
+		})
+
+	// Configure input field after declaration
+	inputField.
 		SetChangedFunc(func(text string) {
 			searchTerm := strings.ToLower(text)
 			// Use stored current page context
@@ -161,6 +199,14 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 			currentVMIndex := vmList.GetCurrentItem()
 
 			if currentPage == "Nodes" {
+				// Allow navigation back to search input
+				nodeList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					if event.Key() == tcell.KeyBacktab {
+						app.SetFocus(inputField)
+						return nil
+					}
+					return event
+				})
 				nodeList.Clear()
 				for _, node := range originalNodes {
 					if strings.Contains(strings.ToLower(node.Name), searchTerm) {
@@ -172,6 +218,15 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 					nodeList.SetCurrentItem(currentNodeIndex)
 				}
 			} else if currentPage == "Guests" {
+				// Allow navigation back to search input
+				vmList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					if event.Key() == tcell.KeyBacktab {
+						app.SetFocus(inputField)
+						return nil
+					}
+					return event
+				})
+
 				vmList.Clear()
 				for _, vm := range originalVMs {
 					if strings.Contains(strings.ToLower(vm.Name), searchTerm) {
@@ -184,22 +239,16 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 				}
 			}
 		}).
-		SetDoneFunc(func(key tcell.Key) {
-			// Restore original lists
-			nodeList.Clear()
-			for _, node := range originalNodes {
-				nodeList.AddItem(node.Name, "", 0, nil)
+		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyTab {
+				if currentPage == "Nodes" {
+					app.SetFocus(nodeList)
+				} else if currentPage == "Guests" {
+					app.SetFocus(vmList)
+				}
+				return nil
 			}
-			vmList.Clear()
-			for _, vm := range originalVMs {
-				vmList.AddItem(vm.Name, vm.Status, 0, nil)
-			}
-			pages.RemovePage("Search")
-			if currentPage == "Nodes" {
-				app.SetFocus(nodeList)
-			} else if currentPage == "Guests" {
-				app.SetFocus(vmList)
-			}
+			return event
 		})
 
 	// Create search bar as centered modal
