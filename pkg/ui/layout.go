@@ -75,38 +75,7 @@ func SetupKeyboardHandlers(
 				app.Stop()
 				return nil
 			} else if event.Rune() == '/' {
-				// Handle search
-				var inputField *tview.InputField
-				inputField = tview.NewInputField().
-					SetLabel("Search: ").
-					SetDoneFunc(func(key tcell.Key) {
-						if key == tcell.KeyEnter {
-							searchTerm := inputField.GetText()
-							curPage, _ := pages.GetFrontPage()
-							if curPage == "Nodes" {
-								nodeList.Clear()
-								for _, node := range nodes {
-									if strings.Contains(strings.ToLower(node.Name), strings.ToLower(searchTerm)) {
-										nodeList.AddItem(node.Name, "", 0, nil) // Status placeholder
-									}
-								}
-							} else if curPage == "Guests" {
-								vmList.Clear()
-								for _, vm := range vms {
-									if strings.Contains(strings.ToLower(vm.Name), strings.ToLower(searchTerm)) {
-										vmList.AddItem(vm.Name, vm.Status, 0, nil)
-									}
-								}
-							}
-							pages.RemovePage("Search")
-							app.SetFocus(pages)
-						} else if key == tcell.KeyEscape {
-							pages.RemovePage("Search")
-							app.SetFocus(pages)
-						}
-					})
-				pages.AddPage("Search", inputField, true, true)
-				app.SetFocus(inputField)
+				handleSearchInput(app, pages, nodeList, vmList, nodes, vms)
 				return nil
 			}
 
@@ -171,6 +140,86 @@ func AddGuestsPage(pages *tview.Pages, vmList *tview.List, vmDetails *tview.Tabl
 		AddItem(vmDetails, 0, 2, false)
 
 	pages.AddPage("Guests", guestsContent, true, false)
+}
+
+// handleSearchInput creates and manages the search input field
+func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tview.List, vmList *tview.List, nodes []api.Node, vms []api.VM) {
+	// Store original lists and current page context
+	originalNodes := make([]api.Node, len(nodes))
+	copy(originalNodes, nodes)
+	originalVMs := make([]api.VM, len(vms))
+	copy(originalVMs, vms)
+	currentPage, _ := pages.GetFrontPage() // Store current active page
+
+	inputField := tview.NewInputField().
+		SetLabel("Search: ").
+		SetChangedFunc(func(text string) {
+			searchTerm := strings.ToLower(text)
+			// Use stored current page context
+			// Get current scroll position
+			currentNodeIndex := nodeList.GetCurrentItem()
+			currentVMIndex := vmList.GetCurrentItem()
+
+			if currentPage == "Nodes" {
+				nodeList.Clear()
+				for _, node := range originalNodes {
+					if strings.Contains(strings.ToLower(node.Name), searchTerm) {
+						nodeList.AddItem(node.Name, "", 0, nil) // Nodes don't have status in this implementation
+					}
+				}
+				// Restore scroll position if possible
+				if currentNodeIndex < nodeList.GetItemCount() {
+					nodeList.SetCurrentItem(currentNodeIndex)
+				}
+			} else if currentPage == "Guests" {
+				vmList.Clear()
+				for _, vm := range originalVMs {
+					if strings.Contains(strings.ToLower(vm.Name), searchTerm) {
+						vmList.AddItem(vm.Name, vm.Status, 0, nil)
+					}
+				}
+				// Restore scroll position if possible
+				if currentVMIndex < vmList.GetItemCount() {
+					vmList.SetCurrentItem(currentVMIndex)
+				}
+			}
+		}).
+		SetDoneFunc(func(key tcell.Key) {
+			// Restore original lists
+			nodeList.Clear()
+			for _, node := range originalNodes {
+				nodeList.AddItem(node.Name, "", 0, nil)
+			}
+			vmList.Clear()
+			for _, vm := range originalVMs {
+				vmList.AddItem(vm.Name, vm.Status, 0, nil)
+			}
+			pages.RemovePage("Search")
+			if currentPage == "Nodes" {
+				app.SetFocus(nodeList)
+			} else if currentPage == "Guests" {
+				app.SetFocus(vmList)
+			}
+		})
+
+	// Create search bar as centered modal
+	inputField.SetTitle(" Search ").
+		SetBorder(true).
+		SetBackgroundColor(tcell.ColorDefault)
+
+	// Create flex layout to center the search bar
+	modal := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(inputField, 3, 1, true).
+			AddItem(nil, 0, 1, false),
+			40, 1, true).
+		AddItem(nil, 0, 1, false)
+
+	// Add as overlay page instead of replacing root
+	pages.AddPage("Search", modal, true, true)
+	app.SetFocus(inputField)
 }
 
 // SetupVMHandlers configures VM list handlers
