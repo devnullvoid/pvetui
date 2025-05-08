@@ -88,6 +88,17 @@ func SetupKeyboardHandlers(
 		// Then handle special keys
 		switch event.Key() {
 		case tcell.KeyEscape:
+			if curPage, _ := pages.GetFrontPage(); curPage == "Search" {
+				pages.RemovePage("Search")
+				// Get the underlying page that was active before search
+				basePage, _ := pages.GetFrontPage()
+				if basePage == "Nodes" {
+					app.SetFocus(nodeList)
+				} else {
+					app.SetFocus(vmList)
+				}
+				return nil
+			}
 			// Special handling for when in the shell info panel
 			if curPage, _ := pages.GetFrontPage(); curPage == "ShellInfo" {
 				pages.SwitchToPage("Guests")
@@ -162,30 +173,12 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 		SetText(lastSearchText).
 		SetDoneFunc(func(key tcell.Key) {
 			pages.RemovePage("Search")
-			if key == tcell.KeyEnter {
-				// Save search text and keep filtered results
-				lastSearchText = inputField.GetText() // Now properly references the inputField
-				if currentPage == "Nodes" {
-					app.SetFocus(nodeList)
-				} else {
-					app.SetFocus(vmList)
-				}
+			// Save search text and keep filtered results
+			lastSearchText = inputField.GetText() // Now properly references the inputField
+			if currentPage == "Nodes" {
+				app.SetFocus(nodeList)
 			} else {
-				// Escape pressed - clear search and restore original lists
-				lastSearchText = ""
-				nodeList.Clear()
-				for _, node := range originalNodes {
-					nodeList.AddItem(node.Name, "", 0, nil)
-				}
-				vmList.Clear()
-				for _, vm := range originalVMs {
-					vmList.AddItem(vm.Name, vm.Status, 0, nil)
-				}
-				if currentPage == "Nodes" {
-					app.SetFocus(nodeList)
-				} else {
-					app.SetFocus(vmList)
-				}
+				app.SetFocus(vmList)
 			}
 		})
 
@@ -199,14 +192,7 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 			currentVMIndex := vmList.GetCurrentItem()
 
 			if currentPage == "Nodes" {
-				// Allow navigation back to search input
-				nodeList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-					if event.Key() == tcell.KeyBacktab {
-						app.SetFocus(inputField)
-						return nil
-					}
-					return event
-				})
+				// Filter nodes
 				nodeList.Clear()
 				for _, node := range originalNodes {
 					if strings.Contains(strings.ToLower(node.Name), searchTerm) {
@@ -218,14 +204,7 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 					nodeList.SetCurrentItem(currentNodeIndex)
 				}
 			} else if currentPage == "Guests" {
-				// Allow navigation back to search input
-				vmList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-					if event.Key() == tcell.KeyBacktab {
-						app.SetFocus(inputField)
-						return nil
-					}
-					return event
-				})
+				// Filter VMs
 
 				vmList.Clear()
 				for _, vm := range originalVMs {
