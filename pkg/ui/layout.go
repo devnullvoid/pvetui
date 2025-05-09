@@ -85,14 +85,23 @@ func SetupKeyboardHandlers(
 			// Handle search mode first
 			if curPage, _ := pages.GetFrontPage(); curPage == "Search" {
 				pages.RemovePage("Search")
-				// lastSearchText = "" // Clear persisted search text
-				// // Get the underlying page after removing search
-				// basePage, _ := pages.GetFrontPage()
-				// if basePage == "Nodes" {
-				// 	app.SetFocus(nodeList)
-				// } else {
-				// 	app.SetFocus(vmList)
-				// }
+				lastSearchText = "" // Clear persisted search text
+
+				// Get the underlying page after removing search
+				basePage, _ := pages.GetFrontPage()
+				if basePage == "Nodes" {
+					nodeList.Clear()
+					for _, node := range nodes {
+						nodeList.AddItem(node.Name, "", 0, nil)
+					}
+					app.SetFocus(nodeList)
+				} else if basePage == "Guests" {
+					vmList.Clear()
+					for _, vm := range vms {
+						vmList.AddItem(vm.Name, vm.Status, 0, nil)
+					}
+					app.SetFocus(vmList)
+				}
 				return nil
 			}
 			// Then handle shell info panel

@@ -8,10 +8,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-var (
-	lastSearchText string // Persists between search sessions
-)
-
 // handleSearchInput creates and manages the search input field
 func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tview.List, vmList *tview.List, nodes []api.Node, vms []api.VM) {
 	// Store original lists and current page context

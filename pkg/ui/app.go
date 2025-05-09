@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/ui/models"
 	"github.com/rivo/tview"
 )
 
@@ -25,6 +26,10 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 
 	// Create node components
 	nodeList := CreateNodeList(nodes)
+	nodeList.SetTitle("Nodes")
+	nodeList.SetBorder(true).SetTitle("Nodes")
+	models.GlobalState.NodeList = nodeList
+
 	detailsPanel, detailsTable := CreateDetailsPanel()
 
 	// Create nodes tab content
@@ -41,7 +46,12 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 
 	// Create VM components
 	vmList := CreateVMList(vmsAll)
+	vmList.SetTitle("Guests")
+	vmList.SetBorder(true).SetTitle("Guests")
+	models.GlobalState.VMList = vmList
+
 	vmDetails := newVmDetails()
+	vmDetails.SetTitle("VM Details")
 	vmDetails.SetBorder(true).SetTitle("VM Details")
 
 	// Start VM status refresh background process
@@ -64,20 +74,20 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 
 	// Tasks/Logs tab (TODO)
 	tasksView := tview.NewTextView().SetText("[::b]Tasks/Logs view coming soon")
-	tasksView.SetBorder(true)
 	tasksView.SetTitle("Tasks/Logs")
+	tasksView.SetBorder(true).SetTitle("Tasks/Logs")
 	pages.AddPage("Tasks/Logs", tasksView, true, false)
 
 	// Storage tab (TODO)
 	storageView := tview.NewTextView().SetText("[::b]Storage view coming soon")
-	storageView.SetBorder(true)
 	storageView.SetTitle("Storage")
+	storageView.SetBorder(true).SetTitle("Storage")
 	pages.AddPage("Storage", storageView, true, false)
 
 	// Network tab (TODO)
 	networkView := tview.NewTextView().SetText("[::b]Network view coming soon")
-	networkView.SetBorder(true)
 	networkView.SetTitle("Network")
+	networkView.SetBorder(true).SetTitle("Network")
 	pages.AddPage("Network", networkView, true, false)
 
 	// Set initial focus to node list
