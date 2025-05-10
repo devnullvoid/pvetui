@@ -5,10 +5,11 @@ import (
 	"log"
 	"os"
 	"strings"
-	"gopkg.in/yaml.v3"
-	"github.com/rivo/tview"
+
 	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/config"
 	"github.com/lonepie/proxmox-tui/pkg/ui"
+	"github.com/rivo/tview"
 )
 
 func main() {
@@ -22,64 +23,38 @@ func main() {
 		defaultAPIPath = "/api2/json"
 	}
 
-	addr := flag.String("addr", defaultAddr, "Proxmox API URL (env PROXMOX_ADDR)")
-	user := flag.String("user", defaultUser, "Proxmox username (env PROXMOX_USER)")
-	password := flag.String("password", defaultPassword, "Proxmox password (env PROXMOX_PASSWORD)")
-	insecure := flag.Bool("insecure", defaultInsecure, "Skip TLS verification (env PROXMOX_INSECURE)")
-	apiPath := flag.String("api-path", defaultAPIPath, "Proxmox API path (env PROXMOX_API_PATH)")
+	cfg := config.NewConfig()
+
+	flag.StringVar(&cfg.Addr, "addr", defaultAddr, "Proxmox API URL (env PROXMOX_ADDR)")
+	flag.StringVar(&cfg.User, "user", defaultUser, "Proxmox username (env PROXMOX_USER)")
+	flag.StringVar(&cfg.Password, "password", defaultPassword, "Proxmox password (env PROXMOX_PASSWORD)")
+	flag.BoolVar(&cfg.Insecure, "insecure", defaultInsecure, "Skip TLS verification (env PROXMOX_INSECURE)")
+	flag.StringVar(&cfg.APIPath, "api-path", defaultAPIPath, "Proxmox API path (env PROXMOX_API_PATH)")
+	flag.StringVar(&cfg.SSHUser, "ssh-user", os.Getenv("PROXMOX_SSH_USER"), "SSH username (env PROXMOX_SSH_USER)")
 	configPath := flag.String("config", "", "Path to YAML config file")
 	flag.Parse()
 
 	// Load config file first if provided
 	if *configPath != "" {
-		data, err := os.ReadFile(*configPath)
-		if err != nil {
-			log.Fatalf("Error reading config file: %v", err)
-		}
-		var cfg struct {
-			Addr     string `yaml:"addr"`
-			User     string `yaml:"user"`
-			Password string `yaml:"password"`
-			APIPath  string `yaml:"api_path"`
-			Insecure bool   `yaml:"insecure"`
-		}
-		if err := yaml.Unmarshal(data, &cfg); err != nil {
-			log.Fatalf("Error parsing config file: %v", err)
-		}
-		if cfg.Addr != "" {
-			*addr = cfg.Addr
-		}
-		if cfg.User != "" {
-			*user = cfg.User
-		}
-		if cfg.Password != "" {
-			*password = cfg.Password
-		}
-		if cfg.APIPath != "" {
-			*apiPath = cfg.APIPath
-		}
-		if cfg.Insecure {
-			*insecure = true
+		if err := cfg.MergeWithFile(*configPath); err != nil {
+			log.Fatalf("Error loading config file: %v", err)
 		}
 	}
 
 	// Now validate required fields
-	if *addr == "" {
-		log.Fatal("Proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
-	}
-	if *user == "" || *password == "" {
-		log.Fatal("Credentials required: set -user & -password flags, PROXMOX_USER/PROXMOX_PASSWORD env vars, or config file")
+	if err := cfg.Validate(); err != nil {
+		log.Fatal(err)
 	}
 
 	// Construct full API URL
-	apiURL := strings.TrimRight(*addr, "/") + "/" + strings.TrimPrefix(*apiPath, "/")
-	client, err := api.NewClient(apiURL, *user, *password, *insecure)
+	apiURL := strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.APIPath, "/")
+	client, err := api.NewClient(apiURL, cfg.User, cfg.Password, cfg.Insecure)
 	if err != nil {
 		log.Fatalf("API client error: %v", err)
 	}
 
 	app := tview.NewApplication()
-	root := ui.NewAppUI(app, client)
+	root := ui.NewAppUI(app, client, cfg)
 	if err := app.SetRoot(root, true).Run(); err != nil {
 		log.Fatalf("Error running app: %v", err)
 	}

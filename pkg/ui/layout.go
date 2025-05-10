@@ -16,8 +16,7 @@ func CreateMainLayout(summaryPanel *tview.Flex, pages *tview.Pages, footer *tvie
 }
 
 // SetupKeyboardHandlers configures global keyboard shortcuts
-func SetupKeyboardHandlers(
-	app *tview.Application,
+func (a *AppUI) SetupKeyboardHandlers(
 	pages *tview.Pages,
 	nodeList *tview.List,
 	vmList *tview.List,
@@ -32,7 +31,7 @@ func SetupKeyboardHandlers(
 	pages.AddPage("ShellInfo", shellInfoPanel, true, false)
 
 	// Set up keyboard input handling
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// First, handle rune keys (like 'S')
 		if event.Key() == tcell.KeyRune {
 			// Handle shell session launch
@@ -42,14 +41,14 @@ func SetupKeyboardHandlers(
 					index := vmList.GetCurrentItem()
 					if index >= 0 && index < len(vms) {
 						vm := vms[index]
-						HandleShellExecution(app, vm)
+						a.HandleShellExecution(vm)
 						return nil
 					}
 				} else if curPage == "Nodes" && nodeList.HasFocus() {
 					index := nodeList.GetCurrentItem()
 					if index >= 0 && index < len(nodes) {
 						node := nodes[index]
-						HandleShellExecution(app, node)
+						a.HandleShellExecution(node)
 						return nil
 					}
 				}
@@ -58,22 +57,22 @@ func SetupKeyboardHandlers(
 					index := vmList.GetCurrentItem()
 					if index >= 0 && index < len(vms) {
 						vm := vms[index]
-						HandleShellExecution(app, vm)
+						a.HandleShellExecution(vm)
 						return nil
 					}
 				} else if curPage == "Nodes" {
 					index := nodeList.GetCurrentItem()
 					if index >= 0 && index < len(nodes) {
 						node := nodes[index]
-						HandleShellExecution(app, node)
+						a.HandleShellExecution(node)
 						return nil
 					}
 				}
 			} else if event.Rune() == 'q' {
-				app.Stop()
+				a.app.Stop()
 				return nil
 			} else if event.Rune() == '/' {
-				handleSearchInput(app, pages, nodeList, vmList, nodes, vms)
+				handleSearchInput(a.app, pages, nodeList, vmList, nodes, vms)
 				return nil
 			}
 
@@ -94,46 +93,46 @@ func SetupKeyboardHandlers(
 					for _, node := range nodes {
 						nodeList.AddItem(node.Name, "", 0, nil)
 					}
-					app.SetFocus(nodeList)
+					a.app.SetFocus(nodeList)
 				} else if basePage == "Guests" {
 					vmList.Clear()
 					for _, vm := range vms {
 						vmList.AddItem(vm.Name, vm.Status, 0, nil)
 					}
-					app.SetFocus(vmList)
+					a.app.SetFocus(vmList)
 				}
 				return nil
 			}
 			// Then handle shell info panel
 			if curPage, _ := pages.GetFrontPage(); curPage == "ShellInfo" {
 				pages.SwitchToPage("Guests")
-				app.SetFocus(vmList)
+				a.app.SetFocus(vmList)
 				return nil
 			}
 			// Otherwise, exit the application
-			app.Stop()
+			a.app.Stop()
 			return nil
 		case tcell.KeyCtrlC:
-			app.Stop()
+			a.app.Stop()
 			return nil
 		case tcell.KeyTab:
 			// Cycle between pages
 			curPage, _ := pages.GetFrontPage()
 			if curPage == "Nodes" {
 				pages.SwitchToPage("Guests")
-				app.SetFocus(vmList)
+				a.app.SetFocus(vmList)
 			} else if curPage == "Guests" {
 				pages.SwitchToPage("Nodes")
-				app.SetFocus(nodeList)
+				a.app.SetFocus(nodeList)
 			}
 			return nil
 		case tcell.KeyF1:
 			pages.SwitchToPage("Nodes")
-			app.SetFocus(nodeList)
+			a.app.SetFocus(nodeList)
 			return nil
 		case tcell.KeyF2:
 			pages.SwitchToPage("Guests")
-			app.SetFocus(vmList)
+			a.app.SetFocus(vmList)
 			return nil
 		}
 		return event

@@ -2,12 +2,26 @@ package ui
 
 import (
 	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/config"
 	"github.com/lonepie/proxmox-tui/pkg/ui/models"
 	"github.com/rivo/tview"
 )
 
 // NewAppUI creates the root UI component with node tree and VM list.
-func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
+type AppUI struct {
+	*tview.Flex
+	app    *tview.Application
+	client *api.Client
+	config config.Config
+}
+
+func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *AppUI {
+	a := &AppUI{
+		Flex:   tview.NewFlex().SetDirection(tview.FlexRow),
+		app:    app,
+		client: client,
+		config: cfg,
+	}
 	// Create UI components
 	header := CreateHeader()
 	summaryPanel, summary := CreateNodeSummaryPanel()
@@ -17,11 +31,11 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	nodes, err := client.ListNodes()
 	if err != nil {
 		header.SetText("Error fetching nodes: " + err.Error())
-		return tview.NewBox().SetTitle("Error")
+		return a
 	}
 	if len(nodes) == 0 {
 		header.SetText("No nodes found")
-		return tview.NewBox().SetTitle("Error")
+		return a
 	}
 
 	// Create node components
@@ -70,7 +84,7 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 	// Shell access is now handled in SetupKeyboardHandlers
 
 	// Set up keyboard shortcuts
-	pages = SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
+	pages = a.SetupKeyboardHandlers(pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
 
 	// Tasks/Logs tab (TODO)
 	tasksView := tview.NewTextView().SetText("[::b]Tasks/Logs view coming soon")
@@ -101,7 +115,8 @@ func NewAppUI(app *tview.Application, client *api.Client) tview.Primitive {
 		AddItem(footer, 1, 0, false)
 
 	// Set up all keyboard handlers (including shell info functionality)
-	SetupKeyboardHandlers(app, pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
+	a.SetupKeyboardHandlers(pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
 
-	return mainFlex
+	a.AddItem(mainFlex, 0, 1, true)
+	return a
 }
