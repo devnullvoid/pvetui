@@ -2,7 +2,9 @@ package config
 
 import (
 	"errors"
+	"flag"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -11,6 +13,7 @@ type Config struct {
 	Addr     string `yaml:"addr"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
+	Realm    string `yaml:"realm"`
 	APIPath  string `yaml:"api-path"`
 	Insecure bool   `yaml:"insecure"`
 	SSHUser  string `yaml:"ssh-user"`
@@ -18,9 +21,43 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
-		APIPath: "/api2/json",
-		SSHUser: os.Getenv("PROXMOX_SSH_USER"),
+		Addr:     os.Getenv("PROXMOX_ADDR"),
+		User:     os.Getenv("PROXMOX_USER"),
+		Password: os.Getenv("PROXMOX_PASSWORD"),
+		Realm:    getEnvWithDefault("PROXMOX_REALM", "pam"),
+		APIPath:  getEnvWithDefault("PROXMOX_API_PATH", "/api2/json"),
+		Insecure: strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true",
+		SSHUser:  os.Getenv("PROXMOX_SSH_USER"),
 	}
+}
+
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+var (
+	configPath string
+	configFs   = flag.NewFlagSet("config", flag.ContinueOnError)
+)
+
+func init() {
+	configFs.StringVar(&configPath, "config", "", "Path to YAML config file")
+}
+
+func ParseConfigFlags() {
+	configFs.Parse(os.Args[1:]) // Parse just the --config flag first
+}
+
+func (c *Config) SetupFlags() {
+	flag.StringVar(&c.Addr, "addr", c.Addr, "Proxmox API URL (env PROXMOX_ADDR)")
+	flag.StringVar(&c.User, "user", c.User, "Proxmox username (env PROXMOX_USER)")
+	flag.StringVar(&c.Password, "password", c.Password, "Proxmox password (env PROXMOX_PASSWORD)")
+	flag.BoolVar(&c.Insecure, "insecure", c.Insecure, "Skip TLS verification (env PROXMOX_INSECURE)")
+	flag.StringVar(&c.APIPath, "api-path", c.APIPath, "Proxmox API path (env PROXMOX_API_PATH)")
+	flag.StringVar(&c.SSHUser, "ssh-user", c.SSHUser, "SSH username (env PROXMOX_SSH_USER)")
 }
 
 func (c *Config) MergeWithFile(path string) error {
@@ -63,10 +100,10 @@ func (c *Config) MergeWithFile(path string) error {
 
 func (c *Config) Validate() error {
 	if c.Addr == "" {
-		return errors.New("Proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
+		return errors.New("proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
 	}
 	if c.User == "" || c.Password == "" {
-		return errors.New("Credentials required: set -user & -password flags, PROXMOX_USER/PROXMOX_PASSWORD env vars, or config file")
+		return errors.New("credentials required: set -user & -password flags, PROXMOX_USER/PROXMOX_PASSWORD env vars, or config file")
 	}
 	return nil
 }

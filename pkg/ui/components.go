@@ -32,34 +32,11 @@ func CreateFooter() *tview.TextView {
 func CreateVMList(vms []api.VM) *tview.List {
 	vmList := tview.NewList().ShowSecondaryText(false)
 	vmList.SetBorder(true).SetTitle("Guests")
-	
+
 	for _, vm := range vms {
 		text := fmt.Sprintf("%d - %s", vm.ID, vm.Name)
 		vmList.AddItem(text, "", 0, nil)
 	}
-	
+
 	return vmList
-}
-
-// CreateNodeSummaryPanel creates a panel containing node summary information
-func CreateNodeSummaryPanel() (*tview.Flex, *tview.Table) {
-	summary := newSummary()
-	
-	// Wrap summary in a panel
-	summaryPanel := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(summary, 3, 0, false)
-	summaryPanel.SetBorder(true).SetTitle("Node Summary")
-	
-	return summaryPanel, summary
-}
-
-// CreateDetailsPanel creates a details panel for node information
-func CreateDetailsPanel() (*tview.Flex, *tview.Table) {
-	detailsTable := newDetails()
-	
-	detailsPanel := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(detailsTable, 0, 1, false)
-	detailsPanel.SetBorder(true).SetTitle("Details")
-	
-	return detailsPanel, detailsTable
 }

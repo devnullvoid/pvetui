@@ -48,7 +48,7 @@ func main() {
 
 	// Construct full API URL
 	apiURL := strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.APIPath, "/")
-	client, err := api.NewClient(apiURL, cfg.User, cfg.Password, cfg.Insecure)
+	client, err := api.NewClient(apiURL, cfg.User, cfg.Password, cfg.Realm, cfg.Insecure)
 	if err != nil {
 		log.Fatalf("API client error: %v", err)
 	}

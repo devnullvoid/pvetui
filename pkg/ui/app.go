@@ -24,7 +24,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	}
 	// Create UI components
 	header := CreateHeader()
-	summaryPanel, summary := CreateNodeSummaryPanel()
+	summaryPanel, summary := CreateNodeSummaryPanel() // Now implemented in summary.go
 	footer := CreateFooter()
 
 	// Get all nodes from Proxmox API
@@ -44,7 +44,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	nodeList.SetBorder(true).SetTitle("Nodes")
 	models.GlobalState.NodeList = nodeList
 
-	detailsPanel, detailsTable := CreateDetailsPanel()
+	detailsPanel, detailsTable := CreateDetailsPanel() // Now implemented in details.go
 
 	// Create nodes tab content
 	nodesContent := tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -80,7 +80,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 
 	// Set up handlers
 	SetupVMHandlers(vmList, vmDetails, vmsAll, client)
-	SetupNodeHandlers(app, client, nodeList, nodes, summary, detailsTable, header)
+	SetupNodeHandlers(app, client, nodeList, nodes, summary, detailsTable, header, pages)
 	// Shell access is now handled in SetupKeyboardHandlers
 
 	// Set up keyboard shortcuts
