@@ -69,7 +69,7 @@ func SetupNodeHandlers(
 
 		// Update summary panel with live data
 		summary.Clear()
-		updateSummaryWithStatus(n, status, summary)
+		UpdateSummary(summary, n, status)
 		header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
 	}
 
