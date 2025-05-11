@@ -46,7 +46,7 @@ func SetupNodeHandlers(
 	detailsTable *tview.Table,
 	header *tview.TextView,
 	detailsPages *tview.Pages,
-) (int, int) {
+) (int, int, func(int, string, string, rune)) {
 	var activeIndex, highlightedIndex int
 	activeIndex = 0
 	highlightedIndex = 0
@@ -69,7 +69,8 @@ func SetupNodeHandlers(
 
 		// Update summary panel with live data
 		summary.Clear()
-		UpdateSummary(summary, n, status)
+		clusterStatus, _ := client.GetClusterStatus()
+		UpdateSummary(summary, clusterStatus, nodes)
 		header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
 	}
 
@@ -125,5 +126,5 @@ func SetupNodeHandlers(
 		updateSelected(n)
 	})
 
-	return activeIndex, highlightedIndex
+	return activeIndex, highlightedIndex, updateDetails
 }

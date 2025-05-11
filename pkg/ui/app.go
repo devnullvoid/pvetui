@@ -24,7 +24,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	}
 	// Create UI components
 	header := CreateHeader()
-	summaryPanel, summary := CreateNodeSummaryPanel() // Now implemented in summary.go
+	summaryPanel, summary := CreateClusterStatusPanel() // Now implemented in summary.go
 	footer := CreateFooter()
 
 	// Get all nodes from Proxmox API
@@ -80,8 +80,17 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 
 	// Set up handlers
 	SetupVMHandlers(vmList, vmDetails, vmsAll, client)
-	SetupNodeHandlers(app, client, nodeList, nodes, summary, detailsTable, header, pages)
-	// Shell access is now handled in SetupKeyboardHandlers
+	activeIndex, _, updateDetails := SetupNodeHandlers(app, client, nodeList, nodes, summary, detailsTable, header, pages)
+
+	// Trigger initial node selection
+	if len(nodes) > 0 {
+		nodeList.SetCurrentItem(activeIndex)
+		if fn := nodeList.GetSelectedFunc(); fn != nil {
+			fn(activeIndex, "", "", 0) // Trigger selection handler
+		}
+		// Manually trigger details update for initial node
+		updateDetails(activeIndex, "", "", 0)
+	}
 
 	// Set up keyboard shortcuts
 	pages = a.SetupKeyboardHandlers(pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
