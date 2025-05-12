@@ -22,7 +22,7 @@ func CreateClusterStatusPanel() (*tview.Flex, *tview.Table, *tview.Table) {
 	summary.SetTitleAlign(tview.AlignLeft)
 
 	// Column headers
-	headers := []string{"Metric", "Value", "Details", "Health"}
+	headers := []string{"Metric", "Value", "Details"}
 	for col, text := range headers {
 		cell := tview.NewTableCell(text).
 			SetTextColor(tcell.ColorYellow).
@@ -54,7 +54,7 @@ func CreateClusterStatusPanel() (*tview.Flex, *tview.Table, *tview.Table) {
 	resourceTable.SetTitleAlign(tview.AlignLeft)
 
 	// Resource table headers
-	resourceHeaders := []string{"Resource", "Total", "Used", "Health"}
+	resourceHeaders := []string{"Resource", "Total", "Used"}
 	for col, text := range resourceHeaders {
 		cell := tview.NewTableCell(text).
 			SetTextColor(tcell.ColorYellow).
@@ -82,14 +82,12 @@ func UpdateClusterStatus(summaryTable *tview.Table, resourceTable *tview.Table, 
 	// Update summary table (left panel)
 	summaryTable.SetCell(1, 0, tview.NewTableCell("Cluster Name").SetTextColor(tcell.ColorYellow))
 	summaryTable.SetCell(1, 1, tview.NewTableCell(cluster.Name).SetTextColor(tcell.ColorWhite))
-	summaryTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%d Nodes", cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
 
 	summaryTable.SetCell(2, 0, tview.NewTableCell("Proxmox VE").SetTextColor(tcell.ColorYellow))
 	summaryTable.SetCell(2, 1, tview.NewTableCell(cluster.Version).SetTextColor(tcell.ColorWhite))
 
 	summaryTable.SetCell(3, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
-	summaryTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%d/%d", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
-	summaryTable.SetCell(3, 3, tview.NewTableCell("🟢").SetTextColor(tcell.ColorGreen))
+	summaryTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
 
 	// Update resource table (right panel)
 	resourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow))
@@ -97,8 +95,8 @@ func UpdateClusterStatus(summaryTable *tview.Table, resourceTable *tview.Table, 
 	resourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f%%", cluster.CPUUsage)).SetTextColor(tcell.ColorWhite))
 
 	resourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow))
-	resourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryTotal)/1048576)).SetTextColor(tcell.ColorWhite))
-	resourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryUsed)/1048576)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryTotal)/1073741824)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryUsed)/1073741824)).SetTextColor(tcell.ColorWhite))
 
 	// Storage removed from cluster-level summary since it's node-specific
 }

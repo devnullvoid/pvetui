@@ -21,9 +21,9 @@ func CreateNodeList(nodes []api.Node) *tview.List {
 	}
 
 	for i, n := range nodes {
-		status := "🔴 Offline"
+		status := "🔴"
 		if n.Online {
-			status = "🟢 Online"
+			status = "🟢"
 		}
 		nodeList.AddItem(
 			fmt.Sprintf("%s %s", status, n.Name),
