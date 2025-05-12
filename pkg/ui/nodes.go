@@ -49,6 +49,7 @@ func CreateNodeList(nodes []api.Node) *tview.List {
 func SetupNodeHandlers(
 	app *tview.Application,
 	client *api.Client,
+	cluster *api.Cluster, // Added cluster parameter
 	nodeList *tview.List,
 	nodes []api.Node,
 	summary *tview.Table,
@@ -77,11 +78,10 @@ func SetupNodeHandlers(
 			return
 		}
 
-		// Update summary panel with live data
+		// Update summary panel with existing cluster data
 		summary.Clear()
-		clusterStatus, _ := client.GetClusterStatus()
-		UpdateClusterStatus(summary, resourceTable, clusterStatus)
-		header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
+		UpdateClusterStatus(summary, resourceTable, cluster) // Use passed cluster data
+		// header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
 	}
 
 	// Define updateDetails: refresh details for highlighted node
