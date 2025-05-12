@@ -1,39 +1,56 @@
 package api
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 // Cluster represents aggregated Proxmox cluster metrics
 type Cluster struct {
 	Name        string  `json:"name"`
 	Version     string  `json:"version"`
 	Quorate     bool    `json:"quorate"`
-	TotalNodes  int     `json:"nodes"`
+	TotalNodes  int     `json:"total_nodes"`
 	OnlineNodes int     `json:"online"`
 	TotalCPU    float64 `json:"total_cpu"`
 	CPUUsage    float64 `json:"cpu_usage"`
 	MemoryTotal int64   `json:"memory_total"`
 	MemoryUsed  int64   `json:"memory_used"`
 	Nodes       []*Node `json:"nodes"`
-
-	// Index for quick node lookups
-	nodeIndex map[string]*Node
 }
 
-// GetClusterStatus retrieves cluster status from API
+// GetClusterStatus retrieves cluster status and node metrics
 func (c *Client) GetClusterStatus() (*Cluster, error) {
-	var resp map[string]interface{}
-	err := c.Get("/cluster/status", &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	// Debug: Print raw API response
-	fmt.Printf("Raw cluster status response:\n%+v\n", resp)
-
 	cluster := &Cluster{Nodes: []*Node{}}
 
-	// Process API response
-	data, ok := resp["data"].([]interface{})
+	// 1. First get node metrics from /nodes endpoint
+	var nodesResp map[string]interface{}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := c.ProxClient.GetJsonRetryable(ctx, "/nodes", &nodesResp, 3); err != nil {
+		return nil, fmt.Errorf("failed to get node metrics: %w", err)
+	}
+
+	// Create node metrics lookup map
+	nodeMetrics := make(map[string]map[string]interface{})
+	if nodesData, ok := nodesResp["data"].([]interface{}); ok {
+		for _, item := range nodesData {
+			if m, ok := item.(map[string]interface{}); ok {
+				nodeName := getString(m, "node")
+				nodeMetrics[nodeName] = m
+			}
+		}
+	}
+
+	// 2. Get cluster topology and online status
+	var clusterResp map[string]interface{}
+	if err := c.Get("/cluster/status", &clusterResp); err != nil {
+		return nil, err
+	}
+	fmt.Printf("Raw cluster status response:\n%+v\n", clusterResp)
+
+	data, ok := clusterResp["data"].([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("invalid cluster status response format")
 	}
@@ -41,43 +58,41 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 	for _, item := range data {
 		itemMap, ok := item.(map[string]interface{})
 		if !ok {
-			continue // Skip invalid entries
+			continue
 		}
 
 		itemType := getString(itemMap, "type")
 		if itemType == "cluster" {
 			cluster.Name = getString(itemMap, "name")
-			// Version comes from node data, initialize as unknown
-			cluster.Version = "Unknown"
 			cluster.Quorate = getBool(itemMap, "quorate")
 			cluster.TotalNodes = getInt(itemMap, "nodes")
+			cluster.Version = "Unknown" // Will be set from nodes
 		} else if itemType == "node" {
 			nodeName := getString(itemMap, "name")
-			nodeIP := getString(itemMap, "ip")
-			// Get full node details
-			// Create node with core identity fields
 			node := &Node{
-				ID:   nodeName,
-				Name: nodeName,
-				IP:   nodeIP,
+				ID:     nodeName,
+				Name:   nodeName,
+				IP:     getString(itemMap, "ip"),
+				Online: getInt(itemMap, "online") == 1,
 			}
 
-			// Get status and version details
-			if status, err := c.GetNodeStatus(nodeName); err == nil {
-				node.Online = status.Online
-				node.CPUCount = status.CPUCount
-				node.CPUUsage = status.CPUUsage
-				node.MemoryTotal = status.MemoryTotal
-				node.MemoryUsed = status.MemoryUsed
-				node.TotalStorage = status.TotalStorage
-				node.UsedStorage = status.UsedStorage
-				node.Uptime = status.Uptime
-				node.Version = status.Version
-				node.KernelVersion = status.KernelVersion
-			} else {
-				// Fallback to cluster status data if detailed status fails
-				node.Online = getInt(itemMap, "online") == 1
-				node.Version = getString(itemMap, "pveversion")
+			// Get metrics from nodes endpoint data
+			if metrics, ok := nodeMetrics[nodeName]; ok {
+				node.CPUCount = getFloat(metrics, "maxcpu")
+				node.CPUUsage = getFloat(metrics, "cpu")
+				node.MemoryTotal = int64(getFloat(metrics, "maxmem"))
+				node.MemoryUsed = int64(getFloat(metrics, "mem"))
+				node.TotalStorage = int64(getFloat(metrics, "maxdisk"))
+				node.UsedStorage = int64(getFloat(metrics, "disk"))
+				node.Uptime = int64(getFloat(metrics, "uptime"))
+			}
+
+			// Get version info if missing
+			if node.Version == "" {
+				if status, err := c.GetNodeStatus(nodeName); err == nil {
+					node.Version = status.Version
+					node.KernelVersion = status.KernelVersion
+				}
 			}
 
 			cluster.Nodes = append(cluster.Nodes, node)
@@ -86,14 +101,13 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 			}
 			cluster.TotalCPU += node.CPUCount
 			cluster.CPUUsage += node.CPUUsage
-			// API returns memory in bytes
 			cluster.MemoryTotal += node.MemoryTotal
 			cluster.MemoryUsed += node.MemoryUsed
 		}
 	}
 
-	// Set cluster version from first node's version if available
-	if len(cluster.Nodes) > 0 && cluster.Nodes[0] != nil {
+	// Set cluster version from first node
+	if len(cluster.Nodes) > 0 {
 		cluster.Version = cluster.Nodes[0].Version
 	}
 
