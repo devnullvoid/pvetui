@@ -27,22 +27,26 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	summaryPanel, summary, resourceTable := CreateClusterStatusPanel()
 	footer := CreateFooter()
 
-	// Get cluster status first
-	cluster, err := client.GetClusterStatus()
-	if err != nil {
-		header.SetText("Error fetching cluster: " + err.Error())
-		return a
+	// Use cached cluster data
+	if client.Cluster == nil {
+		if _, err := client.GetClusterStatus(); err != nil {
+			header.SetText("Error fetching cluster: " + err.Error())
+			return a
+		}
 	}
+	cluster := client.Cluster
 
-	// Get all nodes from Proxmox API
-	nodes, err := client.ListNodes()
-	if err != nil {
-		header.SetText("Error fetching nodes: " + err.Error())
+	// Get nodes from cached cluster data
+	if len(cluster.Nodes) == 0 {
+		header.SetText("No nodes found in cluster")
 		return a
 	}
-	if len(nodes) == 0 {
-		header.SetText("No nodes found")
-		return a
+	nodes := make([]api.Node, len(cluster.Nodes))
+	for i, n := range cluster.Nodes {
+		if n == nil {
+			continue
+		}
+		nodes[i] = *n
 	}
 
 	// Create node components

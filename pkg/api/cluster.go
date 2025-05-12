@@ -111,5 +111,6 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 		cluster.Version = cluster.Nodes[0].Version
 	}
 
+	c.Cluster = cluster
 	return cluster, nil
 }

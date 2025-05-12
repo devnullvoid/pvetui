@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/lonepie/proxmox-tui/pkg/api"
@@ -67,21 +68,23 @@ func SetupNodeHandlers(
 		header.SetText(fmt.Sprintf("Loading %s...", n.Name)).SetTextColor(tcell.ColorYellow)
 		summary.Clear()
 
-		status, err := client.GetNodeStatus(n.Name)
-		if err != nil {
-			header.SetText(fmt.Sprintf("Error fetching %s: %v", n.Name, err)).SetTextColor(tcell.ColorRed)
-			return
+		var status *api.Node
+		for _, node := range cluster.Nodes {
+			if node.Name == n.Name {
+				status = node
+				break
+			}
 		}
 
 		if status == nil {
-			header.SetText(fmt.Sprintf("No data for %s", n.Name)).SetTextColor(tcell.ColorOrange)
+			header.SetText(fmt.Sprintf("Node %s not found in cluster", n.Name)).SetTextColor(tcell.ColorRed)
 			return
 		}
 
 		// Update summary panel with existing cluster data
 		summary.Clear()
 		UpdateClusterStatus(summary, resourceTable, cluster) // Use passed cluster data
-		// header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
+		header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
 	}
 
 	// Define updateDetails: refresh details for highlighted node
@@ -90,10 +93,17 @@ func SetupNodeHandlers(
 			return
 		}
 		n := nodes[index]
-		status, err := client.GetNodeStatus(n.Name)
-		if err != nil {
+		var status *api.Node
+		for _, node := range cluster.Nodes {
+			if node.Name == n.Name {
+				status = node
+				break
+			}
+		}
+
+		if status == nil {
 			detailsTable.Clear()
-			detailsTable.SetCell(0, 0, tview.NewTableCell(fmt.Sprintf("Error: %v", err)).SetTextColor(tcell.ColorRed))
+			detailsTable.SetCell(0, 0, tview.NewTableCell(fmt.Sprintf("Node %s not found", n.Name)).SetTextColor(tcell.ColorRed))
 			return
 		}
 
@@ -122,6 +132,43 @@ func SetupNodeHandlers(
 		detailsTable.SetCell(1, 1, tview.NewTableCell(pveVer).SetTextColor(tcell.ColorWhite))
 		detailsTable.SetCell(2, 0, tview.NewTableCell("🔌 Kernel").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(2, 1, tview.NewTableCell(kernelRel).SetTextColor(tcell.ColorWhite))
+
+		// Additional node details
+		detailsTable.SetCell(3, 0, tview.NewTableCell("🌐 IP").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(3, 1, tview.NewTableCell(status.IP).SetTextColor(tcell.ColorWhite))
+
+		detailsTable.SetCell(4, 0, tview.NewTableCell("⚡ CPU").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(4, 1, tview.NewTableCell(fmt.Sprintf("%.1f%% of %.0f cores", status.CPUUsage*100, status.CPUCount)).SetTextColor(tcell.ColorWhite))
+
+		detailsTable.SetCell(5, 0, tview.NewTableCell("💾 Memory").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(5, 1, tview.NewTableCell(
+			fmt.Sprintf("%.1f GB / %.1f GB",
+				float64(status.MemoryUsed)/1024/1024/1024,
+				float64(status.MemoryTotal)/1024/1024/1024),
+		).SetTextColor(tcell.ColorWhite))
+
+		detailsTable.SetCell(6, 0, tview.NewTableCell("💽 Storage").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(6, 1, tview.NewTableCell(
+			fmt.Sprintf("%.1f GB / %.1f GB",
+				float64(status.UsedStorage)/1024/1024/1024,
+				float64(status.TotalStorage)/1024/1024/1024),
+		).SetTextColor(tcell.ColorWhite))
+
+		uptimeDuration := time.Duration(status.Uptime) * time.Second
+		detailsTable.SetCell(7, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(7, 1, tview.NewTableCell(
+			fmt.Sprintf("%d days %d hrs %d min",
+				int(uptimeDuration.Hours()/24),
+				int(uptimeDuration.Hours())%24,
+				int(uptimeDuration.Minutes())%60),
+		).SetTextColor(tcell.ColorWhite))
+
+		onlineStatus := "🔴 Offline"
+		if status.Online {
+			onlineStatus = "🟢 Online"
+		}
+		detailsTable.SetCell(8, 0, tview.NewTableCell("📡 Status").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(8, 1, tview.NewTableCell(onlineStatus).SetTextColor(tcell.ColorWhite))
 	}
 
 	nodeList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {

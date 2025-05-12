@@ -14,6 +14,7 @@ import (
 // Client is a Proxmox API client
 type Client struct {
 	ProxClient *proxmox.Client
+	Cluster    *Cluster // Cached cluster state
 }
 
 // Get makes a GET request to the Proxmox API

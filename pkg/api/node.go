@@ -24,16 +24,19 @@ type Node struct {
 	Online        bool    `json:"-"`
 }
 
-// ListNodes retrieves all nodes from the cluster using already cached data
+// ListNodes retrieves nodes from cached cluster data
 func (c *Client) ListNodes() ([]Node, error) {
-	cluster, err := c.GetClusterStatus()
-	if err != nil {
-		return nil, err
+	if c.Cluster == nil {
+		if _, err := c.GetClusterStatus(); err != nil {
+			return nil, err
+		}
 	}
 
-	nodes := make([]Node, len(cluster.Nodes))
-	for i, clusterNode := range cluster.Nodes {
-		nodes[i] = *clusterNode
+	nodes := make([]Node, 0, len(c.Cluster.Nodes))
+	for _, clusterNode := range c.Cluster.Nodes {
+		if clusterNode != nil {
+			nodes = append(nodes, *clusterNode)
+		}
 	}
 	return nodes, nil
 }
