@@ -169,8 +169,6 @@ func (c *Client) ListNodes() ([]Node, error) {
 	if err := c.ProxClient.GetJsonRetryable(ctx, "/nodes", &res, 3); err != nil {
 		return nil, fmt.Errorf("ListNodes failed: %w", err)
 	}
-	fmt.Printf("DEBUG - /nodes API response:\n%+v\n", res) // Detailed node list response
-	fmt.Printf("DEBUG - ListNodes response: %+v\n", res)   // Add debug logging
 
 	data, ok := res["data"].([]interface{})
 	if !ok {
@@ -190,59 +188,21 @@ func (c *Client) ListNodes() ([]Node, error) {
 		}
 
 		node := Node{
-			ID:     nodeName,
-			Name:   nodeName,
-			IP:     "",    // Will be populated from node status
-			Online: false, // Will be populated from node status
+			ID:           nodeName,
+			Name:         nodeName,
+			Online:       strings.EqualFold(getString(m, "status"), "online"),
+			CPUUsage:     getFloat(m, "cpu"),
+			MemoryTotal:  int64(getFloat(m, "maxmem")),
+			MemoryUsed:   int64(getFloat(m, "mem")),
+			TotalStorage: int64(getFloat(m, "maxdisk")),
+			UsedStorage:  int64(getFloat(m, "disk")),
+			Uptime:       int64(getFloat(m, "uptime")),
+			Version:      getString(m, "pveversion"),
 		}
 
-		// Enrich with status data
-		if status, err := c.GetNodeStatus(nodeName); err == nil {
-			node.Online = false
-
-			// Check status fields in priority order
-			if statusStr, ok := status["status"].(string); ok {
-				node.Online = strings.EqualFold(statusStr, "online")
-			}
-			if online, ok := status["online"].(float64); ok {
-				node.Online = node.Online || (online == 1)
-			}
-			if online, ok := status["online"].(bool); ok {
-				node.Online = node.Online || online
-			}
-
-			// Final fallback - if we have resource metrics, assume online
-			if !node.Online && (status["cpu"] != nil || status["memory"] != nil) {
-				node.Online = true
-			}
-
-			// Parse resource metrics
-			if cpu, ok := status["cpu"].(float64); ok {
-				node.CPUUsage = cpu
-			}
-			if mem, ok := status["memory"].(map[string]interface{}); ok {
-				node.MemoryTotal = int64(mem["total"].(float64))
-				node.MemoryUsed = int64(mem["used"].(float64))
-			}
-			if rootfs, ok := status["rootfs"].(map[string]interface{}); ok {
-				node.TotalStorage = int64(rootfs["total"].(float64))
-				node.UsedStorage = int64(rootfs["used"].(float64))
-			}
-			if uptime, ok := status["uptime"].(float64); ok {
-				node.Uptime = int64(uptime)
-			}
-
-			fmt.Printf("DEBUG - Node %s status: %+v (Online: %t)\n", nodeName, status, node.Online)
-		} else {
-			node.Online = false
-			fmt.Printf("WARN - Status check failed for node %s: %v\n", nodeName, err)
-		}
-
-		// Enrich with config data
-		if config, err := c.GetNodeConfig(nodeName); err == nil {
-			if version, ok := config["version"].(string); ok {
-				node.Version = version
-			}
+		// Fallback online check if status field missing
+		if !node.Online && (node.CPUUsage > 0 || node.MemoryUsed > 0) {
+			node.Online = true
 		}
 
 		nodes[i] = node
@@ -383,6 +343,26 @@ func (c *Client) GetVmConfig(vm VM) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("unexpected format for VM config")
 	}
 	return data, nil
+}
+
+// getString safely extracts a string value from a map
+func getString(m map[string]interface{}, key string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+// getFloat safely extracts a float value from a map
+func getFloat(m map[string]interface{}, key string) float64 {
+	if val, ok := m[key]; ok {
+		if num, ok := val.(float64); ok {
+			return num
+		}
+	}
+	return 0
 }
 
 // TODO: add methods: StartVM, StopVM, etc.
