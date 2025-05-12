@@ -70,7 +70,7 @@ func SetupNodeHandlers(
 		// Update summary panel with live data
 		summary.Clear()
 		clusterStatus, _ := client.GetClusterStatus()
-		UpdateSummary(summary, clusterStatus, nodes)
+		UpdateSummary(summary, clusterStatus)
 		header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
 	}
 

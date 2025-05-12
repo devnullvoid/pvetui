@@ -18,8 +18,8 @@ func CreateClusterStatusPanel() (*tview.Flex, *tview.Table) {
 	summary := tview.NewTable().SetBorders(false)
 	summary.SetTitleAlign(tview.AlignLeft)
 
-	// Column headers for cluster status
-	headers := []string{"Metric", "Value", "Nodes", "Health"}
+	// Column headers
+	headers := []string{"Cluster Metric", "Value", "", "Health"}
 	for col, text := range headers {
 		cell := tview.NewTableCell(text).
 			SetTextColor(tcell.ColorYellow).
@@ -49,43 +49,40 @@ func CreateClusterStatusPanel() (*tview.Flex, *tview.Table) {
 }
 
 // UpdateSummary populates the summary table with cluster status data
-func UpdateSummary(table *tview.Table, clusterStatus map[string]map[string]interface{}, nodes []api.Node) {
-	// Calculate cluster-wide metrics
-	var onlineNodes, totalNodes int
-	var totalCPU, usedMem, totalMem float64
-
-	totalNodes = len(nodes)
-	for _, node := range nodes {
-		if node.Online {
-			onlineNodes++
-		}
-		totalCPU += node.CPUUsage
-		usedMem += float64(node.MemoryUsed)
-		totalMem += float64(node.MemoryTotal)
-	}
-
+func UpdateSummary(table *tview.Table, cluster *api.Cluster) {
 	// Clear existing content except headers
-	for row := 1; row <= 4; row++ {
+	for row := 1; row <= 6; row++ {
 		for col := 0; col < 4; col++ {
 			table.SetCell(row, col, tview.NewTableCell(""))
 		}
 	}
 
-	// Nodes Row
-	table.SetCell(1, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
-	table.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%d/%d", onlineNodes, totalNodes)).SetTextColor(tcell.ColorWhite))
-	table.SetCell(1, 3, tview.NewTableCell("🟢").SetTextColor(tcell.ColorGreen))
+	// Cluster Info
+	table.SetCell(1, 0, tview.NewTableCell("Cluster").SetTextColor(tcell.ColorYellow))
+	table.SetCell(1, 1, tview.NewTableCell(cluster.ClusterName).SetTextColor(tcell.ColorWhite))
 
-	// CPU Row
-	table.SetCell(2, 0, tview.NewTableCell("Total CPU").SetTextColor(tcell.ColorYellow))
-	table.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f%%", totalCPU/float64(totalNodes))).SetTextColor(tcell.ColorWhite))
+	// Version Info
+	table.SetCell(2, 0, tview.NewTableCell("PVE Version").SetTextColor(tcell.ColorYellow))
+	table.SetCell(2, 1, tview.NewTableCell(cluster.PVEVersion).SetTextColor(tcell.ColorWhite))
 
-	// Memory Row
-	table.SetCell(3, 0, tview.NewTableCell("Total Memory").SetTextColor(tcell.ColorYellow))
-	table.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.1f/%.1f GB",
-		usedMem/1024/1024/1024, totalMem/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
+	// Nodes Status
+	table.SetCell(3, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
+	table.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%d/%d", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
+	table.SetCell(3, 3, tview.NewTableCell("🟢").SetTextColor(tcell.ColorGreen))
 
-	// Storage Row
-	table.SetCell(4, 0, tview.NewTableCell("Total Storage").SetTextColor(tcell.ColorYellow))
-	table.SetCell(4, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
+	// CPU Usage
+	table.SetCell(4, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow))
+	table.SetCell(4, 1, tview.NewTableCell(fmt.Sprintf("%.1f", cluster.TotalCPU)).SetTextColor(tcell.ColorWhite))
+
+	// Memory Usage
+	table.SetCell(5, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow))
+	table.SetCell(5, 1, tview.NewTableCell(fmt.Sprintf("%.1f/%.1f GB",
+		float64(cluster.UsedMemory)/1024/1024/1024,
+		float64(cluster.TotalMemory)/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
+
+	// Storage Usage
+	table.SetCell(6, 0, tview.NewTableCell("Storage").SetTextColor(tcell.ColorYellow))
+	table.SetCell(6, 1, tview.NewTableCell(fmt.Sprintf("%.1f/%.1f TB",
+		float64(cluster.UsedStorage)/1024/1024/1024/1024,
+		float64(cluster.TotalStorage)/1024/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
 }
