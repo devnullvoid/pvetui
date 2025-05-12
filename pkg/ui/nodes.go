@@ -26,7 +26,16 @@ func CreateNodeList(nodes []api.Node) *tview.List {
 		}
 		nodeList.AddItem(
 			fmt.Sprintf("%s %s", status, n.Name),
-			fmt.Sprintf("IP: %s | Version: %s", n.IP, n.Version),
+			fmt.Sprintf("IP: %s | Version: %s", n.IP, func() string {
+				if n.Version == "" {
+					return "unknown"
+				}
+				parts := strings.Split(n.Version, "/")
+				if len(parts) > 1 {
+					return "v" + parts[1]
+				}
+				return "v" + parts[0]
+			}()),
 			0,
 			nil,
 		)
@@ -96,19 +105,18 @@ func SetupNodeHandlers(
 		detailsTable.SetCell(0, 1, tview.NewTableCell(n.Name).SetTextColor(tcell.ColorWhite))
 
 		// PVE and Kernel
-		var pveVer, kernelRel string
-		if pv, ok := status["pveversion"].(string); ok {
-			parts := strings.Split(pv, "/")
-			if len(parts) >= 2 {
-				pveVer = parts[1]
-			} else {
-				pveVer = pv
-			}
+		// Format PVE version from "pve-manager/8.3.5/dac3aa88bac3f300" to "8.3.5"
+		pveVerParts := strings.Split(status.Version, "/")
+		pveVer := "unknown"
+		if len(pveVerParts) >= 2 {
+			pveVer = pveVerParts[1]
 		}
-		if ck, ok := status["current-kernel"].(map[string]interface{}); ok {
-			if rs, ok2 := ck["release"].(string); ok2 {
-				kernelRel = strings.Split(rs, " ")[0]
-			}
+
+		// Format kernel version from "6.8.12-8-pve" to "6.8.12"
+		kernelParts := strings.Split(status.KernelVersion, "-")
+		kernelRel := "unknown"
+		if len(kernelParts) > 0 {
+			kernelRel = kernelParts[0]
 		}
 		detailsTable.SetCell(1, 0, tview.NewTableCell("📛 PVE").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(1, 1, tview.NewTableCell(pveVer).SetTextColor(tcell.ColorWhite))

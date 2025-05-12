@@ -9,29 +9,52 @@ import (
 
 // Node represents a Proxmox cluster node
 type Node struct {
-	ID            string
-	Name          string
-	CPUCount      float64
-	CPUUsage      float64
-	MemoryTotal   int64
-	MemoryUsed    int64
-	TotalStorage  int64
-	UsedStorage   int64
-	Uptime        int64
-	Version       string
-	KernelVersion string
-	IP            string
-	Online        bool
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	IP            string  `json:"ip"`
+	CPUCount      float64 `json:"maxcpu"`
+	CPUUsage      float64 `json:"cpu"`
+	MemoryTotal   int64   `json:"maxmem"`
+	MemoryUsed    int64   `json:"mem"`
+	TotalStorage  int64   `json:"maxdisk"`
+	UsedStorage   int64   `json:"disk"`
+	Uptime        int64   `json:"uptime"`
+	Version       string  `json:"pveversion"`
+	KernelVersion string  `json:"kversion"`
+	Online        bool    `json:"-"`
 }
 
 // ListNodes retrieves all nodes from the cluster with caching
 func (c *Client) ListNodes() ([]Node, error) {
+	// Get basic node metrics
+	nodes, err := c.getBasicNodeMetrics()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get cluster status for IP addresses
+	ipMap, err := c.getNodeIPsFromClusterStatus()
+	if err != nil {
+		return nodes, fmt.Errorf("got basic node data but failed to get IPs: %w", err)
+	}
+
+	// Merge IP addresses into nodes
+	for i := range nodes {
+		if ip, exists := ipMap[nodes[i].Name]; exists {
+			nodes[i].IP = ip
+		}
+	}
+
+	return nodes, nil
+}
+
+func (c *Client) getBasicNodeMetrics() ([]Node, error) {
 	var res map[string]interface{}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := c.ProxClient.GetJsonRetryable(ctx, "/nodes", &res, 3); err != nil {
-		return nil, fmt.Errorf("ListNodes failed: %w", err)
+		return nil, fmt.Errorf("getBasicNodeMetrics failed: %w", err)
 	}
 
 	data, ok := res["data"].([]interface{})
@@ -51,7 +74,7 @@ func (c *Client) ListNodes() ([]Node, error) {
 			return nil, fmt.Errorf("missing node name at index %d", i)
 		}
 
-		node := Node{
+		nodes[i] = Node{
 			ID:            nodeName,
 			Name:          nodeName,
 			Online:        strings.EqualFold(getString(m, "status"), "online"),
@@ -63,30 +86,87 @@ func (c *Client) ListNodes() ([]Node, error) {
 			TotalStorage:  int64(getFloat(m, "maxdisk")),
 			UsedStorage:   int64(getFloat(m, "disk")),
 			Uptime:        int64(getFloat(m, "uptime")),
-			Version:       getString(m, "pveversion"),
 		}
 
-		if !node.Online && (node.CPUUsage > 0 || node.MemoryUsed > 0) {
-			node.Online = true
-		}
+		// Version will be populated by GetNodeStatus when needed
+		nodes[i].Version = ""
 
-		nodes[i] = node
+		if !nodes[i].Online && (nodes[i].CPUUsage > 0 || nodes[i].MemoryUsed > 0) {
+			nodes[i].Online = true
+		}
 	}
 
 	return nodes, nil
 }
 
-// GetNodeStatus retrieves metrics for a given node from Proxmox API
-func (c *Client) GetNodeStatus(nodeName string) (map[string]interface{}, error) {
+// GetNodeStatus retrieves real-time status for a specific node
+func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	var res map[string]interface{}
-	if err := c.ProxClient.GetJsonRetryable(context.Background(), fmt.Sprintf("/nodes/%s/status", nodeName), &res, 3); err != nil {
-		return nil, err
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	statusPath := fmt.Sprintf("/nodes/%s/status", nodeName)
+	if err := c.ProxClient.GetJsonRetryable(ctx, statusPath, &res, 3); err != nil {
+		return nil, fmt.Errorf("failed to get status for node %s: %w", nodeName, err)
 	}
+
 	data, ok := res["data"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("unexpected format for node status")
+		return nil, fmt.Errorf("invalid status response format for node %s", nodeName)
 	}
-	return data, nil
+
+	node := &Node{
+		Name:          nodeName,
+		Online:        strings.EqualFold(getString(data, "status"), "online"),
+		CPUCount:      getFloat(data, "maxcpu"),
+		CPUUsage:      getFloat(data, "cpu"),
+		KernelVersion: getString(data, "current-kernel"),
+		MemoryTotal:   int64(getFloat(data, "maxmem")),
+		MemoryUsed:    int64(getFloat(data, "mem")),
+		TotalStorage:  int64(getFloat(data, "maxdisk")),
+		UsedStorage:   int64(getFloat(data, "disk")),
+		Uptime:        int64(getFloat(data, "uptime")),
+		Version:       getString(data, "pveversion"),
+	}
+
+	// Fallback to version endpoint if pveversion not in status
+	if node.Version == "" {
+		var versionRes map[string]interface{}
+		versionCtx, versionCancel := context.WithTimeout(ctx, 2*time.Second)
+		defer versionCancel()
+
+		if err := c.ProxClient.GetJsonRetryable(versionCtx, fmt.Sprintf("/nodes/%s/version", nodeName), &versionRes, 1); err == nil {
+			if versionData, ok := versionRes["data"].(map[string]interface{}); ok {
+				node.Version = getString(versionData, "version")
+			}
+		}
+	}
+
+	return node, nil
+}
+
+func (c *Client) getNodeIPsFromClusterStatus() (map[string]string, error) {
+	var res map[string]interface{}
+	if err := c.ProxClient.GetJsonRetryable(context.Background(), "/cluster/status", &res, 3); err != nil {
+		return nil, err
+	}
+
+	ipMap := make(map[string]string)
+	data, ok := res["data"].([]interface{})
+	if !ok {
+		return ipMap, nil
+	}
+
+	for _, item := range data {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if getString(m, "type") == "node" {
+			ipMap[getString(m, "name")] = getString(m, "ip")
+		}
+	}
+	return ipMap, nil
 }
 
 // GetNodeConfig retrieves configuration for a given node

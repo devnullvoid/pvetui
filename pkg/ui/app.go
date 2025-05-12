@@ -119,7 +119,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	// Main layout: header, summary, pages, footer
 	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(header, 1, 0, false).
-		AddItem(summaryPanel, 5, 0, false).
+		AddItem(summaryPanel, 8, 0, false). // Increased height by 1 more row to show all data
 		AddItem(pages, 0, 1, true).
 		AddItem(footer, 1, 0, false)
 

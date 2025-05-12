@@ -80,13 +80,12 @@ func UpdateClusterStatus(summaryTable *tview.Table, resourceTable *tview.Table, 
 	}
 
 	// Update summary table (left panel)
-	summaryTable.SetCell(1, 0, tview.NewTableCell("Cluster").SetTextColor(tcell.ColorYellow))
-	summaryTable.SetCell(1, 1, tview.NewTableCell(cluster.ClusterName).SetTextColor(tcell.ColorWhite))
-	summaryTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("Nodes: %d", cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
+	summaryTable.SetCell(1, 0, tview.NewTableCell("Cluster Name").SetTextColor(tcell.ColorYellow))
+	summaryTable.SetCell(1, 1, tview.NewTableCell(cluster.Name).SetTextColor(tcell.ColorWhite))
+	summaryTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%d Nodes", cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
 
-	summaryTable.SetCell(2, 0, tview.NewTableCell("PVE Version").SetTextColor(tcell.ColorYellow))
-	summaryTable.SetCell(2, 1, tview.NewTableCell(cluster.PVEVersion).SetTextColor(tcell.ColorWhite))
-	summaryTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("Kernel: %s", cluster.KernelVersion)).SetTextColor(tcell.ColorWhite))
+	summaryTable.SetCell(2, 0, tview.NewTableCell("Proxmox VE").SetTextColor(tcell.ColorYellow))
+	summaryTable.SetCell(2, 1, tview.NewTableCell(cluster.Version).SetTextColor(tcell.ColorWhite))
 
 	summaryTable.SetCell(3, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
 	summaryTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%d/%d", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
@@ -95,13 +94,11 @@ func UpdateClusterStatus(summaryTable *tview.Table, resourceTable *tview.Table, 
 	// Update resource table (right panel)
 	resourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow))
 	resourceTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%.1f", cluster.TotalCPU)).SetTextColor(tcell.ColorWhite))
-	resourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f%% used", cluster.CPUUsage)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f%%", cluster.CPUUsage)).SetTextColor(tcell.ColorWhite))
 
 	resourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow))
-	resourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.UsedMemory)/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
-	resourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB free", float64(cluster.TotalMemory-cluster.UsedMemory)/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryTotal)/1048576)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryUsed)/1048576)).SetTextColor(tcell.ColorWhite))
 
-	resourceTable.SetCell(3, 0, tview.NewTableCell("Storage").SetTextColor(tcell.ColorYellow))
-	resourceTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.1f TB", float64(cluster.UsedStorage)/1024/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
-	resourceTable.SetCell(3, 2, tview.NewTableCell(fmt.Sprintf("%.1f TB free", float64(cluster.TotalStorage-cluster.UsedStorage)/1024/1024/1024/1024)).SetTextColor(tcell.ColorWhite))
+	// Storage removed from cluster-level summary since it's node-specific
 }

@@ -1,60 +1,100 @@
 package api
 
-import (
-	"strings"
-)
+import "fmt"
 
 // Cluster represents aggregated Proxmox cluster metrics
 type Cluster struct {
-	TotalNodes    int
-	OnlineNodes   int
-	TotalCPU      float64
-	CPUUsage      float64
-	TotalMemory   int64
-	UsedMemory    int64
-	TotalStorage  int64
-	UsedStorage   int64
-	ClusterName   string
-	PVEVersion    string
-	KernelVersion string
+	Name        string  `json:"name"`
+	Version     string  `json:"version"`
+	Quorate     bool    `json:"quorate"`
+	TotalNodes  int     `json:"nodes"`
+	OnlineNodes int     `json:"online"`
+	TotalCPU    float64 `json:"total_cpu"`
+	CPUUsage    float64 `json:"cpu_usage"`
+	MemoryTotal int64   `json:"memory_total"`
+	MemoryUsed  int64   `json:"memory_used"`
+	Nodes       []*Node `json:"nodes"`
+
+	// Index for quick node lookups
+	nodeIndex map[string]*Node
 }
 
-// GetClusterStatus retrieves and parses cluster status into structured format
+// GetClusterStatus retrieves cluster status from API
 func (c *Client) GetClusterStatus() (*Cluster, error) {
-	cluster := &Cluster{}
-
-	nodes, err := c.ListNodes()
+	var resp map[string]interface{}
+	err := c.Get("/cluster/status", &resp)
 	if err != nil {
 		return nil, err
 	}
 
-	cluster.TotalNodes = len(nodes)
-	for _, node := range nodes {
-		if node.Online {
-			cluster.OnlineNodes++
-		}
-		cluster.TotalCPU += node.CPUCount
-		cluster.CPUUsage += node.CPUUsage
-		if cluster.KernelVersion == "" {
-			cluster.KernelVersion = node.KernelVersion
-		}
-		cluster.TotalMemory += node.MemoryTotal
-		cluster.UsedMemory += node.MemoryUsed
-		cluster.TotalStorage += node.TotalStorage
-		cluster.UsedStorage += node.UsedStorage
+	// Debug: Print raw API response
+	fmt.Printf("Raw cluster status response:\n%+v\n", resp)
 
-		if cluster.PVEVersion == "" {
-			cluster.PVEVersion = node.Version
+	cluster := &Cluster{Nodes: []*Node{}}
+
+	// Process API response
+	data, ok := resp["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid cluster status response format")
+	}
+
+	for _, item := range data {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue // Skip invalid entries
+		}
+
+		itemType := getString(itemMap, "type")
+		if itemType == "cluster" {
+			cluster.Name = getString(itemMap, "name")
+			// Version comes from node data, initialize as unknown
+			cluster.Version = "Unknown"
+			cluster.Quorate = getBool(itemMap, "quorate")
+			cluster.TotalNodes = getInt(itemMap, "nodes")
+		} else if itemType == "node" {
+			nodeName := getString(itemMap, "name")
+			nodeIP := getString(itemMap, "ip")
+			// Get full node details
+			// Create node with core identity fields
+			node := &Node{
+				ID:   nodeName,
+				Name: nodeName,
+				IP:   nodeIP,
+			}
+
+			// Get status and version details
+			if status, err := c.GetNodeStatus(nodeName); err == nil {
+				node.Online = status.Online
+				node.CPUCount = status.CPUCount
+				node.CPUUsage = status.CPUUsage
+				node.MemoryTotal = status.MemoryTotal
+				node.MemoryUsed = status.MemoryUsed
+				node.TotalStorage = status.TotalStorage
+				node.UsedStorage = status.UsedStorage
+				node.Uptime = status.Uptime
+				node.Version = status.Version
+				node.KernelVersion = status.KernelVersion
+			} else {
+				// Fallback to cluster status data if detailed status fails
+				node.Online = getInt(itemMap, "online") == 1
+				node.Version = getString(itemMap, "pveversion")
+			}
+
+			cluster.Nodes = append(cluster.Nodes, node)
+			if node.Online {
+				cluster.OnlineNodes++
+			}
+			cluster.TotalCPU += node.CPUCount
+			cluster.CPUUsage += node.CPUUsage
+			// API returns memory in bytes
+			cluster.MemoryTotal += node.MemoryTotal
+			cluster.MemoryUsed += node.MemoryUsed
 		}
 	}
 
-	if len(nodes) > 0 {
-		parts := strings.Split(nodes[0].Name, ".")
-		if len(parts) > 1 {
-			cluster.ClusterName = parts[1]
-		} else {
-			cluster.ClusterName = "proxmox"
-		}
+	// Set cluster version from first node's version if available
+	if len(cluster.Nodes) > 0 && cluster.Nodes[0] != nil {
+		cluster.Version = cluster.Nodes[0].Version
 	}
 
 	return cluster, nil

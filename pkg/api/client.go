@@ -16,6 +16,11 @@ type Client struct {
 	ProxClient *proxmox.Client
 }
 
+// Get makes a GET request to the Proxmox API
+func (c *Client) Get(path string, result *map[string]interface{}) error {
+	return c.ProxClient.GetJsonRetryable(context.Background(), path, result, 3)
+}
+
 // NewClient initializes a new Proxmox API client with optimized defaults
 func NewClient(addr, user, password, realm string, insecure bool) (*Client, error) {
 	// Validate input parameters
@@ -28,9 +33,9 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 	if !strings.HasPrefix(baseURL, "https://") {
 		baseURL = "https://" + baseURL
 	}
-	if !strings.Contains(baseURL, ":8006") {
-		baseURL += ":8006"
-	}
+	// if !strings.Contains(baseURL, ":8006") {
+	// 	baseURL += ":8006"
+	// }
 	fmt.Printf("Proxmox API URL: %s\n", baseURL)
 
 	// Configure TLS
