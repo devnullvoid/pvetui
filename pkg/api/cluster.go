@@ -6,15 +6,17 @@ import (
 
 // Cluster represents aggregated Proxmox cluster metrics
 type Cluster struct {
-	TotalNodes   int
-	OnlineNodes  int
-	TotalCPU     float64
-	TotalMemory  int64
-	UsedMemory   int64
-	TotalStorage int64
-	UsedStorage  int64
-	ClusterName  string
-	PVEVersion   string
+	TotalNodes    int
+	OnlineNodes   int
+	TotalCPU      float64
+	CPUUsage      float64
+	TotalMemory   int64
+	UsedMemory    int64
+	TotalStorage  int64
+	UsedStorage   int64
+	ClusterName   string
+	PVEVersion    string
+	KernelVersion string
 }
 
 // GetClusterStatus retrieves and parses cluster status into structured format
@@ -31,7 +33,11 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 		if node.Online {
 			cluster.OnlineNodes++
 		}
-		cluster.TotalCPU += node.CPUUsage
+		cluster.TotalCPU += node.CPUCount
+		cluster.CPUUsage += node.CPUUsage
+		if cluster.KernelVersion == "" {
+			cluster.KernelVersion = node.KernelVersion
+		}
 		cluster.TotalMemory += node.MemoryTotal
 		cluster.UsedMemory += node.MemoryUsed
 		cluster.TotalStorage += node.TotalStorage

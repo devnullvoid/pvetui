@@ -24,7 +24,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	}
 	// Create UI components
 	header := CreateHeader()
-	summaryPanel, summary := CreateClusterStatusPanel() // Now implemented in summary.go
+	summaryPanel, summary, resourceTable := CreateClusterStatusPanel() // Get both tables from panel
 	footer := CreateFooter()
 
 	// Get all nodes from Proxmox API
@@ -80,7 +80,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 
 	// Set up handlers
 	SetupVMHandlers(vmList, vmDetails, vmsAll, client)
-	activeIndex, _, updateDetails := SetupNodeHandlers(app, client, nodeList, nodes, summary, detailsTable, header, pages)
+	activeIndex, _, updateDetails := SetupNodeHandlers(app, client, nodeList, nodes, summary, resourceTable, detailsTable, header, pages)
 
 	// Trigger initial node selection
 	if len(nodes) > 0 {

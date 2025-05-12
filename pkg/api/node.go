@@ -9,17 +9,19 @@ import (
 
 // Node represents a Proxmox cluster node
 type Node struct {
-	ID           string
-	Name         string
-	CPUUsage     float64
-	MemoryTotal  int64
-	MemoryUsed   int64
-	TotalStorage int64
-	UsedStorage  int64
-	Uptime       int64
-	Version      string
-	IP           string
-	Online       bool
+	ID            string
+	Name          string
+	CPUCount      float64
+	CPUUsage      float64
+	MemoryTotal   int64
+	MemoryUsed    int64
+	TotalStorage  int64
+	UsedStorage   int64
+	Uptime        int64
+	Version       string
+	KernelVersion string
+	IP            string
+	Online        bool
 }
 
 // ListNodes retrieves all nodes from the cluster with caching
@@ -50,16 +52,18 @@ func (c *Client) ListNodes() ([]Node, error) {
 		}
 
 		node := Node{
-			ID:           nodeName,
-			Name:         nodeName,
-			Online:       strings.EqualFold(getString(m, "status"), "online"),
-			CPUUsage:     getFloat(m, "cpu"),
-			MemoryTotal:  int64(getFloat(m, "maxmem")),
-			MemoryUsed:   int64(getFloat(m, "mem")),
-			TotalStorage: int64(getFloat(m, "maxdisk")),
-			UsedStorage:  int64(getFloat(m, "disk")),
-			Uptime:       int64(getFloat(m, "uptime")),
-			Version:      getString(m, "pveversion"),
+			ID:            nodeName,
+			Name:          nodeName,
+			Online:        strings.EqualFold(getString(m, "status"), "online"),
+			CPUCount:      getFloat(m, "maxcpu"),
+			CPUUsage:      getFloat(m, "cpu"),
+			KernelVersion: getString(m, "kversion"),
+			MemoryTotal:   int64(getFloat(m, "maxmem")),
+			MemoryUsed:    int64(getFloat(m, "mem")),
+			TotalStorage:  int64(getFloat(m, "maxdisk")),
+			UsedStorage:   int64(getFloat(m, "disk")),
+			Uptime:        int64(getFloat(m, "uptime")),
+			Version:       getString(m, "pveversion"),
 		}
 
 		if !node.Online && (node.CPUUsage > 0 || node.MemoryUsed > 0) {

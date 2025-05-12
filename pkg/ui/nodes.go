@@ -43,6 +43,7 @@ func SetupNodeHandlers(
 	nodeList *tview.List,
 	nodes []api.Node,
 	summary *tview.Table,
+	resourceTable *tview.Table,
 	detailsTable *tview.Table,
 	header *tview.TextView,
 	detailsPages *tview.Pages,
@@ -70,7 +71,7 @@ func SetupNodeHandlers(
 		// Update summary panel with live data
 		summary.Clear()
 		clusterStatus, _ := client.GetClusterStatus()
-		UpdateSummary(summary, clusterStatus)
+		UpdateClusterStatus(summary, resourceTable, clusterStatus)
 		header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
 	}
 
