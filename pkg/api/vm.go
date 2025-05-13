@@ -45,7 +45,6 @@ func (c *Client) ListVMs(nodeName string) ([]VM, error) {
 	if !ok {
 		return nil, fmt.Errorf("unexpected format for VM list")
 	}
-	// fmt.Printf("DEBUG - VM List: %v\n", data)
 	var vms []VM
 	for _, item := range data {
 		m, ok := item.(map[string]interface{})

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Telmate/proxmox-api-go/proxmox"
+	"github.com/lonepie/proxmox-tui/pkg/config"
 )
 
 // Client is a Proxmox API client
@@ -37,7 +38,7 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 	// if !strings.Contains(baseURL, ":8006") {
 	// 	baseURL += ":8006"
 	// }
-	fmt.Printf("Proxmox API URL: %s\n", baseURL)
+	config.DebugLog("Proxmox API URL: %s", baseURL)
 
 	// Configure TLS
 	tlsConfig := &tls.Config{InsecureSkipVerify: insecure}
@@ -79,12 +80,12 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 		authUser = fmt.Sprintf("%s@%s", user, realm)
 	}
 
-	fmt.Printf("Authentication parameters:\n- User: %s\n- Realm: %s\n- API: %s\n",
+	config.DebugLog("Authentication parameters:\n- User: %s\n- Realm: %s\n- API: %s",
 		authUser, realm, baseURL)
 
 	// Perform authentication with formatted username (realm should be empty when using username@realm format)
 	if err := proxClient.Login(context.Background(), authUser, password, ""); err != nil {
-		fmt.Printf("DEBUG - Authentication parameters:\nUser: %s\nPassword: %s\nAPI: %s\n", authUser, password, baseURL)
+		config.DebugLog("Authentication failure details:\nUser: %s\nAPI: %s", authUser, baseURL)
 		return nil, fmt.Errorf("authentication failed for %s at %s: %w\nCheck:\n1. Credentials format: username@realm\n2. Realm '%s' exists\n3. User has API permissions\n4. TLS certificate validity", authUser, baseURL, err, realm)
 		// return nil, fmt.Errorf("authentication failed: %w\nTroubleshooting:\n1. Verify credentials\n2. Check network connectivity\n3. Validate TLS settings", err)
 	}

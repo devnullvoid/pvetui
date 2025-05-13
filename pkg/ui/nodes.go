@@ -7,6 +7,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/config"
 	"github.com/rivo/tview"
 )
 
@@ -40,7 +41,7 @@ func CreateNodeList(nodes []api.Node) *tview.List {
 			0,
 			nil,
 		)
-		fmt.Printf("DEBUG - Node %d: %+v\n", i, n)
+		config.DebugLog("Node %d: %+v", i, n)
 	}
 
 	return nodeList

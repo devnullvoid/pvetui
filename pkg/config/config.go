@@ -3,11 +3,20 @@ package config
 import (
 	"errors"
 	"flag"
+	"log"
 	"os"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+var DebugEnabled bool
+
+func DebugLog(format string, v ...interface{}) {
+	if DebugEnabled {
+		log.Printf("[DEBUG] "+format, v...)
+	}
+}
 
 type Config struct {
 	Addr     string `yaml:"addr"`
@@ -17,6 +26,7 @@ type Config struct {
 	APIPath  string `yaml:"api-path"`
 	Insecure bool   `yaml:"insecure"`
 	SSHUser  string `yaml:"ssh-user"`
+	Debug    bool   `yaml:"debug"`
 }
 
 func NewConfig() Config {
@@ -28,6 +38,7 @@ func NewConfig() Config {
 		APIPath:  getEnvWithDefault("PROXMOX_API_PATH", "/api2/json"),
 		Insecure: strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true",
 		SSHUser:  os.Getenv("PROXMOX_SSH_USER"),
+		Debug:    strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
 	}
 }
 
@@ -93,6 +104,9 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.SSHUser != "" {
 		c.SSHUser = fileConfig.SSHUser
+	}
+	if fileConfig.Debug {
+		c.Debug = true
 	}
 
 	return nil
