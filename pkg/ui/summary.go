@@ -92,11 +92,11 @@ func UpdateClusterStatus(summaryTable *tview.Table, resourceTable *tview.Table, 
 	// Update resource table (right panel)
 	resourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow))
 	resourceTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%.1f", cluster.TotalCPU)).SetTextColor(tcell.ColorWhite))
-	resourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f%%", cluster.CPUUsage)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f%%", cluster.CPUUsage*100)).SetTextColor(tcell.ColorWhite))
 
 	resourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow))
-	resourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryTotal)/1073741824)).SetTextColor(tcell.ColorWhite))
-	resourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", float64(cluster.MemoryUsed)/1073741824)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryTotal)).SetTextColor(tcell.ColorWhite))
+	resourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryUsed)).SetTextColor(tcell.ColorWhite))
 
 	// Storage removed from cluster-level summary since it's node-specific
 }

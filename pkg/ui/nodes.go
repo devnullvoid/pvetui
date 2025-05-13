@@ -143,8 +143,8 @@ func SetupNodeHandlers(
 		detailsTable.SetCell(5, 0, tview.NewTableCell("💾 Memory").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(5, 1, tview.NewTableCell(
 			fmt.Sprintf("%.1f GB / %.1f GB",
-				float64(status.MemoryUsed)/1024/1024/1024,
-				float64(status.MemoryTotal)/1024/1024/1024),
+				status.MemoryUsed,
+				status.MemoryTotal),
 		).SetTextColor(tcell.ColorWhite))
 
 		detailsTable.SetCell(6, 0, tview.NewTableCell("💽 Storage").SetTextColor(tcell.ColorYellow))

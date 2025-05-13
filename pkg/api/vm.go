@@ -8,12 +8,27 @@ import (
 
 // VM represents a Proxmox VM or container
 type VM struct {
-	ID     int
-	Name   string
-	Node   string
-	Type   string
-	IP     string
-	Status string
+	ID        int     `json:"id"`
+	Name      string  `json:"name"`
+	Node      string  `json:"node"`
+	Type      string  `json:"type"`
+	Status    string  `json:"status"`
+	IP        string  `json:"ip,omitempty"`
+	CPU       float64 `json:"cpu,omitempty"`
+	Mem       int64   `json:"mem,omitempty"`
+	MaxMem    int64   `json:"maxmem,omitempty"`
+	Disk      int64   `json:"disk,omitempty"`
+	MaxDisk   int64   `json:"maxdisk,omitempty"`
+	Uptime    int64   `json:"uptime,omitempty"`
+	DiskRead  int64   `json:"diskread,omitempty"`
+	DiskWrite int64   `json:"diskwrite,omitempty"`
+	NetIn     int64   `json:"netin,omitempty"`
+	NetOut    int64   `json:"netout,omitempty"`
+	HAState   string  `json:"hastate,omitempty"`
+	Lock      string  `json:"lock,omitempty"`
+	Tags      string  `json:"tags,omitempty"`
+	Template  bool    `json:"template,omitempty"`
+	Pool      string  `json:"pool,omitempty"`
 }
 
 // ListVMs retrieves all virtual machines on the given node
@@ -30,7 +45,7 @@ func (c *Client) ListVMs(nodeName string) ([]VM, error) {
 	if !ok {
 		return nil, fmt.Errorf("unexpected format for VM list")
 	}
-
+	// fmt.Printf("DEBUG - VM List: %v\n", data)
 	var vms []VM
 	for _, item := range data {
 		m, ok := item.(map[string]interface{})

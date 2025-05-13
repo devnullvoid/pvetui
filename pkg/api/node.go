@@ -7,21 +7,36 @@ import (
 	"time"
 )
 
+// Storage represents a Proxmox storage resource
+type Storage struct {
+	ID         string `json:"id"`
+	Content    string `json:"content,omitempty"`
+	Disk       int64  `json:"disk,omitempty"`
+	MaxDisk    int64  `json:"maxdisk,omitempty"`
+	Node       string `json:"node,omitempty"`
+	Plugintype string `json:"plugintype,omitempty"`
+	Status     string `json:"status,omitempty"`
+}
+
 // Node represents a Proxmox cluster node
 type Node struct {
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	IP            string  `json:"ip"`
-	CPUCount      float64 `json:"maxcpu"`
-	CPUUsage      float64 `json:"cpu"`
-	MemoryTotal   int64   `json:"maxmem"`
-	MemoryUsed    int64   `json:"mem"`
-	TotalStorage  int64   `json:"maxdisk"`
-	UsedStorage   int64   `json:"disk"`
-	Uptime        int64   `json:"uptime"`
-	Version       string  `json:"pveversion"`
-	KernelVersion string  `json:"kversion"`
-	Online        bool    `json:"-"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	IP            string   `json:"ip"`
+	CPUCount      float64  `json:"maxcpu"`
+	CPUUsage      float64  `json:"cpu"`
+	MemoryTotal   float64  `json:"maxmem"`
+	MemoryUsed    float64  `json:"mem"`
+	TotalStorage  int64    `json:"maxdisk"`
+	UsedStorage   int64    `json:"disk"`
+	Uptime        int64    `json:"uptime"`
+	Version       string   `json:"pveversion"`
+	KernelVersion string   `json:"kversion"`
+	Online        bool     `json:"-"`
+	CGroupMode    int      `json:"cgroup_mode,omitempty"`
+	Level         string   `json:"level,omitempty"`
+	Storage       *Storage `json:"storage,omitempty"`
+	VMs           []*VM    `json:"vms,omitempty"`
 }
 
 // ListNodes retrieves nodes from cached cluster data
@@ -63,8 +78,8 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 		CPUCount:      getFloat(data, "maxcpu"),
 		CPUUsage:      getFloat(data, "cpu"),
 		KernelVersion: getString(data, "kversion"),
-		MemoryTotal:   int64(getFloat(data, "maxmem")),
-		MemoryUsed:    int64(getFloat(data, "mem")),
+		MemoryTotal:   getFloat(data, "maxmem") / 1073741824, // Bytes to GB
+		MemoryUsed:    getFloat(data, "mem") / 1073741824,    // Bytes to GB
 		TotalStorage:  int64(getFloat(data, "maxdisk")),
 		UsedStorage:   int64(getFloat(data, "disk")),
 		Uptime:        int64(getFloat(data, "uptime")),

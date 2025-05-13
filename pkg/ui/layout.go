@@ -91,7 +91,7 @@ func (a *AppUI) SetupKeyboardHandlers(
 				if basePage == "Nodes" {
 					nodeList.Clear()
 					for _, node := range nodes {
-						nodeList.AddItem(node.Name, "", 0, nil)
+						nodeList.AddItem(FormatNodeName(node), "", 0, nil)
 					}
 					a.app.SetFocus(nodeList)
 				} else if basePage == "Guests" {

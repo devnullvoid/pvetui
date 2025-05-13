@@ -47,7 +47,7 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 				nodeList.Clear()
 				for _, node := range originalNodes {
 					if strings.Contains(strings.ToLower(node.Name), searchTerm) {
-						nodeList.AddItem(node.Name, "", 0, nil) // Nodes don't have status in this implementation
+						nodeList.AddItem(FormatNodeName(node), "", 0, nil)
 					}
 				}
 				// Restore scroll position if possible
