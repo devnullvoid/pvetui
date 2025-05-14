@@ -62,11 +62,14 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 		AddItem(nodeList, 0, 1, true).
 		AddItem(detailsPanel, 0, 3, false)
 
-	// Get all VMs across all nodes
+	// Get all VMs from cached cluster data
 	var vmsAll []api.VM
-	for _, n := range nodes {
-		vms, _ := client.ListVMs(n.Name)
-		vmsAll = append(vmsAll, vms...)
+	for _, node := range client.Cluster.Nodes {
+		if node != nil {
+			for _, vm := range node.VMs {
+				vmsAll = append(vmsAll, *vm)
+			}
+		}
 	}
 
 	// Create VM components

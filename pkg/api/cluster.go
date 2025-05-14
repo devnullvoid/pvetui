@@ -1,10 +1,6 @@
 package api
 
-import (
-	"context"
-	"fmt"
-	"time"
-)
+import "fmt"
 
 // Cluster represents aggregated Proxmox cluster metrics
 type Cluster struct {
@@ -24,8 +20,7 @@ type Cluster struct {
 func (c *Client) GetClusterStatus() (*Cluster, error) {
 	cluster := &Cluster{Nodes: []*Node{}}
 	nodeMap := make(map[string]*Node)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Context now handled by Client.Get
 
 	// 1. First get cluster status from /cluster/status
 	var statusResp map[string]interface{}
@@ -66,7 +61,7 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 
 	// 2. Get node metrics from /nodes endpoint
 	var nodesResp map[string]interface{}
-	if err := c.ProxClient.GetJsonRetryable(ctx, "/nodes", &nodesResp, 3); err != nil {
+	if err := c.Get("/nodes", &nodesResp); err != nil {
 		return nil, fmt.Errorf("failed to get node metrics: %w", err)
 	}
 
@@ -103,7 +98,7 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 
 	// 3. Get cluster resources for VMs and storage
 	var resourcesResp map[string]interface{}
-	if err := c.ProxClient.GetJsonRetryable(ctx, "/cluster/resources", &resourcesResp, 3); err != nil {
+	if err := c.Get("/cluster/resources", &resourcesResp); err != nil {
 		return nil, fmt.Errorf("failed to get cluster resources: %w", err)
 	}
 

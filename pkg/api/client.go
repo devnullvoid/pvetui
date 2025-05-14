@@ -20,6 +20,7 @@ type Client struct {
 
 // Get makes a GET request to the Proxmox API
 func (c *Client) Get(path string, result *map[string]interface{}) error {
+	config.DebugLog("API GET: %s", path)
 	return c.ProxClient.GetJsonRetryable(context.Background(), path, result, 3)
 }
 

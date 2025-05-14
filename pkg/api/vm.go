@@ -1,9 +1,7 @@
 package api
 
 import (
-	"context"
 	"fmt"
-	"time"
 )
 
 // VM represents a Proxmox VM or container
@@ -33,11 +31,9 @@ type VM struct {
 
 // ListVMs retrieves all virtual machines on the given node
 func (c *Client) ListVMs(nodeName string) ([]VM, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
-	raw, err := c.ProxClient.GetVmList(ctx)
-	if err != nil {
+	var raw map[string]interface{}
+	if err := c.Get("/cluster/resources?type=vm", &raw); err != nil {
 		return nil, fmt.Errorf("failed to get VM list: %w", err)
 	}
 
@@ -97,11 +93,9 @@ func (c *Client) ListVMs(nodeName string) ([]VM, error) {
 
 // GetVmStatus retrieves current status metrics for a VM or LXC
 func (c *Client) GetVmStatus(vm VM) (map[string]interface{}, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current?full=1", vm.Node, vm.Type, vm.ID)
-	if err := c.ProxClient.GetJsonRetryable(ctx, endpoint, &res, 3); err != nil {
+	if err := c.Get(endpoint, &res); err != nil {
 		return nil, err
 	}
 	data, ok := res["data"].(map[string]interface{})
@@ -115,7 +109,7 @@ func (c *Client) GetVmStatus(vm VM) (map[string]interface{}, error) {
 func (c *Client) GetVmConfig(vm VM) (map[string]interface{}, error) {
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", vm.Node, vm.Type, vm.ID)
-	if err := c.ProxClient.GetJsonRetryable(context.Background(), endpoint, &res, 3); err != nil {
+	if err := c.Get(endpoint, &res); err != nil {
 		return nil, err
 	}
 	data, ok := res["data"].(map[string]interface{})

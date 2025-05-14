@@ -1,10 +1,8 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // Storage represents a Proxmox storage resource
@@ -59,11 +57,8 @@ func (c *Client) ListNodes() ([]Node, error) {
 // GetNodeStatus retrieves real-time status for a specific node
 func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	var res map[string]interface{}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
-	statusPath := fmt.Sprintf("/nodes/%s/status", nodeName)
-	if err := c.ProxClient.GetJsonRetryable(ctx, statusPath, &res, 3); err != nil {
+	if err := c.Get(fmt.Sprintf("/nodes/%s/status", nodeName), &res); err != nil {
 		return nil, fmt.Errorf("failed to get status for node %s: %w", nodeName, err)
 	}
 
@@ -89,10 +84,8 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	// Fallback to version endpoint if pveversion not in status
 	if node.Version == "" {
 		var versionRes map[string]interface{}
-		versionCtx, versionCancel := context.WithTimeout(ctx, 2*time.Second)
-		defer versionCancel()
 
-		if err := c.ProxClient.GetJsonRetryable(versionCtx, fmt.Sprintf("/nodes/%s/version", nodeName), &versionRes, 1); err == nil {
+		if err := c.Get(fmt.Sprintf("/nodes/%s/version", nodeName), &versionRes); err == nil {
 			if versionData, ok := versionRes["data"].(map[string]interface{}); ok {
 				node.Version = getString(versionData, "version")
 			}
@@ -105,7 +98,7 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 // GetNodeConfig retrieves configuration for a given node
 func (c *Client) GetNodeConfig(nodeName string) (map[string]interface{}, error) {
 	var res map[string]interface{}
-	if err := c.ProxClient.GetJsonRetryable(context.Background(), fmt.Sprintf("/nodes/%s/config", nodeName), &res, 3); err != nil {
+	if err := c.Get(fmt.Sprintf("/nodes/%s/config", nodeName), &res); err != nil {
 		return nil, err
 	}
 	data, ok := res["data"].(map[string]interface{})
