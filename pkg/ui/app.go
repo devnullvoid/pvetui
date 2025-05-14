@@ -53,7 +53,13 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	nodeList := CreateNodeList(nodes)
 	nodeList.SetTitle("Nodes")
 	nodeList.SetBorder(true).SetTitle("Nodes")
-	models.GlobalState.NodeList = nodeList
+
+	// Initialize global state
+	models.GlobalState = models.State{
+		NodeList:       nodeList,
+		VMList:         nil, // Will be set after VM list creation
+		LastSearchText: "",
+	}
 
 	detailsPanel, detailsTable := CreateDetailsPanel()
 
@@ -83,7 +89,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	vmDetails.SetBorder(true).SetTitle("VM Details")
 
 	// Start VM status refresh background process
-	StartVMStatusRefresh(app, client, vmList, vmsAll)
+	// StartVMStatusRefresh(app, client, vmList, vmsAll)
 
 	// Create pages container
 	pages := CreatePagesContainer()
@@ -103,6 +109,14 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 			fn(activeIndex, "", "", 0)
 		}
 		updateDetails(activeIndex, "", "", 0)
+	}
+
+	// Trigger initial VM selection
+	if len(vmsAll) > 0 {
+		vmList.SetCurrentItem(0)
+		if fn := vmList.GetSelectedFunc(); fn != nil {
+			fn(0, vmsAll[0].Name, vmsAll[0].Status, 0)
+		}
 	}
 
 	// Set up keyboard shortcuts

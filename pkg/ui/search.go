@@ -5,6 +5,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/ui/models"
 	"github.com/rivo/tview"
 )
 
@@ -21,11 +22,11 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 	var inputField *tview.InputField
 	inputField = tview.NewInputField().
 		SetLabel("Search: ").
-		SetText(lastSearchText).
+		SetText(models.GlobalState.LastSearchText).
 		SetDoneFunc(func(key tcell.Key) {
 			pages.RemovePage("Search")
 			// Save search text and keep filtered results
-			lastSearchText = inputField.GetText() // Now properly references the inputField
+			models.GlobalState.LastSearchText = inputField.GetText() // Now properly references the inputField
 			if currentPage == "Nodes" {
 				app.SetFocus(nodeList)
 			} else {
@@ -74,7 +75,7 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 				// Clear the search text and exit search mode
 				inputField.SetText("")
 				pages.RemovePage("Search")
-				lastSearchText = "" // Clear persisted search text
+				models.GlobalState.LastSearchText = "" // Clear persisted search text
 				if currentPage == "Nodes" {
 					app.SetFocus(nodeList)
 				} else {
