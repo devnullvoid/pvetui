@@ -58,14 +58,19 @@ func handleSearchInput(app *tview.Application, pages *tview.Pages, nodeList *tvi
 			} else if currentPage == "Guests" {
 				// Filter VMs
 
-				vmList.Clear()
+				var filteredVMs []api.VM
 				for _, vm := range originalVMs {
 					if strings.Contains(strings.ToLower(vm.Name), searchTerm) {
-						vmList.AddItem(vm.Name, vm.Status, 0, nil)
+						filteredVMs = append(filteredVMs, vm)
 					}
 				}
-				// Restore scroll position if possible
-				if currentVMIndex < vmList.GetItemCount() {
+				BuildVMList(filteredVMs, vmList)
+				// Restore scroll position with bounds checking
+				newItemCount := vmList.GetItemCount()
+				if newItemCount > 0 {
+					if currentVMIndex >= newItemCount {
+						currentVMIndex = newItemCount - 1
+					}
 					vmList.SetCurrentItem(currentVMIndex)
 				}
 			}

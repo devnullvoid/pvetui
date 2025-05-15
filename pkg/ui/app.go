@@ -49,7 +49,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 		nodes[i] = *n
 	}
 
-	// Create node components
+	// Create node components with emoji status
 	nodeList := CreateNodeList(nodes)
 	nodeList.SetTitle("Nodes")
 	nodeList.SetBorder(true).SetTitle("Nodes")
@@ -78,8 +78,9 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 		}
 	}
 
-	// Create VM components
+	// Create VM components with status coloring
 	vmList := CreateVMList(vmsAll)
+	BuildVMList(vmsAll, vmList)
 	vmList.SetTitle("Guests")
 	vmList.SetBorder(true).SetTitle("Guests")
 	models.GlobalState.VMList = vmList

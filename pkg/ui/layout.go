@@ -96,10 +96,7 @@ func (a *AppUI) SetupKeyboardHandlers(
 					}
 					a.app.SetFocus(nodeList)
 				} else if basePage == "Guests" {
-					vmList.Clear()
-					for _, vm := range vms {
-						vmList.AddItem(vm.Name, vm.Status, 0, nil)
-					}
+					BuildVMList(vms, vmList)
 					a.app.SetFocus(vmList)
 				}
 				return nil
