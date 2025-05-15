@@ -24,25 +24,42 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	}
 	// Create UI components
 	header := CreateHeader()
-	summaryPanel, summary := CreateNodeSummaryPanel()
+	summaryPanel, summary, resourceTable := CreateClusterStatusPanel()
 	footer := CreateFooter()
 
-	// Get all nodes from Proxmox API
-	nodes, err := client.ListNodes()
-	if err != nil {
-		header.SetText("Error fetching nodes: " + err.Error())
+	// Use cached cluster data
+	if client.Cluster == nil {
+		if _, err := client.GetClusterStatus(); err != nil {
+			header.SetText("Error fetching cluster: " + err.Error())
+			return a
+		}
+	}
+	cluster := client.Cluster
+
+	// Get nodes from cached cluster data
+	if len(cluster.Nodes) == 0 {
+		header.SetText("No nodes found in cluster")
 		return a
 	}
-	if len(nodes) == 0 {
-		header.SetText("No nodes found")
-		return a
+	nodes := make([]api.Node, len(cluster.Nodes))
+	for i, n := range cluster.Nodes {
+		if n == nil {
+			continue
+		}
+		nodes[i] = *n
 	}
 
-	// Create node components
+	// Create node components with emoji status
 	nodeList := CreateNodeList(nodes)
 	nodeList.SetTitle("Nodes")
 	nodeList.SetBorder(true).SetTitle("Nodes")
-	models.GlobalState.NodeList = nodeList
+
+	// Initialize global state
+	models.GlobalState = models.State{
+		NodeList:       nodeList,
+		VMList:         nil, // Will be set after VM list creation
+		LastSearchText: "",
+	}
 
 	detailsPanel, detailsTable := CreateDetailsPanel()
 
@@ -51,15 +68,19 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 		AddItem(nodeList, 0, 1, true).
 		AddItem(detailsPanel, 0, 3, false)
 
-	// Get all VMs across all nodes
+	// Get all VMs from cached cluster data
 	var vmsAll []api.VM
-	for _, n := range nodes {
-		vms, _ := client.ListVMs(n.Name)
-		vmsAll = append(vmsAll, vms...)
+	for _, node := range client.Cluster.Nodes {
+		if node != nil {
+			for _, vm := range node.VMs {
+				vmsAll = append(vmsAll, *vm)
+			}
+		}
 	}
 
-	// Create VM components
+	// Create VM components with status coloring
 	vmList := CreateVMList(vmsAll)
+	BuildVMList(vmsAll, vmList)
 	vmList.SetTitle("Guests")
 	vmList.SetBorder(true).SetTitle("Guests")
 	models.GlobalState.VMList = vmList
@@ -69,7 +90,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	vmDetails.SetBorder(true).SetTitle("VM Details")
 
 	// Start VM status refresh background process
-	StartVMStatusRefresh(app, client, vmList, vmsAll)
+	// StartVMStatusRefresh(app, client, vmList, vmsAll)
 
 	// Create pages container
 	pages := CreatePagesContainer()
@@ -78,45 +99,63 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	AddNodesPage(pages, nodesContent)
 	AddGuestsPage(pages, vmList, vmDetails)
 
-	// Set up handlers
+	// Set up handlers with cluster data
 	SetupVMHandlers(vmList, vmDetails, vmsAll, client)
-	SetupNodeHandlers(app, client, nodeList, nodes, summary, detailsTable, header)
-	// Shell access is now handled in SetupKeyboardHandlers
+	activeIndex, _, updateDetails := SetupNodeHandlers(app, client, cluster, nodeList, nodes, summary, resourceTable, detailsTable, header, pages)
+
+	// Trigger initial node selection
+	if len(nodes) > 0 {
+		nodeList.SetCurrentItem(activeIndex)
+		if fn := nodeList.GetSelectedFunc(); fn != nil {
+			fn(activeIndex, "", "", 0)
+		}
+		updateDetails(activeIndex, "", "", 0)
+	}
+
+	// Trigger initial VM selection
+	if len(vmsAll) > 0 {
+		vmList.SetCurrentItem(0)
+		if fn := vmList.GetSelectedFunc(); fn != nil {
+			fn(0, vmsAll[0].Name, vmsAll[0].Status, 0)
+		}
+	}
 
 	// Set up keyboard shortcuts
 	pages = a.SetupKeyboardHandlers(pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
 
-	// Tasks/Logs tab (TODO)
-	tasksView := tview.NewTextView().SetText("[::b]Tasks/Logs view coming soon")
-	tasksView.SetTitle("Tasks/Logs")
-	tasksView.SetBorder(true).SetTitle("Tasks/Logs")
-	pages.AddPage("Tasks/Logs", tasksView, true, false)
-
-	// Storage tab (TODO)
-	storageView := tview.NewTextView().SetText("[::b]Storage view coming soon")
-	storageView.SetTitle("Storage")
-	storageView.SetBorder(true).SetTitle("Storage")
-	pages.AddPage("Storage", storageView, true, false)
-
-	// Network tab (TODO)
-	networkView := tview.NewTextView().SetText("[::b]Network view coming soon")
-	networkView.SetTitle("Network")
-	networkView.SetBorder(true).SetTitle("Network")
-	pages.AddPage("Network", networkView, true, false)
+	// Initialize tabs
+	initTabs(pages)
 
 	// Set initial focus to node list
 	app.SetFocus(nodeList)
 
-	// Main layout: header, summary, pages, footer
+	// Main layout
 	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(header, 1, 0, false).
-		AddItem(summaryPanel, 5, 0, false).
+		AddItem(summaryPanel, 8, 0, false).
 		AddItem(pages, 0, 1, true).
 		AddItem(footer, 1, 0, false)
 
-	// Set up all keyboard handlers (including shell info functionality)
-	a.SetupKeyboardHandlers(pages, nodeList, vmList, vmsAll, nodes, vmDetails, header)
-
 	a.AddItem(mainFlex, 0, 1, true)
 	return a
+}
+
+func initTabs(pages *tview.Pages) {
+	// Tasks/Logs tab
+	pages.AddPage("Tasks/Logs", tview.NewTextView().
+		SetText("[::b]Tasks/Logs view coming soon").
+		SetTitle("Tasks/Logs").
+		SetBorder(true), true, false)
+
+	// Storage tab
+	pages.AddPage("Storage", tview.NewTextView().
+		SetText("[::b]Storage view coming soon").
+		SetTitle("Storage").
+		SetBorder(true), true, false)
+
+	// Network tab
+	pages.AddPage("Network", tview.NewTextView().
+		SetText("[::b]Network view coming soon").
+		SetTitle("Network").
+		SetBorder(true), true, false)
 }

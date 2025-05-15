@@ -1,63 +1,61 @@
 package ui
 
 import (
-	"encoding/json"
 	"fmt"
-	"strconv"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/rivo/tview"
 )
 
-// toFloat converts various types to float64
-func toFloat(val interface{}) float64 {
-	if val == nil {
-		return 0
-	}
-	switch v := val.(type) {
-	case float64:
-		return v
-	case float32:
-		return float64(v)
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case int32:
-		return float64(v)
-	case uint:
-		return float64(v)
-	case uint64:
-		return float64(v)
-	case uint32:
-		return float64(v)
-	case string:
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return 0
-		}
-		return f
-	case bool:
-		if v {
-			return 1
-		}
-		return 0
+// StatusColor returns color based on VM status
+func StatusColor(status string) tcell.Color {
+	switch status {
+	case "running":
+		return tcell.ColorGreen
+	case "stopped":
+		return tcell.ColorRed
 	default:
-		// Try to convert to JSON and parse as number
-		if data, err := json.Marshal(v); err == nil {
-			var f float64
-			if err := json.Unmarshal(data, &f); err == nil {
-				return f
-			}
-		}
-		// Log conversion error
-		fmt.Printf("Warning: could not convert %T to float64\n", v)
-		return 0
+		return tcell.ColorYellow
 	}
 }
 
-// prettyJSON formats a value as indented JSON for display
-func prettyJSON(val interface{}) string {
-	data, err := json.MarshalIndent(val, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("Error formatting JSON: %v", err)
+// FormatNodeName adds status emoji to node names
+func FormatNodeName(node api.Node) string {
+	if node.Online {
+		return "🟢 " + node.Name
 	}
-	return string(data)
+	return "🔴 " + node.Name
+}
+
+// BuildVMList creates a tview.List with emoji status indicators
+func BuildVMList(vms []api.VM, list *tview.List) *tview.List {
+	list.Clear()
+	for _, vm := range vms {
+		statusEmoji := "🟢 "
+		if vm.Status == "stopped" {
+			statusEmoji = "🔴 "
+		}
+		list.AddItem(statusEmoji+vm.Name, "", 0, nil)
+	}
+	return list
+}
+
+// FormatUptime converts seconds to human-readable duration
+func FormatUptime(seconds int64) string {
+	if seconds < 60 {
+		return fmt.Sprintf("%ds", seconds)
+	}
+	minutes := seconds / 60
+	if minutes < 60 {
+		return fmt.Sprintf("%dm", minutes)
+	}
+	hours := minutes / 60
+	minutes %= 60
+	if hours < 24 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	}
+	days := hours / 24
+	hours %= 24
+	return fmt.Sprintf("%dd %dh", days, hours)
 }

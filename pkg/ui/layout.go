@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/lonepie/proxmox-tui/pkg/api"
+	"github.com/lonepie/proxmox-tui/pkg/ui/models"
 	"github.com/rivo/tview"
 )
 
@@ -84,21 +85,18 @@ func (a *AppUI) SetupKeyboardHandlers(
 			// Handle search mode first
 			if curPage, _ := pages.GetFrontPage(); curPage == "Search" {
 				pages.RemovePage("Search")
-				lastSearchText = "" // Clear persisted search text
+				models.GlobalState.LastSearchText = "" // Clear persisted search text
 
 				// Get the underlying page after removing search
 				basePage, _ := pages.GetFrontPage()
 				if basePage == "Nodes" {
 					nodeList.Clear()
 					for _, node := range nodes {
-						nodeList.AddItem(node.Name, "", 0, nil)
+						nodeList.AddItem(FormatNodeName(node), "", 0, nil)
 					}
 					a.app.SetFocus(nodeList)
 				} else if basePage == "Guests" {
-					vmList.Clear()
-					for _, vm := range vms {
-						vmList.AddItem(vm.Name, vm.Status, 0, nil)
-					}
+					BuildVMList(vms, vmList)
 					a.app.SetFocus(vmList)
 				}
 				return nil

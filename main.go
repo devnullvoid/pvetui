@@ -31,6 +31,7 @@ func main() {
 	flag.BoolVar(&cfg.Insecure, "insecure", defaultInsecure, "Skip TLS verification (env PROXMOX_INSECURE)")
 	flag.StringVar(&cfg.APIPath, "api-path", defaultAPIPath, "Proxmox API path (env PROXMOX_API_PATH)")
 	flag.StringVar(&cfg.SSHUser, "ssh-user", os.Getenv("PROXMOX_SSH_USER"), "SSH username (env PROXMOX_SSH_USER)")
+	debugMode := flag.Bool("debug", false, "Enable debug logging (env PROXMOX_DEBUG)")
 	configPath := flag.String("config", "", "Path to YAML config file")
 	flag.Parse()
 
@@ -41,6 +42,10 @@ func main() {
 		}
 	}
 
+	// Set debug mode from config and flag
+	config.DebugEnabled = cfg.Debug || *debugMode
+	config.DebugLog("Debug mode enabled")
+
 	// Now validate required fields
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)
@@ -48,7 +53,8 @@ func main() {
 
 	// Construct full API URL
 	apiURL := strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.APIPath, "/")
-	client, err := api.NewClient(apiURL, cfg.User, cfg.Password, cfg.Insecure)
+	config.DebugLog("Creating API client for %s", apiURL)
+	client, err := api.NewClient(apiURL, cfg.User, cfg.Password, cfg.Realm, cfg.Insecure)
 	if err != nil {
 		log.Fatalf("API client error: %v", err)
 	}
