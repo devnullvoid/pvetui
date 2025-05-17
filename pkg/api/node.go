@@ -33,12 +33,12 @@ type Node struct {
 	ID            string   `json:"id"`
 	Name          string   `json:"name"`
 	IP            string   `json:"ip"`
-	CPUCount      float64  `json:"maxcpu"`
+	CPUCount      float64  `json:"cpus"`
 	CPUUsage      float64  `json:"cpu"`
-	MemoryTotal   float64  `json:"maxmem"`
-	MemoryUsed    float64  `json:"mem"`
-	TotalStorage  int64    `json:"maxdisk"`
-	UsedStorage   int64    `json:"disk"`
+	MemoryTotal   float64  `json:"memory_total"`
+	MemoryUsed    float64  `json:"memory_used"`
+	TotalStorage  int64    `json:"rootfs_total"`
+	UsedStorage   int64    `json:"rootfs_used"`
 	Uptime        int64    `json:"uptime"`
 	Version       string   `json:"pveversion"`
 	KernelVersion string   `json:"kversion"`
@@ -88,16 +88,30 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	node := &Node{
 		Name:          nodeName,
 		Online:        strings.EqualFold(getString(data, "status"), "online"),
-		KernelVersion: getString(data, "kversion"),
-		MemoryTotal:   getFloat(data, "memory.total") / 1073741824, // Bytes to GB
-		MemoryUsed:    getFloat(data, "memory.used") / 1073741824,  // Bytes to GB
-		TotalStorage:  int64(getFloat(data, "rootfs.total")),
-		UsedStorage:   int64(getFloat(data, "rootfs.used")),
-		Uptime:        int64(getFloat(data, "uptime")),
-		CPUCount:      getFloat(data, "cpuinfo.maxcpu"),
 		CPUUsage:      getFloat(data, "cpu"),
+		KernelVersion: getString(data, "kversion"),
 		Version:       getString(data, "pveversion"),
 	}
+
+	// Get CPU count from cpuinfo
+	if cpuinfo, ok := data["cpuinfo"].(map[string]interface{}); ok {
+		node.CPUCount = getFloat(cpuinfo, "cpus")
+	}
+
+	// Get memory stats
+	if memory, ok := data["memory"].(map[string]interface{}); ok {
+		node.MemoryTotal = getFloat(memory, "total") / 1073741824
+		node.MemoryUsed = getFloat(memory, "used") / 1073741824
+	}
+
+	// Get storage stats
+	if rootfs, ok := data["rootfs"].(map[string]interface{}); ok {
+		node.TotalStorage = int64(getFloat(rootfs, "total"))
+		node.UsedStorage = int64(getFloat(rootfs, "used"))
+	}
+
+	// Get uptime
+	node.Uptime = int64(getFloat(data, "uptime"))
 
 	// Parse CPU info with safe type conversion
 	if cpuinfoData, ok := data["cpuinfo"].(map[string]interface{}); ok {
