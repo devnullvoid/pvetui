@@ -1,6 +1,10 @@
 package api
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/lonepie/proxmox-tui/pkg/config"
+)
 
 // Cluster represents aggregated Proxmox cluster metrics
 type Cluster struct {
@@ -54,6 +58,8 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 				Online: getInt(itemMap, "online") == 1,
 				// Version will be set from resources data
 			}
+			config.DebugLog("[CLUSTER] Initial node %s status - Online: %v (raw online: %v)",
+				nodeName, node.Online, itemMap["online"])
 			nodeMap[nodeName] = node
 			cluster.Nodes = append(cluster.Nodes, node)
 		}
@@ -85,12 +91,49 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 				node.UsedStorage = int64(getFloat(resource, "disk"))
 				node.Uptime = int64(getFloat(resource, "uptime"))
 
-				// Get version info if missing
-				if node.Version == "" {
-					if status, err := c.GetNodeStatus(nodeName); err == nil {
-						node.Version = status.Version
-						node.KernelVersion = status.KernelVersion
+				// Refresh full node status and merge data
+				if status, err := c.GetNodeStatus(nodeName); err == nil {
+					// Preserve ALL cluster-managed fields before merge
+					originalClusterData := &Node{
+						Online:       node.Online,
+						IP:           node.IP,
+						VMs:          node.VMs,
+						Storage:      node.Storage,
+						CPUUsage:     node.CPUUsage,
+						MemoryUsed:   node.MemoryUsed,
+						MemoryTotal:  node.MemoryTotal,
+						TotalStorage: node.TotalStorage,
+						UsedStorage:  node.UsedStorage,
+						Uptime:       node.Uptime,
+						CPUCount:     node.CPUCount,
 					}
+
+					// Merge status data into node with debug logging
+					config.DebugLog("[DEBUG] Merging node status data for %s: %+v", nodeName, status)
+					*node = *status
+					config.DebugLog("[DEBUG] Node after merge: %+v", node)
+
+					// Restore ALL cluster-managed fields from preserved data
+					node.Online = originalClusterData.Online
+					node.IP = originalClusterData.IP
+					node.VMs = originalClusterData.VMs
+					node.Storage = originalClusterData.Storage
+					node.CPUUsage = originalClusterData.CPUUsage
+					node.MemoryUsed = originalClusterData.MemoryUsed
+					node.MemoryTotal = originalClusterData.MemoryTotal
+					node.TotalStorage = originalClusterData.TotalStorage
+					node.UsedStorage = originalClusterData.UsedStorage
+					node.Uptime = originalClusterData.Uptime
+					node.CPUCount = originalClusterData.CPUCount
+
+					// Keep resource metrics from /nodes endpoint
+					node.MemoryTotal = getFloat(resource, "maxmem") / 1073741824
+					node.MemoryUsed = getFloat(resource, "mem") / 1073741824
+					node.CPUCount = getFloat(resource, "maxcpu")
+					node.CPUUsage = getFloat(resource, "cpu")
+					node.TotalStorage = int64(getFloat(resource, "maxdisk"))
+					node.UsedStorage = int64(getFloat(resource, "disk"))
+					node.Uptime = int64(getFloat(resource, "uptime"))
 				}
 			}
 		}

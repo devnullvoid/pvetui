@@ -3,7 +3,11 @@ package api
 import (
 	"fmt"
 	"strings"
+
+	"github.com/lonepie/proxmox-tui/pkg/config"
 )
+
+// Ensure config package is properly imported
 
 // Storage represents a Proxmox storage resource
 type Storage struct {
@@ -14,6 +18,14 @@ type Storage struct {
 	Node       string `json:"node,omitempty"`
 	Plugintype string `json:"plugintype,omitempty"`
 	Status     string `json:"status,omitempty"`
+}
+
+// CPUInfo contains detailed CPU information from Proxmox node status
+type CPUInfo struct {
+	Cores   int    `json:"cores"`
+	Cpus    int    `json:"cpus"`
+	Model   string `json:"model"`
+	Sockets int    `json:"sockets"`
 }
 
 // Node represents a Proxmox cluster node
@@ -35,6 +47,8 @@ type Node struct {
 	Level         string   `json:"level,omitempty"`
 	Storage       *Storage `json:"storage,omitempty"`
 	VMs           []*VM    `json:"vms,omitempty"`
+	CPUInfo       *CPUInfo `json:"cpuinfo,omitempty"`
+	LoadAvg       []string `json:"loadavg,omitempty"`
 }
 
 // ListNodes retrieves nodes from cached cluster data
@@ -62,23 +76,65 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 		return nil, fmt.Errorf("failed to get status for node %s: %w", nodeName, err)
 	}
 
+	config.DebugLog("[DEBUG] Raw node status response: %+v", res) // Log raw API response
+
 	data, ok := res["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("invalid status response format for node %s", nodeName)
 	}
 
+	config.DebugLog("[DEBUG] Parsed node status data: %+v", data) // Log parsed data structure
+
 	node := &Node{
 		Name:          nodeName,
 		Online:        strings.EqualFold(getString(data, "status"), "online"),
-		CPUCount:      getFloat(data, "maxcpu"),
-		CPUUsage:      getFloat(data, "cpu"),
 		KernelVersion: getString(data, "kversion"),
-		MemoryTotal:   getFloat(data, "maxmem") / 1073741824, // Bytes to GB
-		MemoryUsed:    getFloat(data, "mem") / 1073741824,    // Bytes to GB
-		TotalStorage:  int64(getFloat(data, "maxdisk")),
-		UsedStorage:   int64(getFloat(data, "disk")),
+		MemoryTotal:   getFloat(data, "memory.total") / 1073741824, // Bytes to GB
+		MemoryUsed:    getFloat(data, "memory.used") / 1073741824,  // Bytes to GB
+		TotalStorage:  int64(getFloat(data, "rootfs.total")),
+		UsedStorage:   int64(getFloat(data, "rootfs.used")),
 		Uptime:        int64(getFloat(data, "uptime")),
+		CPUCount:      getFloat(data, "cpuinfo.maxcpu"),
+		CPUUsage:      getFloat(data, "cpu"),
 		Version:       getString(data, "pveversion"),
+	}
+
+	// Parse CPU info with safe type conversion
+	if cpuinfoData, ok := data["cpuinfo"].(map[string]interface{}); ok {
+		cpuInfo := &CPUInfo{}
+		if cores, ok := cpuinfoData["cores"].(float64); ok {
+			cpuInfo.Cores = int(cores)
+		}
+		if cpus, ok := cpuinfoData["cpus"].(float64); ok {
+			cpuInfo.Cpus = int(cpus)
+		}
+		if model, ok := cpuinfoData["model"].(string); ok {
+			cpuInfo.Model = model
+		}
+		if sockets, ok := cpuinfoData["sockets"].(float64); ok {
+			cpuInfo.Sockets = int(sockets)
+		}
+		node.CPUInfo = cpuInfo
+		config.DebugLog("[DEBUG] Parsed CPU info: %+v", node.CPUInfo)
+	} else {
+		config.DebugLog("[DEBUG] No CPU info found in response")
+	}
+
+	// Parse load averages with type conversion
+	if loadavg, ok := data["loadavg"].([]interface{}); ok {
+		node.LoadAvg = make([]string, 0, len(loadavg))
+		for _, val := range loadavg {
+			// Convert numeric values to strings if needed
+			switch v := val.(type) {
+			case string:
+				node.LoadAvg = append(node.LoadAvg, v)
+			case float64:
+				node.LoadAvg = append(node.LoadAvg, fmt.Sprintf("%.2f", v))
+			default:
+				node.LoadAvg = append(node.LoadAvg, fmt.Sprintf("%v", v))
+			}
+		}
+		config.DebugLog("[DEBUG] Parsed load averages: %+v", node.LoadAvg)
 	}
 
 	// Fallback to version endpoint if pveversion not in status

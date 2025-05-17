@@ -138,26 +138,49 @@ func SetupNodeHandlers(
 		detailsTable.SetCell(3, 0, tview.NewTableCell("🌐 IP").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(3, 1, tview.NewTableCell(status.IP).SetTextColor(tcell.ColorWhite))
 
-		detailsTable.SetCell(4, 0, tview.NewTableCell("⚡ CPU").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(4, 0, tview.NewTableCell("⚡ CPU Usage").SetTextColor(tcell.ColorYellow))
 		detailsTable.SetCell(4, 1, tview.NewTableCell(fmt.Sprintf("%.1f%% of %.0f cores", status.CPUUsage*100, status.CPUCount)).SetTextColor(tcell.ColorWhite))
 
-		detailsTable.SetCell(5, 0, tview.NewTableCell("💾 Memory").SetTextColor(tcell.ColorYellow))
-		detailsTable.SetCell(5, 1, tview.NewTableCell(
+		// CPU Details
+		cpuModel := "N/A"
+		coresInfo := "N/A"
+		if status.CPUInfo != nil {
+			cpuModel = status.CPUInfo.Model
+			coresInfo = fmt.Sprintf("%d cores, %d sockets", status.CPUInfo.Cores, status.CPUInfo.Sockets)
+		}
+		detailsTable.SetCell(5, 0, tview.NewTableCell("🖥️ CPU Model").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(5, 1, tview.NewTableCell(cpuModel).SetTextColor(tcell.ColorWhite))
+		detailsTable.SetCell(6, 0, tview.NewTableCell("🔢 Cores/Sockets").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(6, 1, tview.NewTableCell(coresInfo).SetTextColor(tcell.ColorWhite))
+
+		// Load averages
+		loadAvg := "N/A"
+		if len(status.LoadAvg) >= 3 {
+			loadAvg = fmt.Sprintf("1m: %s, 5m: %s, 15m: %s", status.LoadAvg[0], status.LoadAvg[1], status.LoadAvg[2])
+		}
+		detailsTable.SetCell(7, 0, tview.NewTableCell("📈 Load Avg").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(7, 1, tview.NewTableCell(loadAvg).SetTextColor(tcell.ColorWhite))
+
+		// Memory
+		detailsTable.SetCell(8, 0, tview.NewTableCell("💾 Memory").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(8, 1, tview.NewTableCell(
 			fmt.Sprintf("%.1f GB / %.1f GB",
 				status.MemoryUsed,
 				status.MemoryTotal),
 		).SetTextColor(tcell.ColorWhite))
 
-		detailsTable.SetCell(6, 0, tview.NewTableCell("💽 Storage").SetTextColor(tcell.ColorYellow))
-		detailsTable.SetCell(6, 1, tview.NewTableCell(
+		// Storage
+		detailsTable.SetCell(9, 0, tview.NewTableCell("💽 Storage").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(9, 1, tview.NewTableCell(
 			fmt.Sprintf("%.1f GB / %.1f GB",
 				float64(status.UsedStorage)/1024/1024/1024,
 				float64(status.TotalStorage)/1024/1024/1024),
 		).SetTextColor(tcell.ColorWhite))
 
+		// Uptime
 		uptimeDuration := time.Duration(status.Uptime) * time.Second
-		detailsTable.SetCell(7, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(tcell.ColorYellow))
-		detailsTable.SetCell(7, 1, tview.NewTableCell(
+		detailsTable.SetCell(10, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(10, 1, tview.NewTableCell(
 			fmt.Sprintf("%d days %d hrs %d min",
 				int(uptimeDuration.Hours()/24),
 				int(uptimeDuration.Hours())%24,
@@ -168,8 +191,9 @@ func SetupNodeHandlers(
 		if status.Online {
 			onlineStatus = "🟢 Online"
 		}
-		detailsTable.SetCell(8, 0, tview.NewTableCell("📡 Status").SetTextColor(tcell.ColorYellow))
-		detailsTable.SetCell(8, 1, tview.NewTableCell(onlineStatus).SetTextColor(tcell.ColorWhite))
+		// Adjust remaining rows
+		detailsTable.SetCell(11, 0, tview.NewTableCell("📡 Status").SetTextColor(tcell.ColorYellow))
+		detailsTable.SetCell(11, 1, tview.NewTableCell(onlineStatus).SetTextColor(tcell.ColorWhite))
 	}
 
 	nodeList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
