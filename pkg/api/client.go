@@ -6,22 +6,103 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Telmate/proxmox-api-go/proxmox"
-	"github.com/lonepie/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
-// Client is a Proxmox API client
+// cachedResponse holds the cached API response and its expiration time
+type cachedResponse struct {
+	data      interface{}
+	expiresAt time.Time
+}
+
+// Client is a Proxmox API client with caching capabilities
 type Client struct {
 	ProxClient *proxmox.Client
 	Cluster    *Cluster // Cached cluster state
+
+	// Cache-related fields
+	cache    map[string]cachedResponse
+	cacheMu  sync.RWMutex
+	cacheTTL time.Duration
 }
 
 // Get makes a GET request to the Proxmox API
 func (c *Client) Get(path string, result *map[string]interface{}) error {
 	config.DebugLog("API GET: %s", path)
 	return c.ProxClient.GetJsonRetryable(context.Background(), path, result, 3)
+}
+
+// GetWithCache makes a GET request to the Proxmox API with caching
+func (c *Client) GetWithCache(path string, result *map[string]interface{}) error {
+	// If cache is not initialized, initialize it
+	if c.cache == nil {
+		c.cacheMu.Lock()
+		if c.cache == nil {
+			c.cache = make(map[string]cachedResponse)
+			// Default cache TTL of 30 seconds
+			if c.cacheTTL == 0 {
+				c.cacheTTL = 30 * time.Second
+			}
+		}
+		c.cacheMu.Unlock()
+	}
+
+	// Check cache first
+	c.cacheMu.RLock()
+	cached, exists := c.cache[path]
+	c.cacheMu.RUnlock()
+
+	now := time.Now()
+	if exists && now.Before(cached.expiresAt) {
+		// Cache hit and not expired
+		config.DebugLog("Cache hit for: %s", path)
+		if result != nil {
+			// Deep copy the cached data to the result
+			cachedMap, ok := cached.data.(map[string]interface{})
+			if ok {
+				*result = make(map[string]interface{}, len(cachedMap))
+				for k, v := range cachedMap {
+					(*result)[k] = v
+				}
+				return nil
+			}
+		}
+	}
+
+	// Cache miss or expired, make the API call
+	config.DebugLog("Cache miss for: %s", path)
+	err := c.Get(path, result)
+	if err != nil {
+		return err
+	}
+
+	// Cache the result
+	c.cacheMu.Lock()
+	c.cache[path] = cachedResponse{
+		data:      *result,
+		expiresAt: now.Add(c.cacheTTL),
+	}
+	c.cacheMu.Unlock()
+
+	return nil
+}
+
+// SetCacheTTL sets the cache time-to-live duration
+func (c *Client) SetCacheTTL(ttl time.Duration) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	c.cacheTTL = ttl
+}
+
+// ClearCache removes all cached responses
+func (c *Client) ClearCache() {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	c.cache = make(map[string]cachedResponse)
 }
 
 // NewClient initializes a new Proxmox API client with optimized defaults

@@ -3,8 +3,10 @@ package api
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
-	"github.com/lonepie/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
 // Ensure config package is properly imported
@@ -49,6 +51,14 @@ type Node struct {
 	VMs           []*VM    `json:"vms,omitempty"`
 	CPUInfo       *CPUInfo `json:"cpuinfo,omitempty"`
 	LoadAvg       []string `json:"loadavg,omitempty"`
+
+	// For metrics tracking and concurrency
+	mu                sync.RWMutex  `json:"-"`
+	lastMetricsUpdate time.Time     `json:"-"`
+	metricsTTL        time.Duration `json:"-"`
+	lastCPUUsage      float64       `json:"-"`
+	lastMemoryUsage   float64       `json:"-"`
+	lastLoadAvg       []string      `json:"-"`
 }
 
 // ListNodes retrieves nodes from cached cluster data
@@ -72,18 +82,18 @@ func (c *Client) ListNodes() ([]Node, error) {
 func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	var res map[string]interface{}
 
-	if err := c.Get(fmt.Sprintf("/nodes/%s/status", nodeName), &res); err != nil {
+	if err := c.GetWithCache(fmt.Sprintf("/nodes/%s/status", nodeName), &res); err != nil {
 		return nil, fmt.Errorf("failed to get status for node %s: %w", nodeName, err)
 	}
 
-	config.DebugLog("[DEBUG] Raw node status response: %+v", res) // Log raw API response
+	// config.DebugLog("[DEBUG] Raw node status response: %+v", res) // Log raw API response
 
 	data, ok := res["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("invalid status response format for node %s", nodeName)
 	}
 
-	config.DebugLog("[DEBUG] Parsed node status data: %+v", data) // Log parsed data structure
+	// config.DebugLog("[DEBUG] Parsed node status data: %+v", data) // Log parsed data structure
 
 	node := &Node{
 		Name:          nodeName,
@@ -155,7 +165,7 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	if node.Version == "" {
 		var versionRes map[string]interface{}
 
-		if err := c.Get(fmt.Sprintf("/nodes/%s/version", nodeName), &versionRes); err == nil {
+		if err := c.GetWithCache(fmt.Sprintf("/nodes/%s/version", nodeName), &versionRes); err == nil {
 			if versionData, ok := versionRes["data"].(map[string]interface{}); ok {
 				node.Version = getString(versionData, "version")
 			}
@@ -165,11 +175,11 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	return node, nil
 }
 
-// GetNodeConfig retrieves configuration for a given node
+// GetNodeConfig retrieves configuration for a given node with caching
 func (c *Client) GetNodeConfig(nodeName string) (map[string]interface{}, error) {
 	var res map[string]interface{}
-	if err := c.Get(fmt.Sprintf("/nodes/%s/config", nodeName), &res); err != nil {
-		return nil, err
+	if err := c.GetWithCache(fmt.Sprintf("/nodes/%s/config", nodeName), &res); err != nil {
+		return nil, fmt.Errorf("failed to get node config: %w", err)
 	}
 	data, ok := res["data"].(map[string]interface{})
 	if !ok {

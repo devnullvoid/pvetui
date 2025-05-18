@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/lonepie/proxmox-tui/pkg/api"
-	"github.com/lonepie/proxmox-tui/pkg/ui/models"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
 	"github.com/rivo/tview"
 )
 

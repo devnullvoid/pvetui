@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"github.com/lonepie/proxmox-tui/pkg/api"
-	"github.com/lonepie/proxmox-tui/pkg/ssh"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/ssh"
 )
 
 // TODO: implement commands for listing nodes, managing VMs/LXCs, and opening shells.
