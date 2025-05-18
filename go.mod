@@ -1,4 +1,4 @@
-module github.com/lonepie/proxmox-tui
+module github.com/devnullvoid/proxmox-tui
 
 go 1.24.2
 

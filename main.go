@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lonepie/proxmox-tui/pkg/api"
-	"github.com/lonepie/proxmox-tui/pkg/config"
-	"github.com/lonepie/proxmox-tui/pkg/ui"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/ui"
 	"github.com/rivo/tview"
 )
 
