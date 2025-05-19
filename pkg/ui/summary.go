@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -83,8 +84,13 @@ func UpdateClusterStatus(summaryTable *tview.Table, resourceTable *tview.Table, 
 	summaryTable.SetCell(1, 0, tview.NewTableCell("Cluster Name").SetTextColor(tcell.ColorYellow))
 	summaryTable.SetCell(1, 1, tview.NewTableCell(cluster.Name).SetTextColor(tcell.ColorWhite))
 
+	// Show only the version number (e.g., '8.3.5') in the 'Proxmox VE' row
+	ver := cluster.Version
+	if parts := strings.Split(ver, "/"); len(parts) > 1 {
+		ver = parts[1]
+	}
 	summaryTable.SetCell(2, 0, tview.NewTableCell("Proxmox VE").SetTextColor(tcell.ColorYellow))
-	summaryTable.SetCell(2, 1, tview.NewTableCell(cluster.Version).SetTextColor(tcell.ColorWhite))
+	summaryTable.SetCell(2, 1, tview.NewTableCell(ver).SetTextColor(tcell.ColorWhite))
 
 	summaryTable.SetCell(3, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
 	summaryTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
