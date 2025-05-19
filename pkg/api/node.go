@@ -168,6 +168,8 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 		}
 	}
 
+	config.DebugLog("[DEBUG] Parsed node: %+v", node)
+
 	return node, nil
 }
 
