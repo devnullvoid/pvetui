@@ -161,7 +161,16 @@ func (a *App) setupComponentConnections() {
 // setupKeyboardHandlers configures global keyboard shortcuts
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// Handle tab for page switching
+		// Check if search is active by seeing if the search input is in the main layout
+		searchActive := a.mainLayout.GetItemCount() > 4
+		
+		// If search is active, let the search input handle the keys
+		if searchActive {
+			// Let the search input handle all keys when search is active
+			return event
+		}
+
+		// Handle tab for page switching when search is not active
 		switch event.Key() {
 		case tcell.KeyTab:
 			currentPage, _ := a.pages.GetFrontPage()
@@ -219,7 +228,8 @@ func (a *App) activateSearch() {
 	if a.searchInput == nil {
 		a.searchInput = tview.NewInputField().
 			SetLabel("Search: ").
-			SetFieldWidth(0)
+			SetFieldWidth(0).
+			SetPlaceholder("Filter active list... press Enter/Esc to return to list")
 	}
 	
 	// Set current search text
@@ -354,7 +364,7 @@ func (a *App) activateSearch() {
 		}
 	})
 	
-	// Handle Enter/Escape keys
+	// Handle Enter/Escape/Tab keys in search input
 	a.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
@@ -363,7 +373,17 @@ func (a *App) activateSearch() {
 		case tcell.KeyEnter:
 			removeSearchInput()
 			return nil
+		case tcell.KeyTab:
+			// Prevent Tab from propagating when search is active
+			return nil
 		}
+		
+		// Handle 'q' key to prevent app from quitting during search
+		if event.Key() == tcell.KeyRune && event.Rune() == 'q' {
+			// Just handle it as a normal key for the input field
+			return event
+		}
+		
 		return event
 	})
 }
