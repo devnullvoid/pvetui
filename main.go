@@ -9,7 +9,6 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui"
-	"github.com/rivo/tview"
 )
 
 func main() {
@@ -33,7 +32,6 @@ func main() {
 	flag.StringVar(&cfg.SSHUser, "ssh-user", os.Getenv("PROXMOX_SSH_USER"), "SSH username (env PROXMOX_SSH_USER)")
 	debugMode := flag.Bool("debug", false, "Enable debug logging (env PROXMOX_DEBUG)")
 	configPath := flag.String("config", "", "Path to YAML config file")
-	useNewUI := flag.Bool("new-ui", false, "Use the new component-based UI architecture")
 	flag.Parse()
 
 	// Load config file first if provided
@@ -60,19 +58,8 @@ func main() {
 		log.Fatalf("API client error: %v", err)
 	}
 
-	if *useNewUI {
-		// Use the new component-based architecture
-		config.DebugLog("Using new component-based UI")
-		if err := ui.RunNewApp(client, cfg); err != nil {
-			log.Fatalf("Error running app: %v", err)
-		}
-	} else {
-		// Use the classic UI
-		config.DebugLog("Using classic UI")
-		app := tview.NewApplication()
-		root := ui.NewAppUI(app, client, cfg)
-		if err := app.SetRoot(root, true).Run(); err != nil {
-			log.Fatalf("Error running app: %v", err)
-		}
+	// Run the application using the component-based UI architecture
+	if err := ui.RunApp(client, cfg); err != nil {
+		log.Fatalf("Error running app: %v", err)
 	}
 }
