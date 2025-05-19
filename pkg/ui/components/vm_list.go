@@ -44,8 +44,12 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			}
 			
 			// Format the VM name with ID and status
-			text := fmt.Sprintf("%s%d - %s", statusEmoji, vm.ID, vm.Name)
-			vl.AddItem(text, "", 0, nil)
+			mainText := fmt.Sprintf("%s%d - %s", statusEmoji, vm.ID, vm.Name)
+			
+			// Store node info in secondary text (not visible but used for search functionality)
+			secondaryText := fmt.Sprintf("Node: %s Type: %s", vm.Node, vm.Type)
+			
+			vl.AddItem(mainText, secondaryText, 0, nil)
 		}
 	}
 	

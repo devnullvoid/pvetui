@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -128,77 +129,20 @@ func (a *App) setupComponentConnections() {
 	a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
 	a.nodeList.SetNodeSelectedFunc(func(node *api.Node) {
 		a.nodeDetails.Update(node, a.client.Cluster.Nodes)
-		
-		// Update VM list to show VMs for the selected node
-		if node != nil {
-			// Filter VMs to only show those from the selected node
-			nodeVMs := make([]*api.VM, 0)
-			for _, vm := range models.GlobalState.OriginalVMs {
-				if vm != nil && vm.Node == node.Name {
-					nodeVMs = append(nodeVMs, vm)
-				}
-			}
-			
-			// Update the VM list with filtered VMs
-			a.vmList.SetVMs(nodeVMs)
-			
-			// Update VM details if we have VMs
-			if len(nodeVMs) > 0 {
-				a.vmDetails.Update(nodeVMs[0])
-			} else {
-				// Clear VM details if no VMs available
-				a.vmDetails.Update(nil)
-			}
-		}
+		// No longer filtering VM list based on node selection
 	})
 	a.nodeList.SetNodeChangedFunc(func(node *api.Node) {
 		a.nodeDetails.Update(node, a.client.Cluster.Nodes)
-		
-		// Update VM list to show VMs for the selected node
-		if node != nil {
-			// Filter VMs to only show those from the selected node
-			nodeVMs := make([]*api.VM, 0)
-			for _, vm := range models.GlobalState.OriginalVMs {
-				if vm != nil && vm.Node == node.Name {
-					nodeVMs = append(nodeVMs, vm)
-				}
-			}
-			
-			// Update the VM list with filtered VMs
-			a.vmList.SetVMs(nodeVMs)
-			
-			// Update VM details if we have VMs
-			if len(nodeVMs) > 0 {
-				a.vmDetails.Update(nodeVMs[0])
-			} else {
-				// Clear VM details if no VMs available
-				a.vmDetails.Update(nil)
-			}
-		}
+		// No longer filtering VM list based on node selection
 	})
 	
 	// Select first node to populate node details on startup
 	if len(models.GlobalState.OriginalNodes) > 0 {
 		a.nodeDetails.Update(models.GlobalState.OriginalNodes[0], a.client.Cluster.Nodes)
-		
-		// Also update VM list for the first node
-		if models.GlobalState.OriginalNodes[0] != nil {
-			node := models.GlobalState.OriginalNodes[0]
-			nodeVMs := make([]*api.VM, 0)
-			for _, vm := range models.GlobalState.OriginalVMs {
-				if vm != nil && vm.Node == node.Name {
-					nodeVMs = append(nodeVMs, vm)
-				}
-			}
-			
-			a.vmList.SetVMs(nodeVMs)
-			
-			// Update VM details if we have VMs
-			if len(nodeVMs) > 0 {
-				a.vmDetails.Update(nodeVMs[0])
-			}
-		}
 	}
+	
+	// Set up VM list with all VMs
+	a.vmList.SetVMs(models.GlobalState.OriginalVMs)
 	
 	// Configure VM list
 	a.vmList.SetVMSelectedFunc(func(vm *api.VM) {
@@ -207,6 +151,11 @@ func (a *App) setupComponentConnections() {
 	a.vmList.SetVMChangedFunc(func(vm *api.VM) {
 		a.vmDetails.Update(vm)
 	})
+	
+	// Update VM details if we have any VMs
+	if len(models.GlobalState.OriginalVMs) > 0 {
+		a.vmDetails.Update(models.GlobalState.OriginalVMs[0])
+	}
 }
 
 // setupKeyboardHandlers configures global keyboard shortcuts
@@ -380,10 +329,19 @@ func (a *App) activateSearch() {
 				filteredVMs = make([]*api.VM, len(models.GlobalState.OriginalVMs))
 				copy(filteredVMs, models.GlobalState.OriginalVMs)
 			} else {
-				// Filter VMs that match search term
+				// Filter VMs that match search term by name, ID, node, or type
 				for _, vm := range models.GlobalState.OriginalVMs {
-					if vm != nil && strings.Contains(strings.ToLower(vm.Name), searchTerm) {
-						filteredVMs = append(filteredVMs, vm)
+					if vm != nil {
+						// Convert VM ID to string for matching
+						vmIDStr := fmt.Sprintf("%d", vm.ID)
+						
+						// Match if name, ID, node name, or VM type contains search term
+						if strings.Contains(strings.ToLower(vm.Name), searchTerm) || 
+						   strings.Contains(vmIDStr, searchTerm) ||
+						   strings.Contains(strings.ToLower(vm.Node), searchTerm) ||
+						   strings.Contains(strings.ToLower(vm.Type), searchTerm) {
+							filteredVMs = append(filteredVMs, vm)
+						}
 					}
 				}
 			}
