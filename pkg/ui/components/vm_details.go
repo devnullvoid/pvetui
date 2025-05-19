@@ -74,7 +74,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	// Resource Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(tcell.ColorYellow))
-	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f%%", vm.CPU)).SetTextColor(tcell.ColorWhite))
+	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f%%", vm.CPU*100)).SetTextColor(tcell.ColorWhite))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))

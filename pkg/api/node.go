@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
 // Ensure config package is properly imported
@@ -167,8 +167,6 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 			}
 		}
 	}
-
-	config.DebugLog("[NODE] Parsed node: %+v", node)
 
 	return node, nil
 }
