@@ -1,42 +1,56 @@
 package ui
 
 import (
-	"fmt"
-
-	"github.com/gdamore/tcell/v2"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/ui/components"
+	"github.com/devnullvoid/proxmox-tui/pkg/ui/utils"
 	"github.com/rivo/tview"
 )
 
-// CreateHeader returns the application header bar
-func CreateHeader() *tview.TextView {
-	// Make the header more visible with a background color and make it interactive
-	header := tview.NewTextView()
-	header.SetTextAlign(tview.AlignCenter)
-	header.SetText("Proxmox CLI UI")
-	header.SetDynamicColors(true)
-	header.SetBackgroundColor(tcell.ColorBlue)
-	header.SetTextColor(tcell.ColorWhite)
-	return header
+// CreateComponentHeader returns the application header bar using the component library
+func CreateComponentHeader() *tview.TextView {
+	return components.NewHeader().TextView
 }
 
-// CreateFooter returns the application footer with key bindings
-func CreateFooter() *tview.TextView {
-	return tview.NewTextView().
-		SetTextAlign(tview.AlignCenter).
-		SetDynamicColors(true).
-		SetText("[yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]F3:[white]Storage  [yellow]F4:[white]Network  [yellow]F5:[white]Tasks/Logs  [yellow]S:[white]Shell  [yellow]Tab:[white]Next Tab  [yellow]Q/Esc:[white]Quit")
+// CreateComponentFooter returns the application footer with key bindings using the component library
+func CreateComponentFooter() *tview.TextView {
+	return components.NewFooter().TextView
 }
 
-// CreateVMList creates a list of VMs with their IDs and names
-func CreateVMList(vms []api.VM) *tview.List {
-	vmList := tview.NewList().ShowSecondaryText(false)
-	vmList.SetBorder(true).SetTitle("Guests")
+// CreateComponentClusterStatusPanel creates the cluster-wide status panel using the component library
+func CreateComponentClusterStatusPanel() (*tview.Flex, *tview.Table, *tview.Table) {
+	cs := components.NewClusterStatus()
+	return cs.Flex, cs.SummaryTable, cs.ResourceTable
+}
 
-	for _, vm := range vms {
-		text := fmt.Sprintf("%d - %s", vm.ID, vm.Name)
-		vmList.AddItem(text, "", 0, nil)
+// CreateComponentVMList creates a list of VMs using the component library
+func CreateComponentVMList(vms []api.VM) *tview.List {
+	vmList := components.NewVMList()
+	
+	// Convert []api.VM to []*api.VM
+	vmPtrs := make([]*api.VM, len(vms))
+	for i := range vms {
+		vmCopy := vms[i]
+		vmPtrs[i] = &vmCopy
 	}
+	
+	vmList.SetVMs(vmPtrs)
+	return vmList.List
+}
 
-	return vmList
+// UpdateNodeDetailsWithComponent displays node details in the provided table using the component library
+func UpdateNodeDetailsWithComponent(table *tview.Table, node *api.Node, fullNodeList []*api.Node) {
+	nodeDetails := components.NodeDetails{Table: table}
+	nodeDetails.Update(node, fullNodeList)
+}
+
+// GetFormattedNodeName formats a node's name with its status indicator using the component library
+func GetFormattedNodeName(node *api.Node) string {
+	return utils.FormatNodeName(node)
+}
+
+// UpdateVMListWithComponent builds a list of VMs using the component library
+func UpdateVMListWithComponent(vms []*api.VM, list *tview.List) {
+	vmList := components.VMList{List: list}
+	vmList.SetVMs(vms)
 }

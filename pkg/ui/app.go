@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/ui/components"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
 	"github.com/rivo/tview"
 	// "github.com/gdamore/tcell/v2"
@@ -22,7 +23,7 @@ type AppUI struct {
 func (a *AppUI) updateNodeDetails(node *api.Node) {
 	if a.nodeDetails != nil && node != nil {
 		// Use the new centralized display function.
-		// We need the full list of nodes to allow DisplayNodeDetailsInTable to find the complete status.
+		// We need the full list of nodes to allow UpdateNodeDetailsWithComponent to find the complete status.
 		// Assuming client.Cluster.Nodes is the authoritative full list.
 		// If models.GlobalState.OriginalNodes is guaranteed to be populated and correct, it could also be used.
 		var fullNodeList []*api.Node
@@ -30,10 +31,10 @@ func (a *AppUI) updateNodeDetails(node *api.Node) {
 			fullNodeList = a.client.Cluster.Nodes
 		} else {
 			// Fallback or handle error if full list isn't available
-			// For now, pass nil, DisplayNodeDetailsInTable should handle it by showing limited info or error.
-			config.DebugLog("updateNodeDetails: Warning - full client.Cluster.Nodes list not available for DisplayNodeDetailsInTable")
+			// For now, pass nil, UpdateNodeDetailsWithComponent should handle it by showing limited info or error.
+			config.DebugLog("updateNodeDetails: Warning - full client.Cluster.Nodes list not available for UpdateNodeDetailsWithComponent")
 		}
-		DisplayNodeDetailsInTable(a.nodeDetails, node, fullNodeList)
+		UpdateNodeDetailsWithComponent(a.nodeDetails, node, fullNodeList)
 
 		// Update the selected node in global state if it exists in the current filtered list
 		for i, n := range models.GlobalState.FilteredNodes {
@@ -50,7 +51,9 @@ func (a *AppUI) updateNodeDetails(node *api.Node) {
 // updateVMDetails updates the VM details panel with the given VM
 func (a *AppUI) updateVMDetails(vm *api.VM) {
 	if a.vmDetails != nil && vm != nil {
-		populateVmDetails(a.vmDetails, vm)
+		vmDetails := components.VMDetails{Table: a.vmDetails}
+		vmDetails.Update(vm)
+		
 		// Update the selected VM in global state if it exists in the current filtered list
 		for i, v := range models.GlobalState.FilteredVMs {
 			if v != nil && v.ID == vm.ID {
@@ -65,22 +68,30 @@ func (a *AppUI) updateVMDetails(vm *api.VM) {
 
 // updateVMSelectionHandlers updates the VM list selection handlers with the current filtered list
 func (a *AppUI) updateVMSelectionHandlers(vmList *tview.List, vms []*api.VM, vmDetails *tview.Table) {
-	vmList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		if index >= 0 && index < len(vms) {
-			a.updateVMDetails(vms[index])
-			// Update the selected index in global state
-			if state, exists := models.GlobalState.SearchStates["Guests"]; exists {
-				state.SelectedIndex = index
+	vmListComp := components.VMList{List: vmList}
+	vmListComp.SetVMs(vms)
+	vmListComp.SetVMChangedFunc(func(vm *api.VM) {
+		a.updateVMDetails(vm)
+		// Update the selected index in global state
+		for i, v := range vms {
+			if v != nil && vm != nil && v.ID == vm.ID {
+				if state, exists := models.GlobalState.SearchStates["Guests"]; exists {
+					state.SelectedIndex = i
+				}
+				break
 			}
 		}
 	})
-
-	vmList.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		if index >= 0 && index < len(vms) {
-			a.updateVMDetails(vms[index])
-			// Update the selected index in global state
-			if state, exists := models.GlobalState.SearchStates["Guests"]; exists {
-				state.SelectedIndex = index
+	
+	vmListComp.SetVMSelectedFunc(func(vm *api.VM) {
+		a.updateVMDetails(vm)
+		// Update the selected index in global state
+		for i, v := range vms {
+			if v != nil && vm != nil && v.ID == vm.ID {
+				if state, exists := models.GlobalState.SearchStates["Guests"]; exists {
+					state.SelectedIndex = i
+				}
+				break
 			}
 		}
 	})
@@ -88,22 +99,30 @@ func (a *AppUI) updateVMSelectionHandlers(vmList *tview.List, vms []*api.VM, vmD
 
 // updateNodeSelectionHandlers updates the node list selection handlers with the current filtered list
 func (a *AppUI) updateNodeSelectionHandlers(nodeList *tview.List, nodes []*api.Node) {
-	nodeList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		if index >= 0 && index < len(nodes) {
-			a.updateNodeDetails(nodes[index])
-			// Update the selected index in global state
-			if state, exists := models.GlobalState.SearchStates["Nodes"]; exists {
-				state.SelectedIndex = index
+	nodeListComp := components.NodeList{List: nodeList}
+	nodeListComp.SetNodes(nodes)
+	nodeListComp.SetNodeChangedFunc(func(node *api.Node) {
+		a.updateNodeDetails(node)
+		// Update the selected index in global state
+		for i, n := range nodes {
+			if n != nil && node != nil && n.Name == node.Name {
+				if state, exists := models.GlobalState.SearchStates["Nodes"]; exists {
+					state.SelectedIndex = i
+				}
+				break
 			}
 		}
 	})
-
-	nodeList.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		if index >= 0 && index < len(nodes) {
-			a.updateNodeDetails(nodes[index])
-			// Update the selected index in global state
-			if state, exists := models.GlobalState.SearchStates["Nodes"]; exists {
-				state.SelectedIndex = index
+	
+	nodeListComp.SetNodeSelectedFunc(func(node *api.Node) {
+		a.updateNodeDetails(node)
+		// Update the selected index in global state
+		for i, n := range nodes {
+			if n != nil && node != nil && n.Name == node.Name {
+				if state, exists := models.GlobalState.SearchStates["Nodes"]; exists {
+					state.SelectedIndex = i
+				}
+				break
 			}
 		}
 	})
@@ -187,25 +206,21 @@ func populateNodeDetails(table *tview.Table, node *api.Node) {
 */
 
 func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *AppUI {
-	// Create node details table
-	nodeDetailsTable := tview.NewTable().
-		SetBorders(false).
-		SetSelectable(false, false)
-	nodeDetailsTable.SetTitle(" Node Details ").SetBorder(true)
-
+	// Create node details table using the components
+	nodeDetailsComp := components.NewNodeDetails()
+	
 	a := &AppUI{
 		Flex:        tview.NewFlex().SetDirection(tview.FlexRow),
 		app:         app,
 		client:      client,
 		config:      cfg,
-		nodeDetails: nodeDetailsTable,
+		nodeDetails: nodeDetailsComp.Table,
 	}
-	a.nodeDetails.SetTitle(" Node Details ")
-
+	
 	// Create UI components
-	header := CreateHeader()
-	summaryPanel, summary, resourceTable := CreateClusterStatusPanel()
-	footer := CreateFooter()
+	header := CreateComponentHeader()
+	summaryPanel, summary, resourceTable := CreateComponentClusterStatusPanel()
+	footer := CreateComponentFooter()
 
 	// Use cached cluster data
 	if client.Cluster == nil {
@@ -227,29 +242,17 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	copy(models.GlobalState.OriginalNodes, client.Cluster.Nodes)
 	copy(models.GlobalState.FilteredNodes, client.Cluster.Nodes)
 
-	// Create node list with filtered nodes if available, otherwise all nodes
-	nodesToShow := models.GlobalState.FilteredNodes
-	if len(nodesToShow) == 0 {
-		nodesToShow = models.GlobalState.OriginalNodes
-	}
-
-	// Create node list
-	nodeList := tview.NewList().ShowSecondaryText(false)
-	nodeList.SetBorder(true).SetTitle("Nodes")
-	
-	// Add nodes to the list immediately
-	for _, node := range nodesToShow {
-		if node != nil {
-			nodeList.AddItem(FormatNodeName(node), "", 0, nil)
-		}
-	}
+	// Create node list using the component
+	nodeListComp := components.NewNodeList()
+	nodeListComp.SetNodes(models.GlobalState.FilteredNodes)
+	nodeList := nodeListComp.List
 
 	// Set up initial selection and handlers
-	if len(nodesToShow) > 0 {
+	if len(models.GlobalState.FilteredNodes) > 0 {
 		nodeList.SetCurrentItem(0)
-		a.updateNodeDetails(nodesToShow[0])
+		a.updateNodeDetails(models.GlobalState.FilteredNodes[0])
 	}
-	a.updateNodeSelectionHandlers(nodeList, nodesToShow)
+	a.updateNodeSelectionHandlers(nodeList, models.GlobalState.FilteredNodes)
 
 	// Update global state with node list
 	models.GlobalState.NodeList = nodeList
@@ -281,15 +284,9 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 		copy(models.GlobalState.FilteredVMs, vmsAll)
 	}
 
-	// Create VM list with filtered VMs if available, otherwise all VMs
-	vmsToShow := vmsAll
-	if len(models.GlobalState.FilteredVMs) > 0 {
-		vmsToShow = models.GlobalState.FilteredVMs
-	}
-
 	// Create VM components with status coloring
 	vmList := tview.NewList().ShowSecondaryText(false)
-	BuildVMList(vmsToShow, vmList)
+	UpdateVMListWithComponent(models.GlobalState.FilteredVMs, vmList)
 	vmList.SetTitle("Guests")
 	vmList.SetBorder(true)
 	models.GlobalState.VMList = vmList
@@ -299,7 +296,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	a.vmDetails.SetTitle("VM Details").SetBorder(true)
 
 	// Set up initial selection handlers with the current filtered lists
-	a.updateVMSelectionHandlers(vmList, vmsToShow, a.vmDetails)
+	a.updateVMSelectionHandlers(vmList, models.GlobalState.FilteredVMs, a.vmDetails)
 
 	// Create pages container
 	pages := CreatePagesContainer()
@@ -361,7 +358,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 			nodeList.Clear()
 			for _, node := range nodesToDisplay {
 				if node != nil {
-					nodeList.AddItem(FormatNodeName(node), "", 0, nil)
+					nodeList.AddItem(GetFormattedNodeName(node), "", 0, nil)
 				}
 			}
 			a.updateNodeSelectionHandlers(nodeList, nodesToDisplay)
@@ -383,7 +380,7 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SearchText != "" && len(models.GlobalState.FilteredVMs) > 0 {
 				vmsToDisplay = models.GlobalState.FilteredVMs
 			}
-			BuildVMList(vmsToDisplay, vmList)
+			UpdateVMListWithComponent(vmsToDisplay, vmList)
 			a.updateVMSelectionHandlers(vmList, vmsToDisplay, a.vmDetails)
 			if len(vmsToDisplay) > 0 {
 				// Try to restore selected index if valid, else default to 0

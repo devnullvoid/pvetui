@@ -139,7 +139,7 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 			cpuInfo.Sockets = int(sockets)
 		}
 		node.CPUInfo = cpuInfo
-		config.DebugLog("[DEBUG] Parsed CPU info: %+v", node.CPUInfo)
+		// config.DebugLog("[DEBUG] Parsed CPU info: %+v", node.CPUInfo)
 	} else {
 		config.DebugLog("[DEBUG] No CPU info found in response")
 	}
@@ -158,7 +158,7 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 				node.LoadAvg = append(node.LoadAvg, fmt.Sprintf("%v", v))
 			}
 		}
-		config.DebugLog("[DEBUG] Parsed load averages: %+v", node.LoadAvg)
+		// config.DebugLog("[DEBUG] Parsed load averages: %+v", node.LoadAvg)
 	}
 
 	// Fallback to version endpoint if pveversion not in status

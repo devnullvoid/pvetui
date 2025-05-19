@@ -11,9 +11,6 @@ import (
 
 // CreateClusterStatusPanel creates the cluster-wide status panel
 func CreateClusterStatusPanel() (*tview.Flex, *tview.Table, *tview.Table) {
-	// Create panel with two side-by-side tables
-	// No changes needed - just confirming correct implementation
-	// No changes needed - just confirming the correct signature
 	// Create container panel
 	panel := tview.NewFlex().SetDirection(tview.FlexColumn)
 	panel.SetBorder(true).SetTitle("Cluster Status")
