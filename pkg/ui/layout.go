@@ -1,9 +1,10 @@
 package ui
 
 import (
-	"github.com/gdamore/tcell/v2"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -21,15 +22,77 @@ func (a *AppUI) SetupKeyboardHandlers(
 	pages *tview.Pages,
 	nodeList *tview.List,
 	vmList *tview.List,
-	vms []api.VM,
-	nodes []api.Node,
+	originalVMs []*api.VM,
+	originalNodes []*api.Node,
 	vmDetails *tview.Table,
 	header *tview.TextView,
 ) *tview.Pages {
+	// Add tab change handler
+	pages.SetChangedFunc(func() {
+		currentPage, _ := pages.GetFrontPage()
+		switch currentPage {
+		case "Nodes":
+			nodesToDisplay := originalNodes
+			// Check if a search is active for the Nodes page
+			if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SearchText != "" && len(models.GlobalState.FilteredNodes) > 0 {
+				nodesToDisplay = models.GlobalState.FilteredNodes
+				config.DebugLog("PagesChanged (Nodes): Using FilteredNodes, count: %d", len(nodesToDisplay))
+			} else {
+				config.DebugLog("PagesChanged (Nodes): Using originalNodes, count: %d", len(nodesToDisplay))
+			}
+			nodeList.Clear()
+			for _, node := range nodesToDisplay {
+				if node != nil { // Ensure node is not nil before adding
+					nodeList.AddItem(FormatNodeName(node), "", 0, nil)
+				}
+			}
+			a.updateNodeSelectionHandlers(nodeList, nodesToDisplay)
+			if len(nodesToDisplay) > 0 {
+				// Try to restore selected index if valid, else default to 0
+				idx := 0
+				if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SelectedIndex < len(nodesToDisplay) && state.SelectedIndex >= 0 {
+					idx = state.SelectedIndex
+				}
+				nodeList.SetCurrentItem(idx)
+			} else {
+				// Clear details if list is empty
+				a.updateNodeDetails(nil)
+			}
+		case "Guests":
+			vmsToDisplay := originalVMs
+			// Check if a search is active for the Guests page
+			if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SearchText != "" && len(models.GlobalState.FilteredVMs) > 0 {
+				vmsToDisplay = models.GlobalState.FilteredVMs
+				config.DebugLog("PagesChanged (Guests): Using FilteredVMs, count: %d", len(vmsToDisplay))
+			} else {
+				config.DebugLog("PagesChanged (Guests): Using originalVMs, count: %d", len(vmsToDisplay))
+			}
+			BuildVMList(vmsToDisplay, vmList) // BuildVMList handles Clear internally
+			a.updateVMSelectionHandlers(vmList, vmsToDisplay, vmDetails)
+			if len(vmsToDisplay) > 0 {
+				// Try to restore selected index if valid, else default to 0
+				idx := 0
+				if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SelectedIndex < len(vmsToDisplay) && state.SelectedIndex >= 0 {
+					idx = state.SelectedIndex
+				}
+				vmList.SetCurrentItem(idx)
+			} else {
+				// Clear details if list is empty
+				a.updateVMDetails(nil)
+			}
+		}
+	})
 	// Create shell info panel for displaying shell commands
 	shellInfoPanel := CreateShellInfoPanel()
 	// Add the shell info panel to a new page
 	pages.AddPage("ShellInfo", shellInfoPanel, true, false)
+
+	// Set initial focus based on the current page
+	if currentPage, _ := pages.GetFrontPage(); currentPage == "Nodes" {
+		a.app.SetFocus(nodeList)
+	} else {
+		a.app.SetFocus(vmList)
+	}
 
 	// Set up keyboard input handling
 	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -40,15 +103,15 @@ func (a *AppUI) SetupKeyboardHandlers(
 				curPage, _ := pages.GetFrontPage()
 				if curPage == "Guests" && vmList.HasFocus() {
 					index := vmList.GetCurrentItem()
-					if index >= 0 && index < len(vms) {
-						vm := vms[index]
+					if index >= 0 && index < len(originalVMs) {
+						vm := originalVMs[index]
 						a.HandleShellExecution(vm)
 						return nil
 					}
 				} else if curPage == "Nodes" && nodeList.HasFocus() {
 					index := nodeList.GetCurrentItem()
-					if index >= 0 && index < len(nodes) {
-						node := nodes[index]
+					if index >= 0 && index < len(originalNodes) {
+						node := originalNodes[index]
 						a.HandleShellExecution(node)
 						return nil
 					}
@@ -56,15 +119,15 @@ func (a *AppUI) SetupKeyboardHandlers(
 				curPage, _ = pages.GetFrontPage()
 				if curPage == "Guests" {
 					index := vmList.GetCurrentItem()
-					if index >= 0 && index < len(vms) {
-						vm := vms[index]
+					if index >= 0 && index < len(originalVMs) {
+						vm := originalVMs[index]
 						a.HandleShellExecution(vm)
 						return nil
 					}
 				} else if curPage == "Nodes" {
 					index := nodeList.GetCurrentItem()
-					if index >= 0 && index < len(nodes) {
-						node := nodes[index]
+					if index >= 0 && index < len(originalNodes) {
+						node := originalNodes[index]
 						a.HandleShellExecution(node)
 						return nil
 					}
@@ -73,38 +136,55 @@ func (a *AppUI) SetupKeyboardHandlers(
 				a.app.Stop()
 				return nil
 			} else if event.Rune() == '/' {
-				handleSearchInput(a.app, pages, nodeList, vmList, nodes, vms)
+				a.handleSearchInput(a.app, pages, nodeList, vmList, originalNodes, originalVMs)
 				return nil
 			}
 
 		}
 
 		// Then handle special keys
+		// Get the currently focused element
+		focus := a.app.GetFocus()
+
 		switch event.Key() {
 		case tcell.KeyEscape:
-			// Handle search mode first
+			// If search input has focus, let it handle the Escape key
+			if inputField, ok := focus.(*tview.InputField); ok && inputField.GetLabel() == "Search: " {
+				return event
+			}
+
+			// Handle search mode
 			if curPage, _ := pages.GetFrontPage(); curPage == "Search" {
 				pages.RemovePage("Search")
-				models.GlobalState.LastSearchText = "" // Clear persisted search text
+				// Clear search state for the current page
+				if basePage, _ := pages.GetFrontPage(); basePage != "" {
+					if state, exists := models.GlobalState.SearchStates[basePage]; exists {
+						state.SelectedIndex = 0
+					}
+				}
 
 				// Get the underlying page after removing search
 				basePage, _ := pages.GetFrontPage()
 				if basePage == "Nodes" {
 					nodeList.Clear()
-					for _, node := range nodes {
+					for _, node := range originalNodes {
 						nodeList.AddItem(FormatNodeName(node), "", 0, nil)
+					}
+					// Restore node selection handlers and select first item
+					a.updateNodeSelectionHandlers(nodeList, originalNodes)
+					if len(originalNodes) > 0 {
+						nodeList.SetCurrentItem(0)
 					}
 					a.app.SetFocus(nodeList)
 				} else if basePage == "Guests" {
-					BuildVMList(vms, vmList)
+					BuildVMList(originalVMs, vmList)
+					// Restore VM selection handlers and select first item
+					a.updateVMSelectionHandlers(vmList, originalVMs, vmDetails)
+					if len(originalVMs) > 0 {
+						vmList.SetCurrentItem(0)
+					}
 					a.app.SetFocus(vmList)
 				}
-				return nil
-			}
-			// Then handle shell info panel
-			if curPage, _ := pages.GetFrontPage(); curPage == "ShellInfo" {
-				pages.SwitchToPage("Guests")
-				a.app.SetFocus(vmList)
 				return nil
 			}
 			// Otherwise, exit the application
@@ -160,7 +240,7 @@ func AddGuestsPage(pages *tview.Pages, vmList *tview.List, vmDetails *tview.Tabl
 }
 
 // SetupVMHandlers configures VM list handlers
-func SetupVMHandlers(vmList *tview.List, vmDetails *tview.Table, vms []api.VM, client *api.Client) {
+func SetupVMHandlers(vmList *tview.List, vmDetails *tview.Table, vms []*api.VM, client *api.Client) {
 	// Update details on hover
 	vmList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(vms) {

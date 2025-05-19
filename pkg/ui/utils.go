@@ -21,7 +21,7 @@ func StatusColor(status string) tcell.Color {
 }
 
 // FormatNodeName adds status emoji to node names
-func FormatNodeName(node api.Node) string {
+func FormatNodeName(node *api.Node) string {
 	if node.Online {
 		return "🟢 " + node.Name
 	}
@@ -29,7 +29,7 @@ func FormatNodeName(node api.Node) string {
 }
 
 // BuildVMList creates a tview.List with emoji status indicators
-func BuildVMList(vms []api.VM, list *tview.List) *tview.List {
+func BuildVMList(vms []*api.VM, list *tview.List) *tview.List {
 	list.Clear()
 	for _, vm := range vms {
 		statusEmoji := "🟢 "

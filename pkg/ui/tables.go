@@ -17,7 +17,7 @@ func newVmDetails() *tview.Table {
 }
 
 // populateVmDetails fills the VM details table for the given VM.
-func populateVmDetails(tbl *tview.Table, vm api.VM) {
+func populateVmDetails(tbl *tview.Table, vm *api.VM) {
 	tbl.Clear()
 	row := 0
 
