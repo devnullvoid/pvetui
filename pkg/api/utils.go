@@ -1,40 +1,100 @@
 package api
 
-import "encoding/json"
+import (
+	"fmt"
+	"strings"
+)
 
-// Helper functions for safe map value extraction
-func getString(m map[string]interface{}, key string) string {
-	if val, ok := m[key].(string); ok {
-		return val
+// Helper functions to extract values from interface{} maps safely
+func getString(data map[string]interface{}, key string) string {
+	if val, ok := data[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
 	}
 	return ""
 }
 
-func getBool(m map[string]interface{}, key string) bool {
-	if val, ok := m[key].(bool); ok {
-		return val
-	}
-	return false
-}
-
-func getInt(m map[string]interface{}, key string) int {
-	if val, ok := m[key].(float64); ok {
-		return int(val)
+func getFloat(data map[string]interface{}, key string) float64 {
+	if val, ok := data[key]; ok {
+		switch v := val.(type) {
+		case float64:
+			return v
+		case int:
+			return float64(v)
+		case int64:
+			return float64(v)
+		case string:
+			// Try to convert string to float
+			var f float64
+			if n, err := fmt.Sscanf(v, "%f", &f); err == nil && n > 0 {
+				return f
+			}
+		}
 	}
 	return 0
 }
 
-func getFloat(m map[string]interface{}, key string) float64 {
-	if val, ok := m[key]; ok {
+func getBool(data map[string]interface{}, key string) bool {
+	if val, ok := data[key]; ok {
 		switch v := val.(type) {
-		case float64:
+		case bool:
 			return v
-		case json.Number:
-			f, _ := v.Float64()
-			return f
-		case int64:
-			return float64(v)
+		case int:
+			return v != 0
+		case string:
+			return v == "1" || strings.EqualFold(v, "true")
 		}
 	}
-	return 0.0
+	return false
+}
+
+func getInt(data map[string]interface{}, key string) int {
+	if val, ok := data[key]; ok {
+		switch v := val.(type) {
+		case int:
+			return v
+		case float64:
+			return int(v)
+		case string:
+			var i int
+			if _, err := fmt.Sscanf(v, "%d", &i); err == nil {
+				return i
+			}
+		}
+	}
+	return 0
+}
+
+// Extract IP addresses from config data
+func getIPAddresses(config map[string]interface{}) []string {
+	var ips []string
+	
+	// Look for net0, net1, etc. in config
+	for k, v := range config {
+		if !strings.HasPrefix(k, "net") {
+			continue
+		}
+		
+		netStr, ok := v.(string)
+		if !ok {
+			continue
+		}
+		
+		// Parse IP from config string like "virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr0,ip=192.168.1.100/24"
+		parts := strings.Split(netStr, ",")
+		for _, part := range parts {
+			if strings.HasPrefix(part, "ip=") {
+				ip := strings.TrimPrefix(part, "ip=")
+				// Remove subnet mask if present
+				if idx := strings.Index(ip, "/"); idx > 0 {
+					ip = ip[:idx]
+				}
+				ips = append(ips, ip)
+				break
+			}
+		}
+	}
+	
+	return ips
 }

@@ -82,7 +82,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(tcell.ColorYellow))
-	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d / %d GB", vm.Disk/1024, vm.MaxDisk/1024)).SetTextColor(tcell.ColorWhite))
+	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d / %d MB", vm.Disk/1024, vm.MaxDisk/1024)).SetTextColor(tcell.ColorWhite))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(tcell.ColorYellow))

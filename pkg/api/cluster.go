@@ -48,7 +48,13 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 		return nil, err
 	}
 
-	// 4. Calculate cluster-wide totals
+	// 4. Enrich VMs with detailed status information
+	if err := c.EnrichVMs(cluster); err != nil {
+		// Log error but continue
+		config.DebugLog("[CLUSTER] Error enriching VM data: %v", err)
+	}
+
+	// 5. Calculate cluster-wide totals
 	c.calculateClusterTotals(cluster)
 
 	c.Cluster = cluster
