@@ -33,11 +33,15 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 		copy(models.GlobalState.OriginalVMs, vms)
 	}
 	
-	// Initialize filtered lists
-	models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
-	copy(models.GlobalState.FilteredNodes, nodes)
-	models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-	copy(models.GlobalState.FilteredVMs, vms)
+	// Initialize filtered lists if not already set
+	if len(models.GlobalState.FilteredNodes) == 0 {
+		models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+		copy(models.GlobalState.FilteredNodes, nodes)
+	}
+	if len(models.GlobalState.FilteredVMs) == 0 {
+		models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+		copy(models.GlobalState.FilteredVMs, vms)
+	}
 	
 	// Get current selection from the list and update global state
 	if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
@@ -53,11 +57,25 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 	inputField := tview.NewInputField().
 		SetLabel("Search: ").
 		SetText(searchText)
-		
-	// Set focus to input field immediately
+
+	// Find the mainFlex (the root Flex layout)
+	mainFlex, ok := a.Flex.GetItem(0).(*tview.Flex)
+	if !ok {
+		return // fallback: can't find main layout
+	}
+
+	// Add the input field to the bottom of the main layout
+	mainFlex.AddItem(inputField, 1, 0, true)
 	app.SetFocus(inputField)
-	
-	// Input field is already focused and text is set, no need for cursor positioning
+
+	// Function to remove the search input field from the layout
+	removeSearchInput := func() {
+		// Remove the last item (input field) from mainFlex
+		itemCount := mainFlex.GetItemCount()
+		if itemCount > 0 {
+			mainFlex.RemoveItem(inputField)
+		}
+	}
 
 	// Function to update node selection and state
 	updateNodeSelection := func(nodeList *tview.List, nodes []*api.Node) {
@@ -125,7 +143,6 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 		}
 	}
 
-	// Set up DoneFunc to handle Enter key
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			searchTerm := strings.TrimSpace(inputField.GetText())
@@ -150,7 +167,7 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 				} else {
 					// Filter nodes based on search term
 					for _, node := range models.GlobalState.OriginalNodes {
-						if node != nil && strings.Contains(strings.ToLower(node.Name), searchTerm) {
+						if node != nil && strings.Contains(strings.ToLower(node.Name), strings.ToLower(searchTerm)) {
 							filteredNodes = append(filteredNodes, node)
 						}
 					}
@@ -166,7 +183,7 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 				} else {
 					// Filter VMs based on search term
 					for _, vm := range models.GlobalState.OriginalVMs {
-						if vm != nil && strings.Contains(strings.ToLower(vm.Name), searchTerm) {
+						if vm != nil && strings.Contains(strings.ToLower(vm.Name), strings.ToLower(searchTerm)) {
 							filteredVMs = append(filteredVMs, vm)
 						}
 					}
@@ -174,10 +191,7 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 				updateVMSelection(vmList, filteredVMs)
 			}
 			
-			// Close the modal
-			pages.RemovePage("Search")
-			
-			// Set focus back to the appropriate list
+			removeSearchInput()
 			if currentPage == "Nodes" {
 				app.SetFocus(nodeList)
 			} else {
@@ -186,29 +200,9 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 		}
 	})
 
-	// Handle Escape key in the main input capture
 	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			// Clear the search text and reset to original lists
-			models.GlobalState.SearchStates[currentPage].SearchText = ""
-			
-			// Reset to original lists
-			if currentPage == "Nodes" {
-				// Reset to original nodes
-				filteredNodes := make([]*api.Node, len(models.GlobalState.OriginalNodes))
-				copy(filteredNodes, models.GlobalState.OriginalNodes)
-				updateNodeSelection(nodeList, filteredNodes)
-			} else {
-				// Reset to original VMs
-				filteredVMs := make([]*api.VM, len(models.GlobalState.OriginalVMs))
-				copy(filteredVMs, models.GlobalState.OriginalVMs)
-				updateVMSelection(vmList, filteredVMs)
-			}
-			
-			// Close the search modal
-			pages.RemovePage("Search")
-			
-			// Set focus back to the appropriate list
+			removeSearchInput()
 			if currentPage == "Nodes" {
 				app.SetFocus(nodeList)
 			} else {
@@ -219,7 +213,7 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 		return event
 	})
 
-	// Configure input field after declaration
+	// Set up real-time filtering as user types
 	inputField.SetChangedFunc(func(text string) {
 		searchTerm := strings.TrimSpace(strings.ToLower(text))
 		
@@ -253,9 +247,8 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 			} else {
 				a.nodeDetails.Clear()
 			}
-			
-		} else if currentPage == "Guests" {
-			// Filter VMs
+		} else {
+			// Handle VM search
 			var filteredVMs []*api.VM
 			if searchTerm == "" {
 				// If search is empty, show all VMs
@@ -286,23 +279,4 @@ func (a *AppUI) handleSearchInput(app *tview.Application, pages *tview.Pages, no
 			}
 		}
 	})
-
-	// Create search bar as centered modal
-	inputField.SetTitle(" Search ").
-		SetBorder(true).
-		SetBackgroundColor(tcell.ColorDefault)
-
-	// Create flex layout to center the search bar
-	modal := tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(inputField, 3, 1, true).
-			AddItem(nil, 0, 1, false),
-			40, 1, true).
-		AddItem(nil, 0, 1, false)
-
-	// Add as overlay page instead of replacing root
-	pages.AddPage("Search", modal, true, true)
-	app.SetFocus(inputField)
 }

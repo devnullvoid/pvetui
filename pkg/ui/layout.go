@@ -2,7 +2,6 @@ package ui
 
 import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -32,17 +31,14 @@ func (a *AppUI) SetupKeyboardHandlers(
 		currentPage, _ := pages.GetFrontPage()
 		switch currentPage {
 		case "Nodes":
-			nodesToDisplay := originalNodes
+			nodesToDisplay := models.GlobalState.OriginalNodes
 			// Check if a search is active for the Nodes page
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SearchText != "" && len(models.GlobalState.FilteredNodes) > 0 {
 				nodesToDisplay = models.GlobalState.FilteredNodes
-				config.DebugLog("PagesChanged (Nodes): Using FilteredNodes, count: %d", len(nodesToDisplay))
-			} else {
-				config.DebugLog("PagesChanged (Nodes): Using originalNodes, count: %d", len(nodesToDisplay))
 			}
 			nodeList.Clear()
 			for _, node := range nodesToDisplay {
-				if node != nil { // Ensure node is not nil before adding
+				if node != nil {
 					nodeList.AddItem(FormatNodeName(node), "", 0, nil)
 				}
 			}
@@ -54,20 +50,18 @@ func (a *AppUI) SetupKeyboardHandlers(
 					idx = state.SelectedIndex
 				}
 				nodeList.SetCurrentItem(idx)
+				a.updateNodeDetails(nodesToDisplay[idx])
 			} else {
 				// Clear details if list is empty
 				a.updateNodeDetails(nil)
 			}
 		case "Guests":
-			vmsToDisplay := originalVMs
+			vmsToDisplay := models.GlobalState.OriginalVMs
 			// Check if a search is active for the Guests page
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SearchText != "" && len(models.GlobalState.FilteredVMs) > 0 {
 				vmsToDisplay = models.GlobalState.FilteredVMs
-				config.DebugLog("PagesChanged (Guests): Using FilteredVMs, count: %d", len(vmsToDisplay))
-			} else {
-				config.DebugLog("PagesChanged (Guests): Using originalVMs, count: %d", len(vmsToDisplay))
 			}
-			BuildVMList(vmsToDisplay, vmList) // BuildVMList handles Clear internally
+			BuildVMList(vmsToDisplay, vmList)
 			a.updateVMSelectionHandlers(vmList, vmsToDisplay, vmDetails)
 			if len(vmsToDisplay) > 0 {
 				// Try to restore selected index if valid, else default to 0
@@ -76,12 +70,37 @@ func (a *AppUI) SetupKeyboardHandlers(
 					idx = state.SelectedIndex
 				}
 				vmList.SetCurrentItem(idx)
+				a.updateVMDetails(vmsToDisplay[idx])
 			} else {
 				// Clear details if list is empty
 				a.updateVMDetails(nil)
 			}
 		}
 	})
+
+	// Trigger initial page load
+	if currentPage, _ := pages.GetFrontPage(); currentPage == "Nodes" {
+		nodeList.Clear()
+		for _, node := range models.GlobalState.OriginalNodes {
+			if node != nil {
+				nodeList.AddItem(FormatNodeName(node), "", 0, nil)
+			}
+		}
+		if len(models.GlobalState.OriginalNodes) > 0 {
+			nodeList.SetCurrentItem(0)
+			a.updateNodeDetails(models.GlobalState.OriginalNodes[0])
+		}
+		a.updateNodeSelectionHandlers(nodeList, models.GlobalState.OriginalNodes)
+	} else if currentPage == "Guests" {
+		vmList.Clear()
+		BuildVMList(models.GlobalState.OriginalVMs, vmList)
+		if len(models.GlobalState.OriginalVMs) > 0 {
+			vmList.SetCurrentItem(0)
+			a.updateVMDetails(models.GlobalState.OriginalVMs[0])
+		}
+		a.updateVMSelectionHandlers(vmList, models.GlobalState.OriginalVMs, vmDetails)
+	}
+
 	// Create shell info panel for displaying shell commands
 	shellInfoPanel := CreateShellInfoPanel()
 	// Add the shell info panel to a new page
@@ -219,23 +238,24 @@ func (a *AppUI) SetupKeyboardHandlers(
 	return pages
 }
 
-// CreatePagesContainer creates the tab container for different views
+// CreatePagesContainer creates the pages container with tabs
 func CreatePagesContainer() *tview.Pages {
-	return tview.NewPages()
+	pages := tview.NewPages()
+	pages.SetBorder(true)
+	pages.SetTitle("Tabs")
+	return pages
 }
 
-// AddNodesPage adds the nodes view to the pages container
-func AddNodesPage(pages *tview.Pages, nodeContent tview.Primitive) {
-	pages.AddPage("Nodes", nodeContent, true, true)
+// AddNodesPage adds the nodes page to the pages container
+func AddNodesPage(pages *tview.Pages, nodesContent *tview.Flex) {
+	pages.AddPage("Nodes", nodesContent, true, true)
 }
 
-// AddGuestsPage adds the VMs/containers view to the pages container
+// AddGuestsPage adds the guests page to the pages container
 func AddGuestsPage(pages *tview.Pages, vmList *tview.List, vmDetails *tview.Table) {
-	// Set up guests tab with VM list and details side by side
 	guestsContent := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(vmList, 0, 1, true).
-		AddItem(vmDetails, 0, 2, false)
-
+		AddItem(vmDetails, 0, 3, false)
 	pages.AddPage("Guests", guestsContent, true, false)
 }
 

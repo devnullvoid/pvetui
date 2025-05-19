@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
@@ -90,37 +88,23 @@ func (a *AppUI) updateVMSelectionHandlers(vmList *tview.List, vms []*api.VM, vmD
 
 // updateNodeSelectionHandlers updates the node list selection handlers with the current filtered list
 func (a *AppUI) updateNodeSelectionHandlers(nodeList *tview.List, nodes []*api.Node) {
-	if len(nodes) > 0 {
-		config.DebugLog(fmt.Sprintf("updateNodeSelectionHandlers: called with %d nodes. First node: %s", len(nodes), nodes[0].Name))
-	} else {
-		config.DebugLog(fmt.Sprintf("updateNodeSelectionHandlers: called with %d nodes.", len(nodes)))
-	}
-
 	nodeList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		config.DebugLog(fmt.Sprintf("NodeList SetChangedFunc: index %d, nodes list len: %d", index, len(nodes)))
 		if index >= 0 && index < len(nodes) {
-			config.DebugLog(fmt.Sprintf("NodeList SetChangedFunc: Updating details for node: %s (from captured list of %d)", nodes[index].Name, len(nodes)))
 			a.updateNodeDetails(nodes[index])
 			// Update the selected index in global state
 			if state, exists := models.GlobalState.SearchStates["Nodes"]; exists {
 				state.SelectedIndex = index
 			}
-		} else {
-			config.DebugLog(fmt.Sprintf("NodeList SetChangedFunc: index %d out of bounds for nodes list len: %d", index, len(nodes)))
 		}
 	})
 
 	nodeList.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		config.DebugLog(fmt.Sprintf("NodeList SetSelectedFunc: index %d, nodes list len: %d", index, len(nodes)))
 		if index >= 0 && index < len(nodes) {
-			config.DebugLog(fmt.Sprintf("NodeList SetSelectedFunc: Updating details for node: %s (from captured list of %d)", nodes[index].Name, len(nodes)))
 			a.updateNodeDetails(nodes[index])
 			// Update the selected index in global state
 			if state, exists := models.GlobalState.SearchStates["Nodes"]; exists {
 				state.SelectedIndex = index
 			}
-		} else {
-			config.DebugLog(fmt.Sprintf("NodeList SetSelectedFunc: index %d out of bounds for nodes list len: %d", index, len(nodes)))
 		}
 	})
 }
@@ -232,41 +216,48 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 	}
 	cluster := client.Cluster
 
-	// Get nodes from cached cluster data
-	if len(cluster.Nodes) == 0 {
-		header.SetText("No nodes found in cluster")
-		return a
+	// Initialize global state first
+	models.GlobalState = models.State{
+		NodeList:     nil, // Will be set after node list creation
+		VMList:       nil, // Will be set after VM list creation
+		SearchStates: make(map[string]*models.SearchState),
+		OriginalNodes: make([]*api.Node, len(client.Cluster.Nodes)),
+		FilteredNodes: make([]*api.Node, len(client.Cluster.Nodes)),
 	}
+	copy(models.GlobalState.OriginalNodes, client.Cluster.Nodes)
+	copy(models.GlobalState.FilteredNodes, client.Cluster.Nodes)
 
 	// Create node list with filtered nodes if available, otherwise all nodes
-	nodesToShow := client.Cluster.Nodes
-	if len(models.GlobalState.FilteredNodes) > 0 {
-		nodesToShow = models.GlobalState.FilteredNodes
+	nodesToShow := models.GlobalState.FilteredNodes
+	if len(nodesToShow) == 0 {
+		nodesToShow = models.GlobalState.OriginalNodes
 	}
 
-	nodeList := CreateNodeList(nodesToShow)
+	// Create node list
+	nodeList := tview.NewList().ShowSecondaryText(false)
 	nodeList.SetBorder(true).SetTitle("Nodes")
+	
+	// Add nodes to the list immediately
+	for _, node := range nodesToShow {
+		if node != nil {
+			nodeList.AddItem(FormatNodeName(node), "", 0, nil)
+		}
+	}
+
+	// Set up initial selection and handlers
 	if len(nodesToShow) > 0 {
 		nodeList.SetCurrentItem(0)
 		a.updateNodeDetails(nodesToShow[0])
 	}
 	a.updateNodeSelectionHandlers(nodeList, nodesToShow)
 
-	// Initialize global state
-	models.GlobalState = models.State{
-		NodeList:     nodeList,
-		VMList:       nil, // Will be set after VM list creation
-		SearchStates: make(map[string]*models.SearchState),
-	}
-
-	// We will use a.nodeDetails directly for the Nodes tab.
-	// The call to CreateDetailsPanel() for the node section is removed/no longer used for its table.
-	// detailsPanel, detailsTable := CreateDetailsPanel() // This line is effectively replaced by using a.nodeDetails
+	// Update global state with node list
+	models.GlobalState.NodeList = nodeList
 
 	// Create nodes tab content
 	nodesContent := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(nodeList, 0, 1, true).
-		AddItem(a.nodeDetails, 0, 3, false) // Use a.nodeDetails here
+		AddItem(a.nodeDetails, 0, 3, false)
 
 	// Get all VMs from cached cluster data
 	var vmsAll []*api.VM
@@ -278,6 +269,16 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 				}
 			}
 		}
+	}
+
+	// Initialize global state for VMs if not already done
+	if models.GlobalState.OriginalVMs == nil {
+		models.GlobalState.OriginalVMs = make([]*api.VM, len(vmsAll))
+		copy(models.GlobalState.OriginalVMs, vmsAll)
+	}
+	if models.GlobalState.FilteredVMs == nil {
+		models.GlobalState.FilteredVMs = make([]*api.VM, len(vmsAll))
+		copy(models.GlobalState.FilteredVMs, vmsAll)
 	}
 
 	// Create VM list with filtered VMs if available, otherwise all VMs
@@ -299,12 +300,6 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 
 	// Set up initial selection handlers with the current filtered lists
 	a.updateVMSelectionHandlers(vmList, vmsToShow, a.vmDetails)
-	a.updateNodeSelectionHandlers(nodeList, nodesToShow)
-
-	// vmDetails is now a field of AppUI and initialized above
-
-	// Start VM status refresh background process
-	// StartVMStatusRefresh(app, client, vmList, vmsAll)
 
 	// Create pages container
 	pages := CreatePagesContainer()
@@ -352,6 +347,69 @@ func NewAppUI(app *tview.Application, client *api.Client, cfg config.Config) *Ap
 		AddItem(footer, 1, 0, false)
 
 	a.AddItem(mainFlex, 0, 1, true)
+
+	// Add tab change handler
+	pages.SetChangedFunc(func() {
+		currentPage, _ := pages.GetFrontPage()
+		switch currentPage {
+		case "Nodes":
+			nodesToDisplay := models.GlobalState.OriginalNodes
+			// Check if a search is active for the Nodes page
+			if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SearchText != "" && len(models.GlobalState.FilteredNodes) > 0 {
+				nodesToDisplay = models.GlobalState.FilteredNodes
+			}
+			nodeList.Clear()
+			for _, node := range nodesToDisplay {
+				if node != nil {
+					nodeList.AddItem(FormatNodeName(node), "", 0, nil)
+				}
+			}
+			a.updateNodeSelectionHandlers(nodeList, nodesToDisplay)
+			if len(nodesToDisplay) > 0 {
+				// Try to restore selected index if valid, else default to 0
+				idx := 0
+				if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SelectedIndex < len(nodesToDisplay) && state.SelectedIndex >= 0 {
+					idx = state.SelectedIndex
+				}
+				nodeList.SetCurrentItem(idx)
+				a.updateNodeDetails(nodesToDisplay[idx])
+			} else {
+				// Clear details if list is empty
+				a.updateNodeDetails(nil)
+			}
+		case "Guests":
+			vmsToDisplay := models.GlobalState.OriginalVMs
+			// Check if a search is active for the Guests page
+			if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SearchText != "" && len(models.GlobalState.FilteredVMs) > 0 {
+				vmsToDisplay = models.GlobalState.FilteredVMs
+			}
+			BuildVMList(vmsToDisplay, vmList)
+			a.updateVMSelectionHandlers(vmList, vmsToDisplay, a.vmDetails)
+			if len(vmsToDisplay) > 0 {
+				// Try to restore selected index if valid, else default to 0
+				idx := 0
+				if state, exists := models.GlobalState.SearchStates[currentPage]; exists && state.SelectedIndex < len(vmsToDisplay) && state.SelectedIndex >= 0 {
+					idx = state.SelectedIndex
+				}
+				vmList.SetCurrentItem(idx)
+				a.updateVMDetails(vmsToDisplay[idx])
+			} else {
+				// Clear details if list is empty
+				a.updateVMDetails(nil)
+			}
+		}
+	})
+
+	// Trigger initial page change to populate the node list
+	pages.SwitchToPage("Nodes")
+
+	// Initialize search state for Nodes page
+	models.GlobalState.SearchStates["Nodes"] = &models.SearchState{
+		CurrentPage:   "Nodes",
+		SearchText:    "",
+		SelectedIndex: 0,
+	}
+
 	return a
 }
 

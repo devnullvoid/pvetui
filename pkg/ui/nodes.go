@@ -7,7 +7,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/rivo/tview"
 )
 
@@ -21,7 +21,7 @@ func CreateNodeList(nodes []*api.Node) *tview.List {
 		return nodeList
 	}
 
-	for i, n := range nodes {
+	for _, n := range nodes {
 		if n == nil {
 			continue
 		}
@@ -29,22 +29,7 @@ func CreateNodeList(nodes []*api.Node) *tview.List {
 		if n.Online {
 			status = "🟢"
 		}
-		nodeList.AddItem(
-			fmt.Sprintf("%s %s", status, n.Name),
-			fmt.Sprintf("IP: %s | Version: %s", n.IP, func() string {
-				if n.Version == "" {
-					return "unknown"
-				}
-				parts := strings.Split(n.Version, "/")
-				if len(parts) > 1 {
-					return "v" + parts[1]
-				}
-				return "v" + parts[0]
-			}()),
-			0,
-			nil,
-		)
-		config.DebugLog("Node %d: %+v", i, n)
+		nodeList.AddItem(fmt.Sprintf("%s %s", status, n.Name), "", 0, nil)
 	}
 
 	return nodeList
@@ -223,7 +208,17 @@ func SetupNodeHandlers(
 		// Update summary panel with existing cluster data
 		summary.Clear()
 		UpdateClusterStatus(summary, resourceTable, cluster) // Use passed cluster data
+		
+		// Show success message temporarily
 		header.SetText(fmt.Sprintf("✅ Loaded %s", n.Name)).SetTextColor(tcell.ColorGreen)
+		
+		// Use a goroutine to handle the delayed update
+		go func() {
+			time.Sleep(2 * time.Second)
+			app.QueueUpdateDraw(func() {
+				header.SetText("Proxmox TUI").SetTextColor(tcell.ColorWhite)
+			})
+		}()
 	}
 
 	// Define updateDetails: refresh details for highlighted node
