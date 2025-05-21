@@ -29,6 +29,22 @@ func FormatUptime(uptime int) string {
 	}
 }
 
+// FormatBytes formats a byte count to a human-readable format (B, KB, MB, GB, TB)
+func FormatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	
+	return fmt.Sprintf("%.1f %s", float64(bytes)/float64(div), []string{"KB", "MB", "GB", "TB"}[exp])
+}
+
 // StatusColor returns a color based on the status string
 func StatusColor(status string) tcell.Color {
 	status = strings.ToLower(status)

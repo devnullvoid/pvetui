@@ -74,18 +74,50 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	// Resource Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(tcell.ColorYellow))
-	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f%%", vm.CPU*100)).SetTextColor(tcell.ColorWhite))
+	cpuValue := "N/A"
+	if vm.Enriched {
+		cpuValue = fmt.Sprintf("%.1f%%", vm.CPU*100)
+	}
+	vd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(tcell.ColorWhite))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))
-	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d / %d MB", vm.Mem/1024, vm.MaxMem/1024)).SetTextColor(tcell.ColorWhite))
+	memValue := "N/A"
+	if vm.Enriched {
+		memValue = fmt.Sprintf("%.1f / %.1f GB", float64(vm.Mem)/(1024*1024*1024), float64(vm.MaxMem)/(1024*1024*1024))
+	}
+	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(tcell.ColorWhite))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(tcell.ColorYellow))
-	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d / %d MB", vm.Disk/1024, vm.MaxDisk/1024)).SetTextColor(tcell.ColorWhite))
+	diskValue := "N/A"
+	if vm.Enriched {
+		diskValue = fmt.Sprintf("%.1f / %.1f GB", float64(vm.Disk)/(1024*1024*1024), float64(vm.MaxDisk)/(1024*1024*1024))
+	}
+	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(tcell.ColorWhite))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(tcell.ColorYellow))
-	vd.SetCell(row, 1, tview.NewTableCell(utils.FormatUptime(int(vm.Uptime))).SetTextColor(tcell.ColorWhite))
+	uptimeValue := "N/A"
+	if vm.Enriched && vm.Uptime > 0 {
+		uptimeValue = utils.FormatUptime(int(vm.Uptime))
+	}
+	vd.SetCell(row, 1, tview.NewTableCell(uptimeValue).SetTextColor(tcell.ColorWhite))
 	row++
+
+	// Network IO if available
+	if vm.Enriched && (vm.NetIn > 0 || vm.NetOut > 0) {
+		vd.SetCell(row, 0, tview.NewTableCell("🔄 Network").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("In: %s, Out: %s", 
+			utils.FormatBytes(vm.NetIn), utils.FormatBytes(vm.NetOut))).SetTextColor(tcell.ColorWhite))
+		row++
+	}
+
+	// Disk IO if available
+	if vm.Enriched && (vm.DiskRead > 0 || vm.DiskWrite > 0) {
+		vd.SetCell(row, 0, tview.NewTableCell("💽 Disk IO").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("Read: %s, Write: %s", 
+			utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(tcell.ColorWhite))
+		row++
+	}
 } 
