@@ -6,6 +6,7 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/ssh"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -198,10 +199,131 @@ func (a *App) setupKeyboardHandlers() {
 				// Activate search
 				a.activateSearch()
 				return nil
+			} else if event.Rune() == 's' || event.Rune() == 'S' {
+				// Open shell session based on current page
+				currentPage, _ := a.pages.GetFrontPage()
+				if currentPage == "Nodes" {
+					// Handle node shell session
+					a.openNodeShell()
+				} else if currentPage == "Guests" {
+					// Handle VM shell session
+					a.openVMShell()
+				}
+				return nil
 			}
 		}
 		return event
 	})
+}
+
+// openNodeShell opens an SSH session to the currently selected node
+func (a *App) openNodeShell() {
+	if a.config.SSHUser == "" {
+		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+		return
+	}
+
+	idx := a.nodeList.List.GetCurrentItem()
+	if idx >= 0 && idx < len(models.GlobalState.FilteredNodes) {
+		node := models.GlobalState.FilteredNodes[idx]
+		if node == nil || node.IP == "" {
+			a.showMessage("Node IP address not available")
+			return
+		}
+
+		// Temporarily suspend the UI
+		a.Suspend(func() {
+			// Display connecting message
+			fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, a.config.SSHUser)
+			
+			// Execute SSH command
+			err := ssh.ExecuteNodeShell(a.config.SSHUser, node.IP)
+			if err != nil {
+				fmt.Printf("\nError connecting to node: %v\n", err)
+			}
+			
+			// Wait for user to press Enter
+			fmt.Print("\nPress Enter to return to the TUI...")
+			fmt.Scanln()
+		})
+	}
+}
+
+// openVMShell opens a shell session to the currently selected VM/container
+func (a *App) openVMShell() {
+	if a.config.SSHUser == "" {
+		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+		return
+	}
+
+	idx := a.vmList.List.GetCurrentItem()
+	if idx >= 0 && idx < len(models.GlobalState.FilteredVMs) {
+		vm := models.GlobalState.FilteredVMs[idx]
+		if vm == nil {
+			a.showMessage("Selected VM not found")
+			return
+		}
+
+		// Get node IP from the cluster
+		var nodeIP string
+		for _, node := range a.client.Cluster.Nodes {
+			if node.Name == vm.Node {
+				nodeIP = node.IP
+				break
+			}
+		}
+
+		if nodeIP == "" {
+			a.showMessage("Host node IP address not available")
+			return
+		}
+
+		// Temporarily suspend the UI
+		a.Suspend(func() {
+			if vm.Type == "lxc" {
+				fmt.Printf("\nConnecting to LXC container %s (ID: %d) on node %s (%s)...\n", 
+					vm.Name, vm.ID, vm.Node, nodeIP)
+				
+				// Execute LXC shell command
+				err := ssh.ExecuteLXCShell(a.config.SSHUser, nodeIP, vm.ID)
+				if err != nil {
+					fmt.Printf("\nError connecting to LXC container: %v\n", err)
+				}
+			} else if vm.Type == "qemu" {
+				if vm.IP == "" {
+					fmt.Println("\nNo IP address available for this VM. Cannot establish SSH connection.")
+					fmt.Println("Note: For QEMU VMs, the Proxmox TUI can only connect via SSH if the VM has an IP.")
+				} else {
+					fmt.Printf("\nAttempting to connect to QEMU VM %s (ID: %d) via SSH at %s...\n", 
+						vm.Name, vm.ID, vm.IP)
+					
+					// Attempt direct SSH to VM's IP
+					err := ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
+					if err != nil {
+						fmt.Printf("\nFailed to SSH to VM: %v\n", err)
+					}
+				}
+			} else {
+				fmt.Printf("\nUnsupported VM type: %s\n", vm.Type)
+			}
+			
+			// Wait for user to press Enter
+			fmt.Print("\nPress Enter to return to the TUI...")
+			fmt.Scanln()
+		})
+	}
+}
+
+// showMessage displays a message to the user
+func (a *App) showMessage(message string) {
+	modal := tview.NewModal().
+		SetText(message).
+		AddButtons([]string{"OK"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.pages.RemovePage("message")
+		})
+	
+	a.pages.AddPage("message", modal, false, true)
 }
 
 // activateSearch shows the search input field and sets up filtering

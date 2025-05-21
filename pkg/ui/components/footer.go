@@ -14,7 +14,7 @@ func NewFooter() *Footer {
 	footer := tview.NewTextView()
 	footer.SetTextAlign(tview.AlignCenter)
 	footer.SetDynamicColors(true)
-	footer.SetText("[yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]/:[white]Search  [yellow]Tab:[white]Next Tab  [yellow]Q:[white]Quit")
+	footer.SetText("[yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]/:[white]Search  [yellow]S:[white]Shell  [yellow]Tab:[white]Next Tab  [yellow]Q:[white]Quit")
 	
 	return &Footer{
 		TextView: footer,
