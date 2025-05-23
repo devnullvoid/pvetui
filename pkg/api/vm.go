@@ -32,6 +32,12 @@ type VM struct {
 	Template  bool    `json:"template,omitempty"`
 	Pool      string  `json:"pool,omitempty"`
 	
+	// Guest agent related fields
+	AgentEnabled   bool               `json:"agent_enabled,omitempty"`
+	AgentRunning   bool               `json:"agent_running,omitempty"`
+	NetInterfaces  []NetworkInterface `json:"net_interfaces,omitempty"`
+	ConfiguredMACs map[string]bool   `json:"-"` // Stores MACs from VM config (net0, net1, etc.)
+	
 	// For metrics tracking
 	mu         sync.RWMutex
 	Enriched   bool   `json:"-"`
@@ -102,8 +108,87 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		}
 	}
 
+	// For QEMU VMs, check guest agent and get network interfaces
+	if vm.Type == "qemu" && vm.Status == "running" {
+		// Get VM config to identify configured MAC addresses
+		var configRes map[string]interface{}
+		configEndpoint := fmt.Sprintf("/nodes/%s/qemu/%d/config", vm.Node, vm.ID)
+		if err := c.GetWithCache(configEndpoint, &configRes); err == nil {
+			if configData, ok := configRes["data"].(map[string]interface{}); ok {
+				populateConfiguredMACs(vm, configData)
+			}
+		}
+
+		// Get network interfaces from guest agent
+		rawNetInterfaces, err := c.GetGuestAgentInterfaces(vm)
+		if err == nil && len(rawNetInterfaces) > 0 {
+			vm.AgentRunning = true
+			var filteredInterfaces []NetworkInterface
+			for _, iface := range rawNetInterfaces {
+				// Skip loopback and veth interfaces, and check against configured MACs
+				if !iface.IsLoopback && !strings.HasPrefix(iface.Name, "veth") && (vm.ConfiguredMACs == nil || vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]) {
+					filteredInterfaces = append(filteredInterfaces, iface)
+				}
+			}
+			vm.NetInterfaces = filteredInterfaces
+			
+			// Update IP address if we don't have one yet and have interfaces
+			if vm.IP == "" && len(vm.NetInterfaces) > 0 {
+				vm.IP = GetFirstNonLoopbackIP(vm.NetInterfaces, true)
+			}
+		} else {
+			vm.AgentRunning = false
+			vm.NetInterfaces = nil
+			// Only clear IP if it wasn't already set by config
+			// This check is to preserve IP from config if guest agent fails
+			if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 { 
+			    vm.IP = "" 
+			}
+		}
+	}
+
 	vm.Enriched = true
 	return nil
+}
+
+// populateConfiguredMACs extracts MAC addresses from the VM configuration (net0, net1, etc.)
+func populateConfiguredMACs(vm *VM, configData map[string]interface{}) {
+	vm.ConfiguredMACs = make(map[string]bool)
+	for k, v := range configData {
+		if strings.HasPrefix(k, "net") && len(k) > 3 && k[3] >= '0' && k[3] <= '9' {
+			netStr, ok := v.(string)
+			if !ok {
+				continue
+			}
+			// Example net string: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0
+			parts := strings.Split(netStr, ",")
+			for _, part := range parts {
+				// Look for MAC address (e.g., virtio=AA:BB:CC:DD:EE:FF or just AA:BB:CC:DD:EE:FF)
+				// Proxmox config might store MACs like AA:BB:CC:DD:EE:FF or with a driver prefix like virtio=AA:BB:CC:DD:EE:FF
+				var macAddress string
+				if strings.Contains(part, "=") {
+					macParts := strings.SplitN(part, "=", 2)
+					if len(macParts) == 2 {
+						// Check if the part after '=' looks like a MAC address
+						// A simple check: length 17, contains colons
+						if len(macParts[1]) == 17 && strings.Count(macParts[1], ":") == 5 {
+							macAddress = strings.ToUpper(macParts[1])
+						}
+					}
+				} else {
+					// Check if the part itself looks like a MAC address
+					if len(part) == 17 && strings.Count(part, ":") == 5 {
+						macAddress = strings.ToUpper(part)
+					}
+				}
+
+				if macAddress != "" {
+					vm.ConfiguredMACs[macAddress] = true
+					break // Found MAC for this netX device
+				}
+			}
+		}
+	}
 }
 
 // GetDetailedVmInfo retrieves complete information about a VM by combining status and config data
@@ -229,7 +314,20 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 		}
 	}
 	
+	// Check for agent configuration in config data
+	if agentVal, ok := configData["agent"]; ok {
+		switch v := agentVal.(type) {
+		case bool:
+			vm.AgentEnabled = v
+		case int:
+			vm.AgentEnabled = v != 0
+		case string:
+			vm.AgentEnabled = v == "1" || v == "true"
+		}
+	}
+
 	// Look for IPs in config (net0, net1, etc.)
+	var foundIP bool
 	for k, v := range configData {
 		if len(k) >= 3 && k[:3] == "net" {
 			netStr, ok := v.(string)
@@ -246,15 +344,18 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 						ip = ip[:idx]
 					}
 					vm.IP = ip
+					foundIP = true
 					break
 				}
 			}
 			
-			if vm.IP != "" {
+			if foundIP {
 				break // Found an IP, no need to check other interfaces
 			}
 		}
 	}
+	
+	populateConfiguredMACs(vm, configData)
 	
 	vm.Enriched = true
 	return vm, nil
@@ -303,7 +404,9 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 			wg.Add(1)
 			go func(vm *VM) {
 				defer wg.Done()
+				// Get regular VM status info including guest agent data
 				err := c.GetVmStatus(vm)
+				
 				errChan <- err
 			}(node.VMs[i])
 		}

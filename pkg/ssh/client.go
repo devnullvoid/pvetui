@@ -78,6 +78,32 @@ func ExecuteQemuShell(user, vmIP string) error {
     return nil
 }
 
+// ExecuteQemuGuestAgentShell connects to a QEMU VM using the guest agent via host node
+func ExecuteQemuGuestAgentShell(user, nodeIP string, vmID int) error {
+    // For QEMU VMs with guest agent, we can SSH to node, then run guest agent commands
+    fmt.Println("\nNOTE: This connects to the VM through the QEMU guest agent")
+    fmt.Println("You will need root permissions on the Proxmox host for this to work")
+    fmt.Println("Commands will execute inside the VM with the privileges of the guest agent")
+    
+    sshArgs := []string{
+        fmt.Sprintf("%s@%s", user, nodeIP),
+        "-t", // Force pseudo-terminal allocation
+        fmt.Sprintf("sudo qm guest exec %d bash -- -l", vmID),
+    }
+    
+    sshCmd := exec.Command("ssh", sshArgs...)
+    sshCmd.Stdin = os.Stdin
+    sshCmd.Stdout = os.Stdout
+    sshCmd.Stderr = os.Stderr
+    
+    // Execute command using the current process environment and stdin/stdout
+    if err := sshCmd.Run(); err != nil {
+        return fmt.Errorf("failed to execute QEMU guest shell command: %w", err)
+    }
+    
+    return nil
+}
+
 // ResetTerminal resets the terminal settings after an interactive command
 func ResetTerminal() {
     // Reset terminal to canonical mode and echo on

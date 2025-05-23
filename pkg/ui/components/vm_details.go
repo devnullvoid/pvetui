@@ -120,4 +120,65 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(tcell.ColorWhite))
 		row++
 	}
+	
+	// Guest agent status (only for QEMU VMs)
+	if vm.Type == "qemu" {
+		agentStatus := "Not enabled"
+		agentColor := tcell.ColorGray
+		
+		if vm.AgentEnabled {
+			if vm.AgentRunning {
+				agentStatus = "Running"
+				agentColor = tcell.ColorGreen
+			} else {
+				agentStatus = "Enabled but not running"
+				agentColor = tcell.ColorYellow
+			}
+		}
+		
+		vd.SetCell(row, 0, tview.NewTableCell("👾 Guest Agent").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 1, tview.NewTableCell(agentStatus).SetTextColor(agentColor))
+		row++
+	}
+	
+	// Show network interfaces from guest agent if available
+	if len(vm.NetInterfaces) > 0 {
+		vd.SetCell(row, 0, tview.NewTableCell("🌐 Network Interfaces").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d available", len(vm.NetInterfaces))).SetTextColor(tcell.ColorWhite))
+		row++
+		
+		// Show interface details
+		for _, iface := range vm.NetInterfaces {
+			// Skip loopback interfaces
+			if iface.IsLoopback {
+				continue
+			}
+			
+			// Show interface name and MAC
+			vd.SetCell(row, 0, tview.NewTableCell("  • "+iface.Name).SetTextColor(tcell.ColorLightSkyBlue))
+			vd.SetCell(row, 1, tview.NewTableCell(iface.MACAddress).SetTextColor(tcell.ColorWhite))
+			row++
+			
+			// Show IP addresses
+			for _, ip := range iface.IPAddresses {
+				ipColor := tcell.ColorWhite
+				if ip.Type == "ipv6" {
+					ipColor = tcell.ColorLightSkyBlue
+				}
+				vd.SetCell(row, 0, tview.NewTableCell("    "+ip.Type).SetTextColor(tcell.ColorGray))
+				vd.SetCell(row, 1, tview.NewTableCell(ip.Address).SetTextColor(ipColor))
+				row++
+			}
+			
+			// Show interface traffic
+			if iface.Statistics.RxBytes > 0 || iface.Statistics.TxBytes > 0 {
+				vd.SetCell(row, 0, tview.NewTableCell("    Traffic").SetTextColor(tcell.ColorGray))
+				vd.SetCell(row, 1, tview.NewTableCell(
+					fmt.Sprintf("↓ %s ↑ %s",
+						utils.FormatBytes(iface.Statistics.RxBytes),
+						utils.FormatBytes(iface.Statistics.TxBytes))).SetTextColor(tcell.ColorWhite))
+				row++
+			}
+		}
+	}
 } 
