@@ -116,6 +116,17 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		if err := c.GetWithCache(configEndpoint, &configRes); err == nil {
 			if configData, ok := configRes["data"].(map[string]interface{}); ok {
 				populateConfiguredMACs(vm, configData)
+				// Populate AgentEnabled from config
+				if agentVal, ok := configData["agent"]; ok {
+					switch v := agentVal.(type) {
+					case bool:
+						vm.AgentEnabled = v
+					case int:
+						vm.AgentEnabled = v != 0
+					case string:
+						vm.AgentEnabled = v == "1" || v == "true"
+					}
+				}
 			}
 		}
 
@@ -127,6 +138,36 @@ func (c *Client) GetVmStatus(vm *VM) error {
 			for _, iface := range rawNetInterfaces {
 				// Skip loopback and veth interfaces, and check against configured MACs
 				if !iface.IsLoopback && !strings.HasPrefix(iface.Name, "veth") && (vm.ConfiguredMACs == nil || vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]) {
+					// Prioritize IPv4, then first IPv6, then no IP for this interface if none match
+					var bestIP IPAddress
+					foundIP := false
+					for _, ip := range iface.IPAddresses {
+						if ip.Type == "ipv4" {
+							bestIP = ip
+							foundIP = true
+							break
+						}
+					}
+					if !foundIP && len(iface.IPAddresses) > 0 {
+						// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
+						for _, ip := range iface.IPAddresses {
+						    if ip.Type == "ipv6" { // Explicitly look for IPv6 first
+						        bestIP = ip
+						        foundIP = true
+						        break
+						    }
+						}
+						if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
+						    bestIP = iface.IPAddresses[0]
+						    foundIP = true
+						}
+					}
+
+					if foundIP {
+						iface.IPAddresses = []IPAddress{bestIP}
+					} else {
+						iface.IPAddresses = nil // No suitable IP found
+					}
 					filteredInterfaces = append(filteredInterfaces, iface)
 				}
 			}
