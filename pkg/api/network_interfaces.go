@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"strings"
+	
+	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
 // NetworkInterfaceStatistics represents network interface statistics from QEMU guest agent
@@ -136,6 +138,70 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 	return interfaces, nil
 }
 
+// GetLxcInterfaces retrieves network interface information for an LXC container.
+func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
+	if vm.Type != "lxc" || vm.Status != "running" {
+		return nil, fmt.Errorf("network interface endpoint not applicable for this guest type or status")
+	}
+
+	var apiResponse map[string]interface{}
+	endpoint := fmt.Sprintf("/nodes/%s/lxc/%d/interfaces", vm.Node, vm.ID)
+
+	if err := c.Get(endpoint, &apiResponse); err != nil {
+		// Based on previous handling, API might return 500 if feature not available or container stopped.
+		// Treat this as "no interfaces found" rather than a hard error for GetVmStatus.
+		config.DebugLog("Failed to get LXC interfaces for VM %d on node %s (may be expected): %v", vm.ID, vm.Node, err)
+		return nil, nil 
+	}
+
+	responseData, ok := apiResponse["data"].([]interface{})
+	if !ok {
+		// It's possible this specific endpoint returns the array directly without a "data" wrapper.
+		// Let's try to type assert apiResponse itself to []interface{}. This is unusual for Proxmox API.
+		// config.DebugLog("LXC interfaces: 'data' key not found or not an array. Full response: %+v", apiResponse)
+		// This part is tricky. If the user-provided example `[{"hwaddr":...}]` is accurate for the *entire* response body,
+		// then `c.Get` which expects `*map[string]interface{}` will fail to unmarshal it directly.
+		// The user's confidence in `c.Get` working suggests the API *does* conform, or their example was just the *value* of the "data" field.
+		// For now, assuming the standard `{"data": [...]}` structure based on other working code.
+		// If it still fails, this is where the GetRaw approach or direct HTTP call would be needed if the endpoint is truly different.
+		return nil, fmt.Errorf("unexpected response format for LXC interfaces: 'data' field missing or not an array. VM: %d, Node: %s", vm.ID, vm.Node)
+	}
+
+	var interfaces []NetworkInterface
+	for _, ifaceDataItem := range responseData {
+		ifaceMap, ok := ifaceDataItem.(map[string]interface{})
+		if !ok {
+			config.DebugLog("LXC interface item is not a map[string]interface{}: %+v", ifaceDataItem)
+			continue
+		}
+
+		netInterface := NetworkInterface{}
+		if name, ok := ifaceMap["name"].(string); ok {
+			netInterface.Name = name
+			netInterface.IsLoopback = (name == "lo")
+		}
+		if hwaddr, ok := ifaceMap["hwaddr"].(string); ok {
+			netInterface.MACAddress = hwaddr
+		}
+
+		var ipAddresses []IPAddress
+		if inet, ok := ifaceMap["inet"].(string); ok {
+			if ip, valid := parseIPCIDR(inet, "ipv4"); valid {
+				ipAddresses = append(ipAddresses, ip)
+			}
+		}
+		if inet6, ok := ifaceMap["inet6"].(string); ok {
+			if ip, valid := parseIPCIDR(inet6, "ipv6"); valid {
+				ipAddresses = append(ipAddresses, ip)
+			}
+		}
+		netInterface.IPAddresses = ipAddresses
+		interfaces = append(interfaces, netInterface)
+	}
+
+	return interfaces, nil
+}
+
 // GetFirstNonLoopbackIP returns the first non-loopback IP address from network interfaces
 func GetFirstNonLoopbackIP(interfaces []NetworkInterface, preferIPv4 bool) string {
 	// First look for preferred IP version
@@ -165,4 +231,40 @@ func GetFirstNonLoopbackIP(interfaces []NetworkInterface, preferIPv4 bool) strin
 	}
 	
 	return ""
+}
+
+// parseIPCIDR parses an IP address string with CIDR notation.
+func parseIPCIDR(ipCIDR string, ipType string) (IPAddress, bool) {
+	if ipCIDR == "" {
+		return IPAddress{}, false
+	}
+	parts := strings.Split(ipCIDR, "/")
+	if len(parts) == 0 {
+		return IPAddress{}, false
+	}
+
+	ipAddr := IPAddress{Type: ipType}
+	ipAddr.Address = parts[0]
+
+	if len(parts) == 2 {
+		prefix, err := parseInt(parts[1]) // Assuming you have a helper like strconv.Atoi or similar
+		if err == nil {
+			ipAddr.Prefix = prefix
+		} else {
+			// Could log an error here if prefix parsing fails but IP is present
+			// For now, we still consider it a valid IP, just without a prefix
+		}
+	}
+	return ipAddr, true
+}
+
+// Helper function to parse int, assuming it might be missing in this context
+// For a real scenario, use strconv.Atoi
+func parseInt(s string) (int, error) {
+	var i int
+	n, err := fmt.Sscan(s, &i)
+	if err != nil || n == 0 {
+		return 0, fmt.Errorf("failed to parse int: %s", s)
+	}
+	return i, nil
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 	
-	// "github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
 // VM represents a Proxmox VM or container
@@ -186,6 +186,75 @@ func (c *Client) GetVmStatus(vm *VM) error {
 			    vm.IP = "" 
 			}
 		}
+	} else if vm.Type == "lxc" && vm.Status == "running" {
+		// Get LXC config to identify configured MAC addresses (if any, often not explicitly set for LXC ethX)
+		var configRes map[string]interface{}
+		configEndpoint := fmt.Sprintf("/nodes/%s/lxc/%d/config", vm.Node, vm.ID)
+		if err := c.GetWithCache(configEndpoint, &configRes); err == nil {
+			if configData, ok := configRes["data"].(map[string]interface{}); ok {
+				populateConfiguredMACs(vm, configData)
+			}
+		}
+
+		rawNetInterfaces, lxcErr := c.GetLxcInterfaces(vm) // Error from GetLxcInterfaces is already handled (returns nil if major issue)
+		if lxcErr != nil {
+			config.DebugLog("[vm.go] Error calling GetLxcInterfaces for %s (%d): %v", vm.Name, vm.ID, lxcErr)
+		}
+		if len(rawNetInterfaces) > 0 {
+			var filteredLxcInterfaces []NetworkInterface
+			for _, iface := range rawNetInterfaces {
+				// Skip loopback interfaces. For LXC, we might not always have MACs in config,
+				// so if ConfiguredMACs is empty, we show all non-loopback by default.
+				// If ConfiguredMACs is populated, then we filter by it.
+				showInterface := !iface.IsLoopback
+				if len(vm.ConfiguredMACs) > 0 { // Only filter by MAC if we have configured MACs
+				    showInterface = showInterface && vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]
+				}
+
+				if showInterface {
+					// Prioritize IPv4, then first IPv6
+					var bestIP IPAddress
+					foundIP := false
+					for _, ip := range iface.IPAddresses {
+						if ip.Type == "ipv4" {
+							bestIP = ip
+							foundIP = true
+							break
+						}
+					}
+					if !foundIP && len(iface.IPAddresses) > 0 {
+						for _, ip := range iface.IPAddresses { // Explicitly look for IPv6 first
+						    if ip.Type == "ipv6" {
+						        bestIP = ip
+						        foundIP = true
+						        break
+						    }
+						}
+						if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
+						    bestIP = iface.IPAddresses[0]
+						    foundIP = true
+						}
+					}
+
+					if foundIP {
+						iface.IPAddresses = []IPAddress{bestIP}
+					} else {
+						iface.IPAddresses = nil
+					}
+					filteredLxcInterfaces = append(filteredLxcInterfaces, iface)
+				}
+			}
+			vm.NetInterfaces = filteredLxcInterfaces
+			if vm.IP == "" && len(vm.NetInterfaces) > 0 {
+				vm.IP = GetFirstNonLoopbackIP(vm.NetInterfaces, true)
+			}
+		} else {
+			vm.NetInterfaces = nil // No interfaces found or error in GetLxcInterfaces
+			// Preserve IP if it was somehow set from LXC config (less common but possible)
+            if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 {
+                 vm.IP = ""
+            }
+		}
 	}
 
 	vm.Enriched = true
@@ -201,29 +270,27 @@ func populateConfiguredMACs(vm *VM, configData map[string]interface{}) {
 			if !ok {
 				continue
 			}
-			// Example net string: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0
+			// QEMU Example net string: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0
+			// LXC Example net string: name=eth0,hwaddr=AA:BB:CC:DD:EE:FF,bridge=vmbr0,ip=dhcp
 			parts := strings.Split(netStr, ",")
 			for _, part := range parts {
-				// Look for MAC address (e.g., virtio=AA:BB:CC:DD:EE:FF or just AA:BB:CC:DD:EE:FF)
-				// Proxmox config might store MACs like AA:BB:CC:DD:EE:FF or with a driver prefix like virtio=AA:BB:CC:DD:EE:FF
 				var macAddress string
-				if strings.Contains(part, "=") {
+				if strings.HasPrefix(part, "hwaddr=") { // LXC MAC format
+					macAddress = strings.ToUpper(strings.TrimPrefix(part, "hwaddr="))
+				} else if strings.Contains(part, "=") { // QEMU MAC format (e.g., virtio=...)
 					macParts := strings.SplitN(part, "=", 2)
 					if len(macParts) == 2 {
-						// Check if the part after '=' looks like a MAC address
-						// A simple check: length 17, contains colons
 						if len(macParts[1]) == 17 && strings.Count(macParts[1], ":") == 5 {
 							macAddress = strings.ToUpper(macParts[1])
 						}
 					}
-				} else {
-					// Check if the part itself looks like a MAC address
+				} else { // QEMU MAC format (just the MAC)
 					if len(part) == 17 && strings.Count(part, ":") == 5 {
 						macAddress = strings.ToUpper(part)
 					}
 				}
 
-				if macAddress != "" {
+				if macAddress != "" && len(macAddress) == 17 && strings.Count(macAddress, ":") == 5 {
 					vm.ConfiguredMACs[macAddress] = true
 					break // Found MAC for this netX device
 				}
