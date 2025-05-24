@@ -36,6 +36,21 @@ func (c *Client) Get(path string, result *map[string]interface{}) error {
 	return c.ProxClient.GetJsonRetryable(context.Background(), path, result, 3)
 }
 
+// Post makes a POST request to the Proxmox API
+func (c *Client) Post(path string, data interface{}) error {
+	config.DebugLog("API POST: %s", path)
+	// Convert data to map[string]interface{} if it's not nil
+	var postData map[string]interface{}
+	if data != nil {
+		var ok bool
+		postData, ok = data.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("data must be of type map[string]interface{}")
+		}
+	}
+	return c.ProxClient.Post(context.Background(), postData, path)
+}
+
 // GetWithCache makes a GET request to the Proxmox API with caching
 func (c *Client) GetWithCache(path string, result *map[string]interface{}) error {
 	// If cache is not initialized, initialize it
@@ -179,5 +194,3 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 
 	return &Client{ProxClient: proxClient}, nil
 }
-
-// TODO: add methods: StartVM, StopVM, etc.

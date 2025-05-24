@@ -1,6 +1,10 @@
 package components
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
@@ -23,6 +27,9 @@ type App struct {
 	clusterStatus *ClusterStatus
 	mainLayout    *tview.Flex
 	searchInput   *tview.InputField
+	contextMenu   *tview.List
+	isMenuOpen    bool
+	lastFocus     tview.Primitive
 }
 
 // NewApp creates a new application instance with all UI components
@@ -175,6 +182,11 @@ func (a *App) setupKeyboardHandlers() {
 			return event
 		}
 
+		// If context menu is open, let it handle keys
+		if a.isMenuOpen && a.contextMenu != nil {
+			return event
+		}
+
 		// Handle tab for page switching when search is not active
 		switch event.Key() {
 		case tcell.KeyTab:
@@ -214,6 +226,15 @@ func (a *App) setupKeyboardHandlers() {
 					a.openVMShell()
 				}
 				return nil
+			} else if event.Rune() == 'm' {
+				// Open context menu based on current page
+				currentPage, _ := a.pages.GetFrontPage()
+				if currentPage == "Nodes" {
+					a.showNodeContextMenu()
+				} else if currentPage == "Guests" {
+					a.showVMContextMenu()
+				}
+				return nil
 			}
 		}
 		return event
@@ -230,6 +251,149 @@ func (a *App) showMessage(message string) {
 		})
 
 	a.pages.AddPage("message", modal, false, true)
+}
+
+// showNodeContextMenu displays the context menu for node actions
+func (a *App) showNodeContextMenu() {
+	node := a.nodeList.GetSelectedNode()
+	if node == nil {
+		return
+	}
+
+	// Store last focused primitive
+	a.lastFocus = a.GetFocus()
+
+	// Create menu items based on node state
+	menuItems := []string{
+		"Open Shell",
+		"View Logs",
+	}
+
+	// Create and show context menu
+	menu := NewContextMenu(" Node Actions ", menuItems, func(index int, action string) {
+		switch action {
+		case "Open Shell":
+			a.openNodeShell()
+		case "View Logs":
+			a.showMessage("Viewing logs for node: " + node.Name)
+		}
+	})
+	menu.SetApp(a)
+
+	// Display the menu
+	menuList := menu.Show()
+	a.contextMenu = menuList
+	a.isMenuOpen = true
+
+	// Create a centered modal layout
+	a.pages.AddPage("contextMenu", tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(menuList, len(menuItems)+2, 1, true). // +2 for border
+			AddItem(nil, 0, 1, false), 30, 1, true).
+		AddItem(nil, 0, 1, false), true, true)
+	a.SetFocus(menuList)
+}
+
+// showVMContextMenu displays the context menu for VM actions
+func (a *App) showVMContextMenu() {
+	vm := a.vmList.GetSelectedVM()
+	if vm == nil {
+		return
+	}
+
+	// Store last focused primitive
+	a.lastFocus = a.GetFocus()
+
+	// Create menu items based on VM state
+	menuItems := []string{
+		"Open Shell",
+	}
+
+	// Add state-dependent actions
+	if vm.Status == "running" {
+		menuItems = append(menuItems, "Shutdown", "Restart")
+	} else if vm.Status == "stopped" {
+		menuItems = append(menuItems, "Start")
+	}
+
+	// Create and show context menu
+	menu := NewContextMenu(" Guest Actions ", menuItems, func(index int, action string) {
+		switch action {
+		case "Open Shell":
+			a.openVMShell()
+		case "Start":
+			a.performVMOperation(vm, a.client.StartVM, "Starting")
+		case "Shutdown":
+			a.performVMOperation(vm, a.client.StopVM, "Shutting down")
+		case "Restart":
+			a.performVMOperation(vm, a.client.RestartVM, "Restarting")
+		}
+	})
+	menu.SetApp(a)
+
+	// Display the menu
+	menuList := menu.Show()
+	a.contextMenu = menuList
+	a.isMenuOpen = true
+
+	// Create a centered modal layout
+	a.pages.AddPage("contextMenu", tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(menuList, len(menuItems)+2, 1, true). // +2 for border
+			AddItem(nil, 0, 1, false), 30, 1, true).
+		AddItem(nil, 0, 1, false), true, true)
+	a.SetFocus(menuList)
+}
+
+// performVMOperation performs an asynchronous VM operation and shows status message
+func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, operationName string) {
+	message := fmt.Sprintf("%s %s...", operationName, vm.Name)
+	a.showMessage(message)
+
+	// Run operation in goroutine to avoid blocking UI
+	go func() {
+		if err := operation(vm); err != nil {
+			// Update message with error on main thread
+			a.QueueUpdateDraw(func() {
+				a.showMessage(fmt.Sprintf("Error %s %s: %v", strings.ToLower(operationName), vm.Name, err))
+			})
+		} else {
+			// Update message with success on main thread
+			a.QueueUpdateDraw(func() {
+				a.showMessage(fmt.Sprintf("%s %s completed successfully", operationName, vm.Name))
+
+				// Refresh VM data after a brief delay
+				time.Sleep(2 * time.Second)
+				if _, err := a.client.GetClusterStatus(); err == nil {
+					// Update the UI with new data
+					a.QueueUpdateDraw(func() {
+						a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+						// Reselect current VM
+						selectedIdx := a.vmList.GetCurrentItem()
+						if selectedIdx >= 0 && selectedIdx < len(models.GlobalState.OriginalVMs) {
+							a.vmDetails.Update(models.GlobalState.OriginalVMs[selectedIdx])
+						}
+					})
+				}
+			})
+		}
+	}()
+}
+
+// closeContextMenu closes the context menu and restores the previous focus
+func (a *App) closeContextMenu() {
+	if a.isMenuOpen {
+		a.pages.RemovePage("contextMenu")
+		a.isMenuOpen = false
+		a.contextMenu = nil
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
 }
 
 // Run starts the application

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	
+
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
@@ -31,16 +31,16 @@ type VM struct {
 	Tags      string  `json:"tags,omitempty"`
 	Template  bool    `json:"template,omitempty"`
 	Pool      string  `json:"pool,omitempty"`
-	
+
 	// Guest agent related fields
 	AgentEnabled   bool               `json:"agent_enabled,omitempty"`
 	AgentRunning   bool               `json:"agent_running,omitempty"`
 	NetInterfaces  []NetworkInterface `json:"net_interfaces,omitempty"`
-	ConfiguredMACs map[string]bool   `json:"-"` // Stores MACs from VM config (net0, net1, etc.)
-	
+	ConfiguredMACs map[string]bool    `json:"-"` // Stores MACs from VM config (net0, net1, etc.)
+
 	// For metrics tracking
-	mu         sync.RWMutex
-	Enriched   bool   `json:"-"`
+	mu       sync.RWMutex
+	Enriched bool `json:"-"`
 }
 
 // GetVmStatus retrieves current status metrics for a VM or LXC
@@ -151,15 +151,15 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					if !foundIP && len(iface.IPAddresses) > 0 {
 						// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
 						for _, ip := range iface.IPAddresses {
-						    if ip.Type == "ipv6" { // Explicitly look for IPv6 first
-						        bestIP = ip
-						        foundIP = true
-						        break
-						    }
+							if ip.Type == "ipv6" { // Explicitly look for IPv6 first
+								bestIP = ip
+								foundIP = true
+								break
+							}
 						}
 						if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
-						    bestIP = iface.IPAddresses[0]
-						    foundIP = true
+							bestIP = iface.IPAddresses[0]
+							foundIP = true
 						}
 					}
 
@@ -172,7 +172,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 				}
 			}
 			vm.NetInterfaces = filteredInterfaces
-			
+
 			// Update IP address if we don't have one yet and have interfaces
 			if vm.IP == "" && len(vm.NetInterfaces) > 0 {
 				vm.IP = GetFirstNonLoopbackIP(vm.NetInterfaces, true)
@@ -182,8 +182,8 @@ func (c *Client) GetVmStatus(vm *VM) error {
 			vm.NetInterfaces = nil
 			// Only clear IP if it wasn't already set by config
 			// This check is to preserve IP from config if guest agent fails
-			if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 { 
-			    vm.IP = "" 
+			if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 {
+				vm.IP = ""
 			}
 		}
 	} else if vm.Type == "lxc" && vm.Status == "running" {
@@ -208,7 +208,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 				// If ConfiguredMACs is populated, then we filter by it.
 				showInterface := !iface.IsLoopback
 				if len(vm.ConfiguredMACs) > 0 { // Only filter by MAC if we have configured MACs
-				    showInterface = showInterface && vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]
+					showInterface = showInterface && vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]
 				}
 
 				if showInterface {
@@ -224,15 +224,15 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					}
 					if !foundIP && len(iface.IPAddresses) > 0 {
 						for _, ip := range iface.IPAddresses { // Explicitly look for IPv6 first
-						    if ip.Type == "ipv6" {
-						        bestIP = ip
-						        foundIP = true
-						        break
-						    }
+							if ip.Type == "ipv6" {
+								bestIP = ip
+								foundIP = true
+								break
+							}
 						}
 						if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
-						    bestIP = iface.IPAddresses[0]
-						    foundIP = true
+							bestIP = iface.IPAddresses[0]
+							foundIP = true
 						}
 					}
 
@@ -251,9 +251,9 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		} else {
 			vm.NetInterfaces = nil // No interfaces found or error in GetLxcInterfaces
 			// Preserve IP if it was somehow set from LXC config (less common but possible)
-            if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 {
-                 vm.IP = ""
-            }
+			if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 {
+				vm.IP = ""
+			}
 		}
 	}
 
@@ -306,104 +306,104 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 		Node: node,
 		Type: vmType,
 	}
-	
+
 	// Get status information
 	var statusRes map[string]interface{}
 	statusEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", node, vmType, vmid)
 	if err := c.GetWithCache(statusEndpoint, &statusRes); err != nil {
 		return nil, fmt.Errorf("failed to get VM status: %w", err)
 	}
-	
+
 	statusData, ok := statusRes["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unexpected format for VM status")
 	}
-	
+
 	// Get config information
 	var configRes map[string]interface{}
 	configEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", node, vmType, vmid)
 	if err := c.GetWithCache(configEndpoint, &configRes); err != nil {
 		return nil, fmt.Errorf("failed to get VM config: %w", err)
 	}
-	
+
 	configData, ok := configRes["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unexpected format for VM config")
 	}
-	
+
 	// Directly update the VM fields from the data maps
 	if nameVal, ok := statusData["name"]; ok {
 		if name, ok := nameVal.(string); ok {
 			vm.Name = name
 		}
 	}
-	
+
 	if statusVal, ok := statusData["status"]; ok {
 		if status, ok := statusVal.(string); ok {
 			vm.Status = status
 		}
 	}
-	
+
 	if cpuVal, ok := statusData["cpu"]; ok {
 		if cpu, ok := cpuVal.(float64); ok {
 			vm.CPU = cpu
 		}
 	}
-	
+
 	if memVal, ok := statusData["mem"]; ok {
 		if mem, ok := memVal.(float64); ok {
 			vm.Mem = int64(mem)
 		}
 	}
-	
+
 	if maxMemVal, ok := statusData["maxmem"]; ok {
 		if maxMem, ok := maxMemVal.(float64); ok {
 			vm.MaxMem = int64(maxMem)
 		}
 	}
-	
+
 	if diskVal, ok := statusData["disk"]; ok {
 		if disk, ok := diskVal.(float64); ok {
 			vm.Disk = int64(disk)
 		}
 	}
-	
+
 	if maxDiskVal, ok := statusData["maxdisk"]; ok {
 		if maxDisk, ok := maxDiskVal.(float64); ok {
 			vm.MaxDisk = int64(maxDisk)
 		}
 	}
-	
+
 	if uptimeVal, ok := statusData["uptime"]; ok {
 		if uptime, ok := uptimeVal.(float64); ok {
 			vm.Uptime = int64(uptime)
 		}
 	}
-	
+
 	if diskReadVal, ok := statusData["diskread"]; ok {
 		if diskRead, ok := diskReadVal.(float64); ok {
 			vm.DiskRead = int64(diskRead)
 		}
 	}
-	
+
 	if diskWriteVal, ok := statusData["diskwrite"]; ok {
 		if diskWrite, ok := diskWriteVal.(float64); ok {
 			vm.DiskWrite = int64(diskWrite)
 		}
 	}
-	
+
 	if netInVal, ok := statusData["netin"]; ok {
 		if netIn, ok := netInVal.(float64); ok {
 			vm.NetIn = int64(netIn)
 		}
 	}
-	
+
 	if netOutVal, ok := statusData["netout"]; ok {
 		if netOut, ok := netOutVal.(float64); ok {
 			vm.NetOut = int64(netOut)
 		}
 	}
-	
+
 	// Add additional information from config
 	if templateVal, ok := configData["template"]; ok {
 		switch v := templateVal.(type) {
@@ -415,13 +415,13 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 			vm.Template = v == "1" || v == "true"
 		}
 	}
-	
+
 	if tagsVal, ok := configData["tags"]; ok {
 		if tags, ok := tagsVal.(string); ok {
 			vm.Tags = tags
 		}
 	}
-	
+
 	// Check for agent configuration in config data
 	if agentVal, ok := configData["agent"]; ok {
 		switch v := agentVal.(type) {
@@ -442,7 +442,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 			if !ok {
 				continue
 			}
-			
+
 			parts := strings.Split(netStr, ",")
 			for _, part := range parts {
 				if len(part) >= 3 && part[:3] == "ip=" {
@@ -456,15 +456,15 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 					break
 				}
 			}
-			
+
 			if foundIP {
 				break // Found an IP, no need to check other interfaces
 			}
 		}
 	}
-	
+
 	populateConfiguredMACs(vm, configData)
-	
+
 	vm.Enriched = true
 	return vm, nil
 }
@@ -473,7 +473,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 func (c *Client) EnrichVMs(cluster *Cluster) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, 100) // Buffer for potential errors
-	
+
 	// Count total VMs for error channel sizing
 	totalVMs := 0
 	for _, node := range cluster.Nodes {
@@ -481,11 +481,11 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 			totalVMs += len(node.VMs)
 		}
 	}
-	
+
 	if totalVMs == 0 {
 		return nil // No VMs to enrich
 	}
-	
+
 	// Start error collector
 	var errors []error
 	done := make(chan struct{})
@@ -497,39 +497,55 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 		}
 		close(done)
 	}()
-	
+
 	// Process each node's VMs concurrently
 	for _, node := range cluster.Nodes {
 		if !node.Online || node.VMs == nil {
 			continue
 		}
-		
+
 		for i := range node.VMs {
 			if node.VMs[i].Status != "running" {
 				continue // Only enrich running VMs to avoid API overhead
 			}
-			
+
 			wg.Add(1)
 			go func(vm *VM) {
 				defer wg.Done()
 				// Get regular VM status info including guest agent data
 				err := c.GetVmStatus(vm)
-				
+
 				errChan <- err
 			}(node.VMs[i])
 		}
 	}
-	
+
 	// Wait for all goroutines to complete
 	wg.Wait()
 	close(errChan)
 	<-done // Wait for error collection to finish
-	
+
 	if len(errors) > 0 {
 		return fmt.Errorf("errors updating VM statuses: %v", errors)
 	}
-	
+
 	return nil
 }
 
+// StartVM starts a VM or container
+func (c *Client) StartVM(vm *VM) error {
+	path := fmt.Sprintf("/nodes/%s/%s/%d/status/start", vm.Node, vm.Type, vm.ID)
+	return c.Post(path, nil)
+}
 
+// StopVM stops a VM or container
+func (c *Client) StopVM(vm *VM) error {
+	path := fmt.Sprintf("/nodes/%s/%s/%d/status/stop", vm.Node, vm.Type, vm.ID)
+	return c.Post(path, nil)
+}
+
+// RestartVM restarts a VM or container
+func (c *Client) RestartVM(vm *VM) error {
+	path := fmt.Sprintf("/nodes/%s/%s/%d/status/restart", vm.Node, vm.Type, vm.ID)
+	return c.Post(path, nil)
+}
