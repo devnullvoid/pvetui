@@ -104,13 +104,17 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(tcell.ColorYellow))
-	vd.SetCell(row, 1, tview.NewTableCell(vm.IP).SetTextColor(tcell.ColorWhite))
+	ipValue := "N/A"
+	if vm.IP != "" {
+		ipValue = vm.IP
+	}
+	vd.SetCell(row, 1, tview.NewTableCell(ipValue).SetTextColor(tcell.ColorWhite))
 	row++
 
 	// Resource Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(tcell.ColorYellow))
 	cpuValue := "N/A"
-	if vm.Enriched {
+	if vm.Enriched && vm.CPU > 0 {
 		cpuValue = fmt.Sprintf("%.1f%%", vm.CPU*100)
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(tcell.ColorWhite))
@@ -118,7 +122,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))
 	memValue := "N/A"
-	if vm.Enriched {
+	if vm.Enriched && vm.MaxMem > 0 {
 		memValue = fmt.Sprintf("%.1f / %.1f GB", float64(vm.Mem)/(1024*1024*1024), float64(vm.MaxMem)/(1024*1024*1024))
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(tcell.ColorWhite))
@@ -126,7 +130,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(tcell.ColorYellow))
 	diskValue := "N/A"
-	if vm.Enriched {
+	if vm.Enriched && vm.MaxDisk > 0 {
 		diskValue = fmt.Sprintf("%.1f / %.1f GB", float64(vm.Disk)/(1024*1024*1024), float64(vm.MaxDisk)/(1024*1024*1024))
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(tcell.ColorWhite))
@@ -141,20 +145,24 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// Network IO if available
+	vd.SetCell(row, 0, tview.NewTableCell("🔄 Network").SetTextColor(tcell.ColorYellow))
 	if vm.Enriched && (vm.NetIn > 0 || vm.NetOut > 0) {
-		vd.SetCell(row, 0, tview.NewTableCell("🔄 Network").SetTextColor(tcell.ColorYellow))
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("In: %s, Out: %s",
 			utils.FormatBytes(vm.NetIn), utils.FormatBytes(vm.NetOut))).SetTextColor(tcell.ColorWhite))
-		row++
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
 	}
+	row++
 
 	// Disk IO if available
+	vd.SetCell(row, 0, tview.NewTableCell("💽 Disk IO").SetTextColor(tcell.ColorYellow))
 	if vm.Enriched && (vm.DiskRead > 0 || vm.DiskWrite > 0) {
-		vd.SetCell(row, 0, tview.NewTableCell("💽 Disk IO").SetTextColor(tcell.ColorYellow))
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("Read: %s, Write: %s",
 			utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(tcell.ColorWhite))
-		row++
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
 	}
+	row++
 
 	// Guest agent status (only for QEMU VMs)
 	if vm.Type == "qemu" {
@@ -177,8 +185,8 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	}
 
 	// Show filesystem information if available
+	vd.SetCell(row, 0, tview.NewTableCell("📂 Storage").SetTextColor(tcell.ColorYellow))
 	if len(vm.Filesystems) > 0 {
-		vd.SetCell(row, 0, tview.NewTableCell("📂 Storage").SetTextColor(tcell.ColorYellow))
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d volumes", len(vm.Filesystems))).SetTextColor(tcell.ColorWhite))
 		row++
 
@@ -264,11 +272,14 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("... and %d more", len(sortedFilesystems)-maxFsToShow)).SetTextColor(tcell.ColorGray))
 			row++
 		}
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
+		row++
 	}
 
 	// Show network interfaces from guest agent if available
+	vd.SetCell(row, 0, tview.NewTableCell("🌐 Network Interfaces").SetTextColor(tcell.ColorYellow))
 	if len(vm.NetInterfaces) > 0 {
-		vd.SetCell(row, 0, tview.NewTableCell("🌐 Network Interfaces").SetTextColor(tcell.ColorYellow))
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d available", len(vm.NetInterfaces))).SetTextColor(tcell.ColorWhite))
 		row++
 
@@ -305,6 +316,9 @@ func (vd *VMDetails) Update(vm *api.VM) {
 				row++
 			}
 		}
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
+		row++
 	}
 }
 
