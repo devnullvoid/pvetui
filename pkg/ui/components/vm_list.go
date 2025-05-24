@@ -5,6 +5,7 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/utils"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -14,6 +15,7 @@ type VMList struct {
 	vms       []*api.VM
 	onSelect  func(*api.VM)
 	onChanged func(*api.VM)
+	app       *App
 }
 
 // NewVMList creates a new VM list component
@@ -27,6 +29,23 @@ func NewVMList() *VMList {
 		List: list,
 		vms:  nil,
 	}
+}
+
+// SetApp sets the parent app reference for focus management
+func (vl *VMList) SetApp(app *App) {
+	vl.app = app
+
+	// Set up input capture for arrow keys
+	vl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyRight:
+			if vl.app != nil {
+				vl.app.SetFocus(vl.app.vmDetails)
+				return nil
+			}
+		}
+		return event
+	})
 }
 
 // SetVMs updates the list with the provided VMs

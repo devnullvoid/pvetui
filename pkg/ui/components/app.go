@@ -124,6 +124,7 @@ func (a *App) setupComponentConnections() {
 
 	// Configure node list
 	a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+	a.nodeList.SetApp(a)
 	a.nodeList.SetNodeSelectedFunc(func(node *api.Node) {
 		a.nodeDetails.Update(node, a.client.Cluster.Nodes)
 		// No longer filtering VM list based on node selection
@@ -133,6 +134,9 @@ func (a *App) setupComponentConnections() {
 		// No longer filtering VM list based on node selection
 	})
 
+	// Configure node details
+	a.nodeDetails.SetApp(a)
+
 	// Select first node to populate node details on startup
 	if len(models.GlobalState.OriginalNodes) > 0 {
 		a.nodeDetails.Update(models.GlobalState.OriginalNodes[0], a.client.Cluster.Nodes)
@@ -140,6 +144,7 @@ func (a *App) setupComponentConnections() {
 
 	// Set up VM list with all VMs
 	a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+	a.vmList.SetApp(a)
 
 	// Configure VM list
 	a.vmList.SetVMSelectedFunc(func(vm *api.VM) {
@@ -148,6 +153,9 @@ func (a *App) setupComponentConnections() {
 	a.vmList.SetVMChangedFunc(func(vm *api.VM) {
 		a.vmDetails.Update(vm)
 	})
+
+	// Configure VM details
+	a.vmDetails.SetApp(a)
 
 	// Update VM details if we have any VMs
 	if len(models.GlobalState.OriginalVMs) > 0 {

@@ -3,6 +3,7 @@ package components
 import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/utils"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -12,6 +13,7 @@ type NodeList struct {
 	nodes     []*api.Node
 	onSelect  func(*api.Node)
 	onChanged func(*api.Node)
+	app       *App
 }
 
 // NewNodeList creates a new node list component
@@ -25,6 +27,23 @@ func NewNodeList() *NodeList {
 		List:  list,
 		nodes: nil,
 	}
+}
+
+// SetApp sets the parent app reference for focus management
+func (nl *NodeList) SetApp(app *App) {
+	nl.app = app
+
+	// Set up input capture for arrow keys
+	nl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyRight:
+			if nl.app != nil {
+				nl.app.SetFocus(nl.app.nodeDetails)
+				return nil
+			}
+		}
+		return event
+	})
 }
 
 // SetNodes updates the list with the provided nodes

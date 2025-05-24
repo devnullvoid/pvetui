@@ -13,6 +13,7 @@ import (
 // VMDetails encapsulates the VM details panel
 type VMDetails struct {
 	*tview.Table
+	app *App
 }
 
 // NewVMDetails creates a new VM details panel
@@ -27,6 +28,23 @@ func NewVMDetails() *VMDetails {
 	return &VMDetails{
 		Table: table,
 	}
+}
+
+// SetApp sets the parent app reference for focus management
+func (vd *VMDetails) SetApp(app *App) {
+	vd.app = app
+
+	// Set up input capture for arrow keys
+	vd.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyLeft:
+			if vd.app != nil {
+				vd.app.SetFocus(vd.app.vmList)
+				return nil
+			}
+		}
+		return event
+	})
 }
 
 // Update fills the VM details table for the given VM

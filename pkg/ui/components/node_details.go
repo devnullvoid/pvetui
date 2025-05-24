@@ -13,6 +13,7 @@ import (
 // NodeDetails encapsulates the node details panel
 type NodeDetails struct {
 	*tview.Table
+	app *App
 }
 
 // NewNodeDetails creates a new node details panel
@@ -26,6 +27,23 @@ func NewNodeDetails() *NodeDetails {
 	return &NodeDetails{
 		Table: table,
 	}
+}
+
+// SetApp sets the parent app reference for focus management
+func (nd *NodeDetails) SetApp(app *App) {
+	nd.app = app
+
+	// Set up input capture for arrow keys
+	nd.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyLeft:
+			if nd.app != nil {
+				nd.app.SetFocus(nd.app.nodeList)
+				return nil
+			}
+		}
+		return event
+	})
 }
 
 // Update updates the node details panel with the given node
