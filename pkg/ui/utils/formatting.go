@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/gdamore/tcell/v2"
 )
 
 // FormatUptime formats the uptime in seconds to a human-readable format
@@ -35,41 +32,26 @@ func FormatBytes(bytes int64) string {
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
 	}
-	
+
 	div, exp := int64(unit), 0
 	for n := bytes / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
-	
+
 	return fmt.Sprintf("%.1f %s", float64(bytes)/float64(div), []string{"KB", "MB", "GB", "TB"}[exp])
 }
 
-// StatusColor returns a color based on the status string
-func StatusColor(status string) tcell.Color {
+// FormatStatusIndicator returns a string with a colored status emoji.
+// Green ▲ for online/running, Red ▼ for offline/stopped, Yellow ▪ for others.
+func FormatStatusIndicator(status string) string {
 	status = strings.ToLower(status)
 	switch status {
-	case "running":
-		return tcell.ColorGreen
-	case "stopped":
-		return tcell.ColorRed
-	case "paused":
-		return tcell.ColorYellow
+	case "running", "online":
+		return "[green]▲[white] "
+	case "stopped", "offline":
+		return "[red]▼[white] "
 	default:
-		return tcell.ColorWhite
+		return "[yellow]▪[white] "
 	}
 }
-
-// FormatNodeName formats a node name with status indicator
-func FormatNodeName(node *api.Node) string {
-	if node == nil {
-		return "Unknown Node"
-	}
-	
-	status := "🔴"
-	if node.Online {
-		status = "🟢"
-	}
-	
-	return fmt.Sprintf("%s %s", status, node.Name)
-} 

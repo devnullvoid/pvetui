@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/ui/utils"
 	"github.com/rivo/tview"
 )
 
@@ -21,7 +22,7 @@ func NewVMList() *VMList {
 	list.ShowSecondaryText(false)
 	list.SetBorder(true)
 	list.SetTitle("Guests")
-	
+
 	return &VMList{
 		List: list,
 		vms:  nil,
@@ -32,27 +33,19 @@ func NewVMList() *VMList {
 func (vl *VMList) SetVMs(vms []*api.VM) {
 	vl.Clear()
 	vl.vms = vms
-	
+
 	for _, vm := range vms {
 		if vm != nil {
-			// Add status indicator emoji
-			statusEmoji := "🟢 "
-			if vm.Status == "stopped" {
-				statusEmoji = "🔴 "
-			} else if vm.Status != "running" {
-				statusEmoji = "🟡 "
-			}
-			
-			// Format the VM name with ID and status
-			mainText := fmt.Sprintf("%s%d - %s", statusEmoji, vm.ID, vm.Name)
-			
+			// Format the VM name with ID and status indicator
+			mainText := utils.FormatStatusIndicator(vm.Status) + fmt.Sprintf("%d - %s", vm.ID, vm.Name)
+
 			// Store node info in secondary text (not visible but used for search functionality)
 			secondaryText := fmt.Sprintf("Node: %s Type: %s", vm.Node, vm.Type)
-			
+
 			vl.AddItem(mainText, secondaryText, 0, nil)
 		}
 	}
-	
+
 	// If there are VMs, select the first one by default
 	if len(vms) > 0 {
 		vl.SetCurrentItem(0)
@@ -74,7 +67,7 @@ func (vl *VMList) GetSelectedVM() *api.VM {
 // SetVMSelectedFunc sets the function to be called when a VM is selected
 func (vl *VMList) SetVMSelectedFunc(handler func(*api.VM)) {
 	vl.onSelect = handler
-	
+
 	vl.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(vl.vms) {
 			if vl.onSelect != nil {
@@ -87,7 +80,7 @@ func (vl *VMList) SetVMSelectedFunc(handler func(*api.VM)) {
 // SetVMChangedFunc sets the function to be called when selection changes
 func (vl *VMList) SetVMChangedFunc(handler func(*api.VM)) {
 	vl.onChanged = handler
-	
+
 	vl.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(vl.vms) {
 			if vl.onChanged != nil {
@@ -95,4 +88,4 @@ func (vl *VMList) SetVMChangedFunc(handler func(*api.VM)) {
 			}
 		}
 	})
-} 
+}

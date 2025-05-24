@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/utils"
 	"github.com/gdamore/tcell/v2"
@@ -22,7 +22,7 @@ func NewNodeDetails() *NodeDetails {
 	table.SetSelectable(false, false)
 	table.SetTitle(" Node Details ")
 	table.SetBorder(true)
-	
+
 	return &NodeDetails{
 		Table: table,
 	}
@@ -32,7 +32,7 @@ func NewNodeDetails() *NodeDetails {
 func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	// Clear existing rows
 	nd.Clear()
-	
+
 	if node == nil {
 		nd.SetCell(0, 0, tview.NewTableCell("Select a node").SetTextColor(tcell.ColorWhite))
 		return
@@ -54,7 +54,7 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 		statusText = "Offline"
 		statusColor = tcell.ColorRed
 	}
-	nd.SetCell(row, 0, tview.NewTableCell(statusEmoji + " Status").SetTextColor(tcell.ColorYellow))
+	nd.SetCell(row, 0, tview.NewTableCell(statusEmoji+" Status").SetTextColor(tcell.ColorYellow))
 	nd.SetCell(row, 1, tview.NewTableCell(statusText).SetTextColor(statusColor))
 	row++
 
@@ -63,7 +63,7 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	if node.CPUInfo != nil {
 		cpuInfo = fmt.Sprintf("%.1f%% of %d cores (%d sockets)",
 			node.CPUUsage*100, node.CPUInfo.Cores, node.CPUInfo.Sockets)
-		
+
 		if node.CPUInfo.Model != "" {
 			cpuInfo += "\n" + node.CPUInfo.Model
 		}
@@ -73,7 +73,7 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	row++
 
 	// Load Average
-	if node.LoadAvg != nil && len(node.LoadAvg) > 0 {
+	if len(node.LoadAvg) > 0 {
 		loadStr := strings.Join(node.LoadAvg, ", ")
 		nd.SetCell(row, 0, tview.NewTableCell("📊 Load Avg").SetTextColor(tcell.ColorYellow))
 		nd.SetCell(row, 1, tview.NewTableCell(loadStr).SetTextColor(tcell.ColorWhite))
@@ -82,8 +82,8 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 
 	// Memory
 	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))
-	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB / %.1f GB (%.1f%%)", 
-		node.MemoryUsed, 
+	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB / %.1f GB (%.1f%%)",
+		node.MemoryUsed,
 		node.MemoryTotal,
 		(node.MemoryUsed/node.MemoryTotal)*100)).SetTextColor(tcell.ColorWhite))
 	row++
@@ -95,7 +95,7 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	if node.TotalStorage > 0 {
 		storagePercent = (float64(node.UsedStorage) / float64(node.TotalStorage)) * 100
 	}
-	
+
 	nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(tcell.ColorYellow))
 	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB / %.1f GB (%.1f%%)",
 		storageGB, totalStorageGB, storagePercent)).SetTextColor(tcell.ColorWhite))
@@ -137,4 +137,4 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	nd.SetCell(row, 0, tview.NewTableCell("📦 VMs").SetTextColor(tcell.ColorYellow))
 	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", vmCount)).SetTextColor(tcell.ColorWhite))
 	row++
-} 
+}

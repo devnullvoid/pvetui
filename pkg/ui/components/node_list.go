@@ -20,7 +20,7 @@ func NewNodeList() *NodeList {
 	list.ShowSecondaryText(false)
 	list.SetBorder(true)
 	list.SetTitle("Nodes")
-	
+
 	return &NodeList{
 		List:  list,
 		nodes: nil,
@@ -31,13 +31,21 @@ func NewNodeList() *NodeList {
 func (nl *NodeList) SetNodes(nodes []*api.Node) {
 	nl.Clear()
 	nl.nodes = nodes
-	
+
 	for _, node := range nodes {
 		if node != nil {
-			nl.AddItem(utils.FormatNodeName(node), "", 0, nil)
+			var statusString string
+			if node.Online {
+				statusString = "online"
+			} else {
+				statusString = "offline"
+			}
+			// Format the node name with status indicator
+			mainText := utils.FormatStatusIndicator(statusString) + node.Name
+			nl.AddItem(mainText, "", 0, nil)
 		}
 	}
-	
+
 	// If there are nodes, select the first one by default
 	if len(nodes) > 0 {
 		nl.SetCurrentItem(0)
@@ -59,7 +67,7 @@ func (nl *NodeList) GetSelectedNode() *api.Node {
 // SetSelectedFunc sets the function to be called when a node is selected
 func (nl *NodeList) SetNodeSelectedFunc(handler func(*api.Node)) {
 	nl.onSelect = handler
-	
+
 	nl.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(nl.nodes) {
 			if nl.onSelect != nil {
@@ -72,7 +80,7 @@ func (nl *NodeList) SetNodeSelectedFunc(handler func(*api.Node)) {
 // SetChangedFunc sets the function to be called when selection changes
 func (nl *NodeList) SetNodeChangedFunc(handler func(*api.Node)) {
 	nl.onChanged = handler
-	
+
 	nl.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(nl.nodes) {
 			if nl.onChanged != nil {
@@ -80,4 +88,4 @@ func (nl *NodeList) SetNodeChangedFunc(handler func(*api.Node)) {
 			}
 		}
 	})
-} 
+}

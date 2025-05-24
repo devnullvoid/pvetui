@@ -1,12 +1,8 @@
 package components
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
-	"github.com/devnullvoid/proxmox-tui/pkg/ssh"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -36,7 +32,7 @@ func NewApp(client *api.Client, cfg config.Config) *App {
 		client:      client,
 		config:      cfg,
 	}
-	
+
 	// Create UI components
 	app.header = NewHeader()
 	app.footer = NewFooter()
@@ -46,7 +42,7 @@ func NewApp(client *api.Client, cfg config.Config) *App {
 	app.vmDetails = NewVMDetails()
 	app.clusterStatus = NewClusterStatus()
 	app.pages = tview.NewPages()
-	
+
 	// Initialize global state
 	if client.Cluster == nil {
 		if _, err := client.GetClusterStatus(); err != nil {
@@ -54,7 +50,7 @@ func NewApp(client *api.Client, cfg config.Config) *App {
 			return app
 		}
 	}
-	
+
 	// Initialize VM list from all nodes
 	var vms []*api.VM
 	for _, node := range client.Cluster.Nodes {
@@ -66,33 +62,33 @@ func NewApp(client *api.Client, cfg config.Config) *App {
 			}
 		}
 	}
-	
+
 	models.GlobalState = models.State{
-		SearchStates: make(map[string]*models.SearchState),
+		SearchStates:  make(map[string]*models.SearchState),
 		OriginalNodes: make([]*api.Node, len(client.Cluster.Nodes)),
 		FilteredNodes: make([]*api.Node, len(client.Cluster.Nodes)),
-		OriginalVMs: make([]*api.VM, len(vms)),
-		FilteredVMs: make([]*api.VM, len(vms)),
+		OriginalVMs:   make([]*api.VM, len(vms)),
+		FilteredVMs:   make([]*api.VM, len(vms)),
 	}
-	
+
 	copy(models.GlobalState.OriginalNodes, client.Cluster.Nodes)
 	copy(models.GlobalState.FilteredNodes, client.Cluster.Nodes)
 	copy(models.GlobalState.OriginalVMs, vms)
 	copy(models.GlobalState.FilteredVMs, vms)
-	
+
 	// Set up component connections
 	app.setupComponentConnections()
-	
+
 	// Configure root layout
 	app.mainLayout = app.createMainLayout()
-	
+
 	// Register keyboard handlers
 	app.setupKeyboardHandlers()
-	
+
 	// Set the root and focus
 	app.SetRoot(app.mainLayout, true)
 	app.SetFocus(app.nodeList)
-	
+
 	return app
 }
 
@@ -102,16 +98,16 @@ func (a *App) createMainLayout() *tview.Flex {
 	nodesPage := tview.NewFlex().
 		AddItem(a.nodeList, 0, 1, true).
 		AddItem(a.nodeDetails, 0, 2, false)
-	
+
 	// Setup VMs page
 	vmsPage := tview.NewFlex().
 		AddItem(a.vmList, 0, 1, true).
 		AddItem(a.vmDetails, 0, 2, false)
-	
+
 	// Add pages
 	a.pages.AddPage("Nodes", nodesPage, true, true)
 	a.pages.AddPage("Guests", vmsPage, true, false)
-	
+
 	// Build main layout
 	return tview.NewFlex().
 		SetDirection(tview.FlexRow).
@@ -125,7 +121,7 @@ func (a *App) createMainLayout() *tview.Flex {
 func (a *App) setupComponentConnections() {
 	// Update cluster status
 	a.clusterStatus.Update(a.client.Cluster)
-	
+
 	// Configure node list
 	a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
 	a.nodeList.SetNodeSelectedFunc(func(node *api.Node) {
@@ -136,15 +132,15 @@ func (a *App) setupComponentConnections() {
 		a.nodeDetails.Update(node, a.client.Cluster.Nodes)
 		// No longer filtering VM list based on node selection
 	})
-	
+
 	// Select first node to populate node details on startup
 	if len(models.GlobalState.OriginalNodes) > 0 {
 		a.nodeDetails.Update(models.GlobalState.OriginalNodes[0], a.client.Cluster.Nodes)
 	}
-	
+
 	// Set up VM list with all VMs
 	a.vmList.SetVMs(models.GlobalState.OriginalVMs)
-	
+
 	// Configure VM list
 	a.vmList.SetVMSelectedFunc(func(vm *api.VM) {
 		a.vmDetails.Update(vm)
@@ -152,7 +148,7 @@ func (a *App) setupComponentConnections() {
 	a.vmList.SetVMChangedFunc(func(vm *api.VM) {
 		a.vmDetails.Update(vm)
 	})
-	
+
 	// Update VM details if we have any VMs
 	if len(models.GlobalState.OriginalVMs) > 0 {
 		a.vmDetails.Update(models.GlobalState.OriginalVMs[0])
@@ -164,7 +160,7 @@ func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
-		
+
 		// If search is active, let the search input handle the keys
 		if searchActive {
 			// Let the search input handle all keys when search is active
@@ -216,127 +212,6 @@ func (a *App) setupKeyboardHandlers() {
 	})
 }
 
-// openNodeShell opens an SSH session to the currently selected node
-func (a *App) openNodeShell() {
-	if a.config.SSHUser == "" {
-		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
-		return
-	}
-
-	idx := a.nodeList.List.GetCurrentItem()
-	if idx >= 0 && idx < len(models.GlobalState.FilteredNodes) {
-		node := models.GlobalState.FilteredNodes[idx]
-		if node == nil || node.IP == "" {
-			a.showMessage("Node IP address not available")
-			return
-		}
-
-		// Temporarily suspend the UI
-		a.Suspend(func() {
-			// Display connecting message
-			fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, a.config.SSHUser)
-			
-			// Execute SSH command
-			err := ssh.ExecuteNodeShell(a.config.SSHUser, node.IP)
-			if err != nil {
-				fmt.Printf("\nError connecting to node: %v\n", err)
-			}
-			
-			// Wait for user to press Enter
-			fmt.Print("\nPress Enter to return to the TUI...")
-			fmt.Scanln()
-		})
-	}
-}
-
-// openVMShell opens a shell session to the currently selected VM/container
-func (a *App) openVMShell() {
-	if a.config.SSHUser == "" {
-		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
-		return
-	}
-
-	idx := a.vmList.List.GetCurrentItem()
-	if idx >= 0 && idx < len(models.GlobalState.FilteredVMs) {
-		vm := models.GlobalState.FilteredVMs[idx]
-		if vm == nil {
-			a.showMessage("Selected VM not found")
-			return
-		}
-
-		// Get node IP from the cluster
-		var nodeIP string
-		for _, node := range a.client.Cluster.Nodes {
-			if node.Name == vm.Node {
-				nodeIP = node.IP
-				break
-			}
-		}
-
-		if nodeIP == "" {
-			a.showMessage("Host node IP address not available")
-			return
-		}
-
-		// Temporarily suspend the UI
-		a.Suspend(func() {
-			if vm.Type == "lxc" {
-				fmt.Printf("\nConnecting to LXC container %s (ID: %d) on node %s (%s)...\n", 
-					vm.Name, vm.ID, vm.Node, nodeIP)
-				
-				// Execute LXC shell command
-				err := ssh.ExecuteLXCShell(a.config.SSHUser, nodeIP, vm.ID)
-				if err != nil {
-					fmt.Printf("\nError connecting to LXC container: %v\n", err)
-				}
-			} else if vm.Type == "qemu" {
-				// For QEMU VMs, check if guest agent is running
-				if vm.AgentRunning {
-					fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via guest agent on node %s...\n", 
-						vm.Name, vm.ID, vm.Node)
-					
-					// Try using the guest agent
-					err := ssh.ExecuteQemuGuestAgentShell(a.config.SSHUser, nodeIP, vm.ID)
-					if err != nil {
-						fmt.Printf("\nError connecting via guest agent: %v\n", err)
-						
-						// If guest agent fails and we have an IP, try direct SSH
-						if vm.IP != "" {
-							fmt.Printf("\nFalling back to direct SSH connection to %s...\n", vm.IP)
-							err = ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
-							if err != nil {
-								fmt.Printf("\nFailed to SSH to VM: %v\n", err)
-							}
-						}
-					}
-				} else if vm.IP != "" {
-					// No guest agent, but we have an IP
-					fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH at %s...\n", 
-						vm.Name, vm.ID, vm.IP)
-					
-					err := ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
-					if err != nil {
-						fmt.Printf("\nFailed to SSH to VM: %v\n", err)
-					}
-				} else {
-					// No guest agent, no IP
-					fmt.Println("\nNeither guest agent nor IP address available for this VM.")
-					fmt.Println("To connect to this VM, either:")
-					fmt.Println("1. Install QEMU guest agent in the VM")
-					fmt.Println("2. Configure network to get an IP address")
-					fmt.Println("3. Set up VNC access (not currently supported in TUI)")
-				}
-			} else {
-				fmt.Printf("\nUnsupported VM type: %s\n", vm.Type)
-			}
-			
-			// Wait for user to press Enter
-			fmt.Print("\nPress Enter to return to the TUI...")
-			fmt.Scanln()
-		})
-	}
-}
-
 // showMessage displays a message to the user
 func (a *App) showMessage(message string) {
 	modal := tview.NewModal().
@@ -345,195 +220,11 @@ func (a *App) showMessage(message string) {
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("message")
 		})
-	
-	a.pages.AddPage("message", modal, false, true)
-}
 
-// activateSearch shows the search input field and sets up filtering
-func (a *App) activateSearch() {
-	// Get current page context
-	currentPage, _ := a.pages.GetFrontPage()
-	
-	// Initialize or update search state
-	if _, exists := models.GlobalState.SearchStates[currentPage]; !exists {
-		models.GlobalState.SearchStates[currentPage] = &models.SearchState{
-			CurrentPage:   currentPage,
-			SearchText:    "",
-			SelectedIndex: 0,
-		}
-	}
-	
-	// Create input field with current search text if any
-	searchText := ""
-	if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-		searchText = state.SearchText
-	}
-	
-	// Create search input field if it doesn't exist
-	if a.searchInput == nil {
-		a.searchInput = tview.NewInputField().
-			SetLabel("Search: ").
-			SetFieldWidth(0).
-			SetPlaceholder("Filter active list... press Enter/Esc to return to list")
-	}
-	
-	// Set current search text
-	a.searchInput.SetText(searchText)
-	
-	// Add the search input field to the bottom of the layout
-	if a.mainLayout.GetItemCount() == 4 { // Already has header, cluster status, pages, footer
-		a.mainLayout.AddItem(a.searchInput, 1, 0, true)
-		a.SetFocus(a.searchInput)
-	}
-	
-	// Function to remove search input
-	removeSearchInput := func() {
-		if a.mainLayout.GetItemCount() > 4 {
-			a.mainLayout.RemoveItem(a.searchInput)
-		}
-		if currentPage == "Nodes" {
-			a.SetFocus(a.nodeList)
-		} else {
-			a.SetFocus(a.vmList)
-		}
-	}
-	
-	// Function to update node selection with filtered results
-	updateNodeSelection := func(nodes []*api.Node) {
-		// Store the filtered nodes in global state
-		models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
-		copy(models.GlobalState.FilteredNodes, nodes)
-		
-		// Update node list
-		a.nodeList.SetNodes(nodes)
-		
-		// Update selected index if needed
-		if len(nodes) > 0 {
-			idx := 0
-			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-				idx = state.SelectedIndex
-				if idx < 0 || idx >= len(nodes) {
-					idx = 0
-				}
-				state.SelectedIndex = idx
-			}
-			a.nodeList.List.SetCurrentItem(idx)
-			a.nodeDetails.Update(nodes[idx], a.client.Cluster.Nodes)
-		} else {
-			a.nodeDetails.Clear()
-			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-				state.SelectedIndex = 0
-			}
-		}
-	}
-	
-	// Function to update VM selection with filtered results
-	updateVMSelection := func(vms []*api.VM) {
-		// Store the filtered VMs in global state
-		models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-		copy(models.GlobalState.FilteredVMs, vms)
-		
-		// Update VM list
-		a.vmList.SetVMs(vms)
-		
-		// Update selected index if needed
-		if len(vms) > 0 {
-			idx := 0
-			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-				idx = state.SelectedIndex
-				if idx < 0 || idx >= len(vms) {
-					idx = 0
-				}
-				state.SelectedIndex = idx
-			}
-			a.vmList.List.SetCurrentItem(idx)
-			a.vmDetails.Update(vms[idx])
-		} else {
-			a.vmDetails.Clear()
-			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-				state.SelectedIndex = 0
-			}
-		}
-	}
-	
-	// Handle search text changes
-	a.searchInput.SetChangedFunc(func(text string) {
-		searchTerm := strings.TrimSpace(strings.ToLower(text))
-		
-		if currentPage == "Nodes" {
-			// Filter nodes based on search term
-			var filteredNodes []*api.Node
-			if searchTerm == "" {
-				// Show all nodes if search is empty
-				filteredNodes = make([]*api.Node, len(models.GlobalState.OriginalNodes))
-				copy(filteredNodes, models.GlobalState.OriginalNodes)
-			} else {
-				// Filter nodes that match search term
-				for _, node := range models.GlobalState.OriginalNodes {
-					if node != nil && strings.Contains(strings.ToLower(node.Name), searchTerm) {
-						filteredNodes = append(filteredNodes, node)
-					}
-				}
-			}
-			updateNodeSelection(filteredNodes)
-		} else {
-			// Filter VMs based on search term
-			var filteredVMs []*api.VM
-			if searchTerm == "" {
-				// Show all VMs if search is empty
-				filteredVMs = make([]*api.VM, len(models.GlobalState.OriginalVMs))
-				copy(filteredVMs, models.GlobalState.OriginalVMs)
-			} else {
-				// Filter VMs that match search term by name, ID, node, or type
-				for _, vm := range models.GlobalState.OriginalVMs {
-					if vm != nil {
-						// Convert VM ID to string for matching
-						vmIDStr := fmt.Sprintf("%d", vm.ID)
-						
-						// Match if name, ID, node name, or VM type contains search term
-						if strings.Contains(strings.ToLower(vm.Name), searchTerm) || 
-						   strings.Contains(vmIDStr, searchTerm) ||
-						   strings.Contains(strings.ToLower(vm.Node), searchTerm) ||
-						   strings.Contains(strings.ToLower(vm.Type), searchTerm) {
-							filteredVMs = append(filteredVMs, vm)
-						}
-					}
-				}
-			}
-			updateVMSelection(filteredVMs)
-		}
-		
-		// Save search text in state
-		if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-			state.SearchText = text
-		}
-	})
-	
-	// Handle Enter/Escape/Tab keys in search input
-	a.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			removeSearchInput()
-			return nil
-		case tcell.KeyEnter:
-			removeSearchInput()
-			return nil
-		case tcell.KeyTab:
-			// Prevent Tab from propagating when search is active
-			return nil
-		}
-		
-		// Handle 'q' key to prevent app from quitting during search
-		if event.Key() == tcell.KeyRune && event.Rune() == 'q' {
-			// Just handle it as a normal key for the input field
-			return event
-		}
-		
-		return event
-	})
+	a.pages.AddPage("message", modal, false, true)
 }
 
 // Run starts the application
 func (a *App) Run() error {
 	return a.Application.Run()
-} 
+}
