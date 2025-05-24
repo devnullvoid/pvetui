@@ -29,27 +29,18 @@ func NewClusterStatus() *ClusterStatus {
 	summary.SetBorders(false)
 	summary.SetTitleAlign(tview.AlignLeft)
 
-	// Column headers
-	headers := []string{"Metric", "Value", "Details"}
-	for col, text := range headers {
-		cell := tview.NewTableCell(text).
-			SetTextColor(tcell.ColorYellow).
-			SetAlign(tview.AlignCenter)
-		summary.SetCell(0, col, cell)
-	}
-
-	// Initial cluster status rows
+	// Initial cluster status rows (no header, "Details" column removed)
 	rows := [][]string{
-		{"Cluster", "Loading...", "Loading..."},
-		{"PVE Version", "Loading...", "Loading..."},
-		{"Nodes Online", "Loading...", "Loading..."},
+		{"Cluster", "Loading..."},
+		{"PVE Version", "Loading..."},
+		{"Nodes Online", "Loading..."},
 	}
 	for row, fields := range rows {
 		for col, text := range fields {
 			cell := tview.NewTableCell(text).
 				SetTextColor(tcell.ColorWhite).
 				SetAlign(tview.AlignLeft)
-			summary.SetCell(row+1, col, cell)
+			summary.SetCell(row, col, cell) // Data starts at row 0
 		}
 	}
 
@@ -94,19 +85,20 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	}
 
 	// Update summary table (left panel)
-	cs.SummaryTable.SetCell(1, 0, tview.NewTableCell("Cluster Name").SetTextColor(tcell.ColorYellow))
-	cs.SummaryTable.SetCell(1, 1, tview.NewTableCell(cluster.Name).SetTextColor(tcell.ColorWhite))
+	// Data now starts at row 0
+	cs.SummaryTable.SetCell(0, 0, tview.NewTableCell("Cluster Name").SetTextColor(tcell.ColorYellow))
+	cs.SummaryTable.SetCell(0, 1, tview.NewTableCell(cluster.Name).SetTextColor(tcell.ColorWhite))
 
 	// Show only the version number (e.g., '8.3.5') in the 'Proxmox VE' row
 	ver := cluster.Version
 	if parts := strings.Split(ver, "/"); len(parts) > 1 {
 		ver = parts[1]
 	}
-	cs.SummaryTable.SetCell(2, 0, tview.NewTableCell("Proxmox VE").SetTextColor(tcell.ColorYellow))
-	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(ver).SetTextColor(tcell.ColorWhite))
+	cs.SummaryTable.SetCell(1, 0, tview.NewTableCell("Proxmox VE").SetTextColor(tcell.ColorYellow))
+	cs.SummaryTable.SetCell(1, 1, tview.NewTableCell(ver).SetTextColor(tcell.ColorWhite))
 
-	cs.SummaryTable.SetCell(3, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
-	cs.SummaryTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
+	cs.SummaryTable.SetCell(2, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
+	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
 
 	// Update resource table (right panel)
 	cs.ResourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow))
