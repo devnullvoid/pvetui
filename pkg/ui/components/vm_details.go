@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -175,6 +176,96 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		row++
 	}
 
+	// Show filesystem information if available
+	if len(vm.Filesystems) > 0 {
+		vd.SetCell(row, 0, tview.NewTableCell("📂 Storage").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d volumes", len(vm.Filesystems))).SetTextColor(tcell.ColorWhite))
+		row++
+
+		// Sort filesystems to show root/system drive first, then by used percentage
+		sortedFilesystems := make([]api.Filesystem, len(vm.Filesystems))
+		copy(sortedFilesystems, vm.Filesystems)
+
+		sort.Slice(sortedFilesystems, func(i, j int) bool {
+			// Root filesystem comes first
+			if sortedFilesystems[i].IsRoot {
+				return true
+			}
+			if sortedFilesystems[j].IsRoot {
+				return false
+			}
+
+			// System drive comes next
+			if sortedFilesystems[i].IsSystemDrive {
+				return true
+			}
+			if sortedFilesystems[j].IsSystemDrive {
+				return false
+			}
+
+			// Then sort by used percentage (descending)
+			// Handle potential division by zero
+			if sortedFilesystems[i].TotalBytes == 0 {
+				return false // Place filesystems with no total at the end
+			}
+			if sortedFilesystems[j].TotalBytes == 0 {
+				return true // Place filesystems with no total at the end
+			}
+
+			usedPercentI := float64(sortedFilesystems[i].UsedBytes) / float64(sortedFilesystems[i].TotalBytes)
+			usedPercentJ := float64(sortedFilesystems[j].UsedBytes) / float64(sortedFilesystems[j].TotalBytes)
+			return usedPercentI > usedPercentJ
+		})
+
+		// Display up to 5 filesystems to avoid cluttering the UI
+		maxFsToShow := 5
+		if len(sortedFilesystems) < maxFsToShow {
+			maxFsToShow = len(sortedFilesystems)
+		}
+
+		for i := 0; i < maxFsToShow; i++ {
+			fs := sortedFilesystems[i]
+
+			// Skip filesystems with no size info (should be filtered out already)
+			if fs.TotalBytes == 0 {
+				continue
+			}
+
+			// Get a suitable display name
+			fsName := getFriendlyFilesystemName(fs)
+
+			// Calculate usage percentage with safety check
+			var usedPercent float64
+			if fs.TotalBytes > 0 {
+				usedPercent = float64(fs.UsedBytes) / float64(fs.TotalBytes) * 100
+			} else {
+				usedPercent = 0
+			}
+
+			// Choose color based on usage percentage
+			usageColor := tcell.ColorGreen
+			if usedPercent > 90 {
+				usageColor = tcell.ColorRed
+			} else if usedPercent > 75 {
+				usageColor = tcell.ColorYellow
+			}
+
+			vd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", fsName)).SetTextColor(tcell.ColorLightSkyBlue))
+			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f%% (%.1f/%.1f GB)",
+				usedPercent,
+				float64(fs.UsedBytes)/(1024*1024*1024),
+				float64(fs.TotalBytes)/(1024*1024*1024))).SetTextColor(usageColor))
+			row++
+		}
+
+		// Show a message if there are more filesystems
+		if len(sortedFilesystems) > maxFsToShow {
+			vd.SetCell(row, 0, tview.NewTableCell("  •").SetTextColor(tcell.ColorLightSkyBlue))
+			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("... and %d more", len(sortedFilesystems)-maxFsToShow)).SetTextColor(tcell.ColorGray))
+			row++
+		}
+	}
+
 	// Show network interfaces from guest agent if available
 	if len(vm.NetInterfaces) > 0 {
 		vd.SetCell(row, 0, tview.NewTableCell("🌐 Network Interfaces").SetTextColor(tcell.ColorYellow))
@@ -215,4 +306,81 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 		}
 	}
+}
+
+// getFriendlyFilesystemName returns a user-friendly name for a filesystem
+func getFriendlyFilesystemName(fs api.Filesystem) string {
+	// Start with mountpoint as the primary identifier
+	fsName := fs.Mountpoint
+
+	// Fall back to name if mountpoint is empty
+	if fsName == "" {
+		fsName = fs.Name
+	}
+
+	// Format Windows paths more nicely
+	if strings.Contains(fsName, "\\") {
+		// Remove trailing backslash
+		fsName = strings.TrimSuffix(fsName, "\\")
+
+		// For drive letters (like C:), just show the drive letter
+		if len(fsName) >= 2 && fsName[1] == ':' {
+			driveLetter := strings.ToUpper(fsName[:2])
+
+			// Check if it's a standard Windows drive path
+			if driveLetter == "C:" {
+				return "System Drive (C:)"
+			} else if driveLetter == "D:" {
+				return "Data Drive (D:)"
+			} else {
+				return fmt.Sprintf("%s Drive", driveLetter)
+			}
+		}
+
+		// For "System Reserved" or other special Windows partitions
+		if fsName == "System Reserved" {
+			return "System Reserved"
+		}
+
+		// For complex Windows paths, just show the drive letter if possible
+		if strings.Contains(fsName, ":\\") {
+			parts := strings.SplitN(fsName, ":\\", 2)
+			if len(parts) == 2 && len(parts[0]) == 1 {
+				driveLetter := strings.ToUpper(parts[0])
+				return fmt.Sprintf("%s: Drive", driveLetter)
+			}
+		}
+
+		// For Volume{GUID} paths, extract just the first part of the path
+		if strings.Contains(fsName, "Volume{") {
+			return "Windows Volume"
+		}
+	}
+
+	// Handle Linux root and common paths
+	if fsName == "/" {
+		return "Root Filesystem (/)"
+	} else if fsName == "/boot" {
+		return "Boot Partition (/boot)"
+	} else if fsName == "/boot/efi" {
+		return "EFI Partition (/boot/efi)"
+	} else if fsName == "/home" {
+		return "Home Partition (/home)"
+	} else if strings.HasPrefix(fsName, "/mnt/") || strings.HasPrefix(fsName, "/media/") {
+		// For mounted external drives, just show the last part of the path
+		parts := strings.Split(fsName, "/")
+		if len(parts) > 0 {
+			lastPart := parts[len(parts)-1]
+			if lastPart != "" {
+				return fmt.Sprintf("Volume: %s", lastPart)
+			}
+		}
+	}
+
+	// If all else fails, return the original name but truncated if it's too long
+	if len(fsName) > 30 {
+		return fsName[:27] + "..."
+	}
+
+	return fsName
 }

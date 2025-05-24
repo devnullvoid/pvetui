@@ -36,6 +36,7 @@ type VM struct {
 	AgentEnabled   bool               `json:"agent_enabled,omitempty"`
 	AgentRunning   bool               `json:"agent_running,omitempty"`
 	NetInterfaces  []NetworkInterface `json:"net_interfaces,omitempty"`
+	Filesystems    []Filesystem       `json:"filesystems,omitempty"`
 	ConfiguredMACs map[string]bool    `json:"-"` // Stores MACs from VM config (net0, net1, etc.)
 
 	// For metrics tracking
@@ -43,10 +44,26 @@ type VM struct {
 	Enriched bool `json:"-"`
 }
 
+// Filesystem represents filesystem information from QEMU guest agent
+type Filesystem struct {
+	Name          string `json:"name"`
+	Mountpoint    string `json:"mountpoint"`
+	Type          string `json:"type"`
+	TotalBytes    int64  `json:"total_bytes"`
+	UsedBytes     int64  `json:"used_bytes"`
+	Device        string `json:"device,omitempty"`
+	IsRoot        bool   `json:"-"` // Determined by mountpoint ("/")
+	IsSystemDrive bool   `json:"-"` // For Windows C: drive
+}
+
 // GetVmStatus retrieves current status metrics for a VM or LXC
 func (c *Client) GetVmStatus(vm *VM) error {
 	vm.mu.Lock()
 	defer vm.mu.Unlock()
+
+	// Store current disk values to preserve them if not updated from API
+	currentDisk := vm.Disk
+	currentMaxDisk := vm.MaxDisk
 
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", vm.Node, vm.Type, vm.ID)
@@ -76,6 +93,32 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		if maxMemFloat, ok := maxMemVal.(float64); ok {
 			vm.MaxMem = int64(maxMemFloat)
 		}
+	}
+
+	// Get disk usage - only update if the API returns non-zero values
+	diskFound := false
+	if diskVal, ok := data["disk"]; ok {
+		if diskFloat, ok := diskVal.(float64); ok && diskFloat > 0 {
+			vm.Disk = int64(diskFloat)
+			diskFound = true
+		}
+	}
+
+	maxDiskFound := false
+	if maxDiskVal, ok := data["maxdisk"]; ok {
+		if maxDiskFloat, ok := maxDiskVal.(float64); ok && maxDiskFloat > 0 {
+			vm.MaxDisk = int64(maxDiskFloat)
+			maxDiskFound = true
+		}
+	}
+
+	// Restore previous values if not found in API or if they were zero
+	if !diskFound && currentDisk > 0 {
+		vm.Disk = currentDisk
+	}
+
+	if !maxDiskFound && currentMaxDisk > 0 {
+		vm.MaxDisk = currentMaxDisk
 	}
 
 	if diskReadVal, ok := data["diskread"]; ok {
@@ -176,6 +219,79 @@ func (c *Client) GetVmStatus(vm *VM) error {
 			// Update IP address if we don't have one yet and have interfaces
 			if vm.IP == "" && len(vm.NetInterfaces) > 0 {
 				vm.IP = GetFirstNonLoopbackIP(vm.NetInterfaces, true)
+			}
+
+			// If guest agent is running, also get filesystem information
+			filesystems, fsErr := c.GetGuestAgentFilesystems(vm)
+			if fsErr == nil && len(filesystems) > 0 {
+				// Filter filesystems to only include actual hardware disks
+				var filteredFilesystems []Filesystem
+
+				for _, fs := range filesystems {
+					// Skip filesystems we don't care about
+					if strings.HasPrefix(fs.Mountpoint, "/snap") ||
+						strings.HasPrefix(fs.Mountpoint, "/run") ||
+						strings.HasPrefix(fs.Mountpoint, "/sys") ||
+						strings.HasPrefix(fs.Mountpoint, "/proc") ||
+						strings.HasPrefix(fs.Mountpoint, "/dev") ||
+						strings.Contains(fs.Mountpoint, "snap/") {
+						continue
+					}
+
+					// Skip Windows container paths and special Windows paths
+					if strings.Contains(fs.Mountpoint, "\\Containers\\") ||
+						strings.Contains(fs.Mountpoint, "/Containers/") ||
+						strings.Contains(fs.Mountpoint, "\\WindowsApps\\") ||
+						strings.Contains(fs.Mountpoint, "\\WpSystem\\") ||
+						strings.Contains(fs.Mountpoint, "\\Config.Msi") {
+						continue
+					}
+
+					// Skip long GUID paths that are typically system or virtual mounts
+					if strings.Contains(fs.Mountpoint, "{") && strings.Contains(fs.Mountpoint, "}") &&
+						len(fs.Mountpoint) > 50 {
+						continue
+					}
+
+					// Skip if no size information
+					if fs.TotalBytes == 0 {
+						continue
+					}
+
+					// Skip small partitions (less than 50MB) that likely aren't real disks
+					if fs.TotalBytes < 50*1024*1024 {
+						continue
+					}
+
+					// Skip filesystem types that don't represent real disk space
+					if fs.Type == "tmpfs" || fs.Type == "devtmpfs" || fs.Type == "proc" ||
+						fs.Type == "sysfs" || fs.Type == "devpts" || fs.Type == "cgroup" ||
+						fs.Type == "configfs" || fs.Type == "debugfs" || fs.Type == "mqueue" ||
+						fs.Type == "hugetlbfs" || fs.Type == "securityfs" || fs.Type == "pstore" ||
+						fs.Type == "autofs" || fs.Type == "UDF" {
+						continue
+					}
+
+					filteredFilesystems = append(filteredFilesystems, fs)
+				}
+
+				vm.Filesystems = filteredFilesystems
+
+				// Update disk usage from filesystem information if we have good data
+				// This is more accurate than the API's disk usage values
+				var totalDiskSpace int64
+				var usedDiskSpace int64
+
+				for _, fs := range filteredFilesystems {
+					totalDiskSpace += fs.TotalBytes
+					usedDiskSpace += fs.UsedBytes
+				}
+
+				// Only update if we got meaningful values
+				if totalDiskSpace > 0 {
+					vm.MaxDisk = totalDiskSpace
+					vm.Disk = usedDiskSpace
+				}
 			}
 		} else {
 			vm.AgentRunning = false
@@ -512,8 +628,22 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 			wg.Add(1)
 			go func(vm *VM) {
 				defer wg.Done()
+
+				// Store the current disk usage values from /cluster/resources
+				diskUsage := vm.Disk
+				maxDiskUsage := vm.MaxDisk
+
 				// Get regular VM status info including guest agent data
 				err := c.GetVmStatus(vm)
+
+				// Restore disk usage values from cluster resources if they got overwritten or are zero
+				if vm.Disk == 0 && diskUsage > 0 {
+					vm.Disk = diskUsage
+				}
+
+				if vm.MaxDisk == 0 && maxDiskUsage > 0 {
+					vm.MaxDisk = maxDiskUsage
+				}
 
 				errChan <- err
 			}(node.VMs[i])
@@ -548,4 +678,82 @@ func (c *Client) StopVM(vm *VM) error {
 func (c *Client) RestartVM(vm *VM) error {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/restart", vm.Node, vm.Type, vm.ID)
 	return c.Post(path, nil)
+}
+
+// GetGuestAgentFilesystems retrieves filesystem information from the QEMU guest agent
+func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
+	if vm.Type != "qemu" || vm.Status != "running" {
+		return nil, fmt.Errorf("guest agent not applicable for this VM type or status")
+	}
+
+	var res map[string]interface{}
+	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/get-fsinfo", vm.Node, vm.ID)
+
+	if err := c.Get(endpoint, &res); err != nil {
+		return nil, fmt.Errorf("failed to get filesystem info from guest agent: %w", err)
+	}
+
+	// Check if result exists in the response
+	resultArray, ok := res["result"].([]interface{})
+	if !ok {
+		// Try checking if data.result exists (some Proxmox API endpoints use different formats)
+		data, dataOk := res["data"].(map[string]interface{})
+		if !dataOk {
+			return nil, fmt.Errorf("unexpected response format from guest agent")
+		}
+
+		resultArray, ok = data["result"].([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("unexpected result format from guest agent")
+		}
+	}
+
+	var filesystems []Filesystem
+
+	for _, fs := range resultArray {
+		fsMap, ok := fs.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		filesystem := Filesystem{}
+
+		// Get filesystem properties
+		if name, ok := fsMap["name"].(string); ok {
+			filesystem.Name = name
+		}
+
+		if mountpoint, ok := fsMap["mountpoint"].(string); ok {
+			filesystem.Mountpoint = mountpoint
+			// Check if it's the root filesystem in Linux
+			filesystem.IsRoot = mountpoint == "/"
+			// Check if it's the system drive in Windows (C:\ or C:/)
+			filesystem.IsSystemDrive = strings.HasPrefix(strings.ToLower(mountpoint), "c:")
+		}
+
+		if fsType, ok := fsMap["type"].(string); ok {
+			filesystem.Type = fsType
+		}
+
+		if totalBytes, ok := fsMap["total-bytes"].(float64); ok {
+			filesystem.TotalBytes = int64(totalBytes)
+		}
+
+		if usedBytes, ok := fsMap["used-bytes"].(float64); ok {
+			filesystem.UsedBytes = int64(usedBytes)
+		}
+
+		// Get the first disk device if available
+		if diskArray, ok := fsMap["disk"].([]interface{}); ok && len(diskArray) > 0 {
+			if diskMap, ok := diskArray[0].(map[string]interface{}); ok {
+				if dev, ok := diskMap["dev"].(string); ok {
+					filesystem.Device = dev
+				}
+			}
+		}
+
+		filesystems = append(filesystems, filesystem)
+	}
+
+	return filesystems, nil
 }
