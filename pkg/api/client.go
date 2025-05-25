@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Telmate/proxmox-api-go/proxmox"
 	"github.com/devnullvoid/proxmox-tui/pkg/cache"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
@@ -23,25 +22,32 @@ const (
 
 // Client is a Proxmox API client with caching capabilities
 type Client struct {
-	ProxClient *proxmox.Client
-	Cluster    *Cluster // Cached cluster state
+	httpClient  *HTTPClient
+	authManager *AuthManager
+	Cluster     *Cluster // Cached cluster state
 
 	// API settings
 	baseURL string
 	user    string
 }
 
-// Get makes a GET request to the Proxmox API
+// Get makes a GET request to the Proxmox API with retry logic
 func (c *Client) Get(path string, result *map[string]interface{}) error {
 	config.DebugLog("API GET: %s", path)
-	return c.ProxClient.GetJsonRetryable(context.Background(), path, result, 3)
+	return c.httpClient.GetWithRetry(context.Background(), path, result, 3)
+}
+
+// GetNoRetry makes a GET request to the Proxmox API without retry logic
+func (c *Client) GetNoRetry(path string, result *map[string]interface{}) error {
+	config.DebugLog("API GET (no retry): %s", path)
+	return c.httpClient.Get(context.Background(), path, result)
 }
 
 // Post makes a POST request to the Proxmox API
 func (c *Client) Post(path string, data interface{}) error {
 	config.DebugLog("API POST: %s", path)
 	// Convert data to map[string]interface{} if it's not nil
-	var postData map[string]interface{}
+	var postData interface{}
 	if data != nil {
 		var ok bool
 		postData, ok = data.(map[string]interface{})
@@ -49,7 +55,7 @@ func (c *Client) Post(path string, data interface{}) error {
 			return fmt.Errorf("data must be of type map[string]interface{}")
 		}
 	}
-	return c.ProxClient.Post(context.Background(), postData, path)
+	return c.httpClient.Post(context.Background(), path, postData, nil)
 }
 
 // GetWithCache makes a GET request to the Proxmox API with caching
@@ -97,6 +103,65 @@ func (c *Client) GetWithCache(path string, result *map[string]interface{}, ttl t
 	return nil
 }
 
+// GetWithRetry makes a GET request with retry logic (replaces GetJsonRetryable)
+func (c *Client) GetWithRetry(path string, result *map[string]interface{}, maxRetries int) error {
+	config.DebugLog("API GET with retry: %s", path)
+	return c.httpClient.GetWithRetry(context.Background(), path, result, maxRetries)
+}
+
+// Version gets the Proxmox API version (replaces ProxClient.GetVersion)
+func (c *Client) Version(ctx context.Context) (float64, error) {
+	var result map[string]interface{}
+	err := c.httpClient.Get(ctx, "/version", &result)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get version: %w", err)
+	}
+
+	data, ok := result["data"].(map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("invalid version response format")
+	}
+
+	version, ok := data["version"].(string)
+	if !ok {
+		return 0, fmt.Errorf("version not found in response")
+	}
+
+	// Parse version string (e.g., "7.4" -> 7.4)
+	var versionFloat float64
+	if _, err := fmt.Sscanf(version, "%f", &versionFloat); err != nil {
+		return 0, fmt.Errorf("failed to parse version: %w", err)
+	}
+
+	return versionFloat, nil
+}
+
+// GetVmList gets a list of VMs (replaces ProxClient.GetVmList)
+func (c *Client) GetVmList(ctx context.Context) ([]map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.httpClient.Get(ctx, "/cluster/resources", &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get VM list: %w", err)
+	}
+
+	data, ok := result["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid VM list response format")
+	}
+
+	var vms []map[string]interface{}
+	for _, item := range data {
+		if vm, ok := item.(map[string]interface{}); ok {
+			// Filter for VMs and containers only
+			if resType, exists := vm["type"].(string); exists && (resType == "qemu" || resType == "lxc") {
+				vms = append(vms, vm)
+			}
+		}
+	}
+
+	return vms, nil
+}
+
 // ClearAPICache removes all API-related cached responses
 func (c *Client) ClearAPICache() {
 	// We can't easily clear only API cache entries, but this is a good candidate
@@ -111,15 +176,17 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 		return nil, fmt.Errorf("proxmox address cannot be empty")
 	}
 
-	// Construct base URL
+	// Construct base URL - remove any API path suffix
 	baseURL := strings.TrimRight(addr, "/")
 	if !strings.HasPrefix(baseURL, "https://") {
 		baseURL = "https://" + baseURL
 	}
-	// if !strings.Contains(baseURL, ":8006") {
-	// 	baseURL += ":8006"
-	// }
-	config.DebugLog("Proxmox API URL: %s", baseURL)
+
+	// Remove /api2/json suffix if present to get the server base URL
+	serverBaseURL := strings.TrimSuffix(baseURL, "/api2/json")
+
+	config.DebugLog("Proxmox server URL: %s", serverBaseURL)
+	config.DebugLog("Proxmox API base URL: %s", serverBaseURL+"/api2/json")
 
 	// Configure TLS
 	tlsConfig := &tls.Config{InsecureSkipVerify: insecure}
@@ -133,21 +200,8 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 	}
 
 	// Validate port presence
-	if !strings.Contains(baseURL, ":") {
-		return nil, fmt.Errorf("missing port in address %s", baseURL)
-	}
-
-	// Create proxmox client with correct parameters
-	proxClient, err := proxmox.NewClient(
-		baseURL,
-		httpClient,
-		"", // API token (empty for password auth)
-		transport.TLSClientConfig,
-		"",  // Logging prefix
-		600, // Timeout
-	)
-	if err != nil {
-		return nil, err
+	if !strings.Contains(serverBaseURL, ":") {
+		return nil, fmt.Errorf("missing port in address %s", serverBaseURL)
 	}
 
 	// Format credentials with realm
@@ -161,24 +215,175 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 		authUser = fmt.Sprintf("%s@%s", user, realm)
 	}
 
-	config.DebugLog("Authentication parameters:\n- User: %s\n- Realm: %s\n- API: %s",
-		authUser, realm, baseURL)
+	config.DebugLog("Authentication parameters:\n- User: %s\n- Realm: %s\n- Server: %s",
+		authUser, realm, serverBaseURL)
 
-	// Perform authentication with formatted username (realm should be empty when using username@realm format)
-	if err := proxClient.Login(context.Background(), authUser, password, ""); err != nil {
-		config.DebugLog("Authentication failure details:\nUser: %s\nAPI: %s", authUser, baseURL)
-		return nil, fmt.Errorf("authentication failed for %s at %s: %w\nCheck:\n1. Credentials format: username@realm\n2. Realm '%s' exists\n3. User has API permissions\n4. TLS certificate validity", authUser, baseURL, err, realm)
-		// return nil, fmt.Errorf("authentication failed: %w\nTroubleshooting:\n1. Verify credentials\n2. Check network connectivity\n3. Validate TLS settings", err)
+	// Create authentication manager with server base URL (no /api2/json)
+	authManager := NewAuthManager(serverBaseURL, authUser, password, httpClient)
+
+	// Create HTTP client wrapper with full API base URL
+	apiBaseURL := serverBaseURL + "/api2/json"
+	httpClientWrapper := NewHTTPClient(httpClient, authManager, apiBaseURL, "")
+
+	// Create the main client
+	client := &Client{
+		httpClient:  httpClientWrapper,
+		authManager: authManager,
+		baseURL:     apiBaseURL,
+		user:        user,
 	}
 
-	// Verify API connectivity
-	if _, err := proxClient.GetVersion(context.Background()); err != nil {
-		return nil, fmt.Errorf("API verification failed: %w", err)
+	// Test authentication by getting API version
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	version, err := client.Version(ctx)
+	if err != nil {
+		config.DebugLog("Authentication failure details:\nUser: %s\nServer: %s", authUser, serverBaseURL)
+		return nil, fmt.Errorf("authentication failed for %s at %s: %w\nCheck:\n1. Credentials format: username@realm\n2. Realm '%s' exists\n3. User has API permissions\n4. TLS certificate validity", authUser, serverBaseURL, err, realm)
 	}
 
-	return &Client{
-		ProxClient: proxClient,
-		baseURL:    baseURL,
-		user:       user,
-	}, nil
+	config.DebugLog("Successfully authenticated with Proxmox API version %.2f", version)
+
+	return client, nil
+}
+
+// NewClientFromConfig initializes a new Proxmox API client from a config object
+// Supports both password and API token authentication
+func NewClientFromConfig(cfg interface{}) (*Client, error) {
+	// Use reflection or type assertion to get config values
+	// For now, let's assume we have a method to get the values we need
+	var addr, user, password, realm, tokenID, tokenSecret string
+	var insecure bool
+
+	// Type assertion to get config values - this assumes the config has these methods
+	if configObj, ok := cfg.(interface {
+		GetAddr() string
+		GetUser() string
+		GetPassword() string
+		GetRealm() string
+		GetTokenID() string
+		GetTokenSecret() string
+		GetInsecure() bool
+		IsUsingTokenAuth() bool
+		GetAPIToken() string
+	}); ok {
+		addr = configObj.GetAddr()
+		user = configObj.GetUser()
+		password = configObj.GetPassword()
+		realm = configObj.GetRealm()
+		tokenID = configObj.GetTokenID()
+		tokenSecret = configObj.GetTokenSecret()
+		insecure = configObj.GetInsecure()
+	} else {
+		return nil, fmt.Errorf("invalid config object type")
+	}
+
+	// Validate input parameters
+	if addr == "" {
+		return nil, fmt.Errorf("proxmox address cannot be empty")
+	}
+	if user == "" {
+		return nil, fmt.Errorf("proxmox username cannot be empty")
+	}
+
+	// Check authentication method
+	hasPassword := password != ""
+	hasToken := tokenID != "" && tokenSecret != ""
+
+	if !hasPassword && !hasToken {
+		return nil, fmt.Errorf("authentication required: provide either password or API token")
+	}
+	if hasPassword && hasToken {
+		return nil, fmt.Errorf("conflicting authentication methods: provide either password or API token, not both")
+	}
+
+	// Construct base URL - remove any API path suffix
+	baseURL := strings.TrimRight(addr, "/")
+	if !strings.HasPrefix(baseURL, "https://") {
+		baseURL = "https://" + baseURL
+	}
+
+	// Remove /api2/json suffix if present to get the server base URL
+	serverBaseURL := strings.TrimSuffix(baseURL, "/api2/json")
+
+	config.DebugLog("Proxmox server URL: %s", serverBaseURL)
+	config.DebugLog("Proxmox API base URL: %s", serverBaseURL+"/api2/json")
+
+	// Configure TLS
+	tlsConfig := &tls.Config{InsecureSkipVerify: insecure}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = tlsConfig
+
+	// Create HTTP client
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   30 * time.Second,
+	}
+
+	// Validate port presence
+	if !strings.Contains(serverBaseURL, ":") {
+		return nil, fmt.Errorf("missing port in address %s", serverBaseURL)
+	}
+
+	// Format credentials with realm
+	if realm == "" {
+		realm = "pam" // Default to pam authentication realm
+	}
+
+	var authManager *AuthManager
+	var apiToken string
+
+	if hasToken {
+		// API Token authentication
+		apiToken = fmt.Sprintf("PVEAPIToken=%s@%s!%s=%s", user, realm, tokenID, tokenSecret)
+		config.DebugLog("Authentication method: API Token\n- User: %s@%s\n- Token ID: %s\n- Server: %s",
+			user, realm, tokenID, serverBaseURL)
+	} else {
+		// Password authentication
+		authUser := user
+		if !strings.Contains(authUser, "@") {
+			authUser = fmt.Sprintf("%s@%s", user, realm)
+		}
+		config.DebugLog("Authentication method: Password\n- User: %s\n- Realm: %s\n- Server: %s",
+			authUser, realm, serverBaseURL)
+
+		// Create authentication manager with server base URL (no /api2/json)
+		authManager = NewAuthManager(serverBaseURL, authUser, password, httpClient)
+	}
+
+	// Create HTTP client wrapper with full API base URL
+	apiBaseURL := serverBaseURL + "/api2/json"
+	httpClientWrapper := NewHTTPClient(httpClient, authManager, apiBaseURL, apiToken)
+
+	// Create the main client
+	client := &Client{
+		httpClient:  httpClientWrapper,
+		authManager: authManager,
+		baseURL:     apiBaseURL,
+		user:        user,
+	}
+
+	// Test authentication by getting API version
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	version, err := client.Version(ctx)
+	if err != nil {
+		if hasToken {
+			config.DebugLog("API token authentication failure:\nUser: %s@%s\nToken ID: %s\nServer: %s", user, realm, tokenID, serverBaseURL)
+			return nil, fmt.Errorf("API token authentication failed for %s@%s at %s: %w\nCheck:\n1. Token ID '%s' exists\n2. Token secret is correct\n3. Token has required permissions\n4. Token is not expired", user, realm, serverBaseURL, err, tokenID)
+		} else {
+			config.DebugLog("Password authentication failure:\nUser: %s@%s\nServer: %s", user, realm, serverBaseURL)
+			return nil, fmt.Errorf("password authentication failed for %s@%s at %s: %w\nCheck:\n1. Credentials format: username@realm\n2. Realm '%s' exists\n3. User has API permissions\n4. TLS certificate validity", user, realm, serverBaseURL, err, realm)
+		}
+	}
+
+	if hasToken {
+		config.DebugLog("Successfully authenticated with API token. Proxmox API version %.2f", version)
+	} else {
+		config.DebugLog("Successfully authenticated with password. Proxmox API version %.2f", version)
+	}
+
+	return client, nil
 }

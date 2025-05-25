@@ -49,14 +49,14 @@ func main() {
 
 	// 3. Test API version endpoint
 	ctx := context.Background()
-	version, err := client.ProxClient.Version(ctx)
+	version, err := client.Version(ctx)
 	if err != nil {
 		log.Fatalf("API connection failed: %v\nCheck:\n1. Network connectivity\n2. TLS certificate\n3. Firewall rules", err)
 	}
 	fmt.Printf("✅ Proxmox API version: %.2f\n", version)
 
 	// 4. Test authentication with nodes endpoint
-	nodes, err := client.ProxClient.GetVmList(ctx)
+	nodes, err := client.GetVmList(ctx)
 	if err != nil {
 		log.Fatalf("Authentication failed: %v\nCheck:\n1. username@realm format\n2. Password\n3. API permissions", err)
 	}

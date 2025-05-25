@@ -3,7 +3,6 @@ module github.com/devnullvoid/proxmox-tui
 go 1.24.2
 
 require (
-	github.com/Telmate/proxmox-api-go v0.0.0-20250510212736-893482bceff7
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/gdamore/tcell/v2 v2.7.1
 	github.com/rivo/tview v0.0.0-20250330220935-949945f8d922
