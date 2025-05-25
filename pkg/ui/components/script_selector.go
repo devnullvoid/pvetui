@@ -14,18 +14,19 @@ import (
 // ScriptSelector represents a modal dialog for selecting and running community scripts
 type ScriptSelector struct {
 	*tview.Modal
-	app          *App
-	user         string
-	nodeIP       string
-	node         *api.Node
-	vm           *api.VM
-	categories   []scripts.ScriptCategory
-	scripts      []scripts.Script
-	categoryList *tview.List
-	scriptList   *tview.List
-	layout       *tview.Flex
-	pages        *tview.Pages
-	isForNode    bool
+	app                  *App
+	user                 string
+	nodeIP               string
+	node                 *api.Node
+	vm                   *api.VM
+	categories           []scripts.ScriptCategory
+	scripts              []scripts.Script
+	categoryList         *tview.List
+	scriptList           *tview.List
+	layout               *tview.Flex
+	pages                *tview.Pages
+	isForNode            bool
+	originalInputCapture func(*tcell.EventKey) *tcell.EventKey
 }
 
 // NewScriptSelector creates a new script selector dialog
@@ -70,6 +71,11 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		)
 	}
 
+	// Add a test item if no categories were loaded
+	if len(selector.categories) == 0 {
+		selector.categoryList.AddItem("No categories found", "Check script configuration", 'x', nil)
+	}
+
 	// Create the script list
 	selector.scriptList = tview.NewList().
 		ShowSecondaryText(true).
@@ -86,34 +92,17 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	backButton := tview.NewButton("Back").
 		SetSelectedFunc(func() {
 			selector.pages.SwitchToPage("categories")
+			app.SetFocus(selector.categoryList)
 		})
-
-	// Set up input capture for script list to handle Escape key
-	selector.scriptList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEscape {
-			selector.pages.SwitchToPage("categories")
-			return nil
-		}
-		return event
-	})
-
-	// Set up input capture for category list to handle Escape key
-	selector.categoryList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEscape {
-			app.pages.RemovePage("scriptSelector")
-			return nil
-		}
-		return event
-	})
 
 	// Create pages to switch between category and script lists
 	selector.pages = tview.NewPages()
 
-	// Set up the category page with title
+	// Set up the category page with title - simplified for testing
 	categoryPage := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(tview.NewTextView().
-			SetText("Select a Script Category").
+			SetText(fmt.Sprintf("Select a Script Category (%d categories)", len(selector.categories))).
 			SetTextAlign(tview.AlignCenter), 1, 0, false).
 		AddItem(selector.categoryList, 0, 1, true)
 
@@ -138,38 +127,20 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	selector.pages.AddPage("scripts", scriptPage, true, false)
 	selector.pages.AddPage("loading", loadingPage, true, false)
 
-	// Create a box with a border for the selector
-	mainBox := tview.NewBox().
-		SetBorder(true).
+	// Set border and title directly on the pages component
+	selector.pages.SetBorder(true).
 		SetTitle(" Script Selection ").
 		SetTitleColor(tcell.ColorYellow).
 		SetBorderColor(tcell.ColorBlue)
 
-	// Create the main layout with proper nesting to display border
-	innerFlex := tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(selector.pages, 0, 15, true).
-			AddItem(nil, 0, 1, false), 60, 1, true).
-		AddItem(nil, 0, 1, false)
-
-	// Create the complete layout
+	// Use the pages component directly as the layout
 	selector.layout = tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(mainBox, 0, 20, true).
+			AddItem(selector.pages, 20, 1, true).
 			AddItem(nil, 0, 1, false), 70, 1, true).
 		AddItem(nil, 0, 1, false)
-
-	// Set up the draw function for the main box
-	mainBox.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		// Draw the inner content inside the box
-		innerFlex.SetRect(x+1, y+1, width-2, height-2)
-		innerFlex.Draw(screen)
-		return -1, -1, -1, -1 // Signal that we've drawn the content ourselves
-	})
 
 	return selector
 }
@@ -187,6 +158,7 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 		// Show error message
 		s.app.QueueUpdateDraw(func() {
 			s.pages.SwitchToPage("categories")
+			s.app.SetFocus(s.categoryList)
 			s.app.showMessage(fmt.Sprintf("Error fetching scripts: %v", err))
 		})
 		return
@@ -223,7 +195,10 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 
 			s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), selectFunc)
 		}
+
+		// Switch to scripts page and set focus on the script list
 		s.pages.SwitchToPage("scripts")
+		s.app.SetFocus(s.scriptList)
 	})
 }
 
@@ -393,6 +368,22 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 		// Remove the script selector
 		s.app.pages.RemovePage("scriptSelector")
 
+		// Restore the original input capture
+		if s.originalInputCapture != nil {
+			s.app.SetInputCapture(s.originalInputCapture)
+		} else {
+			// Clear any input capture if there was none originally
+			s.app.SetInputCapture(nil)
+		}
+
+		// Restore focus to the appropriate list based on current page
+		pageName, _ := s.app.pages.GetFrontPage()
+		if pageName == "Nodes" {
+			s.app.SetFocus(s.app.nodeList)
+		} else if pageName == "Guests" {
+			s.app.SetFocus(s.app.vmList)
+		}
+
 		if err != nil {
 			// Create an error modal with more details
 			errorModal := tview.NewModal().
@@ -430,17 +421,73 @@ func (s *ScriptSelector) Show() {
 		return
 	}
 
-	// Set up global key handler for the entire modal
-	s.layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	// Store the original input capture
+	s.originalInputCapture = s.app.GetInputCapture()
+
+	// Set up a minimal app-level input capture that only handles Escape
+	// All other keys will be passed through to allow normal navigation
+	s.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			// Handle Escape key globally to close the modal
+			// Restore original input capture and close modal
+			if s.originalInputCapture != nil {
+				s.app.SetInputCapture(s.originalInputCapture)
+			} else {
+				s.app.SetInputCapture(nil)
+			}
 			s.app.pages.RemovePage("scriptSelector")
+
+			// Restore focus to the appropriate list based on current page
+			pageName, _ := s.app.pages.GetFrontPage()
+			if pageName == "Nodes" {
+				s.app.SetFocus(s.app.nodeList)
+			} else if pageName == "Guests" {
+				s.app.SetFocus(s.app.vmList)
+			}
 			return nil
 		}
+		// Pass all other events through to the focused component
 		return event
 	})
 
-	// Add the selector to the pages
+	// Remove individual input captures - let the lists handle navigation normally
+	// The Enter key selection will be handled by the list's selected functions
+	s.categoryList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEnter {
+			// Manually trigger the selection
+			idx := s.categoryList.GetCurrentItem()
+			if idx >= 0 && idx < len(s.categories) {
+				category := s.categories[idx]
+				s.pages.SwitchToPage("loading")
+				go s.fetchScriptsForCategory(category)
+			}
+			return nil
+		}
+		// Let arrow keys pass through for navigation
+		return event
+	})
+
+	// Only set input capture on script list for backspace navigation and Enter
+	s.scriptList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyBackspace {
+			// Go back to category list
+			s.pages.SwitchToPage("categories")
+			s.app.SetFocus(s.categoryList)
+			return nil
+		} else if event.Key() == tcell.KeyEnter {
+			// Manually trigger the script selection
+			idx := s.scriptList.GetCurrentItem()
+			if idx >= 0 && idx < len(s.scripts) {
+				script := s.scripts[idx]
+				selectFunc := s.createScriptSelectFunc(script)
+				selectFunc()
+			}
+			return nil
+		}
+		// Let all other keys (including arrows) pass through normally
+		return event
+	})
+
+	// Add the selector to the pages and focus the category list
 	s.app.pages.AddPage("scriptSelector", s.layout, true, true)
 	s.app.SetFocus(s.categoryList)
 }

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -157,22 +156,18 @@ func (c *Config) SetDefaults() {
 	}
 }
 
-// getUniqueInstanceID returns a unique identifier for this process instance
-func getUniqueInstanceID() string {
-	// Use process ID and a timestamp for uniqueness
-	return fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
-}
-
 // InitLogging sets up logging to redirect to a file when in TUI mode
 func InitLogging(cacheDir string) error {
 	// Create a logs directory in the cache directory
-	logsDir := filepath.Join(cacheDir, "logs")
+	// logsDir := filepath.Join(cacheDir, "logs")
+	logsDir := cacheDir
 	if err := os.MkdirAll(logsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
 	// Create a log file with timestamp in the name
-	logFileName := fmt.Sprintf("proxmox-tui-%s.log", time.Now().Format("2006-01-02-15-04-05"))
+	// logFileName := fmt.Sprintf("proxmox-tui-%s.log", time.Now().Format("2006-01-02-15-04-05"))
+	logFileName := "proxmox-tui.log"
 	logFilePath := filepath.Join(logsDir, logFileName)
 
 	// Open the log file
