@@ -55,19 +55,7 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 			category.Name,
 			category.Description,
 			rune('a'+i),
-			func() {
-				// Get the selected category
-				idx := selector.categoryList.GetCurrentItem()
-				if idx >= 0 && idx < len(selector.categories) {
-					category := selector.categories[idx]
-
-					// Set the focus to the loading page while fetching scripts
-					selector.pages.SwitchToPage("loading")
-
-					// Fetch scripts in a goroutine to avoid blocking the UI
-					go selector.fetchScriptsForCategory(category)
-				}
-			},
+			nil, // Remove selection function - we handle Enter manually
 		)
 	}
 
@@ -175,9 +163,6 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 	// Update script list
 	s.app.QueueUpdateDraw(func() {
 		for i, script := range s.scripts {
-			// Create a separate function for each script to avoid closures capturing the loop variable
-			selectFunc := s.createScriptSelectFunc(script)
-
 			// Add more detailed information in the secondary text
 			var secondaryText string
 			if script.Type == "ct" {
@@ -193,7 +178,8 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 				secondaryText = secondaryText[:67] + "..."
 			}
 
-			s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), selectFunc)
+			// Add item without selection function - we handle Enter manually
+			s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), nil)
 		}
 
 		// Switch to scripts page and set focus on the script list
@@ -205,96 +191,23 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 // createScriptSelectFunc creates a script selection handler for a specific script
 func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
 	return func() {
-		// Create a detailed script info modal with scrollable content
-		infoText := tview.NewTextView().
-			SetText(s.formatScriptInfo(script)).
-			SetDynamicColors(true).
-			SetWordWrap(true)
+		// Create a simple modal using tview.Modal for the script details
+		scriptInfo := s.formatScriptInfo(script)
 
-		// Add scrolling capability
-		infoText.SetScrollable(true)
-
-		// Create form for the buttons with proper styling
-		buttonForm := tview.NewForm().
-			AddButton("Install", func() {
+		modal := tview.NewModal().
+			SetText(scriptInfo).
+			AddButtons([]string{"Install", "Cancel"}).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 				s.app.pages.RemovePage("scriptInfo")
-				// Perform script installation in a goroutine
-				go s.installScript(script)
-			}).
-			AddButton("Cancel", func() {
-				s.app.pages.RemovePage("scriptInfo")
+				if buttonLabel == "Install" {
+					go s.installScript(script)
+				} else {
+					s.app.SetFocus(s.scriptList)
+				}
 			})
 
-		// Style the form to match the UI
-		buttonForm.
-			SetButtonsAlign(tview.AlignCenter).
-			SetButtonBackgroundColor(tcell.ColorLightCyan).
-			SetButtonTextColor(tcell.ColorBlack).
-			SetBackgroundColor(tcell.ColorDefault).
-			SetBorder(false)
-
-		// Create a flex for the content
-		contentFlex := tview.NewFlex().
-			SetDirection(tview.FlexRow).
-			AddItem(tview.NewTextView().
-				SetText(fmt.Sprintf(" %s Details ", script.Name)).
-				SetTextAlign(tview.AlignCenter).
-				SetTextColor(tcell.ColorYellow), 1, 0, false).
-			AddItem(infoText, 0, 1, true).
-			AddItem(buttonForm, 3, 0, false)
-
-		// Create a box with a border for the modal
-		modalBox := tview.NewBox().
-			SetBorder(true).
-			SetTitle(" Script Details ").
-			SetTitleColor(tcell.ColorYellow).
-			SetBorderColor(tcell.ColorBlue)
-
-		// Create a primitive that captures input
-		modalWrapper := tview.NewFlex()
-		modalWrapper.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			switch event.Key() {
-			case tcell.KeyTab:
-				// Cycle focus between info text and buttons
-				if s.app.GetFocus() == infoText {
-					s.app.SetFocus(buttonForm)
-					return nil
-				} else if s.app.GetFocus() == buttonForm {
-					s.app.SetFocus(infoText)
-					return nil
-				}
-			case tcell.KeyEscape:
-				s.app.pages.RemovePage("scriptInfo")
-				return nil
-			}
-			return event
-		})
-
-		// Create the centered modal
-		modalFlex := tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(modalBox, 0, 20, true).
-				AddItem(nil, 0, 1, false), 70, 1, true).
-			AddItem(nil, 0, 1, false)
-
-		// Set the draw function to properly display content within the border
-		modalBox.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-			// Draw the content inside the box
-			contentFlex.SetRect(x+1, y+1, width-2, height-2)
-			contentFlex.Draw(screen)
-			return -1, -1, -1, -1 // We've drawn the content
-		})
-
-		// Add the modal wrapper
-		modalWrapper.AddItem(modalFlex, 0, 1, true)
-
-		// Show the info modal
-		s.app.pages.AddPage("scriptInfo", modalWrapper, true, true)
-
-		// Set initial focus on text view so user can scroll
-		s.app.SetFocus(infoText)
+		// Show the modal
+		s.app.pages.AddPage("scriptInfo", modal, true, true)
 	}
 }
 
@@ -428,6 +341,13 @@ func (s *ScriptSelector) Show() {
 	// All other keys will be passed through to allow normal navigation
 	s.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
+			// Remove any script info modal first
+			if s.app.pages.HasPage("scriptInfo") {
+				s.app.pages.RemovePage("scriptInfo")
+				s.app.SetFocus(s.scriptList)
+				return nil
+			}
+
 			// Restore original input capture and close modal
 			if s.originalInputCapture != nil {
 				s.app.SetInputCapture(s.originalInputCapture)
@@ -479,7 +399,9 @@ func (s *ScriptSelector) Show() {
 			if idx >= 0 && idx < len(s.scripts) {
 				script := s.scripts[idx]
 				selectFunc := s.createScriptSelectFunc(script)
-				selectFunc()
+				if selectFunc != nil {
+					selectFunc()
+				}
 			}
 			return nil
 		}
