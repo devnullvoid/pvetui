@@ -388,6 +388,24 @@ func (s *ScriptSelector) Show() {
 				s.fetchScriptsForCategory(category)
 			}
 			return nil
+		} else if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
+			// Backspace on category list closes the modal (handle both backspace variants)
+			// Restore original input capture and close modal
+			if s.originalInputCapture != nil {
+				s.app.SetInputCapture(s.originalInputCapture)
+			} else {
+				s.app.SetInputCapture(nil)
+			}
+			s.app.pages.RemovePage("scriptSelector")
+
+			// Restore focus to the appropriate list based on current page
+			pageName, _ := s.app.pages.GetFrontPage()
+			if pageName == "Nodes" {
+				s.app.SetFocus(s.app.nodeList)
+			} else if pageName == "Guests" {
+				s.app.SetFocus(s.app.vmList)
+			}
+			return nil
 		}
 		// Let arrow keys pass through for navigation
 		return event
