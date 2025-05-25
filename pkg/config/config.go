@@ -3,9 +3,12 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,27 +21,31 @@ func DebugLog(format string, v ...interface{}) {
 	}
 }
 
+// Config represents the application configuration
 type Config struct {
 	Addr     string `yaml:"addr"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Realm    string `yaml:"realm"`
-	APIPath  string `yaml:"api-path"`
+	ApiPath  string `yaml:"api_path"`
 	Insecure bool   `yaml:"insecure"`
-	SSHUser  string `yaml:"ssh-user"`
+	SSHUser  string `yaml:"ssh_user"`
 	Debug    bool   `yaml:"debug"`
+	CacheDir string `yaml:"cache_dir"` // Directory for caching data
 }
 
-func NewConfig() Config {
-	return Config{
+// NewConfig creates a Config with values from environment variables
+func NewConfig() *Config {
+	return &Config{
 		Addr:     os.Getenv("PROXMOX_ADDR"),
 		User:     os.Getenv("PROXMOX_USER"),
 		Password: os.Getenv("PROXMOX_PASSWORD"),
 		Realm:    getEnvWithDefault("PROXMOX_REALM", "pam"),
-		APIPath:  getEnvWithDefault("PROXMOX_API_PATH", "/api2/json"),
+		ApiPath:  getEnvWithDefault("PROXMOX_API_PATH", "/api2/json"),
 		Insecure: strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true",
 		SSHUser:  os.Getenv("PROXMOX_SSH_USER"),
 		Debug:    strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
+		CacheDir: os.Getenv("PROXMOX_CACHE_DIR"),
 	}
 }
 
@@ -62,13 +69,17 @@ func ParseConfigFlags() {
 	configFs.Parse(os.Args[1:]) // Parse just the --config flag first
 }
 
-func (c *Config) SetupFlags() {
+// ParseFlags adds command-line flag definitions to a Config object
+func (c *Config) ParseFlags() {
 	flag.StringVar(&c.Addr, "addr", c.Addr, "Proxmox API URL (env PROXMOX_ADDR)")
 	flag.StringVar(&c.User, "user", c.User, "Proxmox username (env PROXMOX_USER)")
 	flag.StringVar(&c.Password, "password", c.Password, "Proxmox password (env PROXMOX_PASSWORD)")
+	flag.StringVar(&c.Realm, "realm", c.Realm, "Proxmox realm (env PROXMOX_REALM)")
 	flag.BoolVar(&c.Insecure, "insecure", c.Insecure, "Skip TLS verification (env PROXMOX_INSECURE)")
-	flag.StringVar(&c.APIPath, "api-path", c.APIPath, "Proxmox API path (env PROXMOX_API_PATH)")
+	flag.StringVar(&c.ApiPath, "api-path", c.ApiPath, "Proxmox API path (env PROXMOX_API_PATH)")
 	flag.StringVar(&c.SSHUser, "ssh-user", c.SSHUser, "SSH username (env PROXMOX_SSH_USER)")
+	flag.BoolVar(&c.Debug, "debug", c.Debug, "Enable debug logging (env PROXMOX_DEBUG)")
+	flag.StringVar(&c.CacheDir, "cache-dir", c.CacheDir, "Cache directory path (env PROXMOX_CACHE_DIR)")
 }
 
 func (c *Config) MergeWithFile(path string) error {
@@ -96,8 +107,8 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.Password != "" {
 		c.Password = fileConfig.Password
 	}
-	if fileConfig.APIPath != "" {
-		c.APIPath = fileConfig.APIPath
+	if fileConfig.ApiPath != "" {
+		c.ApiPath = fileConfig.ApiPath
 	}
 	if fileConfig.Insecure {
 		c.Insecure = true
@@ -107,6 +118,9 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.Debug {
 		c.Debug = true
+	}
+	if fileConfig.CacheDir != "" {
+		c.CacheDir = fileConfig.CacheDir
 	}
 
 	return nil
@@ -120,4 +134,31 @@ func (c *Config) Validate() error {
 		return errors.New("credentials required: set -user & -password flags, PROXMOX_USER/PROXMOX_PASSWORD env vars, or config file")
 	}
 	return nil
+}
+
+// SetDefaults sets default values for unspecified configuration options
+func (c *Config) SetDefaults() {
+	if c.Realm == "" {
+		c.Realm = "pam"
+	}
+	if c.ApiPath == "" {
+		c.ApiPath = "/api2/json"
+	}
+	if c.CacheDir == "" {
+		// Default to a subdirectory in the user's home directory
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			// Use a stable cache directory to maintain cache between runs
+			c.CacheDir = filepath.Join(homeDir, ".proxmox-tui", "cache", "badger-store")
+		} else {
+			// Fallback to a temporary directory if home directory isn't available
+			c.CacheDir = filepath.Join(os.TempDir(), "proxmox-tui-cache", "badger-store")
+		}
+	}
+}
+
+// getUniqueInstanceID returns a unique identifier for this process instance
+func getUniqueInstanceID() string {
+	// Use process ID and a timestamp for uniqueness
+	return fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
 }

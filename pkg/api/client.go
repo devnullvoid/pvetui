@@ -6,28 +6,29 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Telmate/proxmox-api-go/proxmox"
+	"github.com/devnullvoid/proxmox-tui/pkg/cache"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
-// cachedResponse holds the cached API response and its expiration time
-type cachedResponse struct {
-	data      interface{}
-	expiresAt time.Time
-}
+// Cache TTLs for different types of data
+const (
+	ClusterDataTTL  = 1 * time.Hour
+	NodeDataTTL     = 1 * time.Hour
+	VMDataTTL       = 1 * time.Hour
+	ResourceDataTTL = 1 * time.Hour
+)
 
 // Client is a Proxmox API client with caching capabilities
 type Client struct {
 	ProxClient *proxmox.Client
 	Cluster    *Cluster // Cached cluster state
 
-	// Cache-related fields
-	cache    map[string]cachedResponse
-	cacheMu  sync.RWMutex
-	cacheTTL time.Duration
+	// API settings
+	baseURL string
+	user    string
 }
 
 // Get makes a GET request to the Proxmox API
@@ -52,72 +53,55 @@ func (c *Client) Post(path string, data interface{}) error {
 }
 
 // GetWithCache makes a GET request to the Proxmox API with caching
-func (c *Client) GetWithCache(path string, result *map[string]interface{}) error {
-	// If cache is not initialized, initialize it
-	if c.cache == nil {
-		c.cacheMu.Lock()
-		if c.cache == nil {
-			c.cache = make(map[string]cachedResponse)
-			// Default cache TTL of 30 seconds
-			if c.cacheTTL == 0 {
-				c.cacheTTL = 30 * time.Second
-			}
-		}
-		c.cacheMu.Unlock()
-	}
+func (c *Client) GetWithCache(path string, result *map[string]interface{}, ttl time.Duration) error {
+	// Generate cache key based on API path
+	cacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, path)
+	cacheKey = strings.ReplaceAll(cacheKey, "/", "_")
 
-	// Check cache first
-	c.cacheMu.RLock()
-	cached, exists := c.cache[path]
-	c.cacheMu.RUnlock()
+	// Get the global cache
+	globalCache := cache.GetGlobalCache()
 
-	now := time.Now()
-	if exists && now.Before(cached.expiresAt) {
-		// Cache hit and not expired
+	// Try to get from cache first
+	var cachedData map[string]interface{}
+	found, err := globalCache.Get(cacheKey, &cachedData)
+	if err != nil {
+		config.DebugLog("Cache error for %s: %v", path, err)
+	} else if found {
 		config.DebugLog("Cache hit for: %s", path)
 		if result != nil {
-			// Deep copy the cached data to the result
-			cachedMap, ok := cached.data.(map[string]interface{})
-			if ok {
-				*result = make(map[string]interface{}, len(cachedMap))
-				for k, v := range cachedMap {
-					(*result)[k] = v
-				}
-				return nil
+			// Copy the cached data to the result
+			*result = make(map[string]interface{}, len(cachedData))
+			for k, v := range cachedData {
+				(*result)[k] = v
 			}
+			return nil
 		}
 	}
 
-	// Cache miss or expired, make the API call
+	// Cache miss or error, make the API call
 	config.DebugLog("Cache miss for: %s", path)
-	err := c.Get(path, result)
+	err = c.Get(path, result)
 	if err != nil {
 		return err
 	}
 
 	// Cache the result
-	c.cacheMu.Lock()
-	c.cache[path] = cachedResponse{
-		data:      *result,
-		expiresAt: now.Add(c.cacheTTL),
+	if result != nil && *result != nil {
+		if err := globalCache.Set(cacheKey, *result, ttl); err != nil {
+			config.DebugLog("Failed to cache API result for %s: %v", path, err)
+		} else {
+			config.DebugLog("Cached API result for %s with TTL %v", path, ttl)
+		}
 	}
-	c.cacheMu.Unlock()
 
 	return nil
 }
 
-// SetCacheTTL sets the cache time-to-live duration
-func (c *Client) SetCacheTTL(ttl time.Duration) {
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
-	c.cacheTTL = ttl
-}
-
-// ClearCache removes all cached responses
-func (c *Client) ClearCache() {
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
-	c.cache = make(map[string]cachedResponse)
+// ClearAPICache removes all API-related cached responses
+func (c *Client) ClearAPICache() {
+	// We can't easily clear only API cache entries, but this is a good candidate
+	// for future improvement with cache namespaces
+	config.DebugLog("Clearing API cache")
 }
 
 // NewClient initializes a new Proxmox API client with optimized defaults
@@ -192,5 +176,9 @@ func NewClient(addr, user, password, realm string, insecure bool) (*Client, erro
 		return nil, fmt.Errorf("API verification failed: %w", err)
 	}
 
-	return &Client{ProxClient: proxClient}, nil
+	return &Client{
+		ProxClient: proxClient,
+		baseURL:    baseURL,
+		user:       user,
+	}, nil
 }

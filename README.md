@@ -14,7 +14,9 @@ Proxmox TUI provides a convenient and fast way to interact with your Proxmox Vir
 *   **Node Listing & Details:** List all nodes in the cluster and view detailed information for each node, such as CPU usage, memory usage, storage, uptime, kernel version, and IP address.
 *   **Guest (VM & LXC) Listing & Details:** List all VMs and LXC containers across the cluster. View detailed information for selected guests, including status, resource usage, and configuration.
 *   **Interactive Shell:** Open an SSH shell directly to Proxmox nodes, QEMU and LXC guests.
+*   **Community Scripts Integration:** Install scripts from the [Proxmox Community Scripts](https://github.com/community-scripts/ProxmoxVE) repository directly to your nodes.
 *   **Search/Filter:** Quickly find nodes or guests.
+*   **Performance Caching:** Intelligent caching system for API responses and GitHub data to minimize network requests and improve responsiveness.
 *   **Keyboard Navigation:** Efficiently navigate the interface using keyboard shortcuts.
 
 ## Installation
@@ -76,6 +78,7 @@ api_path: "/api2/json"                    # Proxmox API path (default: "/api2/js
 insecure: false                           # Set to true to skip TLS certificate verification (not recommended for production)
 ssh_user: "your-ssh-user"                 # Optional: Default SSH username for connecting to nodes/guests (overrides PROXMOX_SSH_USER)
 debug: false                              # Set to true to enable debug logging
+cache_dir: "~/.proxmox-tui/cache"         # Optional: Custom directory for cache files
 ```
 
 **Configuration File Options:**
@@ -88,6 +91,7 @@ debug: false                              # Set to true to enable debug logging
 *   `insecure`: (Optional, default: `false`) Set to `true` to disable TLS certificate verification. This is useful for self-signed certificates in development environments but should be avoided in production.
 *   `ssh_user`: (Optional) The default username to use for SSH connections to nodes and guests. If not set, the system will try `PROXMOX_SSH_USER` environment variable or may prompt if an SSH client requires it.
 *   `debug`: (Optional, default: `false`) Set to `true` to enable verbose debug logging to standard error.
+*   `cache_dir`: (Optional) Custom directory path for storing cache files. Defaults to `~/.proxmox-tui/cache` if not specified.
 
 ### Environment Variables
 
@@ -101,6 +105,7 @@ You can configure the application using the following environment variables:
 *   `PROXMOX_INSECURE`: Set to `true` to skip TLS verification.
 *   `PROXMOX_SSH_USER`: Default SSH username.
 *   `PROXMOX_DEBUG`: Set to `true` to enable debug logging.
+*   `PROXMOX_CACHE_DIR`: Custom directory for cache files.
 
 ### Command-Line Flags
 
@@ -115,6 +120,8 @@ The following command-line flags are available and will override settings from t
 *   `-ssh-user <username>`: Default SSH username.
 *   `-debug`: Enable debug logging (boolean flag, presence means true).
 *   `-config <path>`: Path to the YAML configuration file.
+*   `-cache-dir <path>`: Directory for caching data (defaults to ~/.proxmox-tui/cache).
+*   `-no-cache`: Disable caching (boolean flag, presence means true).
 
 **Note on Credentials:** It is recommended to create a dedicated API user with appropriate permissions on your Proxmox VE server for enhanced security, rather than using the `root` user. Avoid hardcoding credentials directly in scripts or command history where possible; use a configuration file with appropriate permissions or environment variables.
 
@@ -136,9 +143,34 @@ Launch the application from your terminal:
 *   **Enter**: Select item in a list / Confirm action
 *   **/**: Activate search/filter input
 *   **S**: Open SSH shell for the selected Node
+*   **C**: Access Community Scripts installer for the selected Node/Guest
+*   **M**: Open context menu for the selected Node/Guest
 *   **Q / Ctrl+C**: Quit the application
 
 *(These may evolve, check the application footer for the most up-to-date keybindings)*
+
+### Community Scripts Feature
+
+Proxmox TUI integrates with the [Proxmox Community Scripts](https://github.com/community-scripts/ProxmoxVE) repository, allowing you to browse and install helpful scripts directly to your Proxmox nodes. This feature provides:
+
+* Container templates for quickly setting up LXC containers
+* VM installation scripts
+* Utility scripts for Proxmox management
+* System tools and improvements
+
+This feature requires:
+
+1. SSH access to your Proxmox nodes with the configured `ssh_user`
+2. The user having appropriate permissions on the node to execute scripts
+
+To use this feature:
+
+1. Select a node or guest
+2. Press `C` or open the context menu (press `M`) and select "Install Community Script"
+3. Browse the available script categories and select the script you wish to install
+4. View the script details and confirm the installation
+
+The script will be downloaded directly from the Community Scripts repository and executed on the selected node. For container templates, this will create a new LXC container, and for VM scripts, it will create a new virtual machine.
 
 ## Contributing
 

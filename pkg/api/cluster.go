@@ -20,7 +20,7 @@ type Cluster struct {
 	MemoryTotal float64 `json:"memory_total"`
 	MemoryUsed  float64 `json:"memory_used"`
 	Nodes       []*Node `json:"nodes"`
-	
+
 	// For metrics tracking
 	lastUpdate time.Time
 	mu         sync.RWMutex
@@ -61,10 +61,51 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 	return cluster, nil
 }
 
+// FastGetClusterStatus retrieves only essential cluster status without VM enrichment
+// for fast application startup. VM details will be loaded in the background.
+func (c *Client) FastGetClusterStatus() (*Cluster, error) {
+	cluster := &Cluster{
+		Nodes:      make([]*Node, 0),
+		lastUpdate: time.Now(),
+	}
+
+	// 1. Get basic cluster status
+	if err := c.getClusterBasicStatus(cluster); err != nil {
+		return nil, err
+	}
+
+	// 2. Enrich nodes with their full status data (concurrent)
+	if err := c.enrichNodeStatuses(cluster); err != nil {
+		return nil, err
+	}
+
+	// 3. Get cluster resources for VMs and storage
+	if err := c.processClusterResources(cluster); err != nil {
+		return nil, err
+	}
+
+	// 4. Calculate cluster-wide totals
+	c.calculateClusterTotals(cluster)
+
+	// 5. Store the cluster in the client
+	c.Cluster = cluster
+
+	// 6. Start background VM enrichment
+	go func() {
+		if err := c.EnrichVMs(cluster); err != nil {
+			config.DebugLog("[BACKGROUND] Error enriching VM data: %v", err)
+		} else {
+			config.DebugLog("[BACKGROUND] Successfully enriched VM data")
+		}
+	}()
+
+	return cluster, nil
+}
+
 // getClusterBasicStatus retrieves basic cluster info and node list
 func (c *Client) getClusterBasicStatus(cluster *Cluster) error {
 	var statusResp map[string]interface{}
-	if err := c.GetWithCache("/cluster/status", &statusResp); err != nil {
+	if err := c.GetWithCache("/cluster/status", &statusResp, ClusterDataTTL); err != nil {
 		return fmt.Errorf("failed to get cluster status: %w", err)
 	}
 
@@ -165,7 +206,7 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 // processClusterResources handles storage and VM data from cluster resources
 func (c *Client) processClusterResources(cluster *Cluster) error {
 	var resourcesResp map[string]interface{}
-	if err := c.GetWithCache("/cluster/resources", &resourcesResp); err != nil {
+	if err := c.GetWithCache("/cluster/resources", &resourcesResp, ResourceDataTTL); err != nil {
 		return fmt.Errorf("failed to get cluster resources: %w", err)
 	}
 

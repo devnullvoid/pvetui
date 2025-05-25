@@ -4,34 +4,30 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/cache"
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui"
 )
 
 func main() {
-	// Set defaults from environment
-	defaultAddr := os.Getenv("PROXMOX_ADDR")
-	defaultUser := os.Getenv("PROXMOX_USER")
-	defaultPassword := os.Getenv("PROXMOX_PASSWORD")
-	defaultInsecure := strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true"
-	defaultAPIPath := os.Getenv("PROXMOX_API_PATH")
-	if defaultAPIPath == "" {
-		defaultAPIPath = "/api2/json"
-	}
-
+	// Get configuration from environment and command-line flags
 	cfg := config.NewConfig()
 
-	flag.StringVar(&cfg.Addr, "addr", defaultAddr, "Proxmox API URL (env PROXMOX_ADDR)")
-	flag.StringVar(&cfg.User, "user", defaultUser, "Proxmox username (env PROXMOX_USER)")
-	flag.StringVar(&cfg.Password, "password", defaultPassword, "Proxmox password (env PROXMOX_PASSWORD)")
-	flag.BoolVar(&cfg.Insecure, "insecure", defaultInsecure, "Skip TLS verification (env PROXMOX_INSECURE)")
-	flag.StringVar(&cfg.APIPath, "api-path", defaultAPIPath, "Proxmox API path (env PROXMOX_API_PATH)")
-	flag.StringVar(&cfg.SSHUser, "ssh-user", os.Getenv("PROXMOX_SSH_USER"), "SSH username (env PROXMOX_SSH_USER)")
-	debugMode := flag.Bool("debug", false, "Enable debug logging (env PROXMOX_DEBUG)")
+	// Parse command-line flags
+	cfg.ParseFlags()
+
+	// Flag for config file path
 	configPath := flag.String("config", "", "Path to YAML config file")
+
+	// Special flags not in the config struct
+	noCacheFlag := flag.Bool("no-cache", false, "Disable caching")
+
+	// Parse flags
 	flag.Parse()
 
 	// Load config file first if provided
@@ -39,11 +35,38 @@ func main() {
 		if err := cfg.MergeWithFile(*configPath); err != nil {
 			log.Fatalf("Error loading config file: %v", err)
 		}
+		// Add debug output to check SSH user value
+		log.Printf("[DEBUG] Config loaded from file: SSH user = '%s'", cfg.SSHUser)
 	}
 
-	// Set debug mode from config and flag
-	config.DebugEnabled = cfg.Debug || *debugMode
+	// Set defaults after merging config file
+	cfg.SetDefaults()
+
+	// Set debug mode from config
+	config.DebugEnabled = cfg.Debug
 	config.DebugLog("Debug mode enabled")
+
+	// Initialize cache system
+	if !*noCacheFlag {
+		config.DebugLog("Initializing cache in %s", cfg.CacheDir)
+		if err := cache.InitGlobalCache(cfg.CacheDir); err != nil {
+			log.Printf("Warning: Failed to initialize cache: %v", err)
+			// Continue without persistent cache, we'll fall back to in-memory cache
+		}
+
+		// Verify the cache type in use
+		_, isBadger := cache.GetBadgerCache()
+		if isBadger {
+			config.DebugLog("Using BadgerDB cache for persistence")
+		} else {
+			config.DebugLog("Using file-based cache for persistence")
+		}
+	} else {
+		config.DebugLog("Caching disabled with --no-cache flag")
+	}
+
+	// Set up a graceful shutdown to close the BadgerDB
+	setupGracefulShutdown()
 
 	// Now validate required fields
 	if err := cfg.Validate(); err != nil {
@@ -51,7 +74,7 @@ func main() {
 	}
 
 	// Construct full API URL
-	apiURL := strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.APIPath, "/")
+	apiURL := strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.ApiPath, "/")
 	config.DebugLog("Creating API client for %s", apiURL)
 	client, err := api.NewClient(apiURL, cfg.User, cfg.Password, cfg.Realm, cfg.Insecure)
 	if err != nil {
@@ -61,5 +84,31 @@ func main() {
 	// Run the application using the component-based UI architecture
 	if err := ui.RunApp(client, cfg); err != nil {
 		log.Fatalf("Error running app: %v", err)
+	}
+
+	// Ensure BadgerDB is properly closed on exit
+	closeBadgerDB()
+}
+
+// setupGracefulShutdown sets up signal handling to ensure proper cleanup on exit
+func setupGracefulShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		config.DebugLog("Shutting down gracefully...")
+		closeBadgerDB()
+		os.Exit(0)
+	}()
+}
+
+// closeBadgerDB closes the BadgerDB if it's being used
+func closeBadgerDB() {
+	badgerCache, ok := cache.GetBadgerCache()
+	if ok {
+		config.DebugLog("Closing BadgerDB...")
+		if err := badgerCache.Close(); err != nil {
+			log.Printf("Error closing BadgerDB: %v", err)
+		}
 	}
 }

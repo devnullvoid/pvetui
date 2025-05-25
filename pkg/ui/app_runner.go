@@ -7,7 +7,7 @@ import (
 )
 
 // RunApp creates and starts the application using the component-based architecture
-func RunApp(client *api.Client, cfg config.Config) error {
+func RunApp(client *api.Client, cfg *config.Config) error {
 	app := components.NewApp(client, cfg)
 	return app.Run()
-} 
+}

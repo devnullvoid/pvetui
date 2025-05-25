@@ -3,20 +3,20 @@ package api
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/devnullvoid/proxmox-tui/pkg/config"
 )
 
 // NetworkInterfaceStatistics represents network interface statistics from QEMU guest agent
 type NetworkInterfaceStatistics struct {
-	RxBytes    int64 `json:"rx-bytes"`
-	RxDropped  int64 `json:"rx-dropped"`
-	RxErrors   int64 `json:"rx-errs"`
-	RxPackets  int64 `json:"rx-packets"`
-	TxBytes    int64 `json:"tx-bytes"`
-	TxDropped  int64 `json:"tx-dropped"`
-	TxErrors   int64 `json:"tx-errs"`
-	TxPackets  int64 `json:"tx-packets"`
+	RxBytes   int64 `json:"rx-bytes"`
+	RxDropped int64 `json:"rx-dropped"`
+	RxErrors  int64 `json:"rx-errs"`
+	RxPackets int64 `json:"rx-packets"`
+	TxBytes   int64 `json:"tx-bytes"`
+	TxDropped int64 `json:"tx-dropped"`
+	TxErrors  int64 `json:"tx-errs"`
+	TxPackets int64 `json:"tx-packets"`
 }
 
 // IPAddress represents an IP address from QEMU guest agent
@@ -28,11 +28,11 @@ type IPAddress struct {
 
 // NetworkInterface represents a network interface from QEMU guest agent
 type NetworkInterface struct {
-	Name            string                   `json:"name"`
-	MACAddress      string                   `json:"hardware-address"`
-	IPAddresses     []IPAddress              `json:"ip-addresses"`
-	Statistics      NetworkInterfaceStatistics `json:"statistics"`
-	IsLoopback      bool                     `json:"-"` // Determined by name (lo)
+	Name        string                     `json:"name"`
+	MACAddress  string                     `json:"hardware-address"`
+	IPAddresses []IPAddress                `json:"ip-addresses"`
+	Statistics  NetworkInterfaceStatistics `json:"statistics"`
+	IsLoopback  bool                       `json:"-"` // Determined by name (lo)
 }
 
 // GetGuestAgentInterfaces retrieves network interface information from the QEMU guest agent
@@ -43,8 +43,8 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/network-get-interfaces", vm.Node, vm.ID)
-	
-	if err := c.Get(endpoint, &res); err != nil {
+
+	if err := c.GetWithCache(endpoint, &res, VMDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get network interfaces from guest agent: %w", err)
 	}
 
@@ -59,25 +59,25 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 	}
 
 	var interfaces []NetworkInterface
-	
+
 	for _, iface := range resultArray {
 		ifaceMap, ok := iface.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		
+
 		netInterface := NetworkInterface{}
-		
+
 		// Get interface name and MAC address
 		if name, ok := ifaceMap["name"].(string); ok {
 			netInterface.Name = name
 			netInterface.IsLoopback = name == "lo" || strings.HasPrefix(name, "lo:")
 		}
-		
+
 		if mac, ok := ifaceMap["hardware-address"].(string); ok {
 			netInterface.MACAddress = mac
 		}
-		
+
 		// Parse IP addresses
 		if ipAddresses, ok := ifaceMap["ip-addresses"].([]interface{}); ok {
 			for _, ipData := range ipAddresses {
@@ -85,25 +85,25 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 				if !ok {
 					continue
 				}
-				
+
 				ipAddress := IPAddress{}
-				
+
 				if addr, ok := ipMap["ip-address"].(string); ok {
 					ipAddress.Address = addr
 				}
-				
+
 				if ipType, ok := ipMap["ip-address-type"].(string); ok {
 					ipAddress.Type = ipType
 				}
-				
+
 				if prefix, ok := ipMap["prefix"].(float64); ok {
 					ipAddress.Prefix = int(prefix)
 				}
-				
+
 				netInterface.IPAddresses = append(netInterface.IPAddresses, ipAddress)
 			}
 		}
-		
+
 		// Parse statistics
 		if stats, ok := ifaceMap["statistics"].(map[string]interface{}); ok {
 			if rxBytes, ok := stats["rx-bytes"].(float64); ok {
@@ -131,10 +131,10 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 				netInterface.Statistics.TxPackets = int64(txPackets)
 			}
 		}
-		
+
 		interfaces = append(interfaces, netInterface)
 	}
-	
+
 	return interfaces, nil
 }
 
@@ -147,11 +147,11 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 	var apiResponse map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/lxc/%d/interfaces", vm.Node, vm.ID)
 
-	if err := c.Get(endpoint, &apiResponse); err != nil {
+	if err := c.GetWithCache(endpoint, &apiResponse, VMDataTTL); err != nil {
 		// Based on previous handling, API might return 500 if feature not available or container stopped.
 		// Treat this as "no interfaces found" rather than a hard error for GetVmStatus.
 		config.DebugLog("Failed to get LXC interfaces for VM %d on node %s (may be expected): %v", vm.ID, vm.Node, err)
-		return nil, nil 
+		return nil, nil
 	}
 
 	responseData, ok := apiResponse["data"].([]interface{})
@@ -209,7 +209,7 @@ func GetFirstNonLoopbackIP(interfaces []NetworkInterface, preferIPv4 bool) strin
 		if iface.IsLoopback {
 			continue
 		}
-		
+
 		for _, ip := range iface.IPAddresses {
 			if preferIPv4 && ip.Type == "ipv4" {
 				return ip.Address
@@ -218,18 +218,18 @@ func GetFirstNonLoopbackIP(interfaces []NetworkInterface, preferIPv4 bool) strin
 			}
 		}
 	}
-	
+
 	// If not found, look for any non-loopback IP
 	for _, iface := range interfaces {
 		if iface.IsLoopback {
 			continue
 		}
-		
+
 		for _, ip := range iface.IPAddresses {
 			return ip.Address
 		}
 	}
-	
+
 	return ""
 }
 

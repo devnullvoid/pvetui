@@ -1,0 +1,436 @@
+package components
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/scripts"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
+
+// ScriptSelector represents a modal dialog for selecting and running community scripts
+type ScriptSelector struct {
+	*tview.Modal
+	app          *App
+	user         string
+	nodeIP       string
+	node         *api.Node
+	vm           *api.VM
+	categories   []scripts.ScriptCategory
+	scripts      []scripts.Script
+	categoryList *tview.List
+	scriptList   *tview.List
+	layout       *tview.Flex
+	pages        *tview.Pages
+	isForNode    bool
+}
+
+// NewScriptSelector creates a new script selector dialog
+func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *ScriptSelector {
+	selector := &ScriptSelector{
+		app:        app,
+		user:       user,
+		node:       node,
+		vm:         vm,
+		nodeIP:     node.IP,
+		isForNode:  vm == nil,
+		categories: scripts.GetScriptCategories(),
+		Modal:      tview.NewModal(),
+	}
+
+	// Create the category list
+	selector.categoryList = tview.NewList().
+		ShowSecondaryText(true).
+		SetHighlightFullLine(true).
+		SetSelectedBackgroundColor(tcell.ColorDarkBlue).
+		SetSelectedTextColor(tcell.ColorWhite)
+
+	// Add categories to the list
+	for i, category := range selector.categories {
+		selector.categoryList.AddItem(
+			category.Name,
+			category.Description,
+			rune('a'+i),
+			func() {
+				// Get the selected category
+				idx := selector.categoryList.GetCurrentItem()
+				if idx >= 0 && idx < len(selector.categories) {
+					category := selector.categories[idx]
+
+					// Set the focus to the loading page while fetching scripts
+					selector.pages.SwitchToPage("loading")
+
+					// Fetch scripts in a goroutine to avoid blocking the UI
+					go selector.fetchScriptsForCategory(category)
+				}
+			},
+		)
+	}
+
+	// Create the script list
+	selector.scriptList = tview.NewList().
+		ShowSecondaryText(true).
+		SetHighlightFullLine(true).
+		SetSelectedBackgroundColor(tcell.ColorDarkBlue).
+		SetSelectedTextColor(tcell.ColorWhite)
+
+	// Create a loading indicator page
+	loadingText := tview.NewTextView().
+		SetText("Fetching scripts...").
+		SetTextAlign(tview.AlignCenter)
+
+	// Create a back button for the script list
+	backButton := tview.NewButton("Back").
+		SetSelectedFunc(func() {
+			selector.pages.SwitchToPage("categories")
+		})
+
+	// Set up input capture for script list to handle Escape key
+	selector.scriptList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			selector.pages.SwitchToPage("categories")
+			return nil
+		}
+		return event
+	})
+
+	// Set up input capture for category list to handle Escape key
+	selector.categoryList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			app.pages.RemovePage("scriptSelector")
+			return nil
+		}
+		return event
+	})
+
+	// Create pages to switch between category and script lists
+	selector.pages = tview.NewPages()
+
+	// Set up the category page with title
+	categoryPage := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(tview.NewTextView().
+			SetText("Select a Script Category").
+			SetTextAlign(tview.AlignCenter), 1, 0, false).
+		AddItem(selector.categoryList, 0, 1, true)
+
+	// Set up the script page with title and back button
+	scriptPage := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(tview.NewTextView().
+			SetText("Select a Script to Install").
+			SetTextAlign(tview.AlignCenter), 1, 0, false).
+		AddItem(selector.scriptList, 0, 1, true).
+		AddItem(backButton, 1, 0, false)
+
+	// Create loading page
+	loadingPage := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(nil, 0, 1, false).
+		AddItem(loadingText, 3, 0, false).
+		AddItem(nil, 0, 1, false)
+
+	// Add pages
+	selector.pages.AddPage("categories", categoryPage, true, true)
+	selector.pages.AddPage("scripts", scriptPage, true, false)
+	selector.pages.AddPage("loading", loadingPage, true, false)
+
+	// Create a box with a border for the selector
+	mainBox := tview.NewBox().
+		SetBorder(true).
+		SetTitle(" Script Selection ").
+		SetTitleColor(tcell.ColorYellow).
+		SetBorderColor(tcell.ColorBlue)
+
+	// Create the main layout with proper nesting to display border
+	innerFlex := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(selector.pages, 0, 15, true).
+			AddItem(nil, 0, 1, false), 60, 1, true).
+		AddItem(nil, 0, 1, false)
+
+	// Create the complete layout
+	selector.layout = tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(mainBox, 0, 20, true).
+			AddItem(nil, 0, 1, false), 70, 1, true).
+		AddItem(nil, 0, 1, false)
+
+	// Set up the draw function for the main box
+	mainBox.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		// Draw the inner content inside the box
+		innerFlex.SetRect(x+1, y+1, width-2, height-2)
+		innerFlex.Draw(screen)
+		return -1, -1, -1, -1 // Signal that we've drawn the content ourselves
+	})
+
+	return selector
+}
+
+// fetchScriptsForCategory fetches scripts for the selected category
+func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory) {
+	// Clear the script list
+	s.app.QueueUpdateDraw(func() {
+		s.scriptList.Clear()
+	})
+
+	// Fetch scripts - we no longer need SSH to fetch script list
+	fetchedScripts, err := scripts.GetScriptsByCategory(category.Path)
+	if err != nil {
+		// Show error message
+		s.app.QueueUpdateDraw(func() {
+			s.pages.SwitchToPage("categories")
+			s.app.showMessage(fmt.Sprintf("Error fetching scripts: %v", err))
+		})
+		return
+	}
+
+	// Sort scripts alphabetically by name
+	sort.Slice(fetchedScripts, func(i, j int) bool {
+		return fetchedScripts[i].Name < fetchedScripts[j].Name
+	})
+
+	// Store scripts
+	s.scripts = fetchedScripts
+
+	// Update script list
+	s.app.QueueUpdateDraw(func() {
+		for i, script := range s.scripts {
+			// Create a separate function for each script to avoid closures capturing the loop variable
+			selectFunc := s.createScriptSelectFunc(script)
+
+			// Add more detailed information in the secondary text
+			var secondaryText string
+			if script.Type == "ct" {
+				secondaryText = fmt.Sprintf("Container: %s", script.Description)
+			} else if script.Type == "vm" {
+				secondaryText = fmt.Sprintf("VM: %s", script.Description)
+			} else {
+				secondaryText = script.Description
+			}
+
+			// Truncate description if too long
+			if len(secondaryText) > 70 {
+				secondaryText = secondaryText[:67] + "..."
+			}
+
+			s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), selectFunc)
+		}
+		s.pages.SwitchToPage("scripts")
+	})
+}
+
+// createScriptSelectFunc creates a script selection handler for a specific script
+func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
+	return func() {
+		// Create a detailed script info modal with scrollable content
+		infoText := tview.NewTextView().
+			SetText(s.formatScriptInfo(script)).
+			SetDynamicColors(true).
+			SetWordWrap(true)
+
+		// Add scrolling capability
+		infoText.SetScrollable(true)
+
+		// Create form for the buttons with proper styling
+		buttonForm := tview.NewForm().
+			AddButton("Install", func() {
+				s.app.pages.RemovePage("scriptInfo")
+				// Perform script installation in a goroutine
+				go s.installScript(script)
+			}).
+			AddButton("Cancel", func() {
+				s.app.pages.RemovePage("scriptInfo")
+			})
+
+		// Style the form to match the UI
+		buttonForm.
+			SetButtonsAlign(tview.AlignCenter).
+			SetButtonBackgroundColor(tcell.ColorLightCyan).
+			SetButtonTextColor(tcell.ColorBlack).
+			SetBackgroundColor(tcell.ColorDefault).
+			SetBorder(false)
+
+		// Create a flex for the content
+		contentFlex := tview.NewFlex().
+			SetDirection(tview.FlexRow).
+			AddItem(tview.NewTextView().
+				SetText(fmt.Sprintf(" %s Details ", script.Name)).
+				SetTextAlign(tview.AlignCenter).
+				SetTextColor(tcell.ColorYellow), 1, 0, false).
+			AddItem(infoText, 0, 1, true).
+			AddItem(buttonForm, 3, 0, false)
+
+		// Create a box with a border for the modal
+		modalBox := tview.NewBox().
+			SetBorder(true).
+			SetTitle(" Script Details ").
+			SetTitleColor(tcell.ColorYellow).
+			SetBorderColor(tcell.ColorBlue)
+
+		// Create a primitive that captures input
+		modalWrapper := tview.NewFlex()
+		modalWrapper.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Key() {
+			case tcell.KeyTab:
+				// Cycle focus between info text and buttons
+				if s.app.GetFocus() == infoText {
+					s.app.SetFocus(buttonForm)
+					return nil
+				} else if s.app.GetFocus() == buttonForm {
+					s.app.SetFocus(infoText)
+					return nil
+				}
+			case tcell.KeyEscape:
+				s.app.pages.RemovePage("scriptInfo")
+				return nil
+			}
+			return event
+		})
+
+		// Create the centered modal
+		modalFlex := tview.NewFlex().
+			AddItem(nil, 0, 1, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(nil, 0, 1, false).
+				AddItem(modalBox, 0, 20, true).
+				AddItem(nil, 0, 1, false), 70, 1, true).
+			AddItem(nil, 0, 1, false)
+
+		// Set the draw function to properly display content within the border
+		modalBox.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+			// Draw the content inside the box
+			contentFlex.SetRect(x+1, y+1, width-2, height-2)
+			contentFlex.Draw(screen)
+			return -1, -1, -1, -1 // We've drawn the content
+		})
+
+		// Add the modal wrapper
+		modalWrapper.AddItem(modalFlex, 0, 1, true)
+
+		// Show the info modal
+		s.app.pages.AddPage("scriptInfo", modalWrapper, true, true)
+
+		// Set initial focus on text view so user can scroll
+		s.app.SetFocus(infoText)
+	}
+}
+
+// formatScriptInfo formats the script information for display
+func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("[yellow]Name:[white] %s\n\n", script.Name))
+	sb.WriteString(fmt.Sprintf("[yellow]Description:[white] %s\n\n", script.Description))
+
+	if script.Type == "ct" {
+		sb.WriteString("[yellow]Type:[white] Container Template\n")
+	} else if script.Type == "vm" {
+		sb.WriteString("[yellow]Type:[white] Virtual Machine\n")
+	} else {
+		sb.WriteString(fmt.Sprintf("[yellow]Type:[white] %s\n", script.Type))
+	}
+
+	if script.ScriptPath != "" {
+		sb.WriteString(fmt.Sprintf("[yellow]Script Path:[white] %s\n", script.ScriptPath))
+	}
+
+	if script.Website != "" {
+		sb.WriteString(fmt.Sprintf("[yellow]Website:[white] %s\n", script.Website))
+	}
+
+	if script.Documentation != "" {
+		sb.WriteString(fmt.Sprintf("[yellow]Documentation:[white] %s\n", script.Documentation))
+	}
+
+	if script.DateCreated != "" {
+		sb.WriteString(fmt.Sprintf("[yellow]Date Created:[white] %s\n", script.DateCreated))
+	}
+
+	sb.WriteString(fmt.Sprintf("\n[yellow]Target:[white] Node %s\n", s.node.Name))
+	if s.vm != nil {
+		sb.WriteString(fmt.Sprintf("[yellow]Context:[white] VM %s\n", s.vm.Name))
+	}
+
+	sb.WriteString("\n[yellow]Note:[white] This will execute the script on the selected node via SSH.")
+	if script.Type == "ct" {
+		sb.WriteString(" This will create a new LXC container.")
+	} else if script.Type == "vm" {
+		sb.WriteString(" This will create a new virtual machine.")
+	}
+
+	return sb.String()
+}
+
+// installScript installs the selected script
+func (s *ScriptSelector) installScript(script scripts.Script) {
+	// Create a progress modal
+	progressModal := tview.NewModal().
+		SetText(fmt.Sprintf("Installing %s...", script.Name)).
+		AddButtons([]string{}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {})
+
+	// Show the progress modal
+	s.app.QueueUpdateDraw(func() {
+		s.app.pages.AddPage("scriptProgress", progressModal, true, true)
+	})
+
+	// Install the script - this is where we actually need SSH
+	err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
+
+	// Handle the result
+	s.app.QueueUpdateDraw(func() {
+		// Remove the progress modal
+		s.app.pages.RemovePage("scriptProgress")
+
+		// Remove the script selector
+		s.app.pages.RemovePage("scriptSelector")
+
+		if err != nil {
+			// Create an error modal with more details
+			errorModal := tview.NewModal().
+				SetText(fmt.Sprintf("Script installation failed: %v", err)).
+				AddButtons([]string{"OK"}).
+				SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+					s.app.pages.RemovePage("scriptError")
+				})
+			s.app.pages.AddPage("scriptError", errorModal, true, true)
+		} else {
+			// Create a success modal
+			successModal := tview.NewModal().
+				SetText(fmt.Sprintf("%s installed successfully!\n\nYou may need to refresh your node/guest list to see any new resources.", script.Name)).
+				AddButtons([]string{"OK"}).
+				SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+					s.app.pages.RemovePage("scriptSuccess")
+				})
+			s.app.pages.AddPage("scriptSuccess", successModal, true, true)
+		}
+	})
+}
+
+// Show displays the script selector
+func (s *ScriptSelector) Show() {
+	// Ensure we have a valid node IP
+	if s.nodeIP == "" {
+		s.app.showMessage("Node IP address not available. Cannot connect to install scripts.")
+		return
+	}
+
+	// We still need SSH connection for script execution, so validate it
+	err := scripts.ValidateConnection(s.user, s.nodeIP)
+	if err != nil {
+		s.app.showMessage(fmt.Sprintf("SSH connection failed: %v", err))
+		return
+	}
+
+	// Add the selector to the pages
+	s.app.pages.AddPage("scriptSelector", s.layout, true, true)
+	s.app.SetFocus(s.categoryList)
+}

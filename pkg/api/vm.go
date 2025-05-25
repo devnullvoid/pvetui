@@ -67,7 +67,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", vm.Node, vm.Type, vm.ID)
-	if err := c.GetWithCache(endpoint, &res); err != nil {
+	if err := c.GetWithCache(endpoint, &res, VMDataTTL); err != nil {
 		return err
 	}
 
@@ -156,7 +156,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		// Get VM config to identify configured MAC addresses
 		var configRes map[string]interface{}
 		configEndpoint := fmt.Sprintf("/nodes/%s/qemu/%d/config", vm.Node, vm.ID)
-		if err := c.GetWithCache(configEndpoint, &configRes); err == nil {
+		if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err == nil {
 			if configData, ok := configRes["data"].(map[string]interface{}); ok {
 				populateConfiguredMACs(vm, configData)
 				// Populate AgentEnabled from config
@@ -306,7 +306,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		// Get LXC config to identify configured MAC addresses (if any, often not explicitly set for LXC ethX)
 		var configRes map[string]interface{}
 		configEndpoint := fmt.Sprintf("/nodes/%s/lxc/%d/config", vm.Node, vm.ID)
-		if err := c.GetWithCache(configEndpoint, &configRes); err == nil {
+		if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err == nil {
 			if configData, ok := configRes["data"].(map[string]interface{}); ok {
 				populateConfiguredMACs(vm, configData)
 			}
@@ -426,7 +426,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 	// Get status information
 	var statusRes map[string]interface{}
 	statusEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", node, vmType, vmid)
-	if err := c.GetWithCache(statusEndpoint, &statusRes); err != nil {
+	if err := c.GetWithCache(statusEndpoint, &statusRes, VMDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get VM status: %w", err)
 	}
 
@@ -438,7 +438,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 	// Get config information
 	var configRes map[string]interface{}
 	configEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", node, vmType, vmid)
-	if err := c.GetWithCache(configEndpoint, &configRes); err != nil {
+	if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get VM config: %w", err)
 	}
 
@@ -587,8 +587,11 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 
 // EnrichVMs enriches all VMs in the cluster with detailed status information
 func (c *Client) EnrichVMs(cluster *Cluster) error {
+	const maxConcurrentRequests = 5 // Limit concurrent API requests
+
 	var wg sync.WaitGroup
 	errChan := make(chan error, 100) // Buffer for potential errors
+	vmChan := make(chan *VM, 100)    // Channel for VM tasks
 
 	// Count total VMs for error channel sizing
 	totalVMs := 0
@@ -614,21 +617,12 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 		close(done)
 	}()
 
-	// Process each node's VMs concurrently
-	for _, node := range cluster.Nodes {
-		if !node.Online || node.VMs == nil {
-			continue
-		}
-
-		for i := range node.VMs {
-			if node.VMs[i].Status != "running" {
-				continue // Only enrich running VMs to avoid API overhead
-			}
-
-			wg.Add(1)
-			go func(vm *VM) {
-				defer wg.Done()
-
+	// Start workers with limited concurrency
+	for i := 0; i < maxConcurrentRequests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for vm := range vmChan {
 				// Store the current disk usage values from /cluster/resources
 				diskUsage := vm.Disk
 				maxDiskUsage := vm.MaxDisk
@@ -646,9 +640,26 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 				}
 
 				errChan <- err
-			}(node.VMs[i])
+			}
+		}()
+	}
+
+	// Queue VMs for processing
+	for _, node := range cluster.Nodes {
+		if !node.Online || node.VMs == nil {
+			continue
+		}
+
+		for i := range node.VMs {
+			if node.VMs[i].Status != "running" {
+				continue // Only enrich running VMs to avoid API overhead
+			}
+			vmChan <- node.VMs[i]
 		}
 	}
+
+	// Close VM channel to signal workers that all tasks are queued
+	close(vmChan)
 
 	// Wait for all goroutines to complete
 	wg.Wait()
@@ -689,7 +700,7 @@ func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/get-fsinfo", vm.Node, vm.ID)
 
-	if err := c.Get(endpoint, &res); err != nil {
+	if err := c.GetWithCache(endpoint, &res, VMDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get filesystem info from guest agent: %w", err)
 	}
 

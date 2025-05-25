@@ -33,11 +33,11 @@ type App struct {
 }
 
 // NewApp creates a new application instance with all UI components
-func NewApp(client *api.Client, cfg config.Config) *App {
+func NewApp(client *api.Client, cfg *config.Config) *App {
 	app := &App{
 		Application: tview.NewApplication(),
 		client:      client,
-		config:      cfg,
+		config:      *cfg,
 	}
 
 	// Create UI components
@@ -52,7 +52,7 @@ func NewApp(client *api.Client, cfg config.Config) *App {
 
 	// Initialize global state
 	if client.Cluster == nil {
-		if _, err := client.GetClusterStatus(); err != nil {
+		if _, err := client.FastGetClusterStatus(); err != nil {
 			app.header.SetText("Error fetching cluster: " + err.Error())
 			return app
 		}
@@ -176,9 +176,22 @@ func (a *App) setupKeyboardHandlers() {
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
 
+		// Check if any modal page is active
+		pageName, _ := a.pages.GetFrontPage()
+		modalActive := strings.HasPrefix(pageName, "script") ||
+			a.pages.HasPage("scriptInfo") ||
+			a.pages.HasPage("scriptSelector") ||
+			a.pages.HasPage("message") ||
+			a.pages.HasPage("confirmation")
+
 		// If search is active, let the search input handle the keys
 		if searchActive {
 			// Let the search input handle all keys when search is active
+			return event
+		}
+
+		// If a modal dialog is active, let it handle its own keys
+		if modalActive {
 			return event
 		}
 
@@ -235,6 +248,33 @@ func (a *App) setupKeyboardHandlers() {
 					a.showVMContextMenu()
 				}
 				return nil
+			} else if event.Rune() == 'c' || event.Rune() == 'C' {
+				// Open community scripts installer based on current page
+				currentPage, _ := a.pages.GetFrontPage()
+				if currentPage == "Nodes" {
+					node := a.nodeList.GetSelectedNode()
+					if node != nil {
+						a.openScriptSelector(node, nil)
+					}
+				} else if currentPage == "Guests" {
+					vm := a.vmList.GetSelectedVM()
+					if vm != nil {
+						// Find the node for this VM
+						var node *api.Node
+						for _, n := range a.client.Cluster.Nodes {
+							if n.Name == vm.Node {
+								node = n
+								break
+							}
+						}
+						if node != nil {
+							a.openScriptSelector(node, vm)
+						} else {
+							a.showMessage("Could not find host node for VM")
+						}
+					}
+				}
+				return nil
 			}
 		}
 		return event
@@ -253,6 +293,22 @@ func (a *App) showMessage(message string) {
 	a.pages.AddPage("message", modal, false, true)
 }
 
+// showConfirmationDialog displays a confirmation dialog with Yes/No options
+func (a *App) showConfirmationDialog(message string, onConfirm func()) {
+	modal := tview.NewModal().
+		SetText(message).
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.pages.RemovePage("confirmation")
+			if buttonIndex == 0 {
+				// Yes was selected
+				onConfirm()
+			}
+		})
+
+	a.pages.AddPage("confirmation", modal, false, true)
+}
+
 // showNodeContextMenu displays the context menu for node actions
 func (a *App) showNodeContextMenu() {
 	node := a.nodeList.GetSelectedNode()
@@ -267,6 +323,7 @@ func (a *App) showNodeContextMenu() {
 	menuItems := []string{
 		"Open Shell",
 		"View Logs",
+		"Install Community Script",
 	}
 
 	// Create and show context menu
@@ -276,6 +333,8 @@ func (a *App) showNodeContextMenu() {
 			a.openNodeShell()
 		case "View Logs":
 			a.showMessage("Viewing logs for node: " + node.Name)
+		case "Install Community Script":
+			a.openScriptSelector(node, nil)
 		}
 	})
 	menu.SetApp(a)
@@ -318,6 +377,9 @@ func (a *App) showVMContextMenu() {
 		menuItems = append(menuItems, "Start")
 	}
 
+	// Add community script option (always available)
+	menuItems = append(menuItems, "Install Community Script")
+
 	// Create and show context menu
 	menu := NewContextMenu(" Guest Actions ", menuItems, func(index int, action string) {
 		switch action {
@@ -329,6 +391,20 @@ func (a *App) showVMContextMenu() {
 			a.performVMOperation(vm, a.client.StopVM, "Shutting down")
 		case "Restart":
 			a.performVMOperation(vm, a.client.RestartVM, "Restarting")
+		case "Install Community Script":
+			// Find the node for this VM
+			var node *api.Node
+			for _, n := range a.client.Cluster.Nodes {
+				if n.Name == vm.Node {
+					node = n
+					break
+				}
+			}
+			if node != nil {
+				a.openScriptSelector(node, vm)
+			} else {
+				a.showMessage("Could not find host node for VM")
+			}
 		}
 	})
 	menu.SetApp(a)
@@ -347,6 +423,17 @@ func (a *App) showVMContextMenu() {
 			AddItem(nil, 0, 1, false), 30, 1, true).
 		AddItem(nil, 0, 1, false), true, true)
 	a.SetFocus(menuList)
+}
+
+// openScriptSelector opens the script selector dialog
+func (a *App) openScriptSelector(node *api.Node, vm *api.VM) {
+	if a.config.SSHUser == "" {
+		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+		return
+	}
+
+	selector := NewScriptSelector(a, node, vm, a.config.SSHUser)
+	selector.Show()
 }
 
 // performVMOperation performs an asynchronous VM operation and shows status message
@@ -398,5 +485,51 @@ func (a *App) closeContextMenu() {
 
 // Run starts the application
 func (a *App) Run() error {
+	// Setup a background worker to periodically refresh data
+	go a.backgroundRefresh()
+
+	// Start the app
 	return a.Application.Run()
+}
+
+// backgroundRefresh periodically refreshes data and updates UI components
+func (a *App) backgroundRefresh() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	// Set up a handler for UI updates
+	updateHandler := func() {
+		a.QueueUpdateDraw(func() {
+			// Update component data
+			a.clusterStatus.Update(a.client.Cluster)
+			a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+			a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+
+			// Update details if items are selected
+			if node := a.nodeList.GetSelectedNode(); node != nil {
+				a.nodeDetails.Update(node, a.client.Cluster.Nodes)
+			}
+
+			if vm := a.vmList.GetSelectedVM(); vm != nil {
+				a.vmDetails.Update(vm)
+			}
+		})
+	}
+
+	// Immediate first update after 2 seconds (let background loading complete)
+	time.AfterFunc(2*time.Second, updateHandler)
+
+	// Then periodic updates
+	for range ticker.C {
+		// Refresh cluster data
+		if _, err := a.client.GetClusterStatus(); err != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.SetText(fmt.Sprintf("Error refreshing: %v", err))
+			})
+			continue
+		}
+
+		// Update the UI with fresh data
+		updateHandler()
+	}
 }
