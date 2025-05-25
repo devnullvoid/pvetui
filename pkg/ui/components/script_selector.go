@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/scripts"
@@ -73,11 +72,6 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		SetSelectedBackgroundColor(tcell.ColorBlue).
 		SetSelectedTextColor(tcell.ColorWhite)
 
-	// Create a loading indicator page
-	loadingText := tview.NewTextView().
-		SetText("Fetching scripts...").
-		SetTextAlign(tview.AlignCenter)
-
 	// Create a back button for the script list
 	selector.backButton = tview.NewButton("Back").
 		SetSelectedFunc(func() {
@@ -107,22 +101,14 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	scriptPage := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(tview.NewTextView().
-			SetText("Select a Script to Install (Backspace: Back)").
-			SetTextAlign(tview.AlignCenter), 1, 0, false).
-		AddItem(selector.scriptList, 0, 1, true).
+								SetText("Select a Script to Install (Backspace: Back)").
+								SetTextAlign(tview.AlignCenter), 1, 0, false).
+		AddItem(selector.scriptList, 18, 0, true). // Fixed height of 18 rows
 		AddItem(backButtonContainer, 1, 0, false)
-
-	// Create loading page
-	loadingPage := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(nil, 0, 1, false).
-		AddItem(loadingText, 3, 0, false).
-		AddItem(nil, 0, 1, false)
 
 	// Add pages
 	selector.pages.AddPage("categories", categoryPage, true, true)
 	selector.pages.AddPage("scripts", scriptPage, true, false)
-	selector.pages.AddPage("loading", loadingPage, true, false)
 
 	// Set border and title directly on the pages component
 	selector.pages.SetBorder(true).
@@ -135,8 +121,8 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(selector.pages, 20, 1, true).
-			AddItem(nil, 0, 1, false), 70, 1, true).
+			AddItem(selector.pages, 22, 0, true).
+			AddItem(nil, 0, 1, false), 80, 0, true).
 		AddItem(nil, 0, 1, false)
 
 	return selector
@@ -144,59 +130,80 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 
 // fetchScriptsForCategory fetches scripts for the selected category
 func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory) {
-	// Fetch scripts in a goroutine to avoid blocking the UI
-	go func() {
-		// Fetch scripts - we no longer need SSH to fetch script list
-		fetchedScripts, err := scripts.GetScriptsByCategory(category.Path)
-		if err != nil {
-			// Show error message
-			s.app.QueueUpdateDraw(func() {
-				s.pages.SwitchToPage("categories")
-				s.app.SetFocus(s.categoryList)
-				s.app.showMessage(fmt.Sprintf("Error fetching scripts: %v", err))
-			})
-			return
+	// Fetch scripts synchronously - no need for goroutine since we're just reading local definitions
+	fetchedScripts, err := scripts.GetScriptsByCategory(category.Path)
+	if err != nil {
+		// Show error message
+		s.pages.SwitchToPage("categories")
+		s.app.SetFocus(s.categoryList)
+		s.app.showMessage(fmt.Sprintf("Error fetching scripts: %v", err))
+		return
+	}
+
+	// Sort scripts alphabetically by name
+	sort.Slice(fetchedScripts, func(i, j int) bool {
+		return fetchedScripts[i].Name < fetchedScripts[j].Name
+	})
+
+	// Store scripts
+	s.scripts = fetchedScripts
+
+	// Clear the existing script list
+	s.scriptList.Clear()
+
+	// Add scripts to the existing list
+	for i, script := range s.scripts {
+		// Add more detailed information in the secondary text
+		var secondaryText string
+		if script.Type == "ct" {
+			secondaryText = fmt.Sprintf("Container: %s", script.Description)
+		} else if script.Type == "vm" {
+			secondaryText = fmt.Sprintf("VM: %s", script.Description)
+		} else {
+			secondaryText = script.Description
 		}
 
-		// Sort scripts alphabetically by name
-		sort.Slice(fetchedScripts, func(i, j int) bool {
-			return fetchedScripts[i].Name < fetchedScripts[j].Name
-		})
+		// Truncate description if too long
+		if len(secondaryText) > 70 {
+			secondaryText = secondaryText[:67] + "..."
+		}
 
-		// Store scripts
-		s.scripts = fetchedScripts
+		// Add item without selection function - we handle Enter manually
+		s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), nil)
+	}
 
-		// Update script list on the UI thread - do everything in one atomic update
-		s.app.QueueUpdateDraw(func() {
-			// Clear the script list
-			s.scriptList.Clear()
-
-			// Add scripts to the list
-			for i, script := range s.scripts {
-				// Add more detailed information in the secondary text
-				var secondaryText string
-				if script.Type == "ct" {
-					secondaryText = fmt.Sprintf("Container: %s", script.Description)
-				} else if script.Type == "vm" {
-					secondaryText = fmt.Sprintf("VM: %s", script.Description)
-				} else {
-					secondaryText = script.Description
+	// Set up input capture on the script list (only once, not every time)
+	if s.scriptList.GetInputCapture() == nil {
+		s.scriptList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
+				// Go back to category list (handle both backspace variants)
+				s.pages.SwitchToPage("categories")
+				s.app.SetFocus(s.categoryList)
+				return nil
+			} else if event.Key() == tcell.KeyEnter {
+				// Manually trigger the script selection
+				idx := s.scriptList.GetCurrentItem()
+				if idx >= 0 && idx < len(s.scripts) {
+					script := s.scripts[idx]
+					selectFunc := s.createScriptSelectFunc(script)
+					if selectFunc != nil {
+						selectFunc()
+					}
 				}
-
-				// Truncate description if too long
-				if len(secondaryText) > 70 {
-					secondaryText = secondaryText[:67] + "..."
-				}
-
-				// Add item without selection function - we handle Enter manually
-				s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), nil)
+				return nil
+			} else if event.Key() == tcell.KeyTab {
+				// Tab to the back button
+				s.app.SetFocus(s.backButton)
+				return nil
 			}
-
-			// Switch to scripts page and set focus - all in one operation
-			s.pages.SwitchToPage("scripts")
-			s.app.SetFocus(s.scriptList)
+			// Let all other keys (including arrows) pass through normally
+			return event
 		})
-	}()
+	}
+
+	// Switch to scripts page and set focus
+	s.pages.SwitchToPage("scripts")
+	s.app.SetFocus(s.scriptList)
 }
 
 // createScriptSelectFunc creates a script selection handler for a specific script
@@ -377,43 +384,12 @@ func (s *ScriptSelector) Show() {
 			idx := s.categoryList.GetCurrentItem()
 			if idx >= 0 && idx < len(s.categories) {
 				category := s.categories[idx]
-				// Add a small delay to ensure UI stability before any operations
-				go func() {
-					// Small delay to prevent UI interference
-					time.Sleep(50 * time.Millisecond)
-					s.fetchScriptsForCategory(category)
-				}()
+				// Try without goroutine to see if that fixes UI distortion
+				s.fetchScriptsForCategory(category)
 			}
 			return nil
 		}
 		// Let arrow keys pass through for navigation
-		return event
-	})
-
-	// Set input capture on script list for backspace navigation, Enter, and Tab
-	s.scriptList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
-			// Go back to category list (handle both backspace variants)
-			s.pages.SwitchToPage("categories")
-			s.app.SetFocus(s.categoryList)
-			return nil
-		} else if event.Key() == tcell.KeyEnter {
-			// Manually trigger the script selection
-			idx := s.scriptList.GetCurrentItem()
-			if idx >= 0 && idx < len(s.scripts) {
-				script := s.scripts[idx]
-				selectFunc := s.createScriptSelectFunc(script)
-				if selectFunc != nil {
-					selectFunc()
-				}
-			}
-			return nil
-		} else if event.Key() == tcell.KeyTab {
-			// Tab to the back button
-			s.app.SetFocus(s.backButton)
-			return nil
-		}
-		// Let all other keys (including arrows) pass through normally
 		return event
 	})
 

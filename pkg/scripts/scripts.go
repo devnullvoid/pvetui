@@ -146,10 +146,15 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 		return nil, fmt.Errorf("failed to parse GitHub response: %w", err)
 	}
 
-	// Filter for JSON files only
+	// Filter for JSON files only, but exclude metadata.json and versions.json
 	var jsonFiles []GitHubContent
 	for _, content := range contents {
 		if content.Type == "file" && strings.HasSuffix(content.Name, ".json") {
+			// Skip the special metadata files that have different structures
+			if content.Name == "metadata.json" || content.Name == "versions.json" {
+				config.DebugLog("Skipping special metadata file: %s", content.Name)
+				continue
+			}
 			jsonFiles = append(jsonFiles, content)
 		}
 	}
@@ -250,7 +255,7 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 			script.ScriptPath = fmt.Sprintf("vm/%s.sh", script.Slug)
 		} else {
 			// For other types, we might not be able to determine the script path
-			fmt.Printf("Warning: No install method found for script %s, might not be installable\n", script.Name)
+			config.DebugLog("Warning: No install method found for script %s, might not be installable", script.Name)
 		}
 	}
 
@@ -287,7 +292,7 @@ func FetchScripts() ([]Script, error) {
 		script, err := GetScriptMetadata(file.DownloadURL)
 		if err != nil {
 			// Skip this script but log the error
-			fmt.Printf("Error fetching metadata for %s: %v\n", file.Name, err)
+			config.DebugLog("Error fetching metadata for %s: %v", file.Name, err)
 			errorCount++
 
 			// If we're getting too many errors, something might be wrong with GitHub API

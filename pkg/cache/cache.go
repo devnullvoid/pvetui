@@ -85,14 +85,14 @@ func (c *FileCache) loadCacheFiles() error {
 		// Read the file
 		data, err := os.ReadFile(filepath.Join(c.dir, file.Name()))
 		if err != nil {
-			fmt.Printf("Warning: Failed to read cache file %s: %v\n", file.Name(), err)
+			config.DebugLog("Warning: Failed to read cache file %s: %v", file.Name(), err)
 			continue
 		}
 
 		// Parse the item
 		var item CacheItem
 		if err := json.Unmarshal(data, &item); err != nil {
-			fmt.Printf("Warning: Failed to parse cache file %s: %v\n", file.Name(), err)
+			config.DebugLog("Warning: Failed to parse cache file %s: %v", file.Name(), err)
 			continue
 		}
 
@@ -100,7 +100,7 @@ func (c *FileCache) loadCacheFiles() error {
 		if item.TTL > 0 && time.Now().Unix()-item.Timestamp > item.TTL {
 			// Item is expired, remove the file
 			if err := os.Remove(filepath.Join(c.dir, file.Name())); err != nil {
-				fmt.Printf("Warning: Failed to remove expired cache file %s: %v\n", file.Name(), err)
+				config.DebugLog("Warning: Failed to remove expired cache file %s: %v", file.Name(), err)
 			}
 			continue
 		}
