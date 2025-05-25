@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/scripts"
@@ -47,7 +48,7 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	selector.categoryList = tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(tcell.ColorDarkBlue).
+		SetSelectedBackgroundColor(tcell.ColorBlue).
 		SetSelectedTextColor(tcell.ColorWhite)
 
 	// Add categories to the list
@@ -69,7 +70,7 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	selector.scriptList = tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(tcell.ColorDarkBlue).
+		SetSelectedBackgroundColor(tcell.ColorBlue).
 		SetSelectedTextColor(tcell.ColorWhite)
 
 	// Create a loading indicator page
@@ -143,57 +144,59 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 
 // fetchScriptsForCategory fetches scripts for the selected category
 func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory) {
-	// Clear the script list
-	s.app.QueueUpdateDraw(func() {
-		s.scriptList.Clear()
-	})
-
-	// Fetch scripts - we no longer need SSH to fetch script list
-	fetchedScripts, err := scripts.GetScriptsByCategory(category.Path)
-	if err != nil {
-		// Show error message
-		s.app.QueueUpdateDraw(func() {
-			s.pages.SwitchToPage("categories")
-			s.app.SetFocus(s.categoryList)
-			s.app.showMessage(fmt.Sprintf("Error fetching scripts: %v", err))
-		})
-		return
-	}
-
-	// Sort scripts alphabetically by name
-	sort.Slice(fetchedScripts, func(i, j int) bool {
-		return fetchedScripts[i].Name < fetchedScripts[j].Name
-	})
-
-	// Store scripts
-	s.scripts = fetchedScripts
-
-	// Update script list
-	s.app.QueueUpdateDraw(func() {
-		for i, script := range s.scripts {
-			// Add more detailed information in the secondary text
-			var secondaryText string
-			if script.Type == "ct" {
-				secondaryText = fmt.Sprintf("Container: %s", script.Description)
-			} else if script.Type == "vm" {
-				secondaryText = fmt.Sprintf("VM: %s", script.Description)
-			} else {
-				secondaryText = script.Description
-			}
-
-			// Truncate description if too long
-			if len(secondaryText) > 70 {
-				secondaryText = secondaryText[:67] + "..."
-			}
-
-			// Add item without selection function - we handle Enter manually
-			s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), nil)
+	// Fetch scripts in a goroutine to avoid blocking the UI
+	go func() {
+		// Fetch scripts - we no longer need SSH to fetch script list
+		fetchedScripts, err := scripts.GetScriptsByCategory(category.Path)
+		if err != nil {
+			// Show error message
+			s.app.QueueUpdateDraw(func() {
+				s.pages.SwitchToPage("categories")
+				s.app.SetFocus(s.categoryList)
+				s.app.showMessage(fmt.Sprintf("Error fetching scripts: %v", err))
+			})
+			return
 		}
 
-		// Switch to scripts page and set focus on the script list
-		s.pages.SwitchToPage("scripts")
-		s.app.SetFocus(s.scriptList)
-	})
+		// Sort scripts alphabetically by name
+		sort.Slice(fetchedScripts, func(i, j int) bool {
+			return fetchedScripts[i].Name < fetchedScripts[j].Name
+		})
+
+		// Store scripts
+		s.scripts = fetchedScripts
+
+		// Update script list on the UI thread - do everything in one atomic update
+		s.app.QueueUpdateDraw(func() {
+			// Clear the script list
+			s.scriptList.Clear()
+
+			// Add scripts to the list
+			for i, script := range s.scripts {
+				// Add more detailed information in the secondary text
+				var secondaryText string
+				if script.Type == "ct" {
+					secondaryText = fmt.Sprintf("Container: %s", script.Description)
+				} else if script.Type == "vm" {
+					secondaryText = fmt.Sprintf("VM: %s", script.Description)
+				} else {
+					secondaryText = script.Description
+				}
+
+				// Truncate description if too long
+				if len(secondaryText) > 70 {
+					secondaryText = secondaryText[:67] + "..."
+				}
+
+				// Add item without selection function - we handle Enter manually
+				s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), nil)
+			}
+
+			// Switch to scripts page and set focus - all in one operation
+			s.pages.SwitchToPage("scripts")
+			s.app.SetFocus(s.scriptList)
+		})
+	}()
 }
 
 // createScriptSelectFunc creates a script selection handler for a specific script
@@ -204,6 +207,10 @@ func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
 
 		modal := tview.NewModal().
 			SetText(scriptInfo).
+			SetBackgroundColor(tcell.ColorBlack).
+			SetTextColor(tcell.ColorWhite).
+			SetButtonBackgroundColor(tcell.ColorDarkGray).
+			SetButtonTextColor(tcell.ColorWhite).
 			AddButtons([]string{"Install", "Cancel"}).
 			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 				s.app.pages.RemovePage("scriptInfo")
@@ -358,7 +365,7 @@ func (s *ScriptSelector) Show() {
 			}
 			return nil
 		}
-		// Pass all other events through to the focused component
+		// Pass ALL other events through to the focused component (including backspace)
 		return event
 	})
 
@@ -370,8 +377,12 @@ func (s *ScriptSelector) Show() {
 			idx := s.categoryList.GetCurrentItem()
 			if idx >= 0 && idx < len(s.categories) {
 				category := s.categories[idx]
-				s.pages.SwitchToPage("loading")
-				go s.fetchScriptsForCategory(category)
+				// Add a small delay to ensure UI stability before any operations
+				go func() {
+					// Small delay to prevent UI interference
+					time.Sleep(50 * time.Millisecond)
+					s.fetchScriptsForCategory(category)
+				}()
 			}
 			return nil
 		}
@@ -381,8 +392,8 @@ func (s *ScriptSelector) Show() {
 
 	// Set input capture on script list for backspace navigation, Enter, and Tab
 	s.scriptList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyBackspace {
-			// Go back to category list
+		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
+			// Go back to category list (handle both backspace variants)
 			s.pages.SwitchToPage("categories")
 			s.app.SetFocus(s.categoryList)
 			return nil
@@ -411,6 +422,11 @@ func (s *ScriptSelector) Show() {
 		if event.Key() == tcell.KeyTab {
 			// Tab back to script list
 			s.app.SetFocus(s.scriptList)
+			return nil
+		} else if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
+			// Backspace also goes back to categories (handle both backspace variants)
+			s.pages.SwitchToPage("categories")
+			s.app.SetFocus(s.categoryList)
 			return nil
 		}
 		// Let other keys pass through (Enter will trigger the button)
