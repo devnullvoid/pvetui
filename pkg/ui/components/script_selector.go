@@ -23,6 +23,7 @@ type ScriptSelector struct {
 	scripts              []scripts.Script
 	categoryList         *tview.List
 	scriptList           *tview.List
+	backButton           *tview.Button
 	layout               *tview.Flex
 	pages                *tview.Pages
 	isForNode            bool
@@ -77,7 +78,7 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		SetTextAlign(tview.AlignCenter)
 
 	// Create a back button for the script list
-	backButton := tview.NewButton("Back").
+	selector.backButton = tview.NewButton("Back").
 		SetSelectedFunc(func() {
 			selector.pages.SwitchToPage("categories")
 			app.SetFocus(selector.categoryList)
@@ -95,13 +96,20 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		AddItem(selector.categoryList, 0, 1, true)
 
 	// Set up the script page with title and back button
+	// Create a flex container for the back button to make it focusable
+	backButtonContainer := tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(nil, 0, 1, false).
+		AddItem(selector.backButton, 10, 0, true).
+		AddItem(nil, 0, 1, false)
+
 	scriptPage := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(tview.NewTextView().
-			SetText("Select a Script to Install").
+			SetText("Select a Script to Install (Backspace: Back)").
 			SetTextAlign(tview.AlignCenter), 1, 0, false).
 		AddItem(selector.scriptList, 0, 1, true).
-		AddItem(backButton, 1, 0, false)
+		AddItem(backButtonContainer, 1, 0, false)
 
 	// Create loading page
 	loadingPage := tview.NewFlex().
@@ -259,25 +267,8 @@ func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 
 // installScript installs the selected script
 func (s *ScriptSelector) installScript(script scripts.Script) {
-	// Create a progress modal
-	progressModal := tview.NewModal().
-		SetText(fmt.Sprintf("Installing %s...", script.Name)).
-		AddButtons([]string{}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {})
-
-	// Show the progress modal
+	// Close the script selector modal first
 	s.app.QueueUpdateDraw(func() {
-		s.app.pages.AddPage("scriptProgress", progressModal, true, true)
-	})
-
-	// Install the script - this is where we actually need SSH
-	err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
-
-	// Handle the result
-	s.app.QueueUpdateDraw(func() {
-		// Remove the progress modal
-		s.app.pages.RemovePage("scriptProgress")
-
 		// Remove the script selector
 		s.app.pages.RemovePage("scriptSelector")
 
@@ -296,26 +287,28 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 		} else if pageName == "Guests" {
 			s.app.SetFocus(s.app.vmList)
 		}
+	})
+
+	// Temporarily suspend the UI for interactive script installation
+	s.app.Suspend(func() {
+		// Display installation message
+		fmt.Printf("\nInstalling %s on node %s (%s)...\n", script.Name, s.node.Name, s.nodeIP)
+		fmt.Printf("Script: %s\n", script.ScriptPath)
+		fmt.Printf("This script may require interactive input. Please follow the prompts.\n\n")
+
+		// Install the script interactively
+		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
 
 		if err != nil {
-			// Create an error modal with more details
-			errorModal := tview.NewModal().
-				SetText(fmt.Sprintf("Script installation failed: %v", err)).
-				AddButtons([]string{"OK"}).
-				SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-					s.app.pages.RemovePage("scriptError")
-				})
-			s.app.pages.AddPage("scriptError", errorModal, true, true)
+			fmt.Printf("\nScript installation failed: %v\n", err)
 		} else {
-			// Create a success modal
-			successModal := tview.NewModal().
-				SetText(fmt.Sprintf("%s installed successfully!\n\nYou may need to refresh your node/guest list to see any new resources.", script.Name)).
-				AddButtons([]string{"OK"}).
-				SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-					s.app.pages.RemovePage("scriptSuccess")
-				})
-			s.app.pages.AddPage("scriptSuccess", successModal, true, true)
+			fmt.Printf("\n%s installed successfully!\n", script.Name)
+			fmt.Printf("You may need to refresh your node/guest list to see any new resources.\n")
 		}
+
+		// Wait for user to press Enter
+		fmt.Print("\nPress Enter to return to the TUI...")
+		fmt.Scanln()
 	})
 }
 
@@ -386,7 +379,7 @@ func (s *ScriptSelector) Show() {
 		return event
 	})
 
-	// Only set input capture on script list for backspace navigation and Enter
+	// Set input capture on script list for backspace navigation, Enter, and Tab
 	s.scriptList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyBackspace {
 			// Go back to category list
@@ -404,8 +397,23 @@ func (s *ScriptSelector) Show() {
 				}
 			}
 			return nil
+		} else if event.Key() == tcell.KeyTab {
+			// Tab to the back button
+			s.app.SetFocus(s.backButton)
+			return nil
 		}
 		// Let all other keys (including arrows) pass through normally
+		return event
+	})
+
+	// Set input capture on back button to handle Tab back to script list
+	s.backButton.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyTab {
+			// Tab back to script list
+			s.app.SetFocus(s.scriptList)
+			return nil
+		}
+		// Let other keys pass through (Enter will trigger the button)
 		return event
 	})
 

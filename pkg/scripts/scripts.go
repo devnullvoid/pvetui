@@ -334,7 +334,7 @@ func GetScriptsByCategory(category string) ([]Script, error) {
 	return categoryScripts, nil
 }
 
-// InstallScript installs a script on a Proxmox node
+// InstallScript installs a script on a Proxmox node interactively
 func InstallScript(user, nodeIP, scriptPath string) error {
 	// Validate script path for security
 	for _, c := range scriptPath {
@@ -346,36 +346,35 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 	// Build the script URL
 	scriptURL := fmt.Sprintf("%s/%s", RawGitHubRepo, scriptPath)
 
-	// Command to download and execute the script according to the official pattern
-	// Using a bash script that ensures the environment is set up correctly
-	sshScript := `
-export TERM=xterm-256color
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-echo "Downloading and executing script from ${SCRIPT_URL}..."
-curl -fsSL "${SCRIPT_URL}" | bash
-`
+	// Command to download and execute the script interactively
+	// This mirrors the official installation pattern but runs interactively
+	installCommand := fmt.Sprintf("sudo /bin/bash -c \"curl -fsSL '%s' | /bin/bash\"", scriptURL)
 
-	config.DebugLog("Running SSH command for script: %s", scriptPath)
+	config.DebugLog("Running interactive SSH command for script: %s", scriptPath)
 
-	// Execute the command via SSH on the node
-	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), "bash", "-c", fmt.Sprintf("SCRIPT_URL='%s' %s", scriptURL, sshScript))
+	// Execute the command via SSH with interactive terminal
+	// Use -t to force pseudo-terminal allocation for interactive scripts
+	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), installCommand)
 
-	// Pass environment variables properly
+	// Connect stdin/stdout/stderr for interactive session
+	sshCmd.Stdin = os.Stdin
+	sshCmd.Stdout = os.Stdout
+	sshCmd.Stderr = os.Stderr
+
+	// Set environment variables
 	sshCmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
 		"LANG=en_US.UTF-8",
 		"LC_ALL=en_US.UTF-8",
 	)
 
-	// Enable stdin/stdout/stderr
-	sshCmd.Stdin = nil // No input needed
-
-	output, err := sshCmd.CombinedOutput()
+	// Run the command interactively
+	err := sshCmd.Run()
 	if err != nil {
-		return fmt.Errorf("script installation failed: %s\n%w", string(output), err)
+		return fmt.Errorf("script installation failed: %w", err)
 	}
 
+	config.DebugLog("Script installation completed successfully")
 	return nil
 }
 
