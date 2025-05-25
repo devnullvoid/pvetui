@@ -430,6 +430,16 @@ func (s *ScriptSelector) Show() {
 		return
 	}
 
+	// Set up global key handler for the entire modal
+	s.layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			// Handle Escape key globally to close the modal
+			s.app.pages.RemovePage("scriptSelector")
+			return nil
+		}
+		return event
+	})
+
 	// Add the selector to the pages
 	s.app.pages.AddPage("scriptSelector", s.layout, true, true)
 	s.app.SetFocus(s.categoryList)

@@ -220,6 +220,10 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.SwitchToPage("Guests")
 			a.SetFocus(a.vmList)
 			return nil
+		case tcell.KeyF5:
+			// Manual refresh
+			a.manualRefresh()
+			return nil
 		case tcell.KeyRune:
 			if event.Rune() == 'q' {
 				a.Stop()
@@ -274,6 +278,10 @@ func (a *App) setupKeyboardHandlers() {
 						}
 					}
 				}
+				return nil
+			} else if event.Rune() == 'r' || event.Rune() == 'R' {
+				// Manual refresh
+				a.manualRefresh()
 				return nil
 			}
 		}
@@ -452,21 +460,13 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 			// Update message with success on main thread
 			a.QueueUpdateDraw(func() {
 				a.showMessage(fmt.Sprintf("%s %s completed successfully", operationName, vm.Name))
-
-				// Refresh VM data after a brief delay
-				time.Sleep(2 * time.Second)
-				if _, err := a.client.GetClusterStatus(); err == nil {
-					// Update the UI with new data
-					a.QueueUpdateDraw(func() {
-						a.vmList.SetVMs(models.GlobalState.OriginalVMs)
-						// Reselect current VM
-						selectedIdx := a.vmList.GetCurrentItem()
-						if selectedIdx >= 0 && selectedIdx < len(models.GlobalState.OriginalVMs) {
-							a.vmDetails.Update(models.GlobalState.OriginalVMs[selectedIdx])
-						}
-					})
-				}
 			})
+
+			// Wait a moment before refreshing to allow the operation to complete on the server
+			time.Sleep(1 * time.Second)
+
+			// Manually refresh data to show updated state
+			a.manualRefresh()
 		}
 	}()
 }
@@ -485,25 +485,73 @@ func (a *App) closeContextMenu() {
 
 // Run starts the application
 func (a *App) Run() error {
-	// Setup a background worker to periodically refresh data
-	go a.backgroundRefresh()
+	// We're disabling automatic background refresh to prevent UI issues
+	// The user can manually refresh with a key if needed
 
 	// Start the app
 	return a.Application.Run()
 }
 
-// backgroundRefresh periodically refreshes data and updates UI components
-func (a *App) backgroundRefresh() {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+// manualRefresh refreshes data and updates the UI on user request
+func (a *App) manualRefresh() {
+	// Show a temporary "Refreshing..." message
+	a.header.SetText("Refreshing data...")
 
-	// Set up a handler for UI updates
-	updateHandler := func() {
+	// Use goroutine to avoid blocking the UI
+	go func() {
+		// Fetch fresh data
+		if _, err := a.client.GetClusterStatus(); err != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.SetText(fmt.Sprintf("Error refreshing: %v", err))
+			})
+			return
+		}
+
+		// Update UI with new data
 		a.QueueUpdateDraw(func() {
+			// Get current search states
+			nodeSearchState := models.GlobalState.GetSearchState("nodes")
+			vmSearchState := models.GlobalState.GetSearchState("vms")
+
 			// Update component data
 			a.clusterStatus.Update(a.client.Cluster)
-			a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
-			a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+			a.header.SetText("Data refreshed") // Show success message
+
+			// Only update with filtered nodes if a search is active
+			if nodeSearchState != nil && nodeSearchState.Filter != "" {
+				// Save original nodes but keep existing filtered nodes
+				copy(models.GlobalState.OriginalNodes, a.client.Cluster.Nodes)
+				// Re-filter with the current search term
+				models.FilterNodes(nodeSearchState.Filter)
+				// Now set the nodes to the filtered list
+				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			} else {
+				// No filter active, use all nodes
+				a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+			}
+
+			// Same approach for VMs
+			if vmSearchState != nil && vmSearchState.Filter != "" {
+				// Save original VMs but keep existing filtered VMs
+				var vms []*api.VM
+				for _, node := range a.client.Cluster.Nodes {
+					if node != nil {
+						for _, vm := range node.VMs {
+							if vm != nil {
+								vms = append(vms, vm)
+							}
+						}
+					}
+				}
+				copy(models.GlobalState.OriginalVMs, vms)
+				// Re-filter with the current search term
+				models.FilterVMs(vmSearchState.Filter)
+				// Now set the VMs to the filtered list
+				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			} else {
+				// No filter active, use all VMs
+				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+			}
 
 			// Update details if items are selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {
@@ -513,23 +561,18 @@ func (a *App) backgroundRefresh() {
 			if vm := a.vmList.GetSelectedVM(); vm != nil {
 				a.vmDetails.Update(vm)
 			}
-		})
-	}
 
-	// Immediate first update after 2 seconds (let background loading complete)
-	time.AfterFunc(2*time.Second, updateHandler)
-
-	// Then periodic updates
-	for range ticker.C {
-		// Refresh cluster data
-		if _, err := a.client.GetClusterStatus(); err != nil {
-			a.QueueUpdateDraw(func() {
-				a.header.SetText(fmt.Sprintf("Error refreshing: %v", err))
+			// Clear the message after a delay
+			time.AfterFunc(2*time.Second, func() {
+				a.QueueUpdateDraw(func() {
+					a.header.SetText("")
+				})
 			})
-			continue
-		}
-
-		// Update the UI with fresh data
-		updateHandler()
-	}
+		})
+	}()
 }
+
+// backgroundRefresh has been disabled to prevent UI issues
+// func (a *App) backgroundRefresh() {
+// 	// Disabled
+// }

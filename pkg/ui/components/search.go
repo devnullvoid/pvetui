@@ -1,12 +1,11 @@
 package components
 
 import (
-	"fmt"
 	"strings"
 
 	// "github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -21,15 +20,15 @@ func (a *App) activateSearch() {
 	if _, exists := models.GlobalState.SearchStates[currentPage]; !exists {
 		models.GlobalState.SearchStates[currentPage] = &models.SearchState{
 			CurrentPage:   currentPage,
-			SearchText:    "",
+			Filter:        "",
 			SelectedIndex: 0,
 		}
 	}
 
-	// Create input field with current search text if any
-	searchText := ""
+	// Create input field with current filter text if any
+	filterText := ""
 	if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-		searchText = state.SearchText
+		filterText = state.Filter
 	}
 
 	// Create search input field if it doesn't exist
@@ -40,8 +39,8 @@ func (a *App) activateSearch() {
 			SetPlaceholder("Filter active list... press Enter/Esc to return to list")
 	}
 
-	// Set current search text
-	a.searchInput.SetText(searchText)
+	// Set current filter text
+	a.searchInput.SetText(filterText)
 
 	// Add the search input field to the bottom of the layout
 	if a.mainLayout.GetItemCount() == 4 { // Already has header, cluster status, pages, footer
@@ -62,26 +61,22 @@ func (a *App) activateSearch() {
 	}
 
 	// Function to update node selection with filtered results
-	updateNodeSelection := func(nodes []*api.Node) {
-		// Store the filtered nodes in global state
-		models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
-		copy(models.GlobalState.FilteredNodes, nodes)
-
-		// Update node list
-		a.nodeList.SetNodes(nodes)
+	updateNodeSelection := func() {
+		// Update node list with filtered nodes
+		a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 
 		// Update selected index if needed
-		if len(nodes) > 0 {
+		if len(models.GlobalState.FilteredNodes) > 0 {
 			idx := 0
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
 				idx = state.SelectedIndex
-				if idx < 0 || idx >= len(nodes) {
+				if idx < 0 || idx >= len(models.GlobalState.FilteredNodes) {
 					idx = 0
 				}
 				state.SelectedIndex = idx
 			}
 			a.nodeList.List.SetCurrentItem(idx)
-			a.nodeDetails.Update(nodes[idx], a.client.Cluster.Nodes)
+			a.nodeDetails.Update(models.GlobalState.FilteredNodes[idx], a.client.Cluster.Nodes)
 		} else {
 			a.nodeDetails.Clear()
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
@@ -91,26 +86,22 @@ func (a *App) activateSearch() {
 	}
 
 	// Function to update VM selection with filtered results
-	updateVMSelection := func(vms []*api.VM) {
-		// Store the filtered VMs in global state
-		models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-		copy(models.GlobalState.FilteredVMs, vms)
-
-		// Update VM list
-		a.vmList.SetVMs(vms)
+	updateVMSelection := func() {
+		// Update VM list with filtered VMs
+		a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 
 		// Update selected index if needed
-		if len(vms) > 0 {
+		if len(models.GlobalState.FilteredVMs) > 0 {
 			idx := 0
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
 				idx = state.SelectedIndex
-				if idx < 0 || idx >= len(vms) {
+				if idx < 0 || idx >= len(models.GlobalState.FilteredVMs) {
 					idx = 0
 				}
 				state.SelectedIndex = idx
 			}
 			a.vmList.List.SetCurrentItem(idx)
-			a.vmDetails.Update(vms[idx])
+			a.vmDetails.Update(models.GlobalState.FilteredVMs[idx])
 		} else {
 			a.vmDetails.Clear()
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
@@ -121,54 +112,21 @@ func (a *App) activateSearch() {
 
 	// Handle search text changes
 	a.searchInput.SetChangedFunc(func(text string) {
-		searchTerm := strings.TrimSpace(strings.ToLower(text))
+		filterTerm := strings.TrimSpace(text)
 
-		if currentPage == "Nodes" {
-			// Filter nodes based on search term
-			var filteredNodes []*api.Node
-			if searchTerm == "" {
-				// Show all nodes if search is empty
-				filteredNodes = make([]*api.Node, len(models.GlobalState.OriginalNodes))
-				copy(filteredNodes, models.GlobalState.OriginalNodes)
-			} else {
-				// Filter nodes that match search term
-				for _, node := range models.GlobalState.OriginalNodes {
-					if node != nil && strings.Contains(strings.ToLower(node.Name), searchTerm) {
-						filteredNodes = append(filteredNodes, node)
-					}
-				}
-			}
-			updateNodeSelection(filteredNodes)
-		} else {
-			// Filter VMs based on search term
-			var filteredVMs []*api.VM
-			if searchTerm == "" {
-				// Show all VMs if search is empty
-				filteredVMs = make([]*api.VM, len(models.GlobalState.OriginalVMs))
-				copy(filteredVMs, models.GlobalState.OriginalVMs)
-			} else {
-				// Filter VMs that match search term by name, ID, node, or type
-				for _, vm := range models.GlobalState.OriginalVMs {
-					if vm != nil {
-						// Convert VM ID to string for matching
-						vmIDStr := fmt.Sprintf("%d", vm.ID)
-
-						// Match if name, ID, node name, or VM type contains search term
-						if strings.Contains(strings.ToLower(vm.Name), searchTerm) ||
-							strings.Contains(vmIDStr, searchTerm) ||
-							strings.Contains(strings.ToLower(vm.Node), searchTerm) ||
-							strings.Contains(strings.ToLower(vm.Type), searchTerm) {
-							filteredVMs = append(filteredVMs, vm)
-						}
-					}
-				}
-			}
-			updateVMSelection(filteredVMs)
+		// Save filter text in state
+		if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
+			state.Filter = filterTerm
 		}
 
-		// Save search text in state
-		if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-			state.SearchText = text
+		if currentPage == "Nodes" {
+			// Use our common filter function for nodes
+			models.FilterNodes(filterTerm)
+			updateNodeSelection()
+		} else {
+			// Use our common filter function for VMs
+			models.FilterVMs(filterTerm)
+			updateVMSelection()
 		}
 	})
 

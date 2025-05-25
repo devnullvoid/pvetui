@@ -42,9 +42,22 @@ func main() {
 	// Set defaults after merging config file
 	cfg.SetDefaults()
 
-	// Set debug mode from config
+	// Set debug mode from the configuration
 	config.DebugEnabled = cfg.Debug
 	config.DebugLog("Debug mode enabled")
+
+	// Create cache directory if it doesn't exist
+	if cfg.CacheDir != "" {
+		if err := os.MkdirAll(cfg.CacheDir, 0755); err != nil {
+			log.Fatalf("Error creating cache directory: %v", err)
+		}
+
+		// Initialize logging to file
+		if err := config.InitLogging(cfg.CacheDir); err != nil {
+			// Just print a warning and continue with standard logging
+			log.Printf("Warning: Could not initialize logging to file: %v", err)
+		}
+	}
 
 	// Initialize cache system
 	if !*noCacheFlag {
