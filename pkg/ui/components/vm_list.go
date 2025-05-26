@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/ui/utils"
@@ -53,10 +54,44 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 	vl.Clear()
 	vl.vms = vms
 
-	for _, vm := range vms {
+	// Sort VMs: running VMs first, then stopped VMs
+	sortedVMs := make([]*api.VM, len(vms))
+	copy(sortedVMs, vms)
+
+	sort.Slice(sortedVMs, func(i, j int) bool {
+		// Running VMs come first
+		if sortedVMs[i].Status == "running" && sortedVMs[j].Status != "running" {
+			return true
+		}
+		if sortedVMs[i].Status != "running" && sortedVMs[j].Status == "running" {
+			return false
+		}
+
+		// Within the same status group, sort by ID
+		return sortedVMs[i].ID < sortedVMs[j].ID
+	})
+
+	// Update the internal vms slice to match the sorted order
+	vl.vms = sortedVMs
+
+	for _, vm := range sortedVMs {
 		if vm != nil {
-			// Format the VM name with ID and status indicator
-			mainText := utils.FormatStatusIndicator(vm.Status) + fmt.Sprintf("%d - %s", vm.ID, vm.Name)
+			// Get the status indicator
+			statusIndicator := utils.FormatStatusIndicator(vm.Status)
+
+			// Format the VM name with ID
+			vmText := fmt.Sprintf("%d - %s", vm.ID, vm.Name)
+
+			// Apply color formatting for stopped VMs
+			var mainText string
+			if vm.Status != "running" {
+				// For stopped VMs, use gray color for the VM text part only
+				// Keep the red status indicator but make the text gray
+				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", vmText)
+			} else {
+				// For running VMs, use normal formatting
+				mainText = statusIndicator + vmText
+			}
 
 			// Store node info in secondary text (not visible but used for search functionality)
 			secondaryText := fmt.Sprintf("Node: %s Type: %s", vm.Node, vm.Type)
@@ -66,10 +101,10 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 	}
 
 	// If there are VMs, select the first one by default
-	if len(vms) > 0 {
+	if len(sortedVMs) > 0 {
 		vl.SetCurrentItem(0)
 		if vl.onSelect != nil {
-			vl.onSelect(vms[0])
+			vl.onSelect(sortedVMs[0])
 		}
 	}
 }
