@@ -42,6 +42,7 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 
 	// Create UI components
 	app.header = NewHeader()
+	app.header.SetApp(app.Application) // Set app reference for loading animations
 	app.footer = NewFooter()
 	app.nodeList = NewNodeList()
 	app.vmList = NewVMList()
@@ -53,7 +54,7 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	// Initialize global state
 	if client.Cluster == nil {
 		if _, err := client.FastGetClusterStatus(); err != nil {
-			app.header.SetText("Error fetching cluster: " + err.Error())
+			app.header.ShowError("Error fetching cluster: " + err.Error())
 			return app
 		}
 	}
@@ -414,20 +415,20 @@ func (a *App) openScriptSelector(node *api.Node, vm *api.VM) {
 
 // performVMOperation performs an asynchronous VM operation and shows status message
 func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, operationName string) {
-	message := fmt.Sprintf("%s %s...", operationName, vm.Name)
-	a.showMessage(message)
+	// Show loading indicator
+	a.header.ShowLoading(fmt.Sprintf("%s %s", operationName, vm.Name))
 
 	// Run operation in goroutine to avoid blocking UI
 	go func() {
 		if err := operation(vm); err != nil {
 			// Update message with error on main thread
 			a.QueueUpdateDraw(func() {
-				a.showMessage(fmt.Sprintf("Error %s %s: %v", strings.ToLower(operationName), vm.Name, err))
+				a.header.ShowError(fmt.Sprintf("Error %s %s: %v", strings.ToLower(operationName), vm.Name, err))
 			})
 		} else {
 			// Update message with success on main thread
 			a.QueueUpdateDraw(func() {
-				a.showMessage(fmt.Sprintf("%s %s completed successfully", operationName, vm.Name))
+				a.header.ShowSuccess(fmt.Sprintf("%s %s completed successfully", operationName, vm.Name))
 			})
 
 			// Wait a moment before refreshing to allow the operation to complete on the server
@@ -462,15 +463,16 @@ func (a *App) Run() error {
 
 // manualRefresh refreshes data and updates the UI on user request
 func (a *App) manualRefresh() {
-	// Show a temporary "Refreshing..." message
-	a.header.SetText("Refreshing data...")
+	// Show animated loading indicator
+	a.header.ShowLoading("Refreshing data")
 
 	// Use goroutine to avoid blocking the UI
 	go func() {
-		// Fetch fresh data
-		if _, err := a.client.GetClusterStatus(); err != nil {
+		// Fetch fresh data bypassing cache
+		cluster, err := a.client.GetFreshClusterStatus()
+		if err != nil {
 			a.QueueUpdateDraw(func() {
-				a.header.SetText(fmt.Sprintf("Error refreshing: %v", err))
+				a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
 			})
 			return
 		}
@@ -482,16 +484,35 @@ func (a *App) manualRefresh() {
 			vmSearchState := models.GlobalState.GetSearchState("vms")
 
 			// Update component data
-			a.clusterStatus.Update(a.client.Cluster)
-			a.header.SetText("Data refreshed") // Show success message
+			a.clusterStatus.Update(cluster)
 
-			// Only update with filtered nodes if a search is active
+			// Rebuild VM list from fresh cluster data
+			var vms []*api.VM
+			for _, node := range cluster.Nodes {
+				if node != nil {
+					for _, vm := range node.VMs {
+						if vm != nil {
+							vms = append(vms, vm)
+						}
+					}
+				}
+			}
+
+			// Update global state with fresh data
+			models.GlobalState.OriginalNodes = make([]*api.Node, len(cluster.Nodes))
+			models.GlobalState.FilteredNodes = make([]*api.Node, len(cluster.Nodes))
+			models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
+			models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+
+			copy(models.GlobalState.OriginalNodes, cluster.Nodes)
+			copy(models.GlobalState.FilteredNodes, cluster.Nodes)
+			copy(models.GlobalState.OriginalVMs, vms)
+			copy(models.GlobalState.FilteredVMs, vms)
+
+			// Apply filters if active, otherwise use all data
 			if nodeSearchState != nil && nodeSearchState.Filter != "" {
-				// Save original nodes but keep existing filtered nodes
-				copy(models.GlobalState.OriginalNodes, a.client.Cluster.Nodes)
 				// Re-filter with the current search term
 				models.FilterNodes(nodeSearchState.Filter)
-				// Now set the nodes to the filtered list
 				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 			} else {
 				// No filter active, use all nodes
@@ -500,21 +521,8 @@ func (a *App) manualRefresh() {
 
 			// Same approach for VMs
 			if vmSearchState != nil && vmSearchState.Filter != "" {
-				// Save original VMs but keep existing filtered VMs
-				var vms []*api.VM
-				for _, node := range a.client.Cluster.Nodes {
-					if node != nil {
-						for _, vm := range node.VMs {
-							if vm != nil {
-								vms = append(vms, vm)
-							}
-						}
-					}
-				}
-				copy(models.GlobalState.OriginalVMs, vms)
 				// Re-filter with the current search term
 				models.FilterVMs(vmSearchState.Filter)
-				// Now set the VMs to the filtered list
 				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 			} else {
 				// No filter active, use all VMs
@@ -523,19 +531,15 @@ func (a *App) manualRefresh() {
 
 			// Update details if items are selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {
-				a.nodeDetails.Update(node, a.client.Cluster.Nodes)
+				a.nodeDetails.Update(node, cluster.Nodes)
 			}
 
 			if vm := a.vmList.GetSelectedVM(); vm != nil {
 				a.vmDetails.Update(vm)
 			}
 
-			// Clear the message after a delay
-			time.AfterFunc(2*time.Second, func() {
-				a.QueueUpdateDraw(func() {
-					a.header.SetText("")
-				})
-			})
+			// Show success message
+			a.header.ShowSuccess("Data refreshed successfully")
 		})
 	}()
 }

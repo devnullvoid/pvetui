@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -61,7 +61,7 @@ func NewClusterStatus() *ClusterStatus {
 	// Add both tables to panel with equal space
 	panel.AddItem(summary, 0, 1, false)
 	panel.AddItem(resourceTable, 0, 1, false)
-	
+
 	return &ClusterStatus{
 		Flex:          panel,
 		SummaryTable:  summary,
@@ -74,7 +74,7 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	if cluster == nil {
 		return
 	}
-	
+
 	// Clear existing content except headers in both tables
 	for _, tbl := range []*tview.Table{cs.SummaryTable, cs.ResourceTable} {
 		for row := 1; row <= 6; row++ {
@@ -98,7 +98,21 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	cs.SummaryTable.SetCell(1, 1, tview.NewTableCell(ver).SetTextColor(tcell.ColorWhite))
 
 	cs.SummaryTable.SetCell(2, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
-	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)).SetTextColor(tcell.ColorWhite))
+
+	// Show different indicators based on node status
+	var nodeStatusText string
+	if cluster.OnlineNodes == cluster.TotalNodes {
+		// All nodes online
+		nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)
+	} else if cluster.OnlineNodes > 0 {
+		// Some nodes offline
+		nodeStatusText = fmt.Sprintf("[yellow]%d/%d ⚠️[white]", cluster.OnlineNodes, cluster.TotalNodes)
+	} else {
+		// All nodes offline (critical)
+		nodeStatusText = fmt.Sprintf("[red]%d/%d 🔴[white]", cluster.OnlineNodes, cluster.TotalNodes)
+	}
+
+	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(nodeStatusText).SetTextColor(tcell.ColorWhite))
 
 	// Update resource table (right panel)
 	cs.ResourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow))
@@ -108,4 +122,4 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	cs.ResourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow))
 	cs.ResourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryTotal)).SetTextColor(tcell.ColorWhite))
 	cs.ResourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryUsed)).SetTextColor(tcell.ColorWhite))
-} 
+}

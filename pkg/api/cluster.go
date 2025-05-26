@@ -150,6 +150,8 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 		for err := range errChan {
 			if err != nil {
 				errors = append(errors, err)
+				// Only consider it critical if ALL nodes fail
+				// Individual node failures are expected in a cluster environment
 			}
 		}
 		close(done)
@@ -169,9 +171,23 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 	close(errChan)
 	<-done // Wait for error collection to finish
 
+	// Log individual node errors but don't fail unless ALL nodes are unreachable
 	if len(errors) > 0 {
-		return fmt.Errorf("errors updating node statuses: %v", errors)
+		config.DebugLog("[CLUSTER] Node enrichment completed with %d errors out of %d nodes", len(errors), len(cluster.Nodes))
+		for _, err := range errors {
+			config.DebugLog("[CLUSTER] Node error: %v", err)
+		}
+
+		// Only fail if ALL nodes failed to respond
+		if len(errors) == len(cluster.Nodes) {
+			return fmt.Errorf("all nodes unreachable: %d errors", len(errors))
+		}
+
+		// If some nodes succeeded, continue with a warning
+		config.DebugLog("[CLUSTER] Continuing with %d available nodes (%d offline)",
+			len(cluster.Nodes)-len(errors), len(errors))
 	}
+
 	return nil
 }
 
@@ -180,10 +196,20 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 	node.mu.Lock()
 	defer node.mu.Unlock()
 
+	// If the node is already marked as offline from cluster status, skip detailed metrics
+	if !node.Online {
+		config.DebugLog("[CLUSTER] Skipping metrics for offline node: %s", node.Name)
+		return nil
+	}
+
 	fullStatus, err := c.GetNodeStatus(node.Name)
 	if err != nil {
-		config.DebugLog("[CLUSTER] Error getting status for node %s: %v", node.Name, err)
-		return fmt.Errorf("node %s: %w", node.Name, err)
+		// Mark node as offline if we can't reach it
+		node.Online = false
+		config.DebugLog("[CLUSTER] Node %s appears to be offline or unreachable: %v", node.Name, err)
+
+		// Return error for logging but don't make it critical
+		return fmt.Errorf("node %s offline/unreachable: %w", node.Name, err)
 	}
 
 	// Update node fields
@@ -200,6 +226,7 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 	node.LoadAvg = fullStatus.LoadAvg
 	node.lastMetricsUpdate = time.Now()
 
+	config.DebugLog("[CLUSTER] Successfully updated metrics for node: %s", node.Name)
 	return nil
 }
 
@@ -279,14 +306,19 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	var totalCPU, totalMem, usedMem float64
 	var onlineNodes int
+	var nodesWithMetrics int
 
 	for _, node := range cluster.Nodes {
 		if node.Online {
 			onlineNodes++
-			totalCPU += node.CPUCount
-			totalMem += node.MemoryTotal
-			usedMem += node.MemoryUsed
-			cluster.CPUUsage += node.CPUUsage
+			// Only include nodes that have valid metrics
+			if node.CPUCount > 0 {
+				totalCPU += node.CPUCount
+				totalMem += node.MemoryTotal
+				usedMem += node.MemoryUsed
+				cluster.CPUUsage += node.CPUUsage
+				nodesWithMetrics++
+			}
 		}
 	}
 
@@ -295,12 +327,19 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	cluster.MemoryTotal = totalMem
 	cluster.MemoryUsed = usedMem
 
-	if onlineNodes > 0 {
-		cluster.CPUUsage /= float64(onlineNodes)
+	// Calculate average CPU usage only from nodes with valid metrics
+	if nodesWithMetrics > 0 {
+		cluster.CPUUsage /= float64(nodesWithMetrics)
 	}
 
-	if len(cluster.Nodes) > 0 {
-		cluster.Version = fmt.Sprintf("Proxmox VE %s", cluster.Nodes[0].Version)
+	// Set version from the first node that has version info
+	for _, node := range cluster.Nodes {
+		if node.Version != "" {
+			cluster.Version = fmt.Sprintf("Proxmox VE %s", node.Version)
+			break
+		}
 	}
 
+	config.DebugLog("[CLUSTER] Cluster totals calculated: %d/%d nodes online, %d with complete metrics",
+		onlineNodes, len(cluster.Nodes), nodesWithMetrics)
 }

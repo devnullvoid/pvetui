@@ -164,9 +164,21 @@ func (c *Client) GetVmList(ctx context.Context) ([]map[string]interface{}, error
 
 // ClearAPICache removes all API-related cached responses
 func (c *Client) ClearAPICache() {
-	// We can't easily clear only API cache entries, but this is a good candidate
-	// for future improvement with cache namespaces
-	config.DebugLog("Clearing API cache")
+	globalCache := cache.GetGlobalCache()
+	if err := globalCache.Clear(); err != nil {
+		config.DebugLog("Failed to clear API cache: %v", err)
+	} else {
+		config.DebugLog("API cache cleared successfully")
+	}
+}
+
+// GetFreshClusterStatus retrieves cluster status bypassing cache completely
+func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
+	// Clear the cache first to ensure fresh data
+	c.ClearAPICache()
+
+	// Now get fresh data
+	return c.GetClusterStatus()
 }
 
 // NewClient initializes a new Proxmox API client with optimized defaults
