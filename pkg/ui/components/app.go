@@ -150,10 +150,9 @@ func (a *App) setupComponentConnections() {
 	}
 
 	// Set up VM list with all VMs
-	a.vmList.SetVMs(models.GlobalState.OriginalVMs)
 	a.vmList.SetApp(a)
 
-	// Configure VM list
+	// Configure VM list callbacks BEFORE setting VMs
 	a.vmList.SetVMSelectedFunc(func(vm *api.VM) {
 		a.vmDetails.Update(vm)
 	})
@@ -161,13 +160,11 @@ func (a *App) setupComponentConnections() {
 		a.vmDetails.Update(vm)
 	})
 
+	// Now set the VMs - this will trigger the onSelect callback for the first VM
+	a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+
 	// Configure VM details
 	a.vmDetails.SetApp(a)
-
-	// Update VM details if we have any VMs
-	if len(models.GlobalState.OriginalVMs) > 0 {
-		a.vmDetails.Update(models.GlobalState.OriginalVMs[0])
-	}
 }
 
 // setupKeyboardHandlers configures global keyboard shortcuts
@@ -253,7 +250,7 @@ func (a *App) setupKeyboardHandlers() {
 				}
 				return nil
 			} else if event.Rune() == 'c' || event.Rune() == 'C' {
-				// Open community scripts installer based on current page
+				// Open community scripts installer - only available for nodes
 				currentPage, _ := a.pages.GetFrontPage()
 				if currentPage == "Nodes" {
 					node := a.nodeList.GetSelectedNode()
@@ -261,22 +258,8 @@ func (a *App) setupKeyboardHandlers() {
 						a.openScriptSelector(node, nil)
 					}
 				} else if currentPage == "Guests" {
-					vm := a.vmList.GetSelectedVM()
-					if vm != nil {
-						// Find the node for this VM
-						var node *api.Node
-						for _, n := range a.client.Cluster.Nodes {
-							if n.Name == vm.Node {
-								node = n
-								break
-							}
-						}
-						if node != nil {
-							a.openScriptSelector(node, vm)
-						} else {
-							a.showMessage("Could not find host node for VM")
-						}
-					}
+					// Community scripts are not available for individual VMs
+					a.showMessage("Community scripts can only be installed on nodes. Switch to the Nodes tab to install scripts.")
 				}
 				return nil
 			} else if event.Rune() == 'r' || event.Rune() == 'R' {
@@ -385,8 +368,7 @@ func (a *App) showVMContextMenu() {
 		menuItems = append(menuItems, "Start")
 	}
 
-	// Add community script option (always available)
-	menuItems = append(menuItems, "Install Community Script")
+	// Note: Removed "Install Community Script" as it's only applicable to nodes
 
 	// Create and show context menu
 	menu := NewContextMenu(" Guest Actions ", menuItems, func(index int, action string) {
@@ -399,20 +381,6 @@ func (a *App) showVMContextMenu() {
 			a.performVMOperation(vm, a.client.StopVM, "Shutting down")
 		case "Restart":
 			a.performVMOperation(vm, a.client.RestartVM, "Restarting")
-		case "Install Community Script":
-			// Find the node for this VM
-			var node *api.Node
-			for _, n := range a.client.Cluster.Nodes {
-				if n.Name == vm.Node {
-					node = n
-					break
-				}
-			}
-			if node != nil {
-				a.openScriptSelector(node, vm)
-			} else {
-				a.showMessage("Could not find host node for VM")
-			}
 		}
 	})
 	menu.SetApp(a)
