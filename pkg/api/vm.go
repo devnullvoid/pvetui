@@ -298,7 +298,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 			vm.NetInterfaces = nil
 			// Only clear IP if it wasn't already set by config
 			// This check is to preserve IP from config if guest agent fails
-			if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 {
+			if len(vm.ConfiguredMACs) == 0 {
 				vm.IP = ""
 			}
 		}
@@ -367,7 +367,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		} else {
 			vm.NetInterfaces = nil // No interfaces found or error in GetLxcInterfaces
 			// Preserve IP if it was somehow set from LXC config (less common but possible)
-			if vm.ConfiguredMACs == nil || len(vm.ConfiguredMACs) == 0 {
+			if len(vm.ConfiguredMACs) == 0 {
 				vm.IP = ""
 			}
 		}

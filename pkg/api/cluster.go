@@ -23,7 +23,6 @@ type Cluster struct {
 
 	// For metrics tracking
 	lastUpdate time.Time
-	mu         sync.RWMutex
 }
 
 // GetClusterStatus retrieves high-level cluster status and node list
@@ -193,8 +192,8 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 
 // updateNodeMetrics updates metrics for a single node
 func (c *Client) updateNodeMetrics(node *Node) error {
-	node.mu.Lock()
-	defer node.mu.Unlock()
+	// node.mu.Lock()
+	// defer node.mu.Unlock()
 
 	// If the node is already marked as offline from cluster status, skip detailed metrics
 	if !node.Online {

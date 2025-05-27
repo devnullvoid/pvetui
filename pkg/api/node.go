@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 )
@@ -52,12 +51,12 @@ type Node struct {
 	LoadAvg       []string `json:"loadavg,omitempty"`
 
 	// For metrics tracking and concurrency
-	mu                sync.RWMutex  `json:"-"`
-	lastMetricsUpdate time.Time     `json:"-"`
-	metricsTTL        time.Duration `json:"-"`
-	lastCPUUsage      float64       `json:"-"`
-	lastMemoryUsage   float64       `json:"-"`
-	lastLoadAvg       []string      `json:"-"`
+	// mu                sync.RWMutex `json:"-"`
+	lastMetricsUpdate time.Time `json:"-"`
+	// metricsTTL        time.Duration `json:"-"`
+	// lastCPUUsage      float64       `json:"-"`
+	// lastMemoryUsage   float64       `json:"-"`
+	// lastLoadAvg       []string      `json:"-"`
 }
 
 // ListNodes retrieves nodes from cached cluster data

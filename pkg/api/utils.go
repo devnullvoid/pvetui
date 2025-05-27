@@ -65,36 +65,3 @@ func getInt(data map[string]interface{}, key string) int {
 	}
 	return 0
 }
-
-// Extract IP addresses from config data
-func getIPAddresses(config map[string]interface{}) []string {
-	var ips []string
-	
-	// Look for net0, net1, etc. in config
-	for k, v := range config {
-		if !strings.HasPrefix(k, "net") {
-			continue
-		}
-		
-		netStr, ok := v.(string)
-		if !ok {
-			continue
-		}
-		
-		// Parse IP from config string like "virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr0,ip=192.168.1.100/24"
-		parts := strings.Split(netStr, ",")
-		for _, part := range parts {
-			if strings.HasPrefix(part, "ip=") {
-				ip := strings.TrimPrefix(part, "ip=")
-				// Remove subnet mask if present
-				if idx := strings.Index(ip, "/"); idx > 0 {
-					ip = ip[:idx]
-				}
-				ips = append(ips, ip)
-				break
-			}
-		}
-	}
-	
-	return ips
-}
