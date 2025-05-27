@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // Cache defines the interface for the caching system

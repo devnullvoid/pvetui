@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/cache"
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/internal/cache"
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // Cache TTLs for different types of data

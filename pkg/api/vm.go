@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // VM represents a Proxmox VM or container

@@ -1,0 +1,11 @@
+addr: https://proxmox.local:8006
+api_path: /api2/json
+user: root
+# password: "1234567890"
+token_id: "tui"
+token_secret: "1234567890"
+realm: "pam"
+insecure: true
+ssh_user: root
+debug: false
+cache_dir: "/tmp/proxmox-tui-cache"

@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/dgraph-io/badger/v4"
 )
 

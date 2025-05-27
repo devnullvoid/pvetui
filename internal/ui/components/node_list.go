@@ -2,7 +2,7 @@ package components
 
 import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/pkg/ui/utils"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

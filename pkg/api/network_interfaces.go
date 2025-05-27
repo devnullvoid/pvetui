@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // NetworkInterfaceStatistics represents network interface statistics from QEMU guest agent

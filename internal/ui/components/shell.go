@@ -6,7 +6,7 @@ import (
 
 	// "github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
-	"github.com/devnullvoid/proxmox-tui/pkg/ssh"
+	"github.com/devnullvoid/proxmox-tui/internal/ssh"
 )
 
 // openNodeShell opens an SSH session to the currently selected node

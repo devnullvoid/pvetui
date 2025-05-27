@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // AuthToken represents a Proxmox authentication token

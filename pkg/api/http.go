@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/config"
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // HTTPClient wraps http.Client with Proxmox-specific functionality

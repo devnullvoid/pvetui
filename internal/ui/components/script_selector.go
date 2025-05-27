@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/pkg/scripts"
+	"github.com/devnullvoid/proxmox-tui/internal/scripts"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
