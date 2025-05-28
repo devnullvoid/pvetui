@@ -290,6 +290,7 @@ func (a *App) showMessage(message string) {
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	modal := tview.NewModal().
 		SetText(message).
+		SetBackgroundColor(tcell.ColorGray).
 		AddButtons([]string{"Yes", "No"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("confirmation")
@@ -315,7 +316,7 @@ func (a *App) showNodeContextMenu() {
 	// Create menu items based on node state
 	menuItems := []string{
 		"Open Shell",
-		"View Logs",
+		// "View Logs",
 		"Install Community Script",
 		"Refresh",
 	}
@@ -384,11 +385,26 @@ func (a *App) showVMContextMenu() {
 		case "Refresh":
 			a.refreshVMData(vm)
 		case "Start":
-			a.performVMOperation(vm, a.client.StartVM, "Starting")
+			a.showConfirmationDialog(
+				fmt.Sprintf("Are you sure you want to start VM '%s' (ID: %d)?", vm.Name, vm.ID),
+				func() {
+					a.performVMOperation(vm, a.client.StartVM, "Starting")
+				},
+			)
 		case "Shutdown":
-			a.performVMOperation(vm, a.client.StopVM, "Shutting down")
+			a.showConfirmationDialog(
+				fmt.Sprintf("Are you sure you want to shutdown VM '%s' (ID: %d)?", vm.Name, vm.ID),
+				func() {
+					a.performVMOperation(vm, a.client.StopVM, "Shutting down")
+				},
+			)
 		case "Restart":
-			a.performVMOperation(vm, a.client.RestartVM, "Restarting")
+			a.showConfirmationDialog(
+				fmt.Sprintf("Are you sure you want to restart VM '%s' (ID: %d)?", vm.Name, vm.ID),
+				func() {
+					a.performVMOperation(vm, a.client.RestartVM, "Restarting")
+				},
+			)
 		}
 	})
 	menu.SetApp(a)
