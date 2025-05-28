@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // Cluster represents aggregated Proxmox cluster metrics
@@ -50,7 +48,7 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 	// 4. Enrich VMs with detailed status information
 	if err := c.EnrichVMs(cluster); err != nil {
 		// Log error but continue
-		config.DebugLog("[CLUSTER] Error enriching VM data: %v", err)
+		c.logger.Debug("[CLUSTER] Error enriching VM data: %v", err)
 	}
 
 	// 5. Calculate cluster-wide totals
@@ -92,9 +90,9 @@ func (c *Client) FastGetClusterStatus() (*Cluster, error) {
 	// 6. Start background VM enrichment
 	go func() {
 		if err := c.EnrichVMs(cluster); err != nil {
-			config.DebugLog("[BACKGROUND] Error enriching VM data: %v", err)
+			c.logger.Debug("[BACKGROUND] Error enriching VM data: %v", err)
 		} else {
-			config.DebugLog("[BACKGROUND] Successfully enriched VM data")
+			c.logger.Debug("[BACKGROUND] Successfully enriched VM data")
 		}
 	}()
 
@@ -172,9 +170,9 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 
 	// Log individual node errors but don't fail unless ALL nodes are unreachable
 	if len(errors) > 0 {
-		config.DebugLog("[CLUSTER] Node enrichment completed with %d errors out of %d nodes", len(errors), len(cluster.Nodes))
+		c.logger.Debug("[CLUSTER] Node enrichment completed with %d errors out of %d nodes", len(errors), len(cluster.Nodes))
 		for _, err := range errors {
-			config.DebugLog("[CLUSTER] Node error: %v", err)
+			c.logger.Debug("[CLUSTER] Node error: %v", err)
 		}
 
 		// Only fail if ALL nodes failed to respond
@@ -183,7 +181,7 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 		}
 
 		// If some nodes succeeded, continue with a warning
-		config.DebugLog("[CLUSTER] Continuing with %d available nodes (%d offline)",
+		c.logger.Debug("[CLUSTER] Continuing with %d available nodes (%d offline)",
 			len(cluster.Nodes)-len(errors), len(errors))
 	}
 
@@ -197,7 +195,7 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 
 	// If the node is already marked as offline from cluster status, skip detailed metrics
 	if !node.Online {
-		config.DebugLog("[CLUSTER] Skipping metrics for offline node: %s", node.Name)
+		c.logger.Debug("[CLUSTER] Skipping metrics for offline node: %s", node.Name)
 		return nil
 	}
 
@@ -205,7 +203,7 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 	if err != nil {
 		// Mark node as offline if we can't reach it
 		node.Online = false
-		config.DebugLog("[CLUSTER] Node %s appears to be offline or unreachable: %v", node.Name, err)
+		c.logger.Debug("[CLUSTER] Node %s appears to be offline or unreachable: %v", node.Name, err)
 
 		// Return error for logging but don't make it critical
 		return fmt.Errorf("node %s offline/unreachable: %w", node.Name, err)
@@ -225,7 +223,7 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 	node.LoadAvg = fullStatus.LoadAvg
 	node.lastMetricsUpdate = time.Now()
 
-	config.DebugLog("[CLUSTER] Successfully updated metrics for node: %s", node.Name)
+	c.logger.Debug("[CLUSTER] Successfully updated metrics for node: %s", node.Name)
 	return nil
 }
 
@@ -339,6 +337,6 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 		}
 	}
 
-	config.DebugLog("[CLUSTER] Cluster totals calculated: %d/%d nodes online, %d with complete metrics",
+	c.logger.Debug("[CLUSTER] Cluster totals calculated: %d/%d nodes online, %d with complete metrics",
 		onlineNodes, len(cluster.Nodes), nodesWithMetrics)
 }

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
 // AuthToken represents a Proxmox authentication token
@@ -27,31 +27,64 @@ func (t *AuthToken) IsValid() bool {
 	return t != nil && t.Ticket != "" && time.Now().Before(t.ExpiresAt)
 }
 
-// AuthManager handles Proxmox API authentication
+// AuthManager handles Proxmox API authentication with dependency injection
 type AuthManager struct {
-	baseURL    string
+	httpClient *HTTPClient
 	username   string
 	password   string
-	httpClient *http.Client
-	token      *AuthToken
+	token      string // For API token authentication
+	authToken  *AuthToken
+	logger     interfaces.Logger
 	mu         sync.RWMutex
 }
 
-// NewAuthManager creates a new authentication manager
-func NewAuthManager(baseURL, username, password string, httpClient *http.Client) *AuthManager {
+// NewAuthManagerWithPassword creates a new authentication manager for password auth
+func NewAuthManagerWithPassword(httpClient *HTTPClient, username, password string, logger interfaces.Logger) *AuthManager {
 	return &AuthManager{
-		baseURL:    baseURL,
+		httpClient: httpClient,
 		username:   username,
 		password:   password,
-		httpClient: httpClient,
+		logger:     logger,
 	}
+}
+
+// NewAuthManagerWithToken creates a new authentication manager for token auth
+func NewAuthManagerWithToken(httpClient *HTTPClient, token string, logger interfaces.Logger) *AuthManager {
+	return &AuthManager{
+		httpClient: httpClient,
+		token:      token,
+		logger:     logger,
+	}
+}
+
+// EnsureAuthenticated ensures the client is authenticated
+func (am *AuthManager) EnsureAuthenticated() error {
+	if am.token != "" {
+		// Using API token, no need to authenticate
+		am.httpClient.SetAPIToken(am.token)
+		return nil
+	}
+
+	// Using password authentication, need to get a ticket
+	_, err := am.GetValidToken(context.Background())
+	return err
 }
 
 // GetValidToken returns a valid authentication token, refreshing if necessary
 func (am *AuthManager) GetValidToken(ctx context.Context) (*AuthToken, error) {
+	if am.token != "" {
+		// Using API token authentication, return a dummy token
+		return &AuthToken{
+			Ticket:    am.token,
+			CSRFToken: "",
+			Username:  "api-token",
+			ExpiresAt: time.Now().Add(24 * time.Hour), // API tokens don't expire
+		}, nil
+	}
+
 	am.mu.RLock()
-	if am.token != nil && am.token.IsValid() {
-		token := am.token
+	if am.authToken != nil && am.authToken.IsValid() {
+		token := am.authToken
 		am.mu.RUnlock()
 		return token, nil
 	}
@@ -67,24 +100,24 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 	defer am.mu.Unlock()
 
 	// Double-check after acquiring write lock
-	if am.token != nil && am.token.IsValid() {
-		return am.token, nil
+	if am.authToken != nil && am.authToken.IsValid() {
+		return am.authToken, nil
 	}
 
-	config.DebugLog("Authenticating with Proxmox API: %s", am.username)
+	am.logger.Debug("Authenticating with Proxmox API: %s", am.username)
 
 	// Prepare authentication request
-	authURL := am.baseURL + "/api2/json/access/ticket"
-	config.DebugLog("Authentication URL: %s", authURL)
+	authURL := "/access/ticket"
+	am.logger.Debug("Authentication URL: %s", authURL)
 
 	// Create form data
 	formData := url.Values{}
 	formData.Set("username", am.username)
 	formData.Set("password", am.password)
-	config.DebugLog("Form data: username=%s, password=<hidden>", am.username)
+	am.logger.Debug("Form data: username=%s, password=<hidden>", am.username)
 
 	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, "POST", authURL, strings.NewReader(formData.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", am.httpClient.baseURL+authURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create authentication request: %w", err)
 	}
@@ -93,22 +126,22 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", "proxmox-tui")
 
-	config.DebugLog("Sending authentication request to: %s", authURL)
+	am.logger.Debug("Sending authentication request to: %s", am.httpClient.baseURL+authURL)
 
 	// Execute request
-	resp, err := am.httpClient.Do(req)
+	resp, err := am.httpClient.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("authentication request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	config.DebugLog("Authentication response status: %d %s", resp.StatusCode, resp.Status)
+	am.logger.Debug("Authentication response status: %d %s", resp.StatusCode, resp.Status)
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		// Read response body for better error details
 		body, _ := io.ReadAll(resp.Body)
-		config.DebugLog("Authentication failed response body: %s", string(body))
+		am.logger.Debug("Authentication failed response body: %s", string(body))
 		return nil, fmt.Errorf("authentication failed with status %d: %s", resp.StatusCode, resp.Status)
 	}
 
@@ -138,8 +171,8 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 		ExpiresAt: time.Now().Add(2 * time.Hour),
 	}
 
-	am.token = token
-	config.DebugLog("Authentication successful for user: %s", token.Username)
+	am.authToken = token
+	am.logger.Debug("Authentication successful for user: %s", token.Username)
 
 	return token, nil
 }
@@ -148,6 +181,6 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 func (am *AuthManager) ClearToken() {
 	am.mu.Lock()
 	defer am.mu.Unlock()
-	am.token = nil
-	config.DebugLog("Authentication token cleared")
+	am.authToken = nil
+	am.logger.Debug("Authentication token cleared")
 }

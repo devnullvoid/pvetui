@@ -10,25 +10,35 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
-// HTTPClient wraps http.Client with Proxmox-specific functionality
+// HTTPClient wraps http.Client with Proxmox-specific functionality and dependency injection
 type HTTPClient struct {
 	client      *http.Client
 	authManager *AuthManager
 	baseURL     string
 	apiToken    string // For API token authentication
+	logger      interfaces.Logger
 }
 
-// NewHTTPClient creates a new Proxmox HTTP client
-func NewHTTPClient(httpClient *http.Client, authManager *AuthManager, baseURL string, apiToken string) *HTTPClient {
+// NewHTTPClient creates a new Proxmox HTTP client with dependency injection
+func NewHTTPClient(httpClient *http.Client, baseURL string, logger interfaces.Logger) *HTTPClient {
 	return &HTTPClient{
-		client:      httpClient,
-		authManager: authManager,
-		baseURL:     baseURL,
-		apiToken:    apiToken,
+		client:  httpClient,
+		baseURL: baseURL,
+		logger:  logger,
 	}
+}
+
+// SetAuthManager sets the auth manager for the HTTP client
+func (hc *HTTPClient) SetAuthManager(authManager *AuthManager) {
+	hc.authManager = authManager
+}
+
+// SetAPIToken sets the API token for authentication
+func (hc *HTTPClient) SetAPIToken(token string) {
+	hc.apiToken = token
 }
 
 // Get performs a GET request to the Proxmox API
@@ -69,7 +79,7 @@ func (hc *HTTPClient) doRequestWithRetry(ctx context.Context, method, path strin
 		if attempt > 1 {
 			// Exponential backoff
 			backoff := time.Duration(attempt-1) * 500 * time.Millisecond
-			config.DebugLog("Retrying request after %v (attempt %d/%d)", backoff, attempt, maxRetries)
+			hc.logger.Debug("Retrying request after %v (attempt %d/%d)", backoff, attempt, maxRetries)
 
 			select {
 			case <-time.After(backoff):
@@ -90,7 +100,7 @@ func (hc *HTTPClient) doRequestWithRetry(ctx context.Context, method, path strin
 			break
 		}
 
-		config.DebugLog("Request failed, will retry: %v", err)
+		hc.logger.Debug("Request failed, will retry: %v", err)
 	}
 
 	return fmt.Errorf("request failed after %d attempts: %w", maxRetries, lastErr)
@@ -128,8 +138,8 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 	if hc.apiToken != "" {
 		// Use API token authentication
 		req.Header.Set("Authorization", hc.apiToken)
-		config.DebugLog("Using API token authentication")
-	} else {
+		hc.logger.Debug("Using API token authentication")
+	} else if hc.authManager != nil {
 		// Use ticket-based authentication
 		token, err := hc.authManager.GetValidToken(ctx)
 		if err != nil {
@@ -145,7 +155,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 				req.Header.Set("CSRFPreventionToken", token.CSRFToken)
 			}
 		}
-		config.DebugLog("Using ticket-based authentication")
+		hc.logger.Debug("Using ticket-based authentication")
 	}
 
 	// Set content type for write operations
@@ -153,7 +163,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	config.DebugLog("API %s: %s", method, path)
+	hc.logger.Debug("API %s: %s", method, path)
 
 	// Execute request
 	resp, err := hc.client.Do(req)
@@ -172,8 +182,8 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 	if resp.StatusCode == http.StatusUnauthorized {
 		if hc.apiToken != "" {
 			return fmt.Errorf("API token authentication failed: %s", resp.Status)
-		} else {
-			config.DebugLog("Authentication token expired, clearing cache")
+		} else if hc.authManager != nil {
+			hc.logger.Debug("Authentication token expired, clearing cache")
 			hc.authManager.ClearToken()
 			return fmt.Errorf("authentication failed: %s", resp.Status)
 		}
@@ -200,20 +210,10 @@ func (hc *HTTPClient) shouldRetry(err error, attempt, maxRetries int) bool {
 		return false
 	}
 
-	// Retry on authentication errors (token might have expired)
-	if strings.Contains(err.Error(), "authentication failed") {
-		return true
-	}
-
-	// Retry on network errors
+	// Retry on network errors, timeouts, and 5xx server errors
 	if strings.Contains(err.Error(), "connection") ||
 		strings.Contains(err.Error(), "timeout") ||
-		strings.Contains(err.Error(), "network") {
-		return true
-	}
-
-	// Retry on 5xx server errors
-	if strings.Contains(err.Error(), "status 5") {
+		strings.Contains(err.Error(), "status 5") {
 		return true
 	}
 

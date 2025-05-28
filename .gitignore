@@ -3,3 +3,6 @@
 .cursor/
 config.yml
 proxmox-tui
+
+# Runtime logs
+logs/

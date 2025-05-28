@@ -3,8 +3,6 @@ package api
 import (
 	"fmt"
 	"strings"
-
-	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // NetworkInterfaceStatistics represents network interface statistics from QEMU guest agent
@@ -150,7 +148,7 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 	if err := c.GetWithCache(endpoint, &apiResponse, VMDataTTL); err != nil {
 		// Based on previous handling, API might return 500 if feature not available or container stopped.
 		// Treat this as "no interfaces found" rather than a hard error for GetVmStatus.
-		config.DebugLog("Failed to get LXC interfaces for VM %d on node %s (may be expected): %v", vm.ID, vm.Node, err)
+		c.logger.Debug("Failed to get LXC interfaces for VM %d on node %s (may be expected): %v", vm.ID, vm.Node, err)
 		return nil, nil
 	}
 
@@ -171,7 +169,7 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 	for _, ifaceDataItem := range responseData {
 		ifaceMap, ok := ifaceDataItem.(map[string]interface{})
 		if !ok {
-			config.DebugLog("LXC interface item is not a map[string]interface{}: %+v", ifaceDataItem)
+			c.logger.Debug("LXC interface item is not a map[string]interface{}: %+v", ifaceDataItem)
 			continue
 		}
 

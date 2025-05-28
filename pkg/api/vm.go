@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-
-	"github.com/devnullvoid/proxmox-tui/internal/config"
 )
 
 // VM represents a Proxmox VM or container
@@ -314,7 +312,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 
 		rawNetInterfaces, lxcErr := c.GetLxcInterfaces(vm) // Error from GetLxcInterfaces is already handled (returns nil if major issue)
 		if lxcErr != nil {
-			config.DebugLog("[vm.go] Error calling GetLxcInterfaces for %s (%d): %v", vm.Name, vm.ID, lxcErr)
+			c.logger.Debug("[vm.go] Error calling GetLxcInterfaces for %s (%d): %v", vm.Name, vm.ID, lxcErr)
 		}
 		if len(rawNetInterfaces) > 0 {
 			var filteredLxcInterfaces []NetworkInterface

@@ -3,9 +3,12 @@ package models
 import (
 	"fmt"
 	"strings"
+	"sync"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/logger"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 	"github.com/rivo/tview"
 )
 
@@ -38,6 +41,30 @@ var GlobalState = State{
 	FilteredVMs:   make([]*api.VM, 0),
 	OriginalNodes: make([]*api.Node, 0),
 	OriginalVMs:   make([]*api.VM, 0),
+}
+
+// UI logger instance
+var (
+	uiLogger     interfaces.Logger
+	uiLoggerOnce sync.Once
+)
+
+// getUILogger returns the UI logger, initializing it if necessary
+func getUILogger() interfaces.Logger {
+	uiLoggerOnce.Do(func() {
+		// Create a logger for UI operations that logs to file
+		level := logger.LevelInfo
+		if config.DebugEnabled {
+			level = logger.LevelDebug
+		}
+		var err error
+		uiLogger, err = logger.NewInternalLogger(level)
+		if err != nil {
+			// Fallback to simple logger if file logging fails
+			uiLogger = logger.NewSimpleLogger(level)
+		}
+	})
+	return uiLogger
 }
 
 // GetSearchState returns the search state for a given component
@@ -93,7 +120,7 @@ func FilterNodes(filter string) {
 		}
 	}
 
-	config.DebugLog("Filtered nodes from %d to %d with filter '%s'",
+	getUILogger().Debug("Filtered nodes from %d to %d with filter '%s'",
 		len(GlobalState.OriginalNodes), len(GlobalState.FilteredNodes), filter)
 }
 
@@ -150,6 +177,6 @@ func FilterVMs(filter string) {
 		}
 	}
 
-	config.DebugLog("Filtered VMs from %d to %d with filter '%s'",
+	getUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
 		len(GlobalState.OriginalVMs), len(GlobalState.FilteredVMs), filter)
 }

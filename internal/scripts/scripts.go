@@ -8,10 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/logger"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
 // GitHubRepo is the URL to the Proxmox Community Scripts repository
@@ -64,6 +67,30 @@ type GitHubContent struct {
 	DownloadURL string `json:"download_url"`
 }
 
+// Scripts logger instance
+var (
+	scriptsLogger     interfaces.Logger
+	scriptsLoggerOnce sync.Once
+)
+
+// getScriptsLogger returns the scripts logger, initializing it if necessary
+func getScriptsLogger() interfaces.Logger {
+	scriptsLoggerOnce.Do(func() {
+		// Create a logger for scripts operations that logs to file
+		level := logger.LevelInfo
+		if config.DebugEnabled {
+			level = logger.LevelDebug
+		}
+		var err error
+		scriptsLogger, err = logger.NewInternalLogger(level)
+		if err != nil {
+			// Fallback to simple logger if file logging fails
+			scriptsLogger = logger.NewSimpleLogger(level)
+		}
+	})
+	return scriptsLogger
+}
+
 // GetScriptCategories returns the available script categories
 func GetScriptCategories() []ScriptCategory {
 	return []ScriptCategory{
@@ -102,9 +129,9 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	var cachedFiles []GitHubContent
 	found, err := c.Get(ScriptListCacheKey, &cachedFiles)
 	if err != nil {
-		config.DebugLog("Cache error for script list: %v", err)
+		getScriptsLogger().Debug("Cache error for script list: %v", err)
 	} else if found && len(cachedFiles) > 0 {
-		config.DebugLog("Using cached script list (%d items)", len(cachedFiles))
+		getScriptsLogger().Debug("Using cached script list (%d items)", len(cachedFiles))
 		return cachedFiles, nil
 	}
 
@@ -152,7 +179,7 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 		if content.Type == "file" && strings.HasSuffix(content.Name, ".json") {
 			// Skip the special metadata files that have different structures
 			if content.Name == "metadata.json" || content.Name == "versions.json" {
-				config.DebugLog("Skipping special metadata file: %s", content.Name)
+				getScriptsLogger().Debug("Skipping special metadata file: %s", content.Name)
 				continue
 			}
 			jsonFiles = append(jsonFiles, content)
@@ -162,9 +189,9 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	// Cache the results
 	if len(jsonFiles) > 0 {
 		if err := c.Set(ScriptListCacheKey, jsonFiles, ScriptListTTL); err != nil {
-			config.DebugLog("Failed to cache script list: %v", err)
+			getScriptsLogger().Debug("Failed to cache script list: %v", err)
 		} else {
-			config.DebugLog("Cached script list with %d items", len(jsonFiles))
+			getScriptsLogger().Debug("Cached script list with %d items", len(jsonFiles))
 		}
 	}
 
@@ -181,9 +208,9 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 	var cachedScript Script
 	found, err := c.Get(cacheKey, &cachedScript)
 	if err != nil {
-		config.DebugLog("Cache error for script %s: %v", metadataURL, err)
+		getScriptsLogger().Debug("Cache error for script %s: %v", metadataURL, err)
 	} else if found && cachedScript.Name != "" {
-		config.DebugLog("Using cached script metadata for %s", cachedScript.Name)
+		getScriptsLogger().Debug("Using cached script metadata for %s", cachedScript.Name)
 		return &cachedScript, nil
 	}
 
@@ -255,16 +282,16 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 			script.ScriptPath = fmt.Sprintf("vm/%s.sh", script.Slug)
 		} else {
 			// For other types, we might not be able to determine the script path
-			config.DebugLog("Warning: No install method found for script %s, might not be installable", script.Name)
+			getScriptsLogger().Debug("Warning: No install method found for script %s, might not be installable", script.Name)
 		}
 	}
 
 	// Cache the script metadata
 	if script.Name != "" && script.ScriptPath != "" {
 		if err := c.Set(cacheKey, script, ScriptMetadataTTL); err != nil {
-			config.DebugLog("Failed to cache script metadata for %s: %v", script.Name, err)
+			getScriptsLogger().Debug("Failed to cache script metadata for %s: %v", script.Name, err)
 		} else {
-			config.DebugLog("Cached script metadata for %s", script.Name)
+			getScriptsLogger().Debug("Cached script metadata for %s", script.Name)
 		}
 	}
 
@@ -292,7 +319,7 @@ func FetchScripts() ([]Script, error) {
 		script, err := GetScriptMetadata(file.DownloadURL)
 		if err != nil {
 			// Skip this script but log the error
-			config.DebugLog("Error fetching metadata for %s: %v", file.Name, err)
+			getScriptsLogger().Debug("Error fetching metadata for %s: %v", file.Name, err)
 			errorCount++
 
 			// If we're getting too many errors, something might be wrong with GitHub API
@@ -355,7 +382,7 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 	// This mirrors the official installation pattern but runs interactively
 	installCommand := fmt.Sprintf("sudo /bin/bash -c \"curl -fsSL '%s' | /bin/bash\"", scriptURL)
 
-	config.DebugLog("Running interactive SSH command for script: %s", scriptPath)
+	getScriptsLogger().Debug("Running interactive SSH command for script: %s", scriptPath)
 
 	// Execute the command via SSH with interactive terminal
 	// Use -t to force pseudo-terminal allocation for interactive scripts
@@ -379,7 +406,7 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 		return fmt.Errorf("script installation failed: %w", err)
 	}
 
-	config.DebugLog("Script installation completed successfully")
+	getScriptsLogger().Debug("Script installation completed successfully")
 	return nil
 }
 

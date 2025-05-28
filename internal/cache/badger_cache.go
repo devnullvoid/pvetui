@@ -7,7 +7,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/dgraph-io/badger/v4"
 )
 
@@ -28,9 +27,9 @@ func NewBadgerCache(dir string) (*BadgerCache, error) {
 	if _, err := os.Stat(lockFilePath); err == nil {
 		// Lock file exists, check if it's stale
 		if isStale, err := isLockFileStale(lockFilePath); err != nil {
-			config.DebugLog("Failed to check if lock file is stale: %v", err)
+			getCacheLogger().Debug("Failed to check if lock file is stale: %v", err)
 		} else if isStale {
-			config.DebugLog("Removing stale lock file")
+			getCacheLogger().Debug("Removing stale lock file")
 			if err := os.Remove(lockFilePath); err != nil {
 				return nil, fmt.Errorf("failed to remove stale lock file: %w", err)
 			}
@@ -63,7 +62,7 @@ func NewBadgerCache(dir string) (*BadgerCache, error) {
 		for range ticker.C {
 			err := db.RunValueLogGC(0.5) // Run GC if 50% or more space can be reclaimed
 			if err != nil && err != badger.ErrNoRewrite {
-				config.DebugLog("Badger value log GC failed: %v", err)
+				getCacheLogger().Debug("Badger value log GC failed: %v", err)
 			}
 		}
 	}()
@@ -104,7 +103,7 @@ func (c *BadgerCache) Get(key string, dest interface{}) (bool, error) {
 	err := c.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
 		if err == badger.ErrKeyNotFound {
-			config.DebugLog("Cache miss for: %s", key)
+			getCacheLogger().Debug("Cache miss for: %s", key)
 			return nil
 		}
 		if err != nil {
@@ -120,14 +119,14 @@ func (c *BadgerCache) Get(key string, dest interface{}) (bool, error) {
 
 			// Check if the item is expired
 			if cacheItem.TTL > 0 && time.Now().Unix()-cacheItem.Timestamp > cacheItem.TTL {
-				config.DebugLog("Cache item expired: %s", key)
+				getCacheLogger().Debug("Cache item expired: %s", key)
 				// Item is expired, we'll handle deletion outside this transaction
 				return nil
 			}
 
 			// Item is valid
 			found = true
-			config.DebugLog("Cache hit for: %s", key)
+			getCacheLogger().Debug("Cache hit for: %s", key)
 
 			// Unmarshal the data into the destination
 			bytes, err := json.Marshal(cacheItem.Data)
@@ -176,7 +175,7 @@ func (c *BadgerCache) Set(key string, data interface{}, ttl time.Duration) error
 		return fmt.Errorf("badger set operation: %w", err)
 	}
 
-	config.DebugLog("Cached item: %s with TTL %v", key, ttl)
+	getCacheLogger().Debug("Cached item: %s with TTL %v", key, ttl)
 	return nil
 }
 
@@ -188,18 +187,18 @@ func (c *BadgerCache) Delete(key string) error {
 	if err != nil {
 		return fmt.Errorf("badger delete operation: %w", err)
 	}
-	config.DebugLog("Deleted cache item: %s", key)
+	getCacheLogger().Debug("Deleted cache item: %s", key)
 	return nil
 }
 
 // Clear removes all items from the cache
 func (c *BadgerCache) Clear() error {
-	config.DebugLog("Clearing all cache items")
+	getCacheLogger().Debug("Clearing all cache items")
 	return c.db.DropAll()
 }
 
 // Close closes the badger database
 func (c *BadgerCache) Close() error {
-	config.DebugLog("Closing Badger database")
+	getCacheLogger().Debug("Closing Badger database")
 	return c.db.Close()
 }

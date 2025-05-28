@@ -6,17 +6,31 @@ import (
 	"log"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/internal/adapters"
 )
+
+// TestConfig implements the interfaces.Config interface for testing
+type TestConfig struct {
+	Address  string
+	User     string
+	Password string
+	Realm    string
+	Insecure bool
+}
+
+func (c *TestConfig) GetAddr() string         { return c.Address }
+func (c *TestConfig) GetUser() string         { return c.User }
+func (c *TestConfig) GetPassword() string     { return c.Password }
+func (c *TestConfig) GetRealm() string        { return c.Realm }
+func (c *TestConfig) GetInsecure() bool       { return c.Insecure }
+func (c *TestConfig) GetTokenID() string      { return "" }
+func (c *TestConfig) GetTokenSecret() string  { return "" }
+func (c *TestConfig) GetAPIToken() string     { return "" }
+func (c *TestConfig) IsUsingTokenAuth() bool  { return false }
 
 func main() {
 	// Test configuration - REPLACE THESE VALUES
-	config := struct {
-		Address  string
-		User     string
-		Password string
-		Realm    string
-		Insecure bool
-	}{
+	config := &TestConfig{
 		Address:  "https://jupiter.devnullvoid.local:8006/api2/json", // Replace with your Proxmox IP/hostname
 		User:     "jon",                                              // Proxmox admin user
 		Password: "Ch3rryB1rb@#",                                     // Proxmox password
@@ -26,14 +40,9 @@ func main() {
 
 	fmt.Println("Starting connection test...")
 
-	// 1. Create client
-	client, err := api.NewClient(
-		config.Address,
-		config.User,
-		config.Password,
-		config.Realm,
-		config.Insecure,
-	)
+	// 1. Create client with logger for better debugging
+	loggerAdapter := adapters.NewSimpleLoggerAdapter(true) // Enable debug logging
+	client, err := api.NewClient(config, api.WithLogger(loggerAdapter))
 	if err != nil {
 		log.Fatalf("Client creation failed: %v", err)
 	}

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/logger"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
 // Cache defines the interface for the caching system
@@ -85,14 +87,14 @@ func (c *FileCache) loadCacheFiles() error {
 		// Read the file
 		data, err := os.ReadFile(filepath.Join(c.dir, file.Name()))
 		if err != nil {
-			config.DebugLog("Warning: Failed to read cache file %s: %v", file.Name(), err)
+			getCacheLogger().Debug("Warning: Failed to read cache file %s: %v", file.Name(), err)
 			continue
 		}
 
 		// Parse the item
 		var item CacheItem
 		if err := json.Unmarshal(data, &item); err != nil {
-			config.DebugLog("Warning: Failed to parse cache file %s: %v", file.Name(), err)
+			getCacheLogger().Debug("Warning: Failed to parse cache file %s: %v", file.Name(), err)
 			continue
 		}
 
@@ -100,7 +102,7 @@ func (c *FileCache) loadCacheFiles() error {
 		if item.TTL > 0 && time.Now().Unix()-item.Timestamp > item.TTL {
 			// Item is expired, remove the file
 			if err := os.Remove(filepath.Join(c.dir, file.Name())); err != nil {
-				config.DebugLog("Warning: Failed to remove expired cache file %s: %v", file.Name(), err)
+				getCacheLogger().Debug("Warning: Failed to remove expired cache file %s: %v", file.Name(), err)
 			}
 			continue
 		}
@@ -120,7 +122,7 @@ func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
 	// Check if item exists in memory
 	item, exists := c.inMemory[key]
 	if !exists {
-		config.DebugLog("Cache miss for: %s", key)
+		getCacheLogger().Debug("Cache miss for: %s", key)
 		return false, nil
 	}
 
@@ -128,7 +130,7 @@ func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
 	if item.TTL > 0 && time.Now().Unix()-item.Timestamp > item.TTL {
 		// Item is expired, remove it
 		delete(c.inMemory, key)
-		config.DebugLog("Cache item expired: %s", key)
+		getCacheLogger().Debug("Cache item expired: %s", key)
 
 		// If persisted, remove the file
 		if c.persisted {
@@ -141,7 +143,7 @@ func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
 		return false, nil
 	}
 
-	config.DebugLog("Cache hit for: %s", key)
+	getCacheLogger().Debug("Cache hit for: %s", key)
 
 	// Unmarshal the data into the destination
 	bytes, err := json.Marshal(item.Data)
@@ -186,7 +188,7 @@ func (c *FileCache) Set(key string, data interface{}, ttl time.Duration) error {
 		}
 	}
 
-	config.DebugLog("Cached item: %s with TTL %v", key, ttl)
+	getCacheLogger().Debug("Cached item: %s with TTL %v", key, ttl)
 	return nil
 }
 
@@ -206,7 +208,7 @@ func (c *FileCache) Delete(key string) error {
 		}
 	}
 
-	config.DebugLog("Deleted cache item: %s", key)
+	getCacheLogger().Debug("Deleted cache item: %s", key)
 	return nil
 }
 
@@ -256,8 +258,29 @@ func NewMemoryCache() *FileCache {
 // Global singleton cache instance
 var (
 	globalCache Cache
+	cacheLogger interfaces.Logger
 	once        sync.Once
+	loggerOnce  sync.Once
 )
+
+// getCacheLogger returns the cache logger, initializing it if necessary
+func getCacheLogger() interfaces.Logger {
+	loggerOnce.Do(func() {
+		// Create a logger for cache operations that logs to file
+		// Use debug level if config.DebugEnabled is true
+		level := logger.LevelInfo
+		if config.DebugEnabled {
+			level = logger.LevelDebug
+		}
+		var err error
+		cacheLogger, err = logger.NewInternalLogger(level)
+		if err != nil {
+			// Fallback to simple logger if file logging fails
+			cacheLogger = logger.NewSimpleLogger(level)
+		}
+	})
+	return cacheLogger
+}
 
 // InitGlobalCache initializes the global cache with the given directory
 func InitGlobalCache(cacheDir string) error {
@@ -282,16 +305,16 @@ func InitGlobalCache(cacheDir string) error {
 		lockFileExists := false
 		if _, statErr := os.Stat(lockFilePath); statErr == nil {
 			lockFileExists = true
-			config.DebugLog("Found existing BadgerDB lock file")
+			getCacheLogger().Debug("Found existing BadgerDB lock file")
 		}
 
 		// Initialize badger cache
-		config.DebugLog("Attempting to initialize BadgerDB cache at %s", badgerDir)
+		getCacheLogger().Debug("Attempting to initialize BadgerDB cache at %s", badgerDir)
 		badgerCache, badgerErr := NewBadgerCache(badgerDir)
 		if badgerErr != nil {
 			// If lock file exists and we failed to initialize, it might be a lock contention
 			if lockFileExists {
-				config.DebugLog("Lock contention detected, waiting for lock release...")
+				getCacheLogger().Debug("Lock contention detected, waiting for lock release...")
 				// Wait a short time and try again once
 				time.Sleep(500 * time.Millisecond)
 				badgerCache, badgerErr = NewBadgerCache(badgerDir)
@@ -299,15 +322,15 @@ func InitGlobalCache(cacheDir string) error {
 
 			// If still failed, don't fall back to file cache, use in-memory as temporary solution
 			if badgerErr != nil {
-				config.DebugLog("Failed to initialize BadgerDB cache: %v", badgerErr)
-				config.DebugLog("Using temporary in-memory cache - no persistence will be available")
+				getCacheLogger().Debug("Failed to initialize BadgerDB cache: %v", badgerErr)
+				getCacheLogger().Debug("Using temporary in-memory cache - no persistence will be available")
 				globalCache = NewMemoryCache()
 				err = badgerErr
 				return
 			}
 		}
 
-		config.DebugLog("Successfully initialized BadgerDB cache")
+		getCacheLogger().Debug("Successfully initialized BadgerDB cache")
 		globalCache = badgerCache
 
 		// Verify cache is working by writing and reading a test item
@@ -315,16 +338,16 @@ func InitGlobalCache(cacheDir string) error {
 		testData := map[string]string{"test": "data"}
 
 		if err = globalCache.Set(testKey, testData, 10*time.Second); err != nil {
-			config.DebugLog("WARNING: Failed to write test item to cache: %v", err)
+			getCacheLogger().Debug("WARNING: Failed to write test item to cache: %v", err)
 		} else {
 			var result map[string]string
 			found, err := globalCache.Get(testKey, &result)
 			if err != nil {
-				config.DebugLog("WARNING: Failed to read test item from cache: %v", err)
+				getCacheLogger().Debug("WARNING: Failed to read test item from cache: %v", err)
 			} else if !found {
-				config.DebugLog("WARNING: Test item was not found in cache immediately after writing")
+				getCacheLogger().Debug("WARNING: Test item was not found in cache immediately after writing")
 			} else {
-				config.DebugLog("Cache verification successful - cache is working properly")
+				getCacheLogger().Debug("Cache verification successful - cache is working properly")
 			}
 			// Clean up test item
 			_ = globalCache.Delete(testKey)

@@ -260,6 +260,57 @@ Proxmox TUI features an intelligent caching system powered by BadgerDB:
 - Use `-no-cache` flag to disable caching entirely
 - Use `-cache-dir` to specify a custom cache location
 
+## Logging
+
+Proxmox TUI features a comprehensive logging system designed for TUI applications:
+
+### Log Files
+
+All application logs are written to files to avoid interfering with the terminal user interface:
+
+- **Default Location:** `logs/proxmox-tui.log` (in the current working directory)
+- **Fallback Location:** `./proxmox-tui.log` (if `logs/` directory cannot be created)
+- **Format:** `[YYYY-MM-DD HH:MM:SS] [LEVEL] message`
+
+### Log Levels
+
+The application supports multiple log levels:
+
+- **INFO:** General application information and important events
+- **DEBUG:** Detailed debugging information (enabled with `debug: true` in config or `-debug` flag)
+- **ERROR:** Error messages and exceptions
+
+### Configuration
+
+Enable debug logging in your configuration:
+
+```yaml
+debug: true  # Enable detailed debug logging
+```
+
+Or use the command-line flag:
+
+```bash
+./proxmox-tui -config config.yml -debug
+```
+
+### Log Content
+
+Debug logs include detailed information about:
+- API authentication and requests
+- Cache operations (hits, misses, storage)
+- SSH connection attempts
+- Community scripts operations
+- UI filtering and search operations
+- Background data refresh operations
+
+### Log Management
+
+- Log files are appended to (not overwritten) on each application run
+- No automatic log rotation is performed - manage log files manually if needed
+- Logs are written in real-time as operations occur
+- File logging gracefully falls back to stdout if file writing fails
+
 ## Troubleshooting
 
 ### Debug Mode
