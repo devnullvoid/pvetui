@@ -75,17 +75,7 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 		return
 	}
 
-	// Clear existing content except headers in both tables
-	for _, tbl := range []*tview.Table{cs.SummaryTable, cs.ResourceTable} {
-		for row := 1; row <= 6; row++ {
-			for col := 0; col < 4; col++ {
-				tbl.SetCell(row, col, tview.NewTableCell(""))
-			}
-		}
-	}
-
-	// Update summary table (left panel)
-	// Data now starts at row 0
+	// Update summary table
 	cs.SummaryTable.SetCell(0, 0, tview.NewTableCell("Cluster Name").SetTextColor(tcell.ColorYellow))
 	cs.SummaryTable.SetCell(0, 1, tview.NewTableCell(cluster.Name).SetTextColor(tcell.ColorWhite))
 
@@ -114,11 +104,13 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 
 	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(nodeStatusText).SetTextColor(tcell.ColorWhite))
 
-	// Update resource table (right panel)
+	// Update resource table (headers are already set in NewClusterStatus)
+	// CPU row
 	cs.ResourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow))
 	cs.ResourceTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%.1f", cluster.TotalCPU)).SetTextColor(tcell.ColorWhite))
 	cs.ResourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f%%", cluster.CPUUsage*100)).SetTextColor(tcell.ColorWhite))
 
+	// Memory row
 	cs.ResourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow))
 	cs.ResourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryTotal)).SetTextColor(tcell.ColorWhite))
 	cs.ResourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryUsed)).SetTextColor(tcell.ColorWhite))

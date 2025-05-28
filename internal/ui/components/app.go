@@ -4,6 +4,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -34,6 +35,13 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 		client:      client,
 		config:      *cfg,
 	}
+
+	// Set application theme and background color
+	tview.Styles.PrimitiveBackgroundColor = tcell.ColorBlack
+	// Alternative colors you can try:
+	// tcell.ColorDarkBlue, tcell.ColorDarkGreen, tcell.ColorDarkCyan,
+	// tcell.ColorDarkRed, tcell.ColorDarkMagenta, tcell.ColorDarkYellow,
+	// tcell.ColorNavy, tcell.ColorMaroon, tcell.ColorTeal, tcell.ColorSilver
 
 	// Create UI components
 	app.header = NewHeader()
