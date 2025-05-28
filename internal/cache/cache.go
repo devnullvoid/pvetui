@@ -273,6 +273,7 @@ func getCacheLogger() interfaces.Logger {
 			level = logger.LevelDebug
 		}
 		var err error
+		// Always use our new internal logger system
 		cacheLogger, err = logger.NewInternalLogger(level)
 		if err != nil {
 			// Fallback to simple logger if file logging fails

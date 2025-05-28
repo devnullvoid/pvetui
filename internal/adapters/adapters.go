@@ -3,10 +3,10 @@ package adapters
 import (
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
 // ConfigAdapter adapts our internal config to the API interface
@@ -32,20 +32,10 @@ func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 		level = logger.LevelDebug
 	}
 
-	// Create logger based on configuration
-	var internalLogger *logger.Logger
-	var err error
-
-	// If we have a cache directory, log to file there
-	if cfg.CacheDir != "" {
-		logFile := cfg.CacheDir + "/proxmox-tui.log"
-		internalLogger, err = logger.NewFileLogger(level, logFile)
-		if err != nil {
-			// Fallback to simple logger if file logging fails
-			internalLogger = logger.NewSimpleLogger(level)
-		}
-	} else {
-		// Use simple stdout logger
+	// Always use our new internal logger system
+	internalLogger, err := logger.NewInternalLogger(level)
+	if err != nil {
+		// Fallback to simple logger if file logging fails
 		internalLogger = logger.NewSimpleLogger(level)
 	}
 

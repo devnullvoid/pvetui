@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,13 +11,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// DebugEnabled is a global flag to enable debug logging
 var DebugEnabled bool
-
-func DebugLog(format string, args ...interface{}) {
-	if DebugEnabled {
-		log.Printf("[DEBUG] "+format, args...)
-	}
-}
 
 // Config represents the application configuration
 type Config struct {
@@ -202,33 +196,4 @@ func (c *Config) SetDefaults() {
 			c.CacheDir = filepath.Join(os.TempDir(), "proxmox-tui-cache", "badger-store")
 		}
 	}
-}
-
-// InitLogging sets up logging to redirect to a file when in TUI mode
-func InitLogging(cacheDir string) error {
-	// Create a logs directory in the cache directory
-	// logsDir := filepath.Join(cacheDir, "logs")
-	logsDir := cacheDir
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create logs directory: %w", err)
-	}
-
-	// Create a log file with timestamp in the name
-	// logFileName := fmt.Sprintf("proxmox-tui-%s.log", time.Now().Format("2006-01-02-15-04-05"))
-	logFileName := "proxmox-tui.log"
-	logFilePath := filepath.Join(logsDir, logFileName)
-
-	// Open the log file
-	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open log file: %w", err)
-	}
-
-	// Set the log output to the file
-	log.SetOutput(logFile)
-
-	// Log that we've started logging to a file
-	log.Printf("Logging started to %s", logFilePath)
-
-	return nil
 }
