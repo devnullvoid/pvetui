@@ -171,8 +171,6 @@ func (c *Client) ClearAPICache() {
 	}
 }
 
-
-
 // GetFreshClusterStatus retrieves cluster status bypassing cache completely
 func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
 	// Clear the cache first to ensure fresh data
@@ -180,6 +178,148 @@ func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
 
 	// Now get fresh data
 	return c.GetClusterStatus()
+}
+
+// RefreshNodeData refreshes data for a specific node by clearing its cache entries and fetching fresh data
+func (c *Client) RefreshNodeData(nodeName string) (*Node, error) {
+	// Clear cache entries for this specific node
+	nodeStatusPath := fmt.Sprintf("/nodes/%s/status", nodeName)
+	nodeVersionPath := fmt.Sprintf("/nodes/%s/version", nodeName)
+	nodeConfigPath := fmt.Sprintf("/nodes/%s/config", nodeName)
+
+	// Generate cache keys and delete them
+	statusCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, nodeStatusPath)
+	statusCacheKey = strings.ReplaceAll(statusCacheKey, "/", "_")
+
+	versionCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, nodeVersionPath)
+	versionCacheKey = strings.ReplaceAll(versionCacheKey, "/", "_")
+
+	configCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, nodeConfigPath)
+	configCacheKey = strings.ReplaceAll(configCacheKey, "/", "_")
+
+	// Delete cache entries (ignore errors as they might not exist)
+	_ = c.cache.Delete(statusCacheKey)
+	_ = c.cache.Delete(versionCacheKey)
+	_ = c.cache.Delete(configCacheKey)
+
+	c.logger.Debug("Cleared cache for node %s", nodeName)
+
+	// Get the current node to preserve certain data like VMs and online status
+	var originalNode *Node
+	if c.Cluster != nil {
+		for _, node := range c.Cluster.Nodes {
+			if node != nil && node.Name == nodeName {
+				originalNode = node
+				break
+			}
+		}
+	}
+
+	// Fetch fresh node data
+	freshNode, err := c.GetNodeStatus(nodeName)
+	if err != nil {
+		// If we can't reach the node, it's likely offline
+		if originalNode != nil {
+			originalNode.Online = false
+		}
+		return nil, fmt.Errorf("failed to refresh node %s: %w", nodeName, err)
+	}
+
+	// If we successfully got node status, the node is online
+	freshNode.Online = true
+
+	// Preserve important data from original node if it exists
+	if originalNode != nil {
+		// Preserve IP address (comes from cluster status, not node status)
+		if originalNode.IP != "" {
+			freshNode.IP = originalNode.IP
+		}
+
+		// Preserve VMs list
+		if originalNode.VMs != nil {
+			freshNode.VMs = originalNode.VMs
+		}
+
+		// Preserve storage info
+		if originalNode.Storage != nil {
+			freshNode.Storage = originalNode.Storage
+		}
+	}
+
+	return freshNode, nil
+}
+
+// RefreshVMData refreshes data for a specific VM by clearing its cache entries and fetching fresh data
+func (c *Client) RefreshVMData(vm *VM) (*VM, error) {
+	// Clear cache entries for this specific VM
+	statusPath := fmt.Sprintf("/nodes/%s/%s/%d/status/current", vm.Node, vm.Type, vm.ID)
+	configPath := fmt.Sprintf("/nodes/%s/%s/%d/config", vm.Node, vm.Type, vm.ID)
+
+	// Generate cache keys and delete them
+	statusCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, statusPath)
+	statusCacheKey = strings.ReplaceAll(statusCacheKey, "/", "_")
+
+	configCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, configPath)
+	configCacheKey = strings.ReplaceAll(configCacheKey, "/", "_")
+
+	// Delete cache entries (ignore errors as they might not exist)
+	_ = c.cache.Delete(statusCacheKey)
+	_ = c.cache.Delete(configCacheKey)
+
+	// Also clear guest agent related cache entries if it's a QEMU VM
+	if vm.Type == "qemu" {
+		agentNetPath := fmt.Sprintf("/nodes/%s/qemu/%d/agent/network-get-interfaces", vm.Node, vm.ID)
+		agentFsPath := fmt.Sprintf("/nodes/%s/qemu/%d/agent/get-fsinfo", vm.Node, vm.ID)
+
+		agentNetCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, agentNetPath)
+		agentNetCacheKey = strings.ReplaceAll(agentNetCacheKey, "/", "_")
+
+		agentFsCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, agentFsPath)
+		agentFsCacheKey = strings.ReplaceAll(agentFsCacheKey, "/", "_")
+
+		_ = c.cache.Delete(agentNetCacheKey)
+		_ = c.cache.Delete(agentFsCacheKey)
+	} else if vm.Type == "lxc" {
+		// Clear LXC interfaces cache
+		lxcInterfacesPath := fmt.Sprintf("/nodes/%s/lxc/%d/interfaces", vm.Node, vm.ID)
+		lxcInterfacesCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, lxcInterfacesPath)
+		lxcInterfacesCacheKey = strings.ReplaceAll(lxcInterfacesCacheKey, "/", "_")
+
+		_ = c.cache.Delete(lxcInterfacesCacheKey)
+	}
+
+	c.logger.Debug("Cleared cache for VM %s (%d) on node %s", vm.Name, vm.ID, vm.Node)
+
+	// Fetch fresh VM data using GetDetailedVmInfo for basic information
+	freshVM, err := c.GetDetailedVmInfo(vm.Node, vm.Type, vm.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get VM details: %w", err)
+	}
+
+	// Now enrich the VM with guest agent data just like the full refresh does
+	// This is what was missing - we need to call GetVmStatus to get the enriched data
+	if freshVM.Status == "running" {
+		// Store the current disk values from GetDetailedVmInfo to preserve them
+		diskUsage := freshVM.Disk
+		maxDiskUsage := freshVM.MaxDisk
+
+		// Enrich with guest agent data (network interfaces, filesystems, etc.)
+		if err := c.GetVmStatus(freshVM); err != nil {
+			c.logger.Debug("Failed to enrich VM %s with guest agent data: %v", freshVM.Name, err)
+			// Don't return error, just log it - basic VM data is still valid
+		}
+
+		// Restore disk usage values from GetDetailedVmInfo if they got overwritten or are zero
+		if freshVM.Disk == 0 && diskUsage > 0 {
+			freshVM.Disk = diskUsage
+		}
+
+		if freshVM.MaxDisk == 0 && maxDiskUsage > 0 {
+			freshVM.MaxDisk = maxDiskUsage
+		}
+	}
+
+	return freshVM, nil
 }
 
 // NewClient creates a new Proxmox API client with dependency injection

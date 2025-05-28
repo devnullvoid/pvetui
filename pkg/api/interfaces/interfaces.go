@@ -13,6 +13,7 @@ type Logger interface {
 type Cache interface {
 	Get(key string, dest interface{}) (bool, error)
 	Set(key string, value interface{}, ttl time.Duration) error
+	Delete(key string) error
 	Clear() error
 }
 
@@ -39,6 +40,7 @@ func (n *NoOpLogger) Error(format string, args ...interface{}) {}
 // NoOpCache is a cache that does nothing (useful for testing or when caching is not needed)
 type NoOpCache struct{}
 
-func (n *NoOpCache) Get(key string, dest interface{}) (bool, error) { return false, nil }
+func (n *NoOpCache) Get(key string, dest interface{}) (bool, error)             { return false, nil }
 func (n *NoOpCache) Set(key string, value interface{}, ttl time.Duration) error { return nil }
-func (n *NoOpCache) Clear() error { return nil }
+func (n *NoOpCache) Delete(key string) error                                    { return nil }
+func (n *NoOpCache) Clear() error                                               { return nil }

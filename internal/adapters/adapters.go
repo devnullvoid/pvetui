@@ -90,6 +90,10 @@ func (c *CacheAdapter) Set(key string, value interface{}, ttl time.Duration) err
 	return c.cache.Set(key, value, ttl)
 }
 
+func (c *CacheAdapter) Delete(key string) error {
+	return c.cache.Delete(key)
+}
+
 func (c *CacheAdapter) Clear() error {
 	return c.cache.Clear()
 }
