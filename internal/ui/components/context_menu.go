@@ -43,8 +43,8 @@ func (cm *ContextMenu) Show() *tview.List {
 
 	// Set list highlight color
 	list.SetHighlightFullLine(true)
-	list.SetSelectedBackgroundColor(tcell.ColorNavy)
-	list.SetSelectedTextColor(tcell.ColorWhite)
+	list.SetSelectedBackgroundColor(tcell.ColorBlue)
+	list.SetSelectedTextColor(tcell.ColorGray)
 
 	// Set up action handler
 	list.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {

@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/internal/scripts"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -48,7 +48,7 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
 		SetSelectedBackgroundColor(tcell.ColorBlue).
-		SetSelectedTextColor(tcell.ColorWhite)
+		SetSelectedTextColor(tcell.ColorGray)
 
 	// Add categories to the list
 	for i, category := range selector.categories {
@@ -70,15 +70,16 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
 		SetSelectedBackgroundColor(tcell.ColorBlue).
-		SetSelectedTextColor(tcell.ColorWhite)
+		SetSelectedTextColor(tcell.ColorGray)
 
 	// Create a back button for the script list
-	selector.backButton = tview.NewButton("Back").
+	selector.backButton = tview.NewButton("[gray]Back[-]").
 		SetSelectedFunc(func() {
 			selector.pages.SwitchToPage("categories")
 			app.SetFocus(selector.categoryList)
 		})
 
+	// selector.backButton.SetBackgroundColor(tcell.ColorGray)
 	// Create pages to switch between category and script lists
 	selector.pages = tview.NewPages()
 
@@ -214,9 +215,9 @@ func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
 
 		modal := tview.NewModal().
 			SetText(scriptInfo).
-			SetBackgroundColor(tcell.ColorBlack).
+			SetBackgroundColor(tcell.ColorGray).
 			SetTextColor(tcell.ColorWhite).
-			SetButtonBackgroundColor(tcell.ColorDarkGray).
+			SetButtonBackgroundColor(tcell.ColorBlack).
 			SetButtonTextColor(tcell.ColorWhite).
 			AddButtons([]string{"Install", "Cancel"}).
 			SetDoneFunc(func(buttonIndex int, buttonLabel string) {

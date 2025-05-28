@@ -105,16 +105,16 @@ func GetScriptCategories() []ScriptCategory {
 			Description: "VM installation scripts",
 			Path:        "vm",
 		},
-		{
-			Name:        "Utilities",
-			Description: "Utility scripts for Proxmox",
-			Path:        "misc",
-		},
-		{
-			Name:        "Installation",
-			Description: "Installation scripts for Proxmox",
-			Path:        "install",
-		},
+		// {
+		// 	Name:        "Utilities",
+		// 	Description: "Utility scripts for Proxmox",
+		// 	Path:        "misc",
+		// },
+		// {
+		// 	Name:        "Installation",
+		// 	Description: "Installation scripts for Proxmox",
+		// 	Path:        "install",
+		// },
 		{
 			Name:        "Tools",
 			Description: "Tool scripts for Proxmox",

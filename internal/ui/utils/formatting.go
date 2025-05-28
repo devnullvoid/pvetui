@@ -43,15 +43,15 @@ func FormatBytes(bytes int64) string {
 }
 
 // FormatStatusIndicator returns a string with a colored status emoji.
-// Green ▲ for online/running, Red ▼ for offline/stopped, Yellow ▪ for others.
+// Green ▲ for online/running, Red ▼ for offline/stopped, Yellow ● for others.
 func FormatStatusIndicator(status string) string {
 	status = strings.ToLower(status)
 	switch status {
 	case "running", "online":
-		return "[green]▲[white] "
+		return "[green]▲[-] "
 	case "stopped", "offline":
-		return "[red]▼[white] "
+		return "[red]▼[-] "
 	default:
-		return "[yellow]▪[white] "
+		return "[yellow]●[-] "
 	}
 }

@@ -21,10 +21,10 @@ type Header struct {
 func NewHeader() *Header {
 	header := tview.NewTextView()
 	header.SetTextAlign(tview.AlignCenter)
-	header.SetText("Proxmox CLI UI")
+	header.SetText("Proxmox TUI")
 	header.SetDynamicColors(true)
 	header.SetBackgroundColor(tcell.ColorBlue)
-	header.SetTextColor(tcell.ColorWhite)
+	header.SetTextColor(tcell.ColorGray)
 
 	return &Header{
 		TextView:    header,
@@ -70,14 +70,14 @@ func (h *Header) StopLoading() {
 // ShowSuccess displays a success message temporarily
 func (h *Header) ShowSuccess(message string) {
 	h.StopLoading()
-	h.SetText(fmt.Sprintf("[green]✓ %s[white]", message))
+	h.SetText(fmt.Sprintf("[green]✓ %s[-]", message))
 
 	// Clear the message after 3 seconds
 	go func() {
 		time.Sleep(3 * time.Second)
 		if h.app != nil {
 			h.app.QueueUpdateDraw(func() {
-				h.SetText("Proxmox CLI UI")
+				h.SetText("Proxmox TUI")
 			})
 		}
 	}()
@@ -86,14 +86,14 @@ func (h *Header) ShowSuccess(message string) {
 // ShowError displays an error message temporarily
 func (h *Header) ShowError(message string) {
 	h.StopLoading()
-	h.SetText(fmt.Sprintf("[red]✗ %s[white]", message))
+	h.SetText(fmt.Sprintf("[red]✗ %s[-]", message))
 
 	// Clear the message after 5 seconds
 	go func() {
 		time.Sleep(5 * time.Second)
 		if h.app != nil {
 			h.app.QueueUpdateDraw(func() {
-				h.SetText("Proxmox CLI UI")
+				h.SetText("Proxmox TUI")
 			})
 		}
 	}()
@@ -115,7 +115,7 @@ func (h *Header) animateLoading() {
 			if h.app != nil {
 				spinner := spinners[i%len(spinners)]
 				h.app.QueueUpdateDraw(func() {
-					h.SetText(fmt.Sprintf("[yellow]%s %s...[white]", spinner, h.loadingText))
+					h.SetText(fmt.Sprintf("[yellow]%s [-]%s...", spinner, h.loadingText))
 				})
 				i++
 			}

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -277,6 +277,7 @@ func (a *App) setupKeyboardHandlers() {
 func (a *App) showMessage(message string) {
 	modal := tview.NewModal().
 		SetText(message).
+		SetBackgroundColor(tcell.ColorGray).
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("message")
