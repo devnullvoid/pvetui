@@ -1,3 +1,6 @@
+// Package adapters provides adapter implementations that bridge internal components
+// with the external API package interfaces, enabling dependency injection and
+// clean architecture patterns.
 package adapters
 
 import (

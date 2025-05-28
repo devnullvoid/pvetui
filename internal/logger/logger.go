@@ -1,3 +1,6 @@
+// Package logger provides a comprehensive logging system designed for TUI applications.
+// It supports multiple log levels, file-based logging, and configurable output destinations.
+// The logger is designed to avoid stdout interference with terminal user interfaces.
 package logger
 
 import (

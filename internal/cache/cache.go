@@ -63,7 +63,7 @@ func NewFileCache(cacheDir string, persisted bool) (*FileCache, error) {
 	if persisted {
 		if err := cache.loadCacheFiles(); err != nil {
 			// Non-fatal error, just log it
-			fmt.Printf("Warning: Failed to load cache files: %v\n", err)
+			getCacheLogger().Debug("Warning: Failed to load cache files: %v", err)
 		}
 	}
 
@@ -257,15 +257,15 @@ func NewMemoryCache() *FileCache {
 
 // Global singleton cache instance
 var (
-	globalCache Cache
-	cacheLogger interfaces.Logger
-	once        sync.Once
-	loggerOnce  sync.Once
+	globalCache     Cache
+	cacheLogger     interfaces.Logger
+	once            sync.Once
+	cacheLoggerOnce sync.Once
 )
 
 // getCacheLogger returns the cache logger, initializing it if necessary
 func getCacheLogger() interfaces.Logger {
-	loggerOnce.Do(func() {
+	cacheLoggerOnce.Do(func() {
 		// Create a logger for cache operations that logs to file
 		// Use debug level if config.DebugEnabled is true
 		level := logger.LevelInfo
