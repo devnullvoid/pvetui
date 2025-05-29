@@ -319,8 +319,19 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 		fmt.Printf("Script: %s\n", script.ScriptPath)
 		fmt.Printf("This script may require interactive input. Please follow the prompts.\n\n")
 
+		// Validate SSH connection before attempting installation
+		fmt.Print("Validating SSH connection...")
+		err := scripts.ValidateConnection(s.user, s.nodeIP)
+		if err != nil {
+			fmt.Printf("\nSSH connection failed: %v\n", err)
+			fmt.Print("\nPress Enter to return to the TUI...")
+			fmt.Scanln()
+			return
+		}
+		fmt.Println(" ✓ Connected")
+
 		// Install the script interactively
-		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
+		err = scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
 
 		if err != nil {
 			fmt.Printf("\nScript installation failed: %v\n", err)
@@ -437,24 +448,4 @@ func (s *ScriptSelector) Show() {
 		// Let other keys pass through (Enter will trigger the button)
 		return event
 	})
-
-	// Validate SSH connection asynchronously
-	s.app.header.ShowLoading("Validating SSH connection")
-	go func() {
-		err := scripts.ValidateConnection(s.user, s.nodeIP)
-
-		s.app.QueueUpdateDraw(func() {
-			s.app.header.StopLoading()
-
-			if err != nil {
-				// Show error and close the modal
-				s.cleanup()
-				s.app.showMessage(fmt.Sprintf("SSH connection failed: %v", err))
-				return
-			}
-
-			// Connection successful - show success briefly
-			s.app.header.ShowSuccess("SSH connection validated")
-		})
-	}()
 }
