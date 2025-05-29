@@ -413,8 +413,16 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 
 // ValidateConnection checks if SSH connection to the node is possible
 func ValidateConnection(user, nodeIP string) error {
-	// Simple command to test SSH connection
-	cmd := exec.Command("ssh", fmt.Sprintf("%s@%s", user, nodeIP), "echo 'Connection test successful'")
+	// Simple command to test SSH connection with timeout
+	cmd := exec.Command("ssh",
+		"-o", "ConnectTimeout=5", // 5 second connection timeout
+		"-o", "ServerAliveInterval=2", // Send keepalive every 2 seconds
+		"-o", "ServerAliveCountMax=1", // Give up after 1 failed keepalive
+		"-o", "BatchMode=yes", // Don't prompt for passwords
+		"-o", "StrictHostKeyChecking=no", // Don't prompt for host key verification
+		fmt.Sprintf("%s@%s", user, nodeIP),
+		"echo 'Connection test successful'")
+
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("SSH connection failed: %w", err)

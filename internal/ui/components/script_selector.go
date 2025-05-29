@@ -368,12 +368,9 @@ func (s *ScriptSelector) Show() {
 		return
 	}
 
-	// We still need SSH connection for script execution, so validate it
-	err := scripts.ValidateConnection(s.user, s.nodeIP)
-	if err != nil {
-		s.app.showMessage(fmt.Sprintf("SSH connection failed: %v", err))
-		return
-	}
+	// Show the dialog immediately
+	s.app.pages.AddPage("scriptSelector", s.layout, true, true)
+	s.app.SetFocus(s.categoryList)
 
 	// Store the original input capture
 	s.originalInputCapture = s.app.GetInputCapture()
@@ -433,7 +430,23 @@ func (s *ScriptSelector) Show() {
 		return event
 	})
 
-	// Add the selector to the pages and focus the category list
-	s.app.pages.AddPage("scriptSelector", s.layout, true, true)
-	s.app.SetFocus(s.categoryList)
+	// Validate SSH connection asynchronously
+	s.app.header.ShowLoading("Validating SSH connection")
+	go func() {
+		err := scripts.ValidateConnection(s.user, s.nodeIP)
+
+		s.app.QueueUpdateDraw(func() {
+			s.app.header.StopLoading()
+
+			if err != nil {
+				// Show error and close the modal
+				s.cleanup()
+				s.app.showMessage(fmt.Sprintf("SSH connection failed: %v", err))
+				return
+			}
+
+			// Connection successful - show success briefly
+			s.app.header.ShowSuccess("SSH connection validated")
+		})
+	}()
 }
