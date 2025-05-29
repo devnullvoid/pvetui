@@ -1,9 +1,9 @@
 package components
 
 import (
-	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 
@@ -329,12 +329,15 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 			fmt.Printf("You may need to refresh your node/guest list to see any new resources.\n")
 		}
 
-		// Wait for user to press Enter - use a more robust method
-		fmt.Print("\nPress Enter to return to the TUI...")
+		// Reset terminal to ensure clean state after SSH session
+		resetCmd := exec.Command("reset")
+		resetCmd.Stdout = os.Stdout
+		resetCmd.Stderr = os.Stderr
+		resetCmd.Run() // Ignore errors from reset command
 
-		// Use bufio.Reader for clean input handling
-		reader := bufio.NewReader(os.Stdin)
-		reader.ReadLine() // Wait for Enter key
+		// Wait for user to press Enter
+		fmt.Print("\nPress Enter to return to the TUI...")
+		fmt.Scanln()
 	})
 }
 
