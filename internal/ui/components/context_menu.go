@@ -48,8 +48,8 @@ func (cm *ContextMenu) Show() *tview.List {
 
 	// Set list highlight color
 	list.SetHighlightFullLine(true)
-	list.SetSelectedBackgroundColor(tcell.ColorBlue)
-	list.SetSelectedTextColor(tcell.ColorGray)
+	// list.SetSelectedBackgroundColor(tcell.ColorBlue)
+	// list.SetSelectedTextColor(tcell.ColorGray)
 
 	// Set up action handler
 	list.SetSelectedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
@@ -207,8 +207,6 @@ func (a *App) CloseContextMenu() {
 		}
 	}
 }
-
-
 
 // performVMOperation performs an asynchronous VM operation and shows status message
 func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, operationName string) {

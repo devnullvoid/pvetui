@@ -2,7 +2,7 @@ package components
 
 import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/gdamore/tcell/v2"
+	// "github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -10,7 +10,7 @@ import (
 func (a *App) showMessage(message string) {
 	modal := tview.NewModal().
 		SetText(message).
-		SetBackgroundColor(tcell.ColorGray).
+		// SetBackgroundColor(tcell.ColorGray).
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("message")
@@ -23,7 +23,7 @@ func (a *App) showMessage(message string) {
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	modal := tview.NewModal().
 		SetText(message).
-		SetBackgroundColor(tcell.ColorGray).
+		// SetBackgroundColor(tcell.ColorGray).
 		AddButtons([]string{"Yes", "No"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("confirmation")

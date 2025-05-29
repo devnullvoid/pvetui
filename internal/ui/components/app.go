@@ -37,11 +37,16 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	}
 
 	// Set application theme and background color
-	tview.Styles.PrimitiveBackgroundColor = tcell.ColorBlack
-	// Alternative colors you can try:
-	// tcell.ColorDarkBlue, tcell.ColorDarkGreen, tcell.ColorDarkCyan,
-	// tcell.ColorDarkRed, tcell.ColorDarkMagenta, tcell.ColorDarkYellow,
-	// tcell.ColorNavy, tcell.ColorMaroon, tcell.ColorTeal, tcell.ColorSilver
+	// tview.Styles.PrimitiveBackgroundColor = tcell.ColorBlack
+	tview.Styles.ContrastBackgroundColor = tcell.ColorGray
+	// tview.Styles.MoreContrastBackgroundColor = tcell.ColorDarkGray
+	// tview.Styles.BorderColor = tcell.ColorWhite
+	// tview.Styles.TitleColor = tcell.ColorWhite
+	// tview.Styles.PrimaryTextColor = tcell.ColorWhite
+	// tview.Styles.SecondaryTextColor = tcell.ColorYellow
+	// tview.Styles.TertiaryTextColor = tcell.ColorGreen
+	tview.Styles.InverseTextColor = tcell.ColorBlack
+	// tview.Styles.ContrastSecondaryTextColor = tcell.ColorGray
 
 	// Create UI components
 	app.header = NewHeader()

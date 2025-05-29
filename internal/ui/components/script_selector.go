@@ -46,9 +46,9 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	// Create the category list
 	selector.categoryList = tview.NewList().
 		ShowSecondaryText(true).
-		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(tcell.ColorBlue).
-		SetSelectedTextColor(tcell.ColorGray)
+		SetHighlightFullLine(true)
+		// SetSelectedBackgroundColor(tcell.ColorBlue).
+		// SetSelectedTextColor(tcell.ColorGray)
 
 	// Add categories to the list
 	for i, category := range selector.categories {
@@ -68,12 +68,12 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	// Create the script list
 	selector.scriptList = tview.NewList().
 		ShowSecondaryText(true).
-		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(tcell.ColorBlue).
-		SetSelectedTextColor(tcell.ColorGray)
+		SetHighlightFullLine(true)
+		// SetSelectedBackgroundColor(tcell.ColorBlue).
+		// SetSelectedTextColor(tcell.ColorGray)
 
 	// Create a back button for the script list
-	selector.backButton = tview.NewButton("[gray]Back[-]").
+	selector.backButton = tview.NewButton("Back").
 		SetSelectedFunc(func() {
 			selector.pages.SwitchToPage("categories")
 			app.SetFocus(selector.categoryList)
@@ -114,8 +114,8 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	// Set border and title directly on the pages component
 	selector.pages.SetBorder(true).
 		SetTitle(" Script Selection ").
-		SetTitleColor(tcell.ColorYellow).
-		SetBorderColor(tcell.ColorBlue)
+		SetTitleColor(tcell.ColorYellow)
+		// SetBorderColor(tcell.ColorBlue)
 
 	// Use the pages component directly as the layout
 	selector.layout = tview.NewFlex().
@@ -215,10 +215,10 @@ func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
 
 		modal := tview.NewModal().
 			SetText(scriptInfo).
-			SetBackgroundColor(tcell.ColorGray).
-			SetTextColor(tcell.ColorWhite).
-			SetButtonBackgroundColor(tcell.ColorBlack).
-			SetButtonTextColor(tcell.ColorWhite).
+			// SetBackgroundColor(tcell.ColorGray).
+			// SetTextColor(tcell.ColorWhite).
+			// SetButtonBackgroundColor(tcell.ColorBlack).
+			// SetButtonTextColor(tcell.ColorWhite).
 			AddButtons([]string{"Install", "Cancel"}).
 			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 				s.app.pages.RemovePage("scriptInfo")
@@ -238,39 +238,39 @@ func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
 func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("[yellow]Name:[white] %s\n\n", script.Name))
-	sb.WriteString(fmt.Sprintf("[yellow]Description:[white] %s\n\n", script.Description))
+	sb.WriteString(fmt.Sprintf("[yellow]Name:[-] %s\n\n", script.Name))
+	sb.WriteString(fmt.Sprintf("[yellow]Description:[-] %s\n\n", script.Description))
 
 	if script.Type == "ct" {
-		sb.WriteString("[yellow]Type:[white] Container Template\n")
+		sb.WriteString("[yellow]Type:[-] Container Template\n")
 	} else if script.Type == "vm" {
-		sb.WriteString("[yellow]Type:[white] Virtual Machine\n")
+		sb.WriteString("[yellow]Type:[-] Virtual Machine\n")
 	} else {
-		sb.WriteString(fmt.Sprintf("[yellow]Type:[white] %s\n", script.Type))
+		sb.WriteString(fmt.Sprintf("[yellow]Type:[-] %s\n", script.Type))
 	}
 
 	if script.ScriptPath != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Script Path:[white] %s\n", script.ScriptPath))
+		sb.WriteString(fmt.Sprintf("[yellow]Script Path:[-] %s\n", script.ScriptPath))
 	}
 
 	if script.Website != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Website:[white] %s\n", script.Website))
+		sb.WriteString(fmt.Sprintf("[yellow]Website:[-] %s\n", script.Website))
 	}
 
 	if script.Documentation != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Documentation:[white] %s\n", script.Documentation))
+		sb.WriteString(fmt.Sprintf("[yellow]Documentation:[-] %s\n", script.Documentation))
 	}
 
 	if script.DateCreated != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Date Created:[white] %s\n", script.DateCreated))
+		sb.WriteString(fmt.Sprintf("[yellow]Date Created:[-] %s\n", script.DateCreated))
 	}
 
-	sb.WriteString(fmt.Sprintf("\n[yellow]Target:[white] Node %s\n", s.node.Name))
+	sb.WriteString(fmt.Sprintf("\n[yellow]Target:[-] Node %s\n", s.node.Name))
 	if s.vm != nil {
-		sb.WriteString(fmt.Sprintf("[yellow]Context:[white] VM %s\n", s.vm.Name))
+		sb.WriteString(fmt.Sprintf("[yellow]Context:[-] VM %s\n", s.vm.Name))
 	}
 
-	sb.WriteString("\n[yellow]Note:[white] This will execute the script on the selected node via SSH.")
+	sb.WriteString("\n[yellow]Note:[-] This will execute the script on the selected node via SSH.")
 	if script.Type == "ct" {
 		sb.WriteString(" This will create a new LXC container.")
 	} else if script.Type == "vm" {
