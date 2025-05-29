@@ -1,7 +1,9 @@
 package components
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -327,9 +329,12 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 			fmt.Printf("You may need to refresh your node/guest list to see any new resources.\n")
 		}
 
-		// Wait for user to press Enter
+		// Wait for user to press Enter - use a more robust method
 		fmt.Print("\nPress Enter to return to the TUI...")
-		fmt.Scanln()
+
+		// Use bufio.Reader for clean input handling
+		reader := bufio.NewReader(os.Stdin)
+		reader.ReadLine() // Wait for Enter key
 	})
 }
 
