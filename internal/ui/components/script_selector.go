@@ -2,8 +2,6 @@ package components
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"sort"
 	"strings"
 
@@ -290,7 +288,7 @@ func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 		sb.WriteString(fmt.Sprintf("[yellow]Date Created:[-] %s\n", script.DateCreated))
 	}
 
-	sb.WriteString(fmt.Sprintf("\n[yellow]Target:[-] Node %s\n", s.node.Name))
+	sb.WriteString(fmt.Sprintf("\n[yellow]Target Node:[-] %s\n", s.node.Name))
 	if s.vm != nil {
 		sb.WriteString(fmt.Sprintf("[yellow]Context:[-] VM %s\n", s.vm.Name))
 	}
@@ -339,12 +337,6 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 			fmt.Printf("\n%s installed successfully!\n", script.Name)
 			fmt.Printf("You may need to refresh your node/guest list to see any new resources.\n")
 		}
-
-		// Reset terminal to ensure clean state after SSH session
-		resetCmd := exec.Command("reset")
-		resetCmd.Stdout = os.Stdout
-		resetCmd.Stderr = os.Stderr
-		resetCmd.Run() // Ignore errors from reset command
 
 		// Wait for user to press Enter
 		fmt.Print("\nPress Enter to return to the TUI...")
