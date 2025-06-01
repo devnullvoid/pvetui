@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -123,17 +124,17 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 
 	// Memory row
 	cs.ResourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryUsed)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(2, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", cluster.MemoryTotal)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(2, 1, tview.NewTableCell(utils.FormatBytesFloat(cluster.MemoryUsed)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(2, 2, tview.NewTableCell(utils.FormatBytesFloat(cluster.MemoryTotal)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
 
 	// Storage row
-	storageUsedGB := float64(cluster.StorageUsed) / 1024 / 1024 / 1024
-	storageTotalGB := float64(cluster.StorageTotal) / 1024 / 1024 / 1024
+	storageUsed := utils.FormatBytes(cluster.StorageUsed)
+	storageTotal := utils.FormatBytes(cluster.StorageTotal)
 	storagePercent := 0.0
 	if cluster.StorageTotal > 0 {
 		storagePercent = (float64(cluster.StorageUsed) / float64(cluster.StorageTotal)) * 100
 	}
 	cs.ResourceTable.SetCell(3, 0, tview.NewTableCell("Storage").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.1f%% (%.1f GB)", storagePercent, storageUsedGB)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(3, 2, tview.NewTableCell(fmt.Sprintf("%.1f GB", storageTotalGB)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s)", storagePercent, storageUsed)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(3, 2, tview.NewTableCell(storageTotal).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
 }
