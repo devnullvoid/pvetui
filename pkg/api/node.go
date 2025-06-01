@@ -9,17 +9,6 @@ import (
 
 // Ensure config package is properly imported
 
-// Storage represents a Proxmox storage resource
-type Storage struct {
-	ID         string `json:"id"`
-	Content    string `json:"content,omitempty"`
-	Disk       int64  `json:"disk,omitempty"`
-	MaxDisk    int64  `json:"maxdisk,omitempty"`
-	Node       string `json:"node,omitempty"`
-	Plugintype string `json:"plugintype,omitempty"`
-	Status     string `json:"status,omitempty"`
-}
-
 // CPUInfo contains detailed CPU information from Proxmox node status
 type CPUInfo struct {
 	Cores   int    `json:"cores"`

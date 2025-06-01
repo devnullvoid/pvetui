@@ -8,18 +8,19 @@ import (
 
 // Cluster represents aggregated Proxmox cluster metrics
 type Cluster struct {
-	Name         string  `json:"name"`
-	Version      string  `json:"version"`
-	Quorate      bool    `json:"quorate"`
-	TotalNodes   int     `json:"total_nodes"`
-	OnlineNodes  int     `json:"online"`
-	TotalCPU     float64 `json:"total_cpu"`
-	CPUUsage     float64 `json:"cpu_usage"`
-	MemoryTotal  float64 `json:"memory_total"`
-	MemoryUsed   float64 `json:"memory_used"`
-	StorageTotal int64   `json:"storage_total"`
-	StorageUsed  int64   `json:"storage_used"`
-	Nodes        []*Node `json:"nodes"`
+	Name           string          `json:"name"`
+	Version        string          `json:"version"`
+	Quorate        bool            `json:"quorate"`
+	TotalNodes     int             `json:"total_nodes"`
+	OnlineNodes    int             `json:"online"`
+	TotalCPU       float64         `json:"total_cpu"`
+	CPUUsage       float64         `json:"cpu_usage"`
+	MemoryTotal    float64         `json:"memory_total"`
+	MemoryUsed     float64         `json:"memory_used"`
+	StorageTotal   int64           `json:"storage_total"`
+	StorageUsed    int64           `json:"storage_used"`
+	Nodes          []*Node         `json:"nodes"`
+	StorageManager *StorageManager `json:"-"` // Storage manager for handling deduplication
 
 	// For metrics tracking
 	lastUpdate time.Time
@@ -28,8 +29,9 @@ type Cluster struct {
 // GetClusterStatus retrieves high-level cluster status and node list
 func (c *Client) GetClusterStatus() (*Cluster, error) {
 	cluster := &Cluster{
-		Nodes:      make([]*Node, 0),
-		lastUpdate: time.Now(),
+		Nodes:          make([]*Node, 0),
+		StorageManager: NewStorageManager(),
+		lastUpdate:     time.Now(),
 	}
 
 	// 1. Get basic cluster status
@@ -65,8 +67,9 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 // The onEnrichmentComplete callback is called when background VM enrichment finishes.
 func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, error) {
 	cluster := &Cluster{
-		Nodes:      make([]*Node, 0),
-		lastUpdate: time.Now(),
+		Nodes:          make([]*Node, 0),
+		StorageManager: NewStorageManager(),
+		lastUpdate:     time.Now(),
 	}
 
 	// 1. Get basic cluster status
@@ -312,18 +315,20 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 			}
 			storage := &Storage{
 				ID:         getString(resource, "id"),
+				Name:       getString(resource, "storage"),
 				Content:    getString(resource, "content"),
 				Disk:       int64(getFloat(resource, "disk")),
 				MaxDisk:    int64(getFloat(resource, "maxdisk")),
 				Node:       nodeName,
 				Plugintype: getString(resource, "plugintype"),
 				Status:     getString(resource, "status"),
+				Shared:     getInt(resource, "shared"),
+				Type:       getString(resource, "type"),
 			}
 			node.Storage = storage
 
-			// Aggregate storage at cluster level
-			cluster.StorageUsed += storage.Disk
-			cluster.StorageTotal += storage.MaxDisk
+			// Add to storage manager for proper deduplication
+			cluster.StorageManager.AddStorage(storage)
 		case "qemu", "lxc":
 			node, exists := nodeMap[nodeName]
 			if !exists {
@@ -377,6 +382,10 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	cluster.TotalCPU = totalCPU
 	cluster.MemoryTotal = totalMem
 	cluster.MemoryUsed = usedMem
+
+	// Calculate storage totals using StorageManager (handles deduplication)
+	cluster.StorageUsed = cluster.StorageManager.GetTotalUsage()
+	cluster.StorageTotal = cluster.StorageManager.GetTotalCapacity()
 
 	// Calculate average CPU usage only from nodes with valid metrics
 	if nodesWithMetrics > 0 {
