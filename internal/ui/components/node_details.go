@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -147,12 +147,67 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 		row++
 	}
 
-	// VM Count
-	vmCount := 0
-	if node.VMs != nil {
-		vmCount = len(node.VMs)
+	// VM and LXC breakdown
+	if node.VMs != nil && len(node.VMs) > 0 {
+		// Count VMs by type and status
+		var qemuRunning, qemuStopped, qemuTemplates int
+		var lxcRunning, lxcStopped int
+
+		for _, vm := range node.VMs {
+			switch vm.Type {
+			case "qemu":
+				if vm.Template {
+					qemuTemplates++
+				} else if vm.Status == "running" {
+					qemuRunning++
+				} else {
+					qemuStopped++
+				}
+			case "lxc":
+				if vm.Status == "running" {
+					lxcRunning++
+				} else {
+					lxcStopped++
+				}
+			}
+		}
+
+		// Display VM breakdown if there are any VMs
+		if qemuRunning > 0 || qemuStopped > 0 || qemuTemplates > 0 {
+			var vmParts []string
+			if qemuRunning > 0 {
+				vmParts = append(vmParts, fmt.Sprintf("[green]%d running[-]", qemuRunning))
+			}
+			if qemuStopped > 0 {
+				vmParts = append(vmParts, fmt.Sprintf("[red]%d stopped[-]", qemuStopped))
+			}
+			if qemuTemplates > 0 {
+				vmParts = append(vmParts, fmt.Sprintf("[yellow]%d templates[-]", qemuTemplates))
+			}
+
+			nd.SetCell(row, 0, tview.NewTableCell("🖥️ VMs").SetTextColor(tcell.ColorYellow))
+			nd.SetCell(row, 1, tview.NewTableCell(strings.Join(vmParts, ", ")).SetTextColor(tcell.ColorWhite))
+			row++
+		}
+
+		// Display LXC breakdown if there are any containers
+		if lxcRunning > 0 || lxcStopped > 0 {
+			var lxcParts []string
+			if lxcRunning > 0 {
+				lxcParts = append(lxcParts, fmt.Sprintf("[green]%d running[-]", lxcRunning))
+			}
+			if lxcStopped > 0 {
+				lxcParts = append(lxcParts, fmt.Sprintf("[red]%d stopped[-]", lxcStopped))
+			}
+
+			nd.SetCell(row, 0, tview.NewTableCell("📦 LXC").SetTextColor(tcell.ColorYellow))
+			nd.SetCell(row, 1, tview.NewTableCell(strings.Join(lxcParts, ", ")).SetTextColor(tcell.ColorWhite))
+			row++
+		}
+	} else {
+		// Show "No VMs" if there are none
+		nd.SetCell(row, 0, tview.NewTableCell("🖥️ VMs").SetTextColor(tcell.ColorYellow))
+		nd.SetCell(row, 1, tview.NewTableCell("None").SetTextColor(tcell.ColorGray))
+		row++
 	}
-	nd.SetCell(row, 0, tview.NewTableCell("📦 VMs").SetTextColor(tcell.ColorYellow))
-	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", vmCount)).SetTextColor(tcell.ColorWhite))
-	row++
 }
