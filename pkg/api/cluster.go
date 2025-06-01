@@ -199,6 +199,9 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 		return nil
 	}
 
+	// Store current CPU usage from cluster resources (if available) to preserve it
+	clusterResourcesCPU := node.CPUUsage
+
 	fullStatus, err := c.GetNodeStatus(node.Name)
 	if err != nil {
 		// Mark node as offline if we can't reach it
@@ -213,9 +216,26 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 	node.Version = fullStatus.Version
 	node.KernelVersion = fullStatus.KernelVersion
 	node.CPUCount = fullStatus.CPUCount
-	node.CPUUsage = fullStatus.CPUUsage
-	node.MemoryTotal = fullStatus.MemoryTotal
-	node.MemoryUsed = fullStatus.MemoryUsed
+
+	// Prefer CPU usage from cluster resources if available, otherwise use node status
+	if clusterResourcesCPU > 0 {
+		// Keep the more reliable cluster resources CPU usage
+		node.CPUUsage = clusterResourcesCPU
+		c.logger.Debug("[CLUSTER] Preserving CPU usage from cluster resources for node %s: %.2f%%", node.Name, clusterResourcesCPU*100)
+	} else {
+		// Fallback to node status CPU usage
+		node.CPUUsage = fullStatus.CPUUsage
+		c.logger.Debug("[CLUSTER] Using CPU usage from node status for node %s: %.2f%%", node.Name, fullStatus.CPUUsage*100)
+	}
+
+	// Update memory only if not already set from cluster resources
+	if node.MemoryTotal == 0 {
+		node.MemoryTotal = fullStatus.MemoryTotal
+	}
+	if node.MemoryUsed == 0 {
+		node.MemoryUsed = fullStatus.MemoryUsed
+	}
+
 	node.TotalStorage = fullStatus.TotalStorage
 	node.UsedStorage = fullStatus.UsedStorage
 	node.Uptime = fullStatus.Uptime
@@ -258,13 +278,30 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 
 		resType := getString(resource, "type")
 		nodeName := getString(resource, "node")
-		node, exists := nodeMap[nodeName]
-		if !exists {
-			continue
-		}
 
 		switch resType {
+		case "node":
+			// Handle node resources - prefer CPU usage from cluster resources
+			if node, exists := nodeMap[nodeName]; exists {
+				// Update CPU usage from cluster resources (more reliable than individual node status)
+				if cpuUsage := getFloat(resource, "cpu"); cpuUsage >= 0 {
+					node.CPUUsage = cpuUsage
+					c.logger.Debug("[CLUSTER] Updated CPU usage for node %s from cluster resources: %.2f%%", nodeName, cpuUsage*100)
+				}
+
+				// Also update memory if available in cluster resources
+				if memUsed := getFloat(resource, "mem"); memUsed > 0 {
+					node.MemoryUsed = memUsed / 1073741824 // Convert bytes to GB
+				}
+				if memMax := getFloat(resource, "maxmem"); memMax > 0 {
+					node.MemoryTotal = memMax / 1073741824 // Convert bytes to GB
+				}
+			}
 		case "storage":
+			node, exists := nodeMap[nodeName]
+			if !exists {
+				continue
+			}
 			node.Storage = &Storage{
 				ID:         getString(resource, "id"),
 				Content:    getString(resource, "content"),
@@ -275,6 +312,10 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 				Status:     getString(resource, "status"),
 			}
 		case "qemu", "lxc":
+			node, exists := nodeMap[nodeName]
+			if !exists {
+				continue
+			}
 			node.VMs = append(node.VMs, &VM{
 				ID:       getInt(resource, "vmid"),
 				Name:     getString(resource, "name"),
