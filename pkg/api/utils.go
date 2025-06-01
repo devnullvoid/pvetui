@@ -42,6 +42,8 @@ func getBool(data map[string]interface{}, key string) bool {
 			return v
 		case int:
 			return v != 0
+		case float64:
+			return v != 0
 		case string:
 			return v == "1" || strings.EqualFold(v, "true")
 		}
