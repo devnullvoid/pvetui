@@ -94,13 +94,13 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	var nodeStatusText string
 	if cluster.OnlineNodes == cluster.TotalNodes {
 		// All nodes online
-		nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("[green]%d/%d 🟢[-]", cluster.OnlineNodes, cluster.TotalNodes)
 	} else if cluster.OnlineNodes > 0 {
 		// Some nodes offline
-		nodeStatusText = fmt.Sprintf("[yellow]%d/%d ⚠️[white]", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("[yellow]%d/%d ⚠️[-]", cluster.OnlineNodes, cluster.TotalNodes)
 	} else {
 		// All nodes offline (critical)
-		nodeStatusText = fmt.Sprintf("[red]%d/%d 🔴[white]", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("[red]%d/%d 🔴[-]", cluster.OnlineNodes, cluster.TotalNodes)
 	}
 
 	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(nodeStatusText).SetTextColor(tcell.ColorWhite))
@@ -109,9 +109,9 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	cs.SummaryTable.SetCell(3, 0, tview.NewTableCell("Quorate").SetTextColor(tcell.ColorYellow))
 	var quorateText string
 	if cluster.Quorate {
-		quorateText = "Yes 🟢"
+		quorateText = "[green]Yes 🟢[-]"
 	} else {
-		quorateText = "[red]No 🔴[white]"
+		quorateText = "[red]No  🔴[-]"
 	}
 	cs.SummaryTable.SetCell(3, 1, tview.NewTableCell(quorateText).SetTextColor(tcell.ColorWhite))
 

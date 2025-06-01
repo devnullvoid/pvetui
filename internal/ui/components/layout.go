@@ -26,7 +26,7 @@ func (a *App) createMainLayout() *tview.Flex {
 	return tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(a.header, 1, 0, false).
-		AddItem(a.clusterStatus, 5, 0, false).
+		AddItem(a.clusterStatus, 6, 0, false).
 		AddItem(a.pages, 0, 1, true).
 		AddItem(a.footer, 1, 0, false)
 }
