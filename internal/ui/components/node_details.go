@@ -100,23 +100,29 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 
 	// Memory
 	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))
-	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB / %.1f GB (%.1f%%)",
-		node.MemoryUsed,
-		node.MemoryTotal,
-		(node.MemoryUsed/node.MemoryTotal)*100)).SetTextColor(tcell.ColorWhite))
+	memoryUsedFormatted := utils.FormatBytesFloat(node.MemoryUsed)
+	memoryTotalFormatted := utils.FormatBytesFloat(node.MemoryTotal)
+	memoryPercent := 0.0
+	if node.MemoryTotal > 0 {
+		memoryPercent = (node.MemoryUsed / node.MemoryTotal) * 100
+	}
+	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s) / %s",
+		memoryPercent,
+		memoryUsedFormatted,
+		memoryTotalFormatted)).SetTextColor(tcell.ColorWhite))
 	row++
 
 	// Storage
-	storageGB := float64(node.UsedStorage) / 1024 / 1024 / 1024
-	totalStorageGB := float64(node.TotalStorage) / 1024 / 1024 / 1024
+	storageUsedFormatted := utils.FormatBytes(node.UsedStorage)
+	storageTotalFormatted := utils.FormatBytes(node.TotalStorage)
 	storagePercent := 0.0
 	if node.TotalStorage > 0 {
 		storagePercent = (float64(node.UsedStorage) / float64(node.TotalStorage)) * 100
 	}
 
 	nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(tcell.ColorYellow))
-	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f GB / %.1f GB (%.1f%%)",
-		storageGB, totalStorageGB, storagePercent)).SetTextColor(tcell.ColorWhite))
+	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s) / %s",
+		storagePercent, storageUsedFormatted, storageTotalFormatted)).SetTextColor(tcell.ColorWhite))
 	row++
 
 	// Uptime
@@ -148,7 +154,7 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	}
 
 	// VM and LXC breakdown
-	if node.VMs != nil && len(node.VMs) > 0 {
+	if len(node.VMs) > 0 {
 		// Count VMs by type and status
 		var qemuRunning, qemuStopped, qemuTemplates int
 		var lxcRunning, lxcStopped int

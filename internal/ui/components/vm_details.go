@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -123,7 +123,9 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))
 	memValue := "N/A"
 	if vm.MaxMem > 0 {
-		memValue = fmt.Sprintf("%.1f / %.1f GB", float64(vm.Mem)/(1024*1024*1024), float64(vm.MaxMem)/(1024*1024*1024))
+		memUsedFormatted := utils.FormatBytes(vm.Mem)
+		memTotalFormatted := utils.FormatBytes(vm.MaxMem)
+		memValue = fmt.Sprintf("%s / %s", memUsedFormatted, memTotalFormatted)
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(tcell.ColorWhite))
 	row++
@@ -131,7 +133,9 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(tcell.ColorYellow))
 	diskValue := "N/A"
 	if vm.MaxDisk > 0 {
-		diskValue = fmt.Sprintf("%.1f / %.1f GB", float64(vm.Disk)/(1024*1024*1024), float64(vm.MaxDisk)/(1024*1024*1024))
+		diskUsedFormatted := utils.FormatBytes(vm.Disk)
+		diskTotalFormatted := utils.FormatBytes(vm.MaxDisk)
+		diskValue = fmt.Sprintf("%s / %s", diskUsedFormatted, diskTotalFormatted)
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(tcell.ColorWhite))
 	row++
@@ -259,10 +263,10 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 
 			vd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", fsName)).SetTextColor(tcell.ColorLightSkyBlue))
-			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1f%% (%.1f/%.1f GB)",
+			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)",
 				usedPercent,
-				float64(fs.UsedBytes)/(1024*1024*1024),
-				float64(fs.TotalBytes)/(1024*1024*1024))).SetTextColor(usageColor))
+				utils.FormatBytes(fs.UsedBytes),
+				utils.FormatBytes(fs.TotalBytes))).SetTextColor(usageColor))
 			row++
 		}
 
