@@ -8,16 +8,18 @@ import (
 
 // Cluster represents aggregated Proxmox cluster metrics
 type Cluster struct {
-	Name        string  `json:"name"`
-	Version     string  `json:"version"`
-	Quorate     bool    `json:"quorate"`
-	TotalNodes  int     `json:"total_nodes"`
-	OnlineNodes int     `json:"online"`
-	TotalCPU    float64 `json:"total_cpu"`
-	CPUUsage    float64 `json:"cpu_usage"`
-	MemoryTotal float64 `json:"memory_total"`
-	MemoryUsed  float64 `json:"memory_used"`
-	Nodes       []*Node `json:"nodes"`
+	Name         string  `json:"name"`
+	Version      string  `json:"version"`
+	Quorate      bool    `json:"quorate"`
+	TotalNodes   int     `json:"total_nodes"`
+	OnlineNodes  int     `json:"online"`
+	TotalCPU     float64 `json:"total_cpu"`
+	CPUUsage     float64 `json:"cpu_usage"`
+	MemoryTotal  float64 `json:"memory_total"`
+	MemoryUsed   float64 `json:"memory_used"`
+	StorageTotal int64   `json:"storage_total"`
+	StorageUsed  int64   `json:"storage_used"`
+	Nodes        []*Node `json:"nodes"`
 
 	// For metrics tracking
 	lastUpdate time.Time
@@ -308,7 +310,7 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 			if !exists {
 				continue
 			}
-			node.Storage = &Storage{
+			storage := &Storage{
 				ID:         getString(resource, "id"),
 				Content:    getString(resource, "content"),
 				Disk:       int64(getFloat(resource, "disk")),
@@ -317,6 +319,11 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 				Plugintype: getString(resource, "plugintype"),
 				Status:     getString(resource, "status"),
 			}
+			node.Storage = storage
+
+			// Aggregate storage at cluster level
+			cluster.StorageUsed += storage.Disk
+			cluster.StorageTotal += storage.MaxDisk
 		case "qemu", "lxc":
 			node, exists := nodeMap[nodeName]
 			if !exists {
