@@ -61,7 +61,15 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 
 	// Initialize global state
 	if client.Cluster == nil {
-		if _, err := client.FastGetClusterStatus(); err != nil {
+		if _, err := client.FastGetClusterStatus(func() {
+			// This callback is called when background VM enrichment completes
+			app.QueueUpdateDraw(func() {
+				// Refresh the currently selected VM details if there is one
+				if selectedVM := app.vmList.GetSelectedVM(); selectedVM != nil {
+					app.vmDetails.Update(selectedVM)
+				}
+			})
+		}); err != nil {
 			app.header.ShowError("Error fetching cluster: " + err.Error())
 			return app
 		}

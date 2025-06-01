@@ -60,7 +60,8 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 
 // FastGetClusterStatus retrieves only essential cluster status without VM enrichment
 // for fast application startup. VM details will be loaded in the background.
-func (c *Client) FastGetClusterStatus() (*Cluster, error) {
+// The onEnrichmentComplete callback is called when background VM enrichment finishes.
+func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, error) {
 	cluster := &Cluster{
 		Nodes:      make([]*Node, 0),
 		lastUpdate: time.Now(),
@@ -93,6 +94,11 @@ func (c *Client) FastGetClusterStatus() (*Cluster, error) {
 			c.logger.Debug("[BACKGROUND] Error enriching VM data: %v", err)
 		} else {
 			c.logger.Debug("[BACKGROUND] Successfully enriched VM data")
+		}
+
+		// Call the callback to notify UI that enrichment is complete
+		if onEnrichmentComplete != nil {
+			onEnrichmentComplete()
 		}
 	}()
 
