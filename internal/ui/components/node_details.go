@@ -102,10 +102,7 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))
 	memoryUsedFormatted := utils.FormatBytesFloat(node.MemoryUsed)
 	memoryTotalFormatted := utils.FormatBytesFloat(node.MemoryTotal)
-	memoryPercent := 0.0
-	if node.MemoryTotal > 0 {
-		memoryPercent = (node.MemoryUsed / node.MemoryTotal) * 100
-	}
+	memoryPercent := utils.CalculatePercentage(node.MemoryUsed, node.MemoryTotal)
 	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s) / %s",
 		memoryPercent,
 		memoryUsedFormatted,
@@ -115,10 +112,7 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 	// Storage
 	storageUsedFormatted := utils.FormatBytes(node.UsedStorage)
 	storageTotalFormatted := utils.FormatBytes(node.TotalStorage)
-	storagePercent := 0.0
-	if node.TotalStorage > 0 {
-		storagePercent = (float64(node.UsedStorage) / float64(node.TotalStorage)) * 100
-	}
+	storagePercent := utils.CalculatePercentageInt(node.UsedStorage, node.TotalStorage)
 
 	nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(tcell.ColorYellow))
 	nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s) / %s",

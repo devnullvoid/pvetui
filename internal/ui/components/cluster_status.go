@@ -125,10 +125,7 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	// Memory row
 	memoryUsed := utils.FormatBytesFloat(cluster.MemoryUsed)
 	memoryTotal := utils.FormatBytesFloat(cluster.MemoryTotal)
-	memoryPercent := 0.0
-	if cluster.MemoryTotal > 0 {
-		memoryPercent = (cluster.MemoryUsed / cluster.MemoryTotal) * 100
-	}
+	memoryPercent := utils.CalculatePercentage(cluster.MemoryUsed, cluster.MemoryTotal)
 	cs.ResourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignLeft))
 	cs.ResourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s)", memoryPercent, memoryUsed)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
 	cs.ResourceTable.SetCell(2, 2, tview.NewTableCell(memoryTotal).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
@@ -136,10 +133,7 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	// Storage row
 	storageUsed := utils.FormatBytes(cluster.StorageUsed)
 	storageTotal := utils.FormatBytes(cluster.StorageTotal)
-	storagePercent := 0.0
-	if cluster.StorageTotal > 0 {
-		storagePercent = (float64(cluster.StorageUsed) / float64(cluster.StorageTotal)) * 100
-	}
+	storagePercent := utils.CalculatePercentageInt(cluster.StorageUsed, cluster.StorageTotal)
 	cs.ResourceTable.SetCell(3, 0, tview.NewTableCell("Storage").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignLeft))
 	cs.ResourceTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s)", storagePercent, storageUsed)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
 	cs.ResourceTable.SetCell(3, 2, tview.NewTableCell(storageTotal).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))

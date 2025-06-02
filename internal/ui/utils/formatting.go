@@ -81,3 +81,21 @@ func FormatStatusIndicator(status string) string {
 		return "[yellow]●[-] "
 	}
 }
+
+// CalculatePercentage safely calculates percentage from used and total values
+// Returns 0.0 if total is 0 to avoid division by zero
+func CalculatePercentage(used, total float64) float64 {
+	if total <= 0 {
+		return 0.0
+	}
+	return (used / total) * 100
+}
+
+// CalculatePercentageInt safely calculates percentage from used and total int64 values
+// Returns 0.0 if total is 0 to avoid division by zero
+func CalculatePercentageInt(used, total int64) float64 {
+	if total <= 0 {
+		return 0.0
+	}
+	return (float64(used) / float64(total)) * 100
+}

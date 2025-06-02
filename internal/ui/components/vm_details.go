@@ -111,6 +111,13 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 1, tview.NewTableCell(ipValue).SetTextColor(tcell.ColorWhite))
 	row++
 
+	// Tags (if set)
+	if vm.Tags != "" {
+		vd.SetCell(row, 0, tview.NewTableCell("🏷️ Tags").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 1, tview.NewTableCell(vm.Tags).SetTextColor(tcell.ColorLightBlue))
+		row++
+	}
+
 	// Resource Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(tcell.ColorYellow))
 	cpuValue := "N/A"
@@ -125,7 +132,8 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	if vm.MaxMem > 0 {
 		memUsedFormatted := utils.FormatBytes(vm.Mem)
 		memTotalFormatted := utils.FormatBytes(vm.MaxMem)
-		memValue = fmt.Sprintf("%s / %s", memUsedFormatted, memTotalFormatted)
+		memoryPercent := utils.CalculatePercentageInt(vm.Mem, vm.MaxMem)
+		memValue = fmt.Sprintf("%.2f%% (%s) / %s", memoryPercent, memUsedFormatted, memTotalFormatted)
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(tcell.ColorWhite))
 	row++
@@ -135,7 +143,8 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	if vm.MaxDisk > 0 {
 		diskUsedFormatted := utils.FormatBytes(vm.Disk)
 		diskTotalFormatted := utils.FormatBytes(vm.MaxDisk)
-		diskValue = fmt.Sprintf("%s / %s", diskUsedFormatted, diskTotalFormatted)
+		diskPercent := utils.CalculatePercentageInt(vm.Disk, vm.MaxDisk)
+		diskValue = fmt.Sprintf("%.2f%% (%s) / %s", diskPercent, diskUsedFormatted, diskTotalFormatted)
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(tcell.ColorWhite))
 	row++
