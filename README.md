@@ -45,6 +45,10 @@ Choose between traditional username/password authentication with automatic ticke
 
 Open SSH shells directly to Proxmox nodes, QEMU VMs, and LXC containers without leaving the interface, streamlining your workflow and eliminating context switching.
 
+### VNC Console Access
+
+Seamlessly connect to VMs and nodes through VNC consoles that open directly in your default browser. Access QEMU VM consoles and node shell sessions through Proxmox's built-in noVNC interface without manual URL construction.
+
 ### Community Scripts Support
 
 Install and manage scripts from the Proxmox Community Scripts repository directly to your nodes, extending functionality with community-contributed tools.
@@ -166,10 +170,19 @@ Run Proxmox TUI with your configuration file:
 - **F2**: View Guests
 - **/**: Search/Filter
 - **S**: Open Shell
+- **V**: Open VNC Console
 - **C**: View Community Scripts
 - **M**: Open Menu
 - **Tab/Next Tab**: Switch between tabs
 - **Q**: Quit
+
+### VNC Console Features
+
+- **Node VNC Shell**: Access node shell sessions through VNC (available for all online nodes)
+- **VM VNC Console**: Connect to QEMU VM consoles through VNC (available for running QEMU VMs)
+- **Browser Integration**: VNC sessions open automatically in your default browser
+- **Secure Connection**: Uses Proxmox's built-in authentication and VNC proxy system
+- **Cross-Platform**: Works on Windows, macOS, and Linux
 
 ## 🤝 Contributing
 

@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 )
@@ -765,4 +766,80 @@ func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
 	}
 
 	return filesystems, nil
+}
+
+// VNCProxyResponse represents the response from a VNC proxy request
+type VNCProxyResponse struct {
+	Ticket string `json:"ticket"`
+	Port   string `json:"port"`
+	User   string `json:"user"`
+	Cert   string `json:"cert"`
+}
+
+// GetVNCProxy creates a VNC proxy for a VM and returns connection details
+func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
+	if vm.Type != "qemu" {
+		return nil, fmt.Errorf("VNC proxy only available for QEMU VMs")
+	}
+
+	var res map[string]interface{}
+	path := fmt.Sprintf("/nodes/%s/qemu/%d/vncproxy", vm.Node, vm.ID)
+	
+	// POST request with websocket=1 parameter for noVNC compatibility
+	data := map[string]interface{}{
+		"websocket": 1,
+	}
+	
+	if err := c.PostWithResponse(path, data, &res); err != nil {
+		return nil, fmt.Errorf("failed to create VNC proxy: %w", err)
+	}
+
+	responseData, ok := res["data"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected VNC proxy response format")
+	}
+
+	response := &VNCProxyResponse{}
+	
+	if ticket, ok := responseData["ticket"].(string); ok {
+		response.Ticket = ticket
+	}
+	
+	if port, ok := responseData["port"].(string); ok {
+		response.Port = port
+	} else if portFloat, ok := responseData["port"].(float64); ok {
+		response.Port = fmt.Sprintf("%.0f", portFloat)
+	}
+	
+	if user, ok := responseData["user"].(string); ok {
+		response.User = user
+	}
+	
+	if cert, ok := responseData["cert"].(string); ok {
+		response.Cert = cert
+	}
+
+	return response, nil
+}
+
+// GenerateVNCURL creates a noVNC console URL for the given VM
+func (c *Client) GenerateVNCURL(vm *VM) (string, error) {
+	// Get VNC proxy details
+	proxy, err := c.GetVNCProxy(vm)
+	if err != nil {
+		return "", err
+	}
+
+	// Extract server details from base URL
+	serverURL := strings.TrimSuffix(c.baseURL, "/api2/json")
+	
+	// URL encode the VNC ticket
+	encodedTicket := url.QueryEscape(proxy.Ticket)
+	
+	// Build the noVNC console URL
+	// Format: https://server:8006/?console=kvm&vmid=100&node=nodename&resize=off&cmd=
+	vncURL := fmt.Sprintf("%s/?console=kvm&vmid=%d&node=%s&resize=off&cmd=&vncticket=%s&port=%s",
+		serverURL, vm.ID, vm.Node, encodedTicket, proxy.Port)
+
+	return vncURL, nil
 }

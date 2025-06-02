@@ -61,6 +61,21 @@ func (c *Client) Post(path string, data interface{}) error {
 	return c.httpClient.Post(context.Background(), path, postData, nil)
 }
 
+// PostWithResponse makes a POST request to the Proxmox API and returns the response
+func (c *Client) PostWithResponse(path string, data interface{}, result *map[string]interface{}) error {
+	c.logger.Debug("API POST with response: %s", path)
+	// Convert data to map[string]interface{} if it's not nil
+	var postData interface{}
+	if data != nil {
+		var ok bool
+		postData, ok = data.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("data must be of type map[string]interface{}")
+		}
+	}
+	return c.httpClient.Post(context.Background(), path, postData, result)
+}
+
 // GetWithCache makes a GET request to the Proxmox API with caching
 func (c *Client) GetWithCache(path string, result *map[string]interface{}, ttl time.Duration) error {
 	// Generate cache key based on API path

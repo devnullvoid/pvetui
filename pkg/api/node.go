@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
@@ -169,4 +170,68 @@ func (c *Client) GetNodeConfig(nodeName string) (map[string]interface{}, error) 
 		return nil, fmt.Errorf("unexpected format for node config")
 	}
 	return data, nil
+}
+
+// GetNodeVNCShell creates a VNC shell connection for a node and returns connection details
+func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
+	var res map[string]interface{}
+	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
+	
+	// POST request with websocket=1 parameter for noVNC compatibility
+	data := map[string]interface{}{
+		"websocket": 1,
+	}
+	
+	if err := c.PostWithResponse(path, data, &res); err != nil {
+		return nil, fmt.Errorf("failed to create VNC shell: %w", err)
+	}
+
+	responseData, ok := res["data"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected VNC shell response format")
+	}
+
+	response := &VNCProxyResponse{}
+	
+	if ticket, ok := responseData["ticket"].(string); ok {
+		response.Ticket = ticket
+	}
+	
+	if port, ok := responseData["port"].(string); ok {
+		response.Port = port
+	} else if portFloat, ok := responseData["port"].(float64); ok {
+		response.Port = fmt.Sprintf("%.0f", portFloat)
+	}
+	
+	if user, ok := responseData["user"].(string); ok {
+		response.User = user
+	}
+	
+	if cert, ok := responseData["cert"].(string); ok {
+		response.Cert = cert
+	}
+
+	return response, nil
+}
+
+// GenerateNodeVNCURL creates a noVNC shell URL for the given node
+func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
+	// Get VNC shell proxy details
+	proxy, err := c.GetNodeVNCShell(nodeName)
+	if err != nil {
+		return "", err
+	}
+
+	// Extract server details from base URL
+	serverURL := strings.TrimSuffix(c.baseURL, "/api2/json")
+	
+	// URL encode the VNC ticket
+	encodedTicket := url.QueryEscape(proxy.Ticket)
+	
+	// Build the noVNC shell URL
+	// Format: https://server:8006/?console=shell&node=nodename&resize=off&cmd=
+	vncURL := fmt.Sprintf("%s/?console=shell&node=%s&resize=off&cmd=&vncticket=%s&port=%s",
+		serverURL, nodeName, encodedTicket, proxy.Port)
+
+	return vncURL, nil
 }

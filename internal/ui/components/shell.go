@@ -7,6 +7,7 @@ import (
 	// "github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ssh"
+	"github.com/devnullvoid/proxmox-tui/internal/vnc"
 )
 
 // openNodeShell opens an SSH session to the currently selected node
@@ -37,6 +38,75 @@ func (a *App) openNodeShell() {
 		fmt.Print("\nPress Enter to return to the TUI...")
 		fmt.Scanln()
 	})
+}
+
+// openNodeVNC opens a VNC shell connection to the currently selected node
+func (a *App) openNodeVNC() {
+	node := a.nodeList.GetSelectedNode()
+	if node == nil {
+		a.showMessage("No node selected")
+		return
+	}
+
+	if !node.Online {
+		a.showMessage("Node is offline")
+		return
+	}
+
+	// Create VNC service
+	vncService := vnc.NewService(a.client)
+
+	// Show loading message
+	a.header.ShowLoading(fmt.Sprintf("Opening VNC shell for %s...", node.Name))
+
+	// Open VNC connection in a goroutine to avoid blocking UI
+	go func() {
+		err := vncService.ConnectToNode(node.Name)
+		a.QueueUpdateDraw(func() {
+			if err != nil {
+				a.header.ShowError(fmt.Sprintf("Failed to open VNC shell: %v", err))
+			} else {
+				a.header.ShowSuccess(fmt.Sprintf("VNC shell opened for %s", node.Name))
+			}
+		})
+	}()
+}
+
+// openVMVNC opens a VNC console connection to the currently selected VM
+func (a *App) openVMVNC() {
+	vm := a.vmList.GetSelectedVM()
+	if vm == nil {
+		a.showMessage("No VM selected")
+		return
+	}
+
+	if vm.Type != "qemu" {
+		a.showMessage("VNC console is only available for QEMU VMs")
+		return
+	}
+
+	if vm.Status != "running" {
+		a.showMessage("VM must be running to open VNC console")
+		return
+	}
+
+	// Create VNC service
+	vncService := vnc.NewService(a.client)
+
+	// Show loading message
+	a.header.ShowLoading(fmt.Sprintf("Opening VNC console for %s...", vm.Name))
+
+	// Open VNC connection in a goroutine to avoid blocking UI
+	go func() {
+		err := vncService.ConnectToVM(vm)
+		a.QueueUpdateDraw(func() {
+			if err != nil {
+				a.header.ShowError(fmt.Sprintf("Failed to open VNC console: %v", err))
+			} else {
+				a.header.ShowSuccess(fmt.Sprintf("VNC console opened for %s", vm.Name))
+			}
+		})
+	}()
 }
 
 // openVMShell opens a shell session to the currently selected VM/container

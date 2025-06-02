@@ -105,6 +105,17 @@ func (a *App) setupKeyboardHandlers() {
 				// Manual refresh
 				a.manualRefresh()
 				return nil
+			} else if event.Rune() == 'v' || event.Rune() == 'V' {
+				// Open VNC connection based on current page
+				currentPage, _ := a.pages.GetFrontPage()
+				if currentPage == "Nodes" {
+					// Handle node VNC shell session
+					a.openNodeVNC()
+				} else if currentPage == "Guests" {
+					// Handle VM VNC console session
+					a.openVMVNC()
+				}
+				return nil
 			}
 		}
 		return event
