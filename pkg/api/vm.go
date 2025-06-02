@@ -778,12 +778,12 @@ type VNCProxyResponse struct {
 
 // GetVNCProxy creates a VNC proxy for a VM and returns connection details
 func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
-	if vm.Type != "qemu" {
-		return nil, fmt.Errorf("VNC proxy only available for QEMU VMs")
+	if vm.Type != "qemu" && vm.Type != "lxc" {
+		return nil, fmt.Errorf("VNC proxy only available for QEMU VMs and LXC containers")
 	}
 
 	var res map[string]interface{}
-	path := fmt.Sprintf("/nodes/%s/qemu/%d/vncproxy", vm.Node, vm.ID)
+	path := fmt.Sprintf("/nodes/%s/%s/%d/vncproxy", vm.Node, vm.Type, vm.ID)
 	
 	// POST request with websocket=1 parameter for noVNC compatibility
 	data := map[string]interface{}{
@@ -836,10 +836,16 @@ func (c *Client) GenerateVNCURL(vm *VM) (string, error) {
 	// URL encode the VNC ticket (critical for avoiding 401 errors)
 	encodedTicket := url.QueryEscape(proxy.Ticket)
 	
+	// Determine console type based on VM type
+	consoleType := "kvm"
+	if vm.Type == "lxc" {
+		consoleType = "lxc"
+	}
+	
 	// Build the noVNC console URL using the working format from the forum post
 	// Format: https://server:8006/?console=kvm&novnc=1&vmid=100&vmname=vmname&node=nodename&resize=off&cmd=&vncticket=encoded_ticket
-	vncURL := fmt.Sprintf("%s/?console=kvm&novnc=1&vmid=%d&vmname=%s&node=%s&resize=off&cmd=&vncticket=%s",
-		serverURL, vm.ID, url.QueryEscape(vm.Name), vm.Node, encodedTicket)
+	vncURL := fmt.Sprintf("%s/?console=%s&novnc=1&vmid=%d&vmname=%s&node=%s&resize=off&cmd=&vncticket=%s",
+		serverURL, consoleType, vm.ID, url.QueryEscape(vm.Name), vm.Node, encodedTicket)
 
 	return vncURL, nil
 }

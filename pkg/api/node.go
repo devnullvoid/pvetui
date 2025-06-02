@@ -174,6 +174,11 @@ func (c *Client) GetNodeConfig(nodeName string) (map[string]interface{}, error) 
 
 // GetNodeVNCShell creates a VNC shell connection for a node and returns connection details
 func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
+	// Node VNC shells don't work with API token authentication
+	if c.IsUsingTokenAuth() {
+		return nil, fmt.Errorf("node VNC shells are not supported with API token authentication, please use password authentication")
+	}
+
 	var res map[string]interface{}
 	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
 	

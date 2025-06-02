@@ -22,8 +22,8 @@ func NewService(client *api.Client) *Service {
 
 // ConnectToVM opens a VNC connection to a VM in the user's browser
 func (s *Service) ConnectToVM(vm *api.VM) error {
-	if vm.Type != "qemu" {
-		return fmt.Errorf("VNC connections are only available for QEMU VMs")
+	if vm.Type != "qemu" && vm.Type != "lxc" {
+		return fmt.Errorf("VNC connections are only available for QEMU VMs and LXC containers")
 	}
 
 	if vm.Status != "running" {
@@ -72,8 +72,8 @@ func openBrowser(url string) error {
 
 // GetVMVNCStatus checks if VNC is available for a VM
 func (s *Service) GetVMVNCStatus(vm *api.VM) (bool, string) {
-	if vm.Type != "qemu" {
-		return false, "VNC only available for QEMU VMs"
+	if vm.Type != "qemu" && vm.Type != "lxc" {
+		return false, "VNC only available for QEMU VMs and LXC containers"
 	}
 	
 	if vm.Status != "running" {
@@ -85,7 +85,11 @@ func (s *Service) GetVMVNCStatus(vm *api.VM) (bool, string) {
 
 // GetNodeVNCStatus checks if VNC shell is available for a node
 func (s *Service) GetNodeVNCStatus(nodeName string) (bool, string) {
-	// For nodes, we assume VNC shell is always available if the node is online
-	// This could be enhanced to check node status if needed
+	// Node VNC shells don't work with API token authentication
+	if s.client.IsUsingTokenAuth() {
+		return false, "Node VNC shells require password authentication (not supported with API tokens)"
+	}
+	
+	// For nodes with password auth, VNC shell is available if the node is online
 	return true, "VNC shell available"
 }

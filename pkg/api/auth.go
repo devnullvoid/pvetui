@@ -184,3 +184,8 @@ func (am *AuthManager) ClearToken() {
 	am.authToken = nil
 	am.logger.Debug("Authentication token cleared")
 }
+
+// IsTokenAuth returns true if using API token authentication
+func (am *AuthManager) IsTokenAuth() bool {
+	return am.token != ""
+}

@@ -142,8 +142,8 @@ func (a *App) ShowVMContextMenu() {
 		"Refresh",
 	}
 
-	// Add VNC option for QEMU VMs that are running
-	if vm.Type == "qemu" && vm.Status == "running" {
+	// Add VNC option for QEMU VMs and LXC containers that are running
+	if (vm.Type == "qemu" || vm.Type == "lxc") && vm.Status == "running" {
 		menuItems = append([]string{"Open VNC Console"}, menuItems...)
 	}
 

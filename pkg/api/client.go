@@ -76,6 +76,13 @@ func (c *Client) PostWithResponse(path string, data interface{}, result *map[str
 	return c.httpClient.Post(context.Background(), path, postData, result)
 }
 
+// IsUsingTokenAuth returns true if the client is using API token authentication
+func (c *Client) IsUsingTokenAuth() bool {
+	// Check if the auth manager is using token authentication
+	// Token auth users have a '!' in their username (e.g., "user@realm!tokenid")
+	return c.authManager != nil && c.authManager.IsTokenAuth()
+}
+
 // GetWithCache makes a GET request to the Proxmox API with caching
 func (c *Client) GetWithCache(path string, result *map[string]interface{}, ttl time.Duration) error {
 	// Generate cache key based on API path

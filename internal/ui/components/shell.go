@@ -80,8 +80,8 @@ func (a *App) openVMVNC() {
 		return
 	}
 
-	if vm.Type != "qemu" {
-		a.showMessage("VNC console is only available for QEMU VMs")
+	if vm.Type != "qemu" && vm.Type != "lxc" {
+		a.showMessage("VNC console is only available for QEMU VMs and LXC containers")
 		return
 	}
 
