@@ -833,13 +833,13 @@ func (c *Client) GenerateVNCURL(vm *VM) (string, error) {
 	// Extract server details from base URL
 	serverURL := strings.TrimSuffix(c.baseURL, "/api2/json")
 	
-	// URL encode the VNC ticket
+	// URL encode the VNC ticket (critical for avoiding 401 errors)
 	encodedTicket := url.QueryEscape(proxy.Ticket)
 	
-	// Build the noVNC console URL
-	// Format: https://server:8006/?console=kvm&vmid=100&node=nodename&resize=off&cmd=
-	vncURL := fmt.Sprintf("%s/?console=kvm&vmid=%d&node=%s&resize=off&cmd=&vncticket=%s&port=%s",
-		serverURL, vm.ID, vm.Node, encodedTicket, proxy.Port)
+	// Build the noVNC console URL using the working format from the forum post
+	// Format: https://server:8006/?console=kvm&novnc=1&vmid=100&vmname=vmname&node=nodename&resize=off&cmd=&vncticket=encoded_ticket
+	vncURL := fmt.Sprintf("%s/?console=kvm&novnc=1&vmid=%d&vmname=%s&node=%s&resize=off&cmd=&vncticket=%s",
+		serverURL, vm.ID, url.QueryEscape(vm.Name), vm.Node, encodedTicket)
 
 	return vncURL, nil
 }

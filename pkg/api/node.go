@@ -225,13 +225,13 @@ func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
 	// Extract server details from base URL
 	serverURL := strings.TrimSuffix(c.baseURL, "/api2/json")
 	
-	// URL encode the VNC ticket
+	// URL encode the VNC ticket (critical for avoiding 401 errors)
 	encodedTicket := url.QueryEscape(proxy.Ticket)
 	
-	// Build the noVNC shell URL
-	// Format: https://server:8006/?console=shell&node=nodename&resize=off&cmd=
-	vncURL := fmt.Sprintf("%s/?console=shell&node=%s&resize=off&cmd=&vncticket=%s&port=%s",
-		serverURL, nodeName, encodedTicket, proxy.Port)
+	// Build the noVNC shell URL using the working format from the forum post
+	// Format: https://server:8006/?console=shell&novnc=1&node=nodename&resize=off&cmd=&vncticket=encoded_ticket
+	vncURL := fmt.Sprintf("%s/?console=shell&novnc=1&node=%s&resize=off&cmd=&vncticket=%s",
+		serverURL, nodeName, encodedTicket)
 
 	return vncURL, nil
 }
