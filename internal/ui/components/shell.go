@@ -53,6 +53,12 @@ func (a *App) openNodeVNC() {
 		return
 	}
 
+	// Check if using token authentication (node VNC doesn't work with tokens)
+	if a.client.IsUsingTokenAuth() {
+		a.showMessage("Node VNC shells are not supported with API token authentication.\n\nTo use node VNC shells, please configure the application to use password authentication instead of API tokens.")
+		return
+	}
+
 	// Create VNC service
 	vncService := vnc.NewService(a.client)
 
