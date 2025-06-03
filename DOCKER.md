@@ -40,10 +40,12 @@ This document describes how to build and run the Proxmox TUI application using D
    # Edit .env with your Proxmox configuration
    ```
 
-2. **Start services:**
+2. **Start application (interactive):**
    ```bash
-   docker-compose up -d
+   docker-compose up
    ```
+
+   **Note:** For TUI applications, do NOT use `docker-compose up -d` as it runs in detached mode which doesn't work with interactive terminal applications.
 
 ## Configuration
 
@@ -54,17 +56,20 @@ The application can be configured using environment variables. Copy `.env.exampl
 ```bash
 # Required: Proxmox server details
 PROXMOX_ADDR=https://your-proxmox-server:8006
-PROXMOX_USERNAME=root@pam
+PROXMOX_USER=root@pam
 PROXMOX_PASSWORD=your-password
+PROXMOX_REALM=pam
 
 # Alternative: Use API tokens (recommended for production)
 # PROXMOX_TOKEN_ID=your-token-id
 # PROXMOX_TOKEN_SECRET=your-token-secret
 
 # Optional: Application settings
-DEBUG=false
-CACHE_DIR=/app/cache
-LOG_DIR=/app/logs
+PROXMOX_DEBUG=false
+PROXMOX_CACHE_DIR=/app/cache
+PROXMOX_API_PATH=/api2/json
+PROXMOX_INSECURE=false
+PROXMOX_SSH_USER=root
 ```
 
 ### Volume Mounts
@@ -134,18 +139,20 @@ make podman-run
 ### Docker Compose
 
 ```bash
-# Start in background
-docker-compose up -d
-
-# Start with logs
+# Start interactively (recommended for TUI apps)
 docker-compose up
+
+# Build and start
+make compose-build
 
 # Stop services
 docker-compose down
 
-# View logs
+# View logs (if running detached)
 docker-compose logs -f
 ```
+
+**Important:** Since this is a TUI application, always run `docker-compose up` without the `-d` flag to maintain interactivity.
 
 ## TUI Application Considerations
 
@@ -166,6 +173,10 @@ The application will adapt to the terminal size of the host. Resize events are p
 ### Keyboard Input
 
 All keyboard input is forwarded to the containerized application, including special key combinations.
+
+### VNC Feature
+
+The VNC feature will work in containers by opening VNC consoles in the host's browser, since the container shares the host's network for outbound connections.
 
 ## Security
 
@@ -194,7 +205,7 @@ The container doesn't expose any ports by default. Network access is only needed
 2. **TLS Certificate Issues:**
    ```bash
    # Add to .env for testing (not recommended for production)
-   PROXMOX_SKIP_TLS_VERIFY=true
+   PROXMOX_INSECURE=true
    ```
 
 3. **Container Won't Start:**
@@ -205,12 +216,18 @@ The container doesn't expose any ports by default. Network access is only needed
    podman logs proxmox-tui
    ```
 
+4. **Environment Variable Issues:**
+   Make sure you're using the correct variable names from `config.go`:
+   - `PROXMOX_USER` (not `PROXMOX_USERNAME`)
+   - `PROXMOX_DEBUG` (not `DEBUG`)
+   - `PROXMOX_CACHE_DIR` (not `CACHE_DIR`)
+
 ### Debug Mode
 
-Enable debug mode by setting `DEBUG=true` in your `.env` file:
+Enable debug mode by setting `PROXMOX_DEBUG=true` in your `.env` file:
 
 ```bash
-DEBUG=true
+PROXMOX_DEBUG=true
 ```
 
 This will provide verbose logging to help diagnose issues.
@@ -271,7 +288,8 @@ Key targets:
 - `docker-run` - Run Docker container
 - `podman-build` - Build Podman image
 - `podman-run` - Run Podman container
-- `compose-up` - Start with docker-compose
+- `compose-up` - Start with docker-compose (interactive)
+- `compose-build` - Build and start with docker-compose
 - `dev-setup` - Set up development environment
 - `clean` - Clean build artifacts
 
@@ -319,4 +337,14 @@ tar -czf proxmox-tui-data-$(date +%Y%m%d).tar.gz cache logs
 
 # Restore backup
 tar -xzf proxmox-tui-data-YYYYMMDD.tar.gz
-``` 
+```
+
+## Interactive vs Detached Mode
+
+**Important for TUI Applications:**
+
+- ✅ **Use:** `docker-compose up` (interactive)
+- ✅ **Use:** `make docker-run` or `make podman-run`
+- ❌ **Don't use:** `docker-compose up -d` (detached mode breaks TUI)
+
+The application requires an interactive terminal to function properly. Detached mode will cause the application to exit immediately or become unresponsive. 

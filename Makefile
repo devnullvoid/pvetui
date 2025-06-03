@@ -22,66 +22,71 @@ NC := \033[0m
 
 # Default target
 help: ## Show this help message
-	@echo "$(GREEN)Available targets:$(NC)"
+	@printf "$(GREEN)Available targets:$(NC)\n"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # Go targets
 build: ## Build the application binary
-	@echo "$(GREEN)Building $(APP_NAME)...$(NC)"
+	@printf "$(GREEN)Building $(APP_NAME)...$(NC)\n"
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo -o $(APP_NAME) ./cmd/proxmox-tui
 
 test: ## Run tests
-	@echo "$(GREEN)Running tests...$(NC)"
+	@printf "$(GREEN)Running tests...$(NC)\n"
 	go test -v ./...
 
 test-coverage: ## Run tests with coverage
-	@echo "$(GREEN)Running tests with coverage...$(NC)"
+	@printf "$(GREEN)Running tests with coverage...$(NC)\n"
 	go test -v -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 clean: ## Clean build artifacts
-	@echo "$(GREEN)Cleaning...$(NC)"
+	@printf "$(GREEN)Cleaning...$(NC)\n"
 	rm -f $(APP_NAME)
 	rm -f coverage.out coverage.html
 	docker rmi $(FULL_IMAGE_NAME):$(VERSION) $(FULL_IMAGE_NAME):latest 2>/dev/null || true
 
 # Docker targets
 docker-build: ## Build Docker image
-	@echo "$(GREEN)Building Docker image...$(NC)"
+	@printf "$(GREEN)Building Docker image...$(NC)\n"
 	@chmod +x scripts/docker-build.sh
 	VERSION=$(VERSION) REGISTRY=$(REGISTRY) ./scripts/docker-build.sh
 
 docker-run: ## Run application in Docker container
-	@echo "$(GREEN)Running Docker container...$(NC)"
+	@printf "$(GREEN)Running Docker container...$(NC)\n"
 	@chmod +x scripts/docker-run.sh
 	./scripts/docker-run.sh
 
 docker-test: ## Test Docker image
-	@echo "$(GREEN)Testing Docker image...$(NC)"
+	@printf "$(GREEN)Testing Docker image...$(NC)\n"
 	docker run --rm $(FULL_IMAGE_NAME):$(VERSION) --help
 
 # Podman targets
 podman-build: ## Build Podman image
-	@echo "$(GREEN)Building Podman image...$(NC)"
+	@printf "$(GREEN)Building Podman image...$(NC)\n"
 	@chmod +x scripts/podman-build.sh
 	VERSION=$(VERSION) REGISTRY=$(REGISTRY) ./scripts/podman-build.sh
 
 podman-run: ## Run application in Podman container
-	@echo "$(GREEN)Running Podman container...$(NC)"
+	@printf "$(GREEN)Running Podman container...$(NC)\n"
 	@chmod +x scripts/podman-run.sh
 	./scripts/podman-run.sh
 
 podman-test: ## Test Podman image
-	@echo "$(GREEN)Testing Podman image...$(NC)"
+	@printf "$(GREEN)Testing Podman image...$(NC)\n"
 	podman run --rm $(FULL_IMAGE_NAME):$(VERSION) --help
 
 # Docker Compose targets
-compose-up: ## Start services with docker-compose
-	@echo "$(GREEN)Starting services with docker-compose...$(NC)"
-	docker-compose up -d
+compose-up: ## Start TUI application with docker-compose (interactive)
+	@printf "$(GREEN)Starting TUI application with docker-compose...$(NC)\n"
+	@printf "$(YELLOW)Note: This will run interactively. Use Ctrl+C to stop.$(NC)\n"
+	docker-compose up
+
+compose-build: ## Build and start with docker-compose
+	@printf "$(GREEN)Building and starting with docker-compose...$(NC)\n"
+	docker-compose up --build
 
 compose-down: ## Stop services with docker-compose
-	@echo "$(GREEN)Stopping services with docker-compose...$(NC)"
+	@printf "$(GREEN)Stopping services with docker-compose...$(NC)\n"
 	docker-compose down
 
 compose-logs: ## Show docker-compose logs
@@ -89,26 +94,26 @@ compose-logs: ## Show docker-compose logs
 
 # Development targets
 dev-setup: ## Set up development environment
-	@echo "$(GREEN)Setting up development environment...$(NC)"
+	@printf "$(GREEN)Setting up development environment...$(NC)\n"
 	@if [ ! -f .env ]; then \
-		echo "$(YELLOW)Creating .env from .env.example...$(NC)"; \
+		printf "$(YELLOW)Creating .env from .env.example...$(NC)\n"; \
 		cp .env.example .env; \
-		echo "$(RED)Please edit .env with your Proxmox configuration$(NC)"; \
+		printf "$(RED)Please edit .env with your Proxmox configuration$(NC)\n"; \
 	fi
 	@mkdir -p cache logs
 
 lint: ## Run linters
-	@echo "$(GREEN)Running linters...$(NC)"
+	@printf "$(GREEN)Running linters...$(NC)\n"
 	golangci-lint run
 
 format: ## Format code
-	@echo "$(GREEN)Formatting code...$(NC)"
+	@printf "$(GREEN)Formatting code...$(NC)\n"
 	go fmt ./...
 	goimports -w .
 
 # Release targets
 release-build: ## Build release binaries for multiple platforms
-	@echo "$(GREEN)Building release binaries...$(NC)"
+	@printf "$(GREEN)Building release binaries...$(NC)\n"
 	@mkdir -p dist
 	GOOS=linux GOARCH=amd64 go build -o dist/$(APP_NAME)-linux-amd64 ./cmd/proxmox-tui
 	GOOS=linux GOARCH=arm64 go build -o dist/$(APP_NAME)-linux-arm64 ./cmd/proxmox-tui
@@ -118,9 +123,9 @@ release-build: ## Build release binaries for multiple platforms
 
 # Utility targets
 version: ## Show version information
-	@echo "App: $(APP_NAME)"
-	@echo "Version: $(VERSION)"
-	@echo "Go Version: $(GO_VERSION)"
-	@echo "Image: $(FULL_IMAGE_NAME):$(VERSION)"
+	@printf "App: $(APP_NAME)\n"
+	@printf "Version: $(VERSION)\n"
+	@printf "Go Version: $(GO_VERSION)\n"
+	@printf "Image: $(FULL_IMAGE_NAME):$(VERSION)\n"
 
 .DEFAULT_GOAL := help 
