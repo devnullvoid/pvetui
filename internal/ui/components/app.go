@@ -26,6 +26,7 @@ type App struct {
 	contextMenu   *tview.List
 	isMenuOpen    bool
 	lastFocus     tview.Primitive
+	vncWarningShown bool // Track if VNC warning has been shown
 }
 
 // NewApp creates a new application instance with all UI components

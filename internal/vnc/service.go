@@ -21,15 +21,8 @@ func NewService(client *api.Client) *Service {
 }
 
 // ConnectToVM opens a VNC connection to a VM in the user's browser
+// Note: Validation should be done using GetVMVNCStatus before calling this method
 func (s *Service) ConnectToVM(vm *api.VM) error {
-	if vm.Type != "qemu" && vm.Type != "lxc" {
-		return fmt.Errorf("VNC connections are only available for QEMU VMs and LXC containers")
-	}
-
-	if vm.Status != "running" {
-		return fmt.Errorf("VM must be running to establish VNC connection")
-	}
-
 	// Generate the VNC URL
 	vncURL, err := s.client.GenerateVNCURL(vm)
 	if err != nil {
@@ -87,7 +80,7 @@ func (s *Service) GetVMVNCStatus(vm *api.VM) (bool, string) {
 func (s *Service) GetNodeVNCStatus(nodeName string) (bool, string) {
 	// Node VNC shells don't work with API token authentication
 	if s.client.IsUsingTokenAuth() {
-		return false, "Node VNC shells require password authentication (not supported with API tokens)"
+		return false, "Node VNC shells are not supported with API token authentication.\n\nTo use node VNC shells, please configure the application to use password authentication instead of API tokens."
 	}
 	
 	// For nodes with password auth, VNC shell is available if the node is online

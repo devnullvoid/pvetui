@@ -4,7 +4,7 @@ import (
 	"fmt"
 	// "strings"
 
-	// "github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ssh"
 	"github.com/devnullvoid/proxmox-tui/internal/vnc"
@@ -40,28 +40,26 @@ func (a *App) openNodeShell() {
 	})
 }
 
-// openNodeVNC opens a VNC shell connection to the currently selected node
-func (a *App) openNodeVNC() {
-	node := a.nodeList.GetSelectedNode()
-	if node == nil {
-		a.showMessage("No node selected")
-		return
-	}
+// showVNCWarning displays a warning about VNC browser requirements
+func (a *App) showVNCWarning(onConfirm func()) {
+	message := "VNC Console Information\n\n" +
+		"The VNC console will open in your default web browser.\n\n" +
+		"Important: You must be logged into the Proxmox web interface " +
+		"in the same browser session for VNC to work properly.\n\n" +
+		"If you see authentication errors, please log into your " +
+		"Proxmox web interface first.\n\n" +
+		"Do you want to continue?"
 
-	if !node.Online {
-		a.showMessage("Node is offline")
-		return
-	}
+	a.showConfirmationDialog(message, func() {
+		// Mark that the warning has been shown
+		a.vncWarningShown = true
+		// Execute the VNC connection
+		onConfirm()
+	})
+}
 
-	// Check if using token authentication (node VNC doesn't work with tokens)
-	if a.client.IsUsingTokenAuth() {
-		a.showMessage("Node VNC shells are not supported with API token authentication.\n\nTo use node VNC shells, please configure the application to use password authentication instead of API tokens.")
-		return
-	}
-
-	// Create VNC service
-	vncService := vnc.NewService(a.client)
-
+// connectToNodeVNC performs the actual node VNC connection
+func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 	// Show loading message
 	a.header.ShowLoading(fmt.Sprintf("Opening VNC shell for %s...", node.Name))
 
@@ -78,27 +76,8 @@ func (a *App) openNodeVNC() {
 	}()
 }
 
-// openVMVNC opens a VNC console connection to the currently selected VM
-func (a *App) openVMVNC() {
-	vm := a.vmList.GetSelectedVM()
-	if vm == nil {
-		a.showMessage("No VM selected")
-		return
-	}
-
-	if vm.Type != "qemu" && vm.Type != "lxc" {
-		a.showMessage("VNC console is only available for QEMU VMs and LXC containers")
-		return
-	}
-
-	if vm.Status != "running" {
-		a.showMessage("VM must be running to open VNC console")
-		return
-	}
-
-	// Create VNC service
-	vncService := vnc.NewService(a.client)
-
+// connectToVMVNC performs the actual VM VNC connection
+func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 	// Show loading message
 	a.header.ShowLoading(fmt.Sprintf("Opening VNC console for %s...", vm.Name))
 
@@ -113,6 +92,71 @@ func (a *App) openVMVNC() {
 			}
 		})
 	}()
+}
+
+// openNodeVNC opens a VNC shell connection to the currently selected node
+func (a *App) openNodeVNC() {
+	node := a.nodeList.GetSelectedNode()
+	if node == nil {
+		a.showMessage("No node selected")
+		return
+	}
+
+	if !node.Online {
+		a.showMessage("Node is offline")
+		return
+	}
+
+	// Create VNC service
+	vncService := vnc.NewService(a.client)
+
+	// Check if VNC is available for this node
+	available, reason := vncService.GetNodeVNCStatus(node.Name)
+	if !available {
+		a.showMessage(reason)
+		return
+	}
+
+	// Show VNC warning if this is the first time
+	if !a.vncWarningShown {
+		a.showVNCWarning(func() {
+			a.connectToNodeVNC(node, vncService)
+		})
+		return
+	}
+
+	// Connect directly if warning has been shown before
+	a.connectToNodeVNC(node, vncService)
+}
+
+// openVMVNC opens a VNC console connection to the currently selected VM
+func (a *App) openVMVNC() {
+	vm := a.vmList.GetSelectedVM()
+	if vm == nil {
+		a.showMessage("No VM selected")
+		return
+	}
+
+	// Create VNC service
+	vncService := vnc.NewService(a.client)
+
+	// Check if VNC is available for this VM
+	available, reason := vncService.GetVMVNCStatus(vm)
+	if !available {
+		a.showMessage(reason)
+		return
+	}
+
+	// Show VNC warning if this is the first time
+	if !a.vncWarningShown {
+		a.showVNCWarning(func() {
+			a.connectToVMVNC(vm, vncService)
+		})
+		return
+	}
+
+	// Connect directly if warning has been shown before
+	a.connectToVMVNC(vm, vncService)
 }
 
 // openVMShell opens a shell session to the currently selected VM/container
