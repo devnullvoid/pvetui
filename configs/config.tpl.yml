@@ -8,4 +8,4 @@ realm: "pam"
 insecure: true
 ssh_user: root
 debug: false
-cache_dir: "/tmp/proxmox-tui-cache"
+#cache_dir: "/tmp/proxmox-tui-cache"

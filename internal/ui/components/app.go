@@ -11,21 +11,21 @@ import (
 // App is the main application component
 type App struct {
 	*tview.Application
-	client        *api.Client
-	config        config.Config
-	pages         *tview.Pages
-	header        *Header
-	footer        *Footer
-	nodeList      *NodeList
-	vmList        *VMList
-	nodeDetails   *NodeDetails
-	vmDetails     *VMDetails
-	clusterStatus *ClusterStatus
-	mainLayout    *tview.Flex
-	searchInput   *tview.InputField
-	contextMenu   *tview.List
-	isMenuOpen    bool
-	lastFocus     tview.Primitive
+	client          *api.Client
+	config          config.Config
+	pages           *tview.Pages
+	header          *Header
+	footer          *Footer
+	nodeList        *NodeList
+	vmList          *VMList
+	nodeDetails     *NodeDetails
+	vmDetails       *VMDetails
+	clusterStatus   *ClusterStatus
+	mainLayout      *tview.Flex
+	searchInput     *tview.InputField
+	contextMenu     *tview.List
+	isMenuOpen      bool
+	lastFocus       tview.Primitive
 	vncWarningShown bool // Track if VNC warning has been shown
 }
 
@@ -71,18 +71,20 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 				}
 			})
 		}); err != nil {
-			app.header.ShowError("Error fetching cluster: " + err.Error())
-			return app
+			app.header.ShowError("Failed to connect to Proxmox API: " + err.Error())
+			// Continue with empty state rather than crashing
 		}
 	}
 
 	// Initialize VM list from all nodes
 	var vms []*api.VM
-	for _, node := range client.Cluster.Nodes {
-		if node != nil {
-			for _, vm := range node.VMs {
-				if vm != nil {
-					vms = append(vms, vm)
+	if client.Cluster != nil {
+		for _, node := range client.Cluster.Nodes {
+			if node != nil {
+				for _, vm := range node.VMs {
+					if vm != nil {
+						vms = append(vms, vm)
+					}
 				}
 			}
 		}
@@ -90,14 +92,18 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 
 	models.GlobalState = models.State{
 		SearchStates:  make(map[string]*models.SearchState),
-		OriginalNodes: make([]*api.Node, len(client.Cluster.Nodes)),
-		FilteredNodes: make([]*api.Node, len(client.Cluster.Nodes)),
+		OriginalNodes: make([]*api.Node, 0),
+		FilteredNodes: make([]*api.Node, 0),
 		OriginalVMs:   make([]*api.VM, len(vms)),
 		FilteredVMs:   make([]*api.VM, len(vms)),
 	}
 
-	copy(models.GlobalState.OriginalNodes, client.Cluster.Nodes)
-	copy(models.GlobalState.FilteredNodes, client.Cluster.Nodes)
+	if client.Cluster != nil {
+		models.GlobalState.OriginalNodes = make([]*api.Node, len(client.Cluster.Nodes))
+		models.GlobalState.FilteredNodes = make([]*api.Node, len(client.Cluster.Nodes))
+		copy(models.GlobalState.OriginalNodes, client.Cluster.Nodes)
+		copy(models.GlobalState.FilteredNodes, client.Cluster.Nodes)
+	}
 	copy(models.GlobalState.OriginalVMs, vms)
 	copy(models.GlobalState.FilteredVMs, vms)
 

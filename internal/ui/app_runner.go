@@ -1,9 +1,9 @@
 package ui
 
 import (
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // RunApp creates and starts the application using the component-based architecture
