@@ -43,11 +43,12 @@ COPY --from=builder /app/proxmox-tui .
 COPY --from=builder /app/configs ./configs
 
 # Create necessary directories with proper ownership
-RUN mkdir -p /app/cache /app/logs /app/cache/badger && \
-    chown -R appuser:appgroup /app
+RUN mkdir -p /app/cache /app/logs /app/cache/badger
+# RUN mkdir -p /app/cache /app/logs /app/cache/badger && \
+    # chown -R appuser:appgroup /app
 
 # Switch to non-root user
-USER appuser
+# USER appuser
 
 # Set environment variables
 ENV CACHE_DIR=/app/cache

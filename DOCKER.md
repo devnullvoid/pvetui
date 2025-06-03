@@ -56,7 +56,7 @@ The application can be configured using environment variables. Copy `.env.exampl
 ```bash
 # Required: Proxmox server details
 PROXMOX_ADDR=https://your-proxmox-server:8006
-PROXMOX_USER=root@pam
+PROXMOX_USER=root
 PROXMOX_PASSWORD=your-password
 PROXMOX_REALM=pam
 
