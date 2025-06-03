@@ -6,3 +6,19 @@ proxmox-tui
 
 # Runtime logs
 logs/
+
+# Docker/Container files
+.env
+cache/
+coverage.out
+coverage.html
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~

@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  proxmox-tui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: proxmox-tui:latest
+    container_name: proxmox-tui
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      - PROXMOX_ADDR=${PROXMOX_ADDR:-https://your-proxmox-server:8006}
+      - PROXMOX_USERNAME=${PROXMOX_USERNAME:-root@pam}
+      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+      - PROXMOX_TOKEN_ID=${PROXMOX_TOKEN_ID}
+      - PROXMOX_TOKEN_SECRET=${PROXMOX_TOKEN_SECRET}
+      - CACHE_DIR=/app/cache
+      - LOG_DIR=/app/logs
+      - DEBUG=${DEBUG:-false}
+    
+    # Volumes for persistence
+    volumes:
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+      - ./configs:/app/configs:ro
+    
+    # Network mode for accessing host services if needed
+    # network_mode: host
+    
+    # TTY and interactive for TUI applications
+    tty: true
+    stdin_open: true
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+
+  # Optional: Redis for distributed caching (if needed in the future)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: proxmox-tui-redis
+  #   restart: unless-stopped
+  #   volumes:
+  #     - redis_data:/data
+  #   command: redis-server --appendonly yes
+
+# volumes:
+#   redis_data: 
