@@ -50,6 +50,7 @@ else
 fi
 
 # Create necessary directories
+log_info "Creating cache and logs directories..."
 mkdir -p cache logs
 
 # Stop and remove existing container if it exists

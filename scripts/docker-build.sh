@@ -42,8 +42,13 @@ cd "$PROJECT_ROOT"
 
 log_info "Building Docker image for proxmox-tui..."
 
+# Get current user's UID and GID
+USER_ID=$(id -u)
+GROUP_ID=$(id -g)
+log_info "Using UID:GID ${USER_ID}:${GROUP_ID} to match host user"
+
 # Build arguments
-BUILD_ARGS=""
+BUILD_ARGS="--build-arg USER_ID=${USER_ID} --build-arg GROUP_ID=${GROUP_ID}"
 if [ -n "$HTTP_PROXY" ]; then
     BUILD_ARGS="$BUILD_ARGS --build-arg HTTP_PROXY=$HTTP_PROXY"
 fi

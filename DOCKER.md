@@ -80,6 +80,10 @@ The container uses the following volume mounts for persistence:
 - `./logs:/app/logs` - Application logs
 - `./configs:/app/configs:ro` - Configuration files (read-only)
 
+### User Permissions
+
+The container is built to match your host user's UID/GID, eliminating permission issues with mounted volumes. The build scripts automatically detect your user ID and create a matching user inside the container.
+
 ## Building Images
 
 ### Docker
@@ -180,9 +184,12 @@ The VNC feature will work in containers by opening VNC consoles in the host's br
 
 ## Security
 
-### Non-Root User
+### User Matching
 
-The container runs as a non-root user (`appuser:appgroup`) with UID/GID 1001 for security.
+The container runs as a user that matches your host user's UID/GID, providing:
+- No permission issues with mounted volumes
+- Secure non-root execution
+- Seamless file ownership
 
 ### SELinux Support (Podman)
 
@@ -196,19 +203,13 @@ The container doesn't expose any ports by default. Network access is only needed
 
 ### Common Issues
 
-1. **Permission Denied on Cache/Logs:**
-   ```bash
-   # Fix permissions
-   sudo chown -R 1001:1001 cache logs
-   ```
-
-2. **TLS Certificate Issues:**
+1. **TLS Certificate Issues:**
    ```bash
    # Add to .env for testing (not recommended for production)
    PROXMOX_INSECURE=true
    ```
 
-3. **Container Won't Start:**
+2. **Container Won't Start:**
    ```bash
    # Check logs
    docker logs proxmox-tui
@@ -216,7 +217,7 @@ The container doesn't expose any ports by default. Network access is only needed
    podman logs proxmox-tui
    ```
 
-4. **Environment Variable Issues:**
+3. **Environment Variable Issues:**
    Make sure you're using the correct variable names from `config.go`:
    - `PROXMOX_USER` (not `PROXMOX_USERNAME`)
    - `PROXMOX_DEBUG` (not `DEBUG`)
@@ -274,6 +275,8 @@ The provided Dockerfile uses multi-stage builds for optimal image size:
 
 1. **Builder stage**: Uses `golang:1.24.2-alpine` to compile the application
 2. **Runtime stage**: Uses `alpine:latest` with only the compiled binary
+
+The Dockerfile uses build arguments to create a user matching your host user's UID/GID.
 
 ## Available Make Targets
 

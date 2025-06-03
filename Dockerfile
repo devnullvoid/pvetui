@@ -25,9 +25,13 @@ FROM alpine:latest
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata
 
-# Create non-root user
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+# Build arguments for user ID (defaults to 1000 if not provided)
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
+# Create user with matching UID/GID to host user
+RUN addgroup -g ${GROUP_ID} -S appgroup && \
+    adduser -u ${USER_ID} -S appuser -G appgroup
 
 # Set working directory
 WORKDIR /app
@@ -38,15 +42,12 @@ COPY --from=builder /app/proxmox-tui .
 # Copy any config files if they exist
 COPY --from=builder /app/configs ./configs
 
-# Create necessary directories
-RUN mkdir -p /app/cache /app/logs && \
+# Create necessary directories with proper ownership
+RUN mkdir -p /app/cache /app/logs /app/cache/badger && \
     chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser
-
-# Expose any ports if needed (TUI apps typically don't need ports)
-# EXPOSE 8080
 
 # Set environment variables
 ENV CACHE_DIR=/app/cache
