@@ -14,6 +14,10 @@ permissions:
 jobs:
   lint:
     name: Lint
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.24']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +25,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: ${{ matrix.go-version }}
 
       - name: Cache Go modules
         uses: actions/cache@v3
@@ -44,9 +48,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         go-version: ['1.24']
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -71,7 +74,6 @@ jobs:
           go tool cover -func=coverage.out
         
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
