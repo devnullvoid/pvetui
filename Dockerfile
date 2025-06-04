@@ -16,7 +16,13 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application - use the pattern that works in CI
+# Debug: Check what was copied
+RUN ls -la cmd/proxmox-tui/ || echo "cmd/proxmox-tui directory missing"
+
+# Build using the exact same pattern as CI to verify all packages compile
+RUN CGO_ENABLED=0 GOOS=linux go build -v ./...
+
+# Now create the specific binary we need for the final image
 RUN CGO_ENABLED=0 GOOS=linux go build -o proxmox-tui ./cmd/proxmox-tui
 
 # Final stage
