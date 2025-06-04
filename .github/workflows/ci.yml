@@ -31,8 +31,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
         restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
           ${{ runner.os }}-go-
 
     - name: Download dependencies
@@ -40,6 +41,11 @@ jobs:
 
     - name: Verify dependencies
       run: go mod verify
+
+    - name: Clean up any existing cache/logs
+      run: |
+        rm -rf cache/ logs/ coverage.out coverage.html
+        mkdir -p cache logs
 
     - name: Run tests
       run: make test
@@ -67,6 +73,17 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.24.2'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-1.24.2-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-1.24.2-
+          ${{ runner.os }}-go-
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v6
@@ -96,8 +113,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-1.24.2-${{ hashFiles('**/go.sum') }}
         restore-keys: |
+          ${{ runner.os }}-go-1.24.2-
           ${{ runner.os }}-go-
 
     - name: Build for Linux
@@ -126,7 +144,8 @@ jobs:
       with:
         go-version: '1.24.2'
 
+    - name: Install gosec
+      run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
     - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@v2
-      with:
-        args: './...' 
+      run: gosec ./... 
