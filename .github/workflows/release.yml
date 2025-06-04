@@ -38,6 +38,9 @@ jobs:
         
         # Windows AMD64
         GOOS=windows GOARCH=amd64 go build -o dist/proxmox-tui-windows-amd64.exe ./cmd/proxmox-tui
+        
+        # Verify builds
+        ls -la dist/
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
