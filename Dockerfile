@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24.2-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -16,7 +16,7 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application - use the pattern that works in CI
 RUN CGO_ENABLED=0 GOOS=linux go build -o proxmox-tui ./cmd/proxmox-tui
 
 # Final stage
