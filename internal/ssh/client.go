@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
 // SSHClient wraps an SSH connection context
@@ -100,11 +99,4 @@ func ExecuteQemuGuestAgentShell(user, nodeIP string, vmID int) error {
 	}
 
 	return nil
-}
-
-// ResetTerminal resets the terminal settings after an interactive command
-func ResetTerminal() {
-	// Reset terminal to canonical mode and echo on
-	// This is sometimes needed after returning from an interactive command
-	_, _, _ = syscall.Syscall(syscall.SYS_IOCTL, uintptr(0), syscall.TCGETS, uintptr(0))
 }

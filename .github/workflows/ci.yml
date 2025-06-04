@@ -24,7 +24,11 @@ jobs:
         args: --timeout=5m
 
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
 
@@ -36,15 +40,20 @@ jobs:
     - name: Run tests
       run: go test -v -race -coverprofile=coverage.out ./...
 
-    - name: Upload coverage to Codecov
+    - name: Upload coverage to Codecov (Ubuntu only)
+      if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
         fail_ci_if_error: false
 
   build:
-    runs-on: ubuntu-latest
-    needs: [lint, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    needs: [lint]
     steps:
     - uses: actions/checkout@v4
 
@@ -53,11 +62,16 @@ jobs:
       with:
         go-version: '1.24'
 
-    - name: Build
+    - name: Build all packages
       run: go build -v ./...
 
     - name: Build binary
       run: go build -o proxmox-tui ./cmd/proxmox-tui
 
-    - name: Test binary
+    - name: Test binary (Unix)
+      if: matrix.os != 'windows-latest'
       run: ./proxmox-tui --help
+
+    - name: Test binary (Windows)
+      if: matrix.os == 'windows-latest'
+      run: .\proxmox-tui.exe --help
