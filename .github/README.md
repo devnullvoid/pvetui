@@ -7,8 +7,8 @@ This directory contains GitHub Actions workflows for automated CI/CD processes.
 ### 1. CI Workflow (`.github/workflows/ci.yml`)
 
 **Triggers:**
-- Push to `main` or `develop` branches
-- Pull requests to `main` or `develop` branches
+- Push to `master` or `develop` branches
+- Pull requests to `master` or `develop` branches
 
 **Jobs:**
 - **Test**: Runs unit tests with coverage reporting
@@ -43,7 +43,7 @@ This directory contains GitHub Actions workflows for automated CI/CD processes.
 ### 3. Docker Workflow (`.github/workflows/docker.yml`)
 
 **Triggers:**
-- Push to `main` branch (excluding documentation changes)
+- Push to `master` branch (excluding documentation changes)
 - Manual workflow dispatch
 
 **Features:**
@@ -90,7 +90,7 @@ The release workflow builds binaries for:
 ### Docker Images
 
 Docker images are available at:
-- `ghcr.io/devnullvoid/proxmox-tui:latest` (latest main branch)
+- `ghcr.io/devnullvoid/proxmox-tui:latest` (latest master branch)
 - `ghcr.io/devnullvoid/proxmox-tui:v1.0.0` (specific version)
 - `ghcr.io/devnullvoid/proxmox-tui:v1` (major version)
 
