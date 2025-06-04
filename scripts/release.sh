@@ -31,10 +31,10 @@ fi
 
 echo -e "${GREEN}Creating release $VERSION${NC}"
 
-# Check if we're on main branch
+# Check if we're on master branch
 CURRENT_BRANCH=$(git branch --show-current)
-if [ "$CURRENT_BRANCH" != "main" ]; then
-    echo -e "${YELLOW}Warning: You're not on the main branch (current: $CURRENT_BRANCH)${NC}"
+if [ "$CURRENT_BRANCH" != "master" ]; then
+    echo -e "${YELLOW}Warning: You're not on the master branch (current: $CURRENT_BRANCH)${NC}"
     read -p "Do you want to continue? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -59,7 +59,7 @@ fi
 
 # Pull latest changes
 echo -e "${YELLOW}Pulling latest changes...${NC}"
-git pull origin main
+git pull origin master
 
 # Run tests
 echo -e "${YELLOW}Running tests...${NC}"
