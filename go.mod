@@ -6,7 +6,6 @@ require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/gdamore/tcell/v2 v2.7.1
 	github.com/rivo/tview v0.0.0-20250330220935-949945f8d922
-	golang.org/x/crypto v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

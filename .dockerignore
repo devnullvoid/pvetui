@@ -18,8 +18,8 @@ proxmox-tui
 dist/
 *.exe
 
-# Logs
-logs/
+# Logs (but not cmd/proxmox-tui/logs)
+/logs/
 *.log
 
 # Cache
