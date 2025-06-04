@@ -9,25 +9,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: [1.24.2]
-
+    
     steps:
     - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v4
       with:
-        go-version: ${{ matrix.go-version }}
+        go-version: '1.24'
 
     - name: Build
-      run: go build -o proxmox-tui ./cmd/proxmox-tui
-
-    - name: Verify build
-      run: |
-        ls -la proxmox-tui
-        ./proxmox-tui --help || echo "Binary built successfully (help may require config)"
+      run: go build -v ./...
 
     - name: Test
       run: go test -v ./... 
