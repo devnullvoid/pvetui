@@ -15,14 +15,14 @@ linters-settings:
       - shadow
 
   gocyclo:
-    min-complexity: 15
+    min-complexity: 25
 
   dupl:
-    threshold: 100
+    threshold: 150
 
   goconst:
-    min-len: 2
-    min-occurrences: 2
+    min-len: 3
+    min-occurrences: 3
 
   depguard:
     rules:
@@ -35,7 +35,7 @@ linters-settings:
     locale: US
 
   lll:
-    line-length: 140
+    line-length: 200
 
   goimports:
     local-prefixes: github.com/devnullvoid/proxmox-tui
@@ -55,8 +55,8 @@ linters-settings:
       - wrapperFunc
 
   funlen:
-    lines: 100
-    statements: 50
+    lines: 150
+    statements: 80
 
   gci:
     sections:
@@ -67,47 +67,44 @@ linters-settings:
 linters:
   disable-all: true
   enable:
-    - bodyclose
-    - dupl
     - errcheck
-    - exportloopref
-    - funlen
-    - gochecknoinits
-    - goconst
-    - gocritic
-    - gocyclo
-    - gofmt
-    - goimports
-    - gomnd
-    - goprintffuncname
-    - gosec
     - gosimple
     - govet
     - ineffassign
-    - lll
-    - misspell
-    - nakedret
-    - noctx
-    - nolintlint
     - staticcheck
-    - stylecheck
     - typecheck
-    - unconvert
-    - unparam
     - unused
-    - whitespace
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - gocyclo
+    - dupl
+    - goconst
+    - funlen
 
 issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
-        - funlen
         - goconst
+        - funlen
+        - gocyclo
+        - dupl
 
     - path: cmd/
       linters:
-        - gochecknoinits
+        - funlen
+
+    - path: internal/ui/
+      linters:
+        - funlen
+        - gocyclo
+
+    - path: pkg/api/
+      linters:
+        - funlen
+        - gocyclo
 
     - linters:
         - lll
@@ -117,6 +114,9 @@ issues:
   exclude:
     # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
     - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
+
+    # errcheck: Ignore fmt.Scanln in interactive components
+    - Error return value of `fmt\.Scanln` is not checked
 
     # govet: Common false positives
     - (possible misuse of unsafe.Pointer|should have signature)

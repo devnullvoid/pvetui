@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/internal/adapters"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // TestConfig implements the interfaces.Config interface for testing
@@ -18,15 +18,15 @@ type TestConfig struct {
 	Insecure bool
 }
 
-func (c *TestConfig) GetAddr() string         { return c.Address }
-func (c *TestConfig) GetUser() string         { return c.User }
-func (c *TestConfig) GetPassword() string     { return c.Password }
-func (c *TestConfig) GetRealm() string        { return c.Realm }
-func (c *TestConfig) GetInsecure() bool       { return c.Insecure }
-func (c *TestConfig) GetTokenID() string      { return "" }
-func (c *TestConfig) GetTokenSecret() string  { return "" }
-func (c *TestConfig) GetAPIToken() string     { return "" }
-func (c *TestConfig) IsUsingTokenAuth() bool  { return false }
+func (c *TestConfig) GetAddr() string        { return c.Address }
+func (c *TestConfig) GetUser() string        { return c.User }
+func (c *TestConfig) GetPassword() string    { return c.Password }
+func (c *TestConfig) GetRealm() string       { return c.Realm }
+func (c *TestConfig) GetInsecure() bool      { return c.Insecure }
+func (c *TestConfig) GetTokenID() string     { return "" }
+func (c *TestConfig) GetTokenSecret() string { return "" }
+func (c *TestConfig) GetAPIToken() string    { return "" }
+func (c *TestConfig) IsUsingTokenAuth() bool { return false }
 
 func main() {
 	// Test configuration - REPLACE THESE VALUES

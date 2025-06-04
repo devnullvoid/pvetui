@@ -784,12 +784,12 @@ func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
 
 	var res map[string]interface{}
 	path := fmt.Sprintf("/nodes/%s/%s/%d/vncproxy", vm.Node, vm.Type, vm.ID)
-	
+
 	// POST request with websocket=1 parameter for noVNC compatibility
 	data := map[string]interface{}{
 		"websocket": 1,
 	}
-	
+
 	if err := c.PostWithResponse(path, data, &res); err != nil {
 		return nil, fmt.Errorf("failed to create VNC proxy: %w", err)
 	}
@@ -800,21 +800,21 @@ func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
 	}
 
 	response := &VNCProxyResponse{}
-	
+
 	if ticket, ok := responseData["ticket"].(string); ok {
 		response.Ticket = ticket
 	}
-	
+
 	if port, ok := responseData["port"].(string); ok {
 		response.Port = port
 	} else if portFloat, ok := responseData["port"].(float64); ok {
 		response.Port = fmt.Sprintf("%.0f", portFloat)
 	}
-	
+
 	if user, ok := responseData["user"].(string); ok {
 		response.User = user
 	}
-	
+
 	if cert, ok := responseData["cert"].(string); ok {
 		response.Cert = cert
 	}
@@ -832,16 +832,16 @@ func (c *Client) GenerateVNCURL(vm *VM) (string, error) {
 
 	// Extract server details from base URL
 	serverURL := strings.TrimSuffix(c.baseURL, "/api2/json")
-	
+
 	// URL encode the VNC ticket (critical for avoiding 401 errors)
 	encodedTicket := url.QueryEscape(proxy.Ticket)
-	
+
 	// Determine console type based on VM type
 	consoleType := "kvm"
 	if vm.Type == "lxc" {
 		consoleType = "lxc"
 	}
-	
+
 	// Build the noVNC console URL using the working format from the forum post
 	// Format: https://server:8006/?console=kvm&novnc=1&vmid=100&vmname=vmname&node=nodename&resize=off&cmd=&vncticket=encoded_ticket
 	vncURL := fmt.Sprintf("%s/?console=%s&novnc=1&vmid=%d&vmname=%s&node=%s&resize=off&cmd=&vncticket=%s",

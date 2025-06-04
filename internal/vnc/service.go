@@ -68,11 +68,11 @@ func (s *Service) GetVMVNCStatus(vm *api.VM) (bool, string) {
 	if vm.Type != "qemu" && vm.Type != "lxc" {
 		return false, "VNC only available for QEMU VMs and LXC containers"
 	}
-	
+
 	if vm.Status != "running" {
 		return false, "VM must be running"
 	}
-	
+
 	return true, "VNC available"
 }
 
@@ -82,7 +82,7 @@ func (s *Service) GetNodeVNCStatus(nodeName string) (bool, string) {
 	if s.client.IsUsingTokenAuth() {
 		return false, "Node VNC shells are not supported with API token authentication.\n\nTo use node VNC shells, please configure the application to use password authentication instead of API tokens."
 	}
-	
+
 	// For nodes with password auth, VNC shell is available if the node is online
 	return true, "VNC shell available"
 }

@@ -248,10 +248,9 @@ func parseIPCIDR(ipCIDR string, ipType string) (IPAddress, bool) {
 		prefix, err := parseInt(parts[1]) // Assuming you have a helper like strconv.Atoi or similar
 		if err == nil {
 			ipAddr.Prefix = prefix
-		} else {
-			// Could log an error here if prefix parsing fails but IP is present
-			// For now, we still consider it a valid IP, just without a prefix
 		}
+		// Could log an error here if prefix parsing fails but IP is present
+		// For now, we still consider it a valid IP, just without a prefix
 	}
 	return ipAddr, true
 }

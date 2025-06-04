@@ -181,12 +181,12 @@ func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 
 	var res map[string]interface{}
 	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
-	
+
 	// POST request with websocket=1 parameter for noVNC compatibility
 	data := map[string]interface{}{
 		"websocket": 1,
 	}
-	
+
 	if err := c.PostWithResponse(path, data, &res); err != nil {
 		return nil, fmt.Errorf("failed to create VNC shell: %w", err)
 	}
@@ -197,21 +197,21 @@ func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 	}
 
 	response := &VNCProxyResponse{}
-	
+
 	if ticket, ok := responseData["ticket"].(string); ok {
 		response.Ticket = ticket
 	}
-	
+
 	if port, ok := responseData["port"].(string); ok {
 		response.Port = port
 	} else if portFloat, ok := responseData["port"].(float64); ok {
 		response.Port = fmt.Sprintf("%.0f", portFloat)
 	}
-	
+
 	if user, ok := responseData["user"].(string); ok {
 		response.User = user
 	}
-	
+
 	if cert, ok := responseData["cert"].(string); ok {
 		response.Cert = cert
 	}
@@ -229,10 +229,10 @@ func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
 
 	// Extract server details from base URL
 	serverURL := strings.TrimSuffix(c.baseURL, "/api2/json")
-	
+
 	// URL encode the VNC ticket (critical for avoiding 401 errors)
 	encodedTicket := url.QueryEscape(proxy.Ticket)
-	
+
 	// Build the noVNC shell URL using the working format from the forum post
 	// Format: https://server:8006/?console=shell&novnc=1&node=nodename&resize=off&cmd=&vncticket=encoded_ticket
 	vncURL := fmt.Sprintf("%s/?console=shell&novnc=1&node=%s&resize=off&cmd=&vncticket=%s",

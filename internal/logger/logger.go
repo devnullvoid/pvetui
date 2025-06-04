@@ -98,11 +98,6 @@ func NewLogger(config *Config) (*Logger, error) {
 		}
 	}
 
-	timeFormat := config.TimeFormat
-	if timeFormat == "" {
-		timeFormat = "2006-01-02 15:04:05"
-	}
-
 	// Create individual loggers for each level with appropriate prefixes
 	debugLogger := log.New(output, "", 0)
 	infoLogger := log.New(output, "", 0)

@@ -63,7 +63,7 @@ func init() {
 }
 
 func ParseConfigFlags() {
-	configFs.Parse(os.Args[1:]) // Parse just the --config flag first
+	_ = configFs.Parse(os.Args[1:]) // Parse just the --config flag first, ignore errors
 }
 
 // ParseFlags adds command-line flag definitions to a Config object
