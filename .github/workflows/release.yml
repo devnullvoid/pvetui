@@ -5,16 +5,12 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   release:
-    name: Create Release
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
@@ -24,134 +20,27 @@ jobs:
       with:
         go-version: '1.24.2'
 
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Run tests
-      run: make test
-
-    - name: Build release binaries
-      run: make release-build
-
-    - name: Generate checksums
+    - name: Build binaries
       run: |
-        cd dist
-        sha256sum * > checksums.txt
-        cat checksums.txt
-
-    - name: Create archives
-      run: |
-        cd dist
-        # Create tar.gz archives for Unix systems
-        tar -czf proxmox-tui-linux-amd64.tar.gz proxmox-tui-linux-amd64
-        tar -czf proxmox-tui-linux-arm64.tar.gz proxmox-tui-linux-arm64
-        tar -czf proxmox-tui-darwin-amd64.tar.gz proxmox-tui-darwin-amd64
-        tar -czf proxmox-tui-darwin-arm64.tar.gz proxmox-tui-darwin-arm64
+        mkdir -p dist
         
-        # Create zip archive for Windows
-        zip proxmox-tui-windows-amd64.zip proxmox-tui-windows-amd64.exe
-
-    - name: Extract version from tag
-      id: version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-    - name: Generate release notes
-      id: release_notes
-      run: |
-        # Get the previous tag
-        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -o dist/proxmox-tui-linux-amd64 ./cmd/proxmox-tui
         
-        # Generate changelog
-        if [ -n "$PREV_TAG" ]; then
-          echo "## Changes since $PREV_TAG" > release_notes.md
-          echo "" >> release_notes.md
-          git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> release_notes.md
-        else
-          echo "## Initial Release" > release_notes.md
-          echo "" >> release_notes.md
-          echo "First release of proxmox-tui" >> release_notes.md
-        fi
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 go build -o dist/proxmox-tui-linux-arm64 ./cmd/proxmox-tui
         
-        echo "" >> release_notes.md
-        echo "## Installation" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "Download the appropriate binary for your platform:" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "- **Linux (x64)**: \`proxmox-tui-linux-amd64.tar.gz\`" >> release_notes.md
-        echo "- **Linux (ARM64)**: \`proxmox-tui-linux-arm64.tar.gz\`" >> release_notes.md
-        echo "- **macOS (Intel)**: \`proxmox-tui-darwin-amd64.tar.gz\`" >> release_notes.md
-        echo "- **macOS (Apple Silicon)**: \`proxmox-tui-darwin-arm64.tar.gz\`" >> release_notes.md
-        echo "- **Windows (x64)**: \`proxmox-tui-windows-amd64.zip\`" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "Extract the archive and run the binary. Make sure to configure your Proxmox connection settings." >> release_notes.md
+        # macOS AMD64
+        GOOS=darwin GOARCH=amd64 go build -o dist/proxmox-tui-darwin-amd64 ./cmd/proxmox-tui
         
-        cat release_notes.md
+        # macOS ARM64
+        GOOS=darwin GOARCH=arm64 go build -o dist/proxmox-tui-darwin-arm64 ./cmd/proxmox-tui
+        
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -o dist/proxmox-tui-windows-amd64.exe ./cmd/proxmox-tui
 
-    - name: Create GitHub Release
+    - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.version.outputs.VERSION }}
-        name: Release ${{ steps.version.outputs.VERSION }}
-        body_path: release_notes.md
-        draft: false
-        prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
-        files: |
-          dist/proxmox-tui-linux-amd64.tar.gz
-          dist/proxmox-tui-linux-arm64.tar.gz
-          dist/proxmox-tui-darwin-amd64.tar.gz
-          dist/proxmox-tui-darwin-arm64.tar.gz
-          dist/proxmox-tui-windows-amd64.zip
-          dist/checksums.txt
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  docker-release:
-    name: Build and Push Docker Image
-    runs-on: ubuntu-latest
-    needs: release
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract version from tag
-      id: version
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/}
-        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-        echo "MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)" >> $GITHUB_OUTPUT
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: |
-          ghcr.io/${{ github.repository }}:latest
-          ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
-          ghcr.io/${{ github.repository }}:${{ steps.version.outputs.MAJOR_VERSION }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max 
+        files: dist/*
+        generate_release_notes: true 
