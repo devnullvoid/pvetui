@@ -2,76 +2,125 @@ name: CI
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [master, develop]
   pull_request:
-    branches: [ master ]
+    branches: [master]
+
+# Set default permissions for all jobs
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
 
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
-      with:
-        version: latest
-        args: --timeout=5m
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
 
   test:
+    name: Test
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ['1.24']
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out ./...
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Upload coverage to Codecov (Ubuntu only)
-      if: matrix.os == 'ubuntu-latest'
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.out
-        fail_ci_if_error: false
+      - name: Run tests
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+        
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          fail_ci_if_error: false
 
   build:
+    name: Build
+    needs: [test]  # Only depend on test, not lint
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ['1.24']
     runs-on: ${{ matrix.os }}
-    needs: [lint]
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Build all packages
-      run: go build -v ./...
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Build binary
-      run: go build -o proxmox-tui ./cmd/proxmox-tui
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w" -o ./dist/proxmox-tui ./cmd/proxmox-tui
 
-    - name: Test binary (Unix)
-      if: matrix.os != 'windows-latest'
-      run: ./proxmox-tui --help
+      - name: Test binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: ./dist/proxmox-tui --help
 
-    - name: Test binary (Windows)
-      if: matrix.os == 'windows-latest'
-      run: .\proxmox-tui.exe --help
+      - name: Test binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: .\dist\proxmox-tui.exe --help
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error

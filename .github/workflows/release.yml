@@ -5,119 +5,158 @@ on:
     tags:
       - 'v*'
 
+# Set permissions for the GITHUB_TOKEN
+permissions:
+  contents: write  # For creating releases and uploading assets
+  packages: read   # For reading packages if needed
+
 jobs:
   release:
+    name: Create Release
     runs-on: ubuntu-latest
     
+    # Only run if CI workflow has passed
+    # needs: [CI]  # Uncomment this line if you have a workflow named "CI"
+    
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for version detection
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+          cache: true
 
-    - name: Get version
-      id: version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Build binaries
-      run: |
-        mkdir -p dist
-        
-        # Build for multiple platforms
-        platforms=(
-          "linux/amd64"
-          "linux/arm64"
-          "darwin/amd64" 
-          "darwin/arm64"
-          "windows/amd64"
-        )
-        
-        for platform in "${platforms[@]}"; do
-          GOOS=${platform%/*}
-          GOARCH=${platform#*/}
-          
-          if [ "$GOOS" = "windows" ]; then
-            BINARY_NAME="proxmox-tui-${GOOS}-${GOARCH}.exe"
-          else
-            BINARY_NAME="proxmox-tui-${GOOS}-${GOARCH}"
-          fi
-          
-          echo "Building $BINARY_NAME..."
-          GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o "dist/$BINARY_NAME" ./cmd/proxmox-tui
-        done
-        
-        # List built binaries
-        ls -la dist/
+      - name: Get version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using version: ${VERSION}"
 
-    - name: Create archives
-      run: |
-        cd dist
-        
-        # Create tar.gz archives for Unix-like systems
-        for file in proxmox-tui-linux-* proxmox-tui-darwin-*; do
-          if [ -f "$file" ]; then
-            archive_name="${file}.tar.gz"
-            echo "Creating $archive_name..."
-            tar -czf "$archive_name" "$file"
-          fi
-        done
-        
-        # Create zip archives for Windows
-        for file in proxmox-tui-windows-*.exe; do
-          if [ -f "$file" ]; then
-            archive_name="${file%.exe}.zip"
-            echo "Creating $archive_name..."
-            zip "$archive_name" "$file"
-          fi
-        done
-        
-        # List all files
-        ls -la
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          
+          # Build for multiple platforms
+          platforms=(
+            "linux/amd64"
+            "linux/arm64"
+            "darwin/amd64" 
+            "darwin/arm64"
+            "windows/amd64"
+          )
+          
+          for platform in "${platforms[@]}"; do
+            GOOS=${platform%/*}
+            GOARCH=${platform#*/}
+            
+            if [ "$GOOS" = "windows" ]; then
+              BINARY_NAME="proxmox-tui-${GOOS}-${GOARCH}.exe"
+              OUTPUT="dist/proxmox-tui-${GOOS}-${GOARCH}.exe"
+            else
+              BINARY_NAME="proxmox-tui-${GOOS}-${GOARCH}"
+              OUTPUT="dist/proxmox-tui-${GOOS}-${GOARCH}"
+            fi
+            
+            echo "🚀 Building $BINARY_NAME..."
+            CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH \
+              go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.VERSION }}" \
+              -o "$OUTPUT" ./cmd/proxmox-tui
+          done
+          
+          # List built binaries
+          echo "📦 Built binaries:"
+          ls -la dist/
 
-    - name: Generate checksums
-      run: |
-        cd dist
-        sha256sum * > checksums.txt
-        cat checksums.txt
+      - name: Create archives
+        run: |
+          cd dist
+          
+          # Create tar.gz archives for Unix-like systems
+          for file in proxmox-tui-linux-* proxmox-tui-darwin-*; do
+            if [ -f "$file" ] && [[ ! "$file" == *.tar.gz ]]; then
+              archive_name="${file}.tar.gz"
+              echo "📦 Creating $archive_name..."
+              tar -czf "$archive_name" "$file"
+              rm "$file"  # Remove the original binary
+            fi
+          done
+          
+          # Create zip archives for Windows
+          for file in proxmox-tui-windows-*.exe; do
+            if [ -f "$file" ] && [[ ! "$file" == *.zip ]]; then
+              archive_name="${file%.exe}.zip"
+              echo "📦 Creating $archive_name..."
+              zip -j "$archive_name" "$file"
+              rm "$file"  # Remove the original binary
+            fi
+          done
+          
+          # List all files
+          echo "📦 Final artifacts:"
+          ls -la
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          dist/*.tar.gz
-          dist/*.zip
-          dist/checksums.txt
-        generate_release_notes: true
-        draft: false
-        prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
-        body: |
-          ## 🚀 Release ${{ steps.version.outputs.VERSION }}
-          
-          ### 📦 Downloads
-          
-          Choose the appropriate binary for your platform:
-          
-          - **Linux AMD64**: `proxmox-tui-linux-amd64.tar.gz`
-          - **Linux ARM64**: `proxmox-tui-linux-arm64.tar.gz`
-          - **macOS Intel**: `proxmox-tui-darwin-amd64.tar.gz`
-          - **macOS Apple Silicon**: `proxmox-tui-darwin-arm64.tar.gz`
-          - **Windows**: `proxmox-tui-windows-amd64.zip`
-          
-          ### 🔐 Verification
-          
-          Verify your download with the provided `checksums.txt` file:
-          ```bash
-          sha256sum -c checksums.txt
-          ```
-          
-          ### 📋 Installation
-          
-          1. Download the appropriate archive for your platform
-          2. Extract the binary: `tar -xzf proxmox-tui-*.tar.gz` (or unzip for Windows)
-          3. Make executable (Unix): `chmod +x proxmox-tui-*`
-          4. Run: `./proxmox-tui-* --help` 
+      - name: Generate checksums
+        run: |
+          cd dist
+          echo "🔒 Generating checksums..."
+          shasum -a 256 -- * > checksums.txt
+          echo "🔍 Checksums:"
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+          body: |
+            ## 🚀 Release ${{ steps.version.outputs.VERSION }}
+            
+            ### 📦 Downloads
+            
+            Choose the appropriate binary for your platform:
+            
+            - **Linux AMD64**: `proxmox-tui-linux-amd64.tar.gz`
+            - **Linux ARM64**: `proxmox-tui-linux-arm64.tar.gz`
+            - **macOS Intel**: `proxmox-tui-darwin-amd64.tar.gz`
+            - **macOS Apple Silicon**: `proxmox-tui-darwin-arm64.tar.gz`
+            - **Windows**: `proxmox-tui-windows-amd64.zip`
+            
+            ### 🔐 Verification
+            
+            Verify your download with the provided `checksums.txt` file:
+            ```bash
+            shasum -a 256 -c checksums.txt
+            ```
+            
+            ### 📋 Installation
+            
+            1. Download the appropriate archive for your platform
+            2. Extract the binary: `tar -xzf proxmox-tui-*.tar.gz` (or unzip for Windows)
+            3. Make executable (Unix): `chmod +x proxmox-tui-*`
+            4. Run: `./proxmox-tui-* --help`
+            
+            ### 🔄 Changelog
+            
+            See the [changelog](https://github.com/yourusername/proxmox-tui/blob/main/CHANGELOG.md) for details on what's new in this release.
