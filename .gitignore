@@ -2,7 +2,7 @@
 .vscode/
 .cursor/
 config.yml
-proxmox-tui
+/proxmox-tui
 
 # Runtime logs
 logs/
