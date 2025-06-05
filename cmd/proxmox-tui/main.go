@@ -40,18 +40,15 @@ func main() {
 	// Special flags not in the config struct
 	noCacheFlag := flag.Bool("no-cache", false, "Disable caching")
 	versionFlag := flag.Bool("version", false, "Show version information")
-	versionShortFlag := flag.Bool("v", false, "Show version information (short)")
 
 	// Parse flags
 	flag.Parse()
 
 	// Handle version flag
-	if *versionFlag || *versionShortFlag {
+	if *versionFlag {
 		fmt.Printf("proxmox-tui version %s\n", version)
-		if *versionFlag {
-			fmt.Printf("Build date: %s\n", buildDate)
-			fmt.Printf("Commit: %s\n", commitHash)
-		}
+		fmt.Printf("Build date: %s\n", buildDate)
+		fmt.Printf("Commit: %s\n", commitHash)
 		os.Exit(0)
 	}
 
