@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // VMList encapsulates the VM list panel
@@ -60,10 +61,10 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 
 	sort.Slice(sortedVMs, func(i, j int) bool {
 		// Running VMs come first
-		if sortedVMs[i].Status == "running" && sortedVMs[j].Status != "running" {
+		if sortedVMs[i].Status == api.VMStatusRunning && sortedVMs[j].Status != api.VMStatusRunning {
 			return true
 		}
-		if sortedVMs[i].Status != "running" && sortedVMs[j].Status == "running" {
+		if sortedVMs[i].Status != api.VMStatusRunning && sortedVMs[j].Status == api.VMStatusRunning {
 			return false
 		}
 
@@ -84,7 +85,7 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 
 			// Apply color formatting for stopped VMs
 			var mainText string
-			if vm.Status != "running" {
+			if vm.Status != api.VMStatusRunning {
 				// For stopped VMs, use gray color for the VM text part only
 				// Keep the red status indicator but make the text gray
 				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", vmText)

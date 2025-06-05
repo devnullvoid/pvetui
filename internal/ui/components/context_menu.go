@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // ContextMenu represents a popup menu with actions for a selected item
@@ -143,14 +144,14 @@ func (a *App) ShowVMContextMenu() {
 	}
 
 	// Add VNC option for QEMU VMs and LXC containers that are running
-	if (vm.Type == "qemu" || vm.Type == "lxc") && vm.Status == "running" {
+	if (vm.Type == api.VMTypeQemu || vm.Type == api.VMTypeLXC) && vm.Status == api.VMStatusRunning {
 		menuItems = append([]string{"Open VNC Console"}, menuItems...)
 	}
 
 	// Add state-dependent actions
-	if vm.Status == "running" {
+	if vm.Status == api.VMStatusRunning {
 		menuItems = append(menuItems, "Shutdown", "Restart")
-	} else if vm.Status == "stopped" {
+	} else if vm.Status == api.VMStatusStopped {
 		menuItems = append(menuItems, "Start")
 	}
 

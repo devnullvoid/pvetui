@@ -5,11 +5,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rivo/tview"
+
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
-	"github.com/rivo/tview"
 )
 
 // SearchState holds the state for a search operation

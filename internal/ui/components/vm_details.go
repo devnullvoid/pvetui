@@ -5,10 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // VMDetails encapsulates the VM details panel
@@ -88,10 +89,10 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	var statusEmoji string // For original emojis
 
 	switch strings.ToLower(vm.Status) {
-	case "running":
+	case api.VMStatusRunning:
 		statusEmoji = "🟢"
 		statusColor = tcell.ColorGreen
-	case "stopped":
+	case api.VMStatusStopped:
 		statusEmoji = "🔴"
 		statusColor = tcell.ColorRed
 	default:
@@ -103,14 +104,6 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 1, tview.NewTableCell(statusText).SetTextColor(statusColor))
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(tcell.ColorYellow))
-	ipValue := "N/A"
-	if vm.IP != "" {
-		ipValue = vm.IP
-	}
-	vd.SetCell(row, 1, tview.NewTableCell(ipValue).SetTextColor(tcell.ColorWhite))
-	row++
-
 	// Tags (if set)
 	if vm.Tags != "" {
 		vd.SetCell(row, 0, tview.NewTableCell("🏷️ Tags").SetTextColor(tcell.ColorYellow))
@@ -118,9 +111,17 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		row++
 	}
 
+	vd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(tcell.ColorYellow))
+	ipValue := api.StringNA
+	if vm.IP != "" {
+		ipValue = vm.IP
+	}
+	vd.SetCell(row, 1, tview.NewTableCell(ipValue).SetTextColor(tcell.ColorWhite))
+	row++
+
 	// Resource Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(tcell.ColorYellow))
-	cpuValue := "N/A"
+	cpuValue := api.StringNA
 	if vm.CPU > 0 {
 		cpuValue = fmt.Sprintf("%.1f%%", vm.CPU*100)
 	}
@@ -128,7 +129,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(tcell.ColorYellow))
-	memValue := "N/A"
+	memValue := api.StringNA
 	if vm.MaxMem > 0 {
 		memUsedFormatted := utils.FormatBytes(vm.Mem)
 		memTotalFormatted := utils.FormatBytes(vm.MaxMem)
@@ -139,7 +140,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(tcell.ColorYellow))
-	diskValue := "N/A"
+	diskValue := api.StringNA
 	if vm.MaxDisk > 0 {
 		diskUsedFormatted := utils.FormatBytes(vm.Disk)
 		diskTotalFormatted := utils.FormatBytes(vm.MaxDisk)
@@ -150,7 +151,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(tcell.ColorYellow))
-	uptimeValue := "N/A"
+	uptimeValue := api.StringNA
 	if vm.Uptime > 0 {
 		uptimeValue = utils.FormatUptime(int(vm.Uptime))
 	}
@@ -163,7 +164,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("In: %s, Out: %s",
 			utils.FormatBytes(vm.NetIn), utils.FormatBytes(vm.NetOut))).SetTextColor(tcell.ColorWhite))
 	} else {
-		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
 	}
 	row++
 
@@ -173,12 +174,12 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("Read: %s, Write: %s",
 			utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(tcell.ColorWhite))
 	} else {
-		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
 	}
 	row++
 
 	// Guest agent status (only for QEMU VMs)
-	if vm.Type == "qemu" {
+	if vm.Type == api.VMTypeQemu {
 		agentStatus := "Not enabled"
 		agentColor := tcell.ColorGray
 
@@ -195,6 +196,8 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		vd.SetCell(row, 0, tview.NewTableCell("👾 Guest Agent").SetTextColor(tcell.ColorYellow))
 		vd.SetCell(row, 1, tview.NewTableCell(agentStatus).SetTextColor(agentColor))
 		row++
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
 	}
 
 	// Show filesystem information if available
@@ -283,11 +286,9 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		if len(sortedFilesystems) > maxFsToShow {
 			vd.SetCell(row, 0, tview.NewTableCell("  •").SetTextColor(tcell.ColorLightSkyBlue))
 			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("... and %d more", len(sortedFilesystems)-maxFsToShow)).SetTextColor(tcell.ColorGray))
-			row++
 		}
 	} else {
-		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
-		row++
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
 	}
 
 	// Show network interfaces from guest agent if available
@@ -311,7 +312,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			// Show IP addresses
 			for _, ip := range iface.IPAddresses {
 				ipColor := tcell.ColorWhite
-				if ip.Type == "ipv6" {
+				if ip.Type == api.IPTypeIPv6 {
 					ipColor = tcell.ColorLightSkyBlue
 				}
 				vd.SetCell(row, 0, tview.NewTableCell("    "+ip.Type).SetTextColor(tcell.ColorGray))
@@ -330,8 +331,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 		}
 	} else {
-		vd.SetCell(row, 1, tview.NewTableCell("N/A").SetTextColor(tcell.ColorWhite))
-		row++
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
 	}
 }
 

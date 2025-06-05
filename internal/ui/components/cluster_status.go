@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // ClusterStatus encapsulates the cluster status panel

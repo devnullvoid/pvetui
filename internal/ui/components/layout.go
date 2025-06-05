@@ -1,9 +1,10 @@
 package components
 
 import (
+	"github.com/rivo/tview"
+
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/rivo/tview"
 )
 
 // createMainLayout builds the main application layout

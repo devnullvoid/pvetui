@@ -35,7 +35,7 @@ type NetworkInterface struct {
 
 // GetGuestAgentInterfaces retrieves network interface information from the QEMU guest agent
 func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
-	if vm.Type != "qemu" || vm.Status != "running" {
+	if vm.Type != VMTypeQemu || vm.Status != VMStatusRunning {
 		return nil, fmt.Errorf("guest agent not applicable for this VM type or status")
 	}
 
@@ -138,7 +138,7 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 
 // GetLxcInterfaces retrieves network interface information for an LXC container.
 func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
-	if vm.Type != "lxc" || vm.Status != "running" {
+	if vm.Type != VMTypeLXC || vm.Status != VMStatusRunning {
 		return nil, fmt.Errorf("network interface endpoint not applicable for this guest type or status")
 	}
 
@@ -184,12 +184,12 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 
 		var ipAddresses []IPAddress
 		if inet, ok := ifaceMap["inet"].(string); ok {
-			if ip, valid := parseIPCIDR(inet, "ipv4"); valid {
+			if ip, valid := parseIPCIDR(inet, IPTypeIPv4); valid {
 				ipAddresses = append(ipAddresses, ip)
 			}
 		}
 		if inet6, ok := ifaceMap["inet6"].(string); ok {
-			if ip, valid := parseIPCIDR(inet6, "ipv6"); valid {
+			if ip, valid := parseIPCIDR(inet6, IPTypeIPv6); valid {
 				ipAddresses = append(ipAddresses, ip)
 			}
 		}
@@ -209,9 +209,9 @@ func GetFirstNonLoopbackIP(interfaces []NetworkInterface, preferIPv4 bool) strin
 		}
 
 		for _, ip := range iface.IPAddresses {
-			if preferIPv4 && ip.Type == "ipv4" {
+			if preferIPv4 && ip.Type == IPTypeIPv4 {
 				return ip.Address
-			} else if !preferIPv4 && ip.Type == "ipv6" {
+			} else if !preferIPv4 && ip.Type == IPTypeIPv6 {
 				return ip.Address
 			}
 		}

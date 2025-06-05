@@ -6,9 +6,10 @@ import (
 	// "github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 )
 
 // activateSearch shows the search input field and sets up filtering

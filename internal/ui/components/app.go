@@ -1,11 +1,12 @@
 package components
 
 import (
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 // App is the main application component

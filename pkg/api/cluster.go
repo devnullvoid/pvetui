@@ -329,7 +329,7 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 
 			// Add to storage manager for proper deduplication
 			cluster.StorageManager.AddStorage(storage)
-		case "qemu", "lxc":
+		case VMTypeQemu, VMTypeLXC:
 			node, exists := nodeMap[nodeName]
 			if !exists {
 				continue

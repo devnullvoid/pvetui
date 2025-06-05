@@ -5,10 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/scripts"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/scripts"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // ScriptSelector represents a modal dialog for selecting and running community scripts
@@ -364,9 +365,9 @@ func (s *ScriptSelector) cleanup() {
 
 	// Restore focus to the appropriate list based on current page
 	pageName, _ := s.app.pages.GetFrontPage()
-	if pageName == "Nodes" {
+	if pageName == api.PageNodes {
 		s.app.SetFocus(s.app.nodeList)
-	} else if pageName == "Guests" {
+	} else if pageName == api.PageGuests {
 		s.app.SetFocus(s.app.vmList)
 	}
 }

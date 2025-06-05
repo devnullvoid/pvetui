@@ -151,7 +151,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 	}
 
 	// For QEMU VMs, check guest agent and get network interfaces
-	if vm.Type == "qemu" && vm.Status == "running" {
+	if vm.Type == VMTypeQemu && vm.Status == VMStatusRunning {
 		// Get VM config to identify configured MAC addresses
 		var configRes map[string]interface{}
 		configEndpoint := fmt.Sprintf("/nodes/%s/qemu/%d/config", vm.Node, vm.ID)
@@ -166,7 +166,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					case int:
 						vm.AgentEnabled = v != 0
 					case string:
-						vm.AgentEnabled = v == "1" || v == "true"
+						vm.AgentEnabled = v == "1" || v == StringTrue
 					}
 				}
 			}
@@ -184,7 +184,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					var bestIP IPAddress
 					foundIP := false
 					for _, ip := range iface.IPAddresses {
-						if ip.Type == "ipv4" {
+						if ip.Type == IPTypeIPv4 {
 							bestIP = ip
 							foundIP = true
 							break
@@ -193,7 +193,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					if !foundIP && len(iface.IPAddresses) > 0 {
 						// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
 						for _, ip := range iface.IPAddresses {
-							if ip.Type == "ipv6" { // Explicitly look for IPv6 first
+							if ip.Type == IPTypeIPv6 { // Explicitly look for IPv6 first
 								bestIP = ip
 								foundIP = true
 								break
@@ -301,7 +301,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 				vm.IP = ""
 			}
 		}
-	} else if vm.Type == "lxc" && vm.Status == "running" {
+	} else if vm.Type == VMTypeLXC && vm.Status == VMStatusRunning {
 		// Get LXC config to identify configured MAC addresses (if any, often not explicitly set for LXC ethX)
 		var configRes map[string]interface{}
 		configEndpoint := fmt.Sprintf("/nodes/%s/lxc/%d/config", vm.Node, vm.ID)
@@ -331,7 +331,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					var bestIP IPAddress
 					foundIP := false
 					for _, ip := range iface.IPAddresses {
-						if ip.Type == "ipv4" {
+						if ip.Type == IPTypeIPv4 {
 							bestIP = ip
 							foundIP = true
 							break
@@ -339,7 +339,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					}
 					if !foundIP && len(iface.IPAddresses) > 0 {
 						for _, ip := range iface.IPAddresses { // Explicitly look for IPv6 first
-							if ip.Type == "ipv6" {
+							if ip.Type == IPTypeIPv6 {
 								bestIP = ip
 								foundIP = true
 								break
@@ -545,7 +545,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 		case int:
 			vm.AgentEnabled = v != 0
 		case string:
-			vm.AgentEnabled = v == "1" || v == "true"
+			vm.AgentEnabled = v == "1" || v == StringTrue
 		}
 	}
 
@@ -650,7 +650,7 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 		}
 
 		for i := range node.VMs {
-			if node.VMs[i].Status != "running" {
+			if node.VMs[i].Status != VMStatusRunning {
 				continue // Only enrich running VMs to avoid API overhead
 			}
 			vmChan <- node.VMs[i]
@@ -692,7 +692,7 @@ func (c *Client) RestartVM(vm *VM) error {
 
 // GetGuestAgentFilesystems retrieves filesystem information from the QEMU guest agent
 func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
-	if vm.Type != "qemu" || vm.Status != "running" {
+	if vm.Type != VMTypeQemu || vm.Status != VMStatusRunning {
 		return nil, fmt.Errorf("guest agent not applicable for this VM type or status")
 	}
 
@@ -778,7 +778,7 @@ type VNCProxyResponse struct {
 
 // GetVNCProxy creates a VNC proxy for a VM and returns connection details
 func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
-	if vm.Type != "qemu" && vm.Type != "lxc" {
+	if vm.Type != VMTypeQemu && vm.Type != VMTypeLXC {
 		return nil, fmt.Errorf("VNC proxy only available for QEMU VMs and LXC containers")
 	}
 
@@ -838,7 +838,7 @@ func (c *Client) GenerateVNCURL(vm *VM) (string, error) {
 
 	// Determine console type based on VM type
 	consoleType := "kvm"
-	if vm.Type == "lxc" {
+	if vm.Type == VMTypeLXC {
 		consoleType = "lxc"
 	}
 

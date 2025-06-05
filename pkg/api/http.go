@@ -141,9 +141,9 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 		hc.logger.Debug("Using API token authentication")
 	} else if hc.authManager != nil {
 		// Use ticket-based authentication
-		token, err := hc.authManager.GetValidToken(ctx)
-		if err != nil {
-			return fmt.Errorf("authentication failed: %w", err)
+		token, authErr := hc.authManager.GetValidToken(ctx)
+		if authErr != nil {
+			return fmt.Errorf("authentication failed: %w", authErr)
 		}
 
 		// Set authentication cookie

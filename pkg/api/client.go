@@ -175,7 +175,7 @@ func (c *Client) GetVmList(ctx context.Context) ([]map[string]interface{}, error
 	for _, item := range data {
 		if vm, ok := item.(map[string]interface{}); ok {
 			// Filter for VMs and containers only
-			if resType, exists := vm["type"].(string); exists && (resType == "qemu" || resType == "lxc") {
+			if resType, exists := vm["type"].(string); exists && (resType == VMTypeQemu || resType == VMTypeLXC) {
 				vms = append(vms, vm)
 			}
 		}
@@ -289,7 +289,7 @@ func (c *Client) RefreshVMData(vm *VM) (*VM, error) {
 	_ = c.cache.Delete(configCacheKey)
 
 	// Also clear guest agent related cache entries if it's a QEMU VM
-	if vm.Type == "qemu" {
+	if vm.Type == VMTypeQemu {
 		agentNetPath := fmt.Sprintf("/nodes/%s/qemu/%d/agent/network-get-interfaces", vm.Node, vm.ID)
 		agentFsPath := fmt.Sprintf("/nodes/%s/qemu/%d/agent/get-fsinfo", vm.Node, vm.ID)
 
@@ -301,7 +301,7 @@ func (c *Client) RefreshVMData(vm *VM) (*VM, error) {
 
 		_ = c.cache.Delete(agentNetCacheKey)
 		_ = c.cache.Delete(agentFsCacheKey)
-	} else if vm.Type == "lxc" {
+	} else if vm.Type == VMTypeLXC {
 		// Clear LXC interfaces cache
 		lxcInterfacesPath := fmt.Sprintf("/nodes/%s/lxc/%d/interfaces", vm.Node, vm.ID)
 		lxcInterfacesCacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, lxcInterfacesPath)
@@ -320,7 +320,7 @@ func (c *Client) RefreshVMData(vm *VM) (*VM, error) {
 
 	// Now enrich the VM with guest agent data just like the full refresh does
 	// This is what was missing - we need to call GetVmStatus to get the enriched data
-	if freshVM.Status == "running" {
+	if freshVM.Status == VMStatusRunning {
 		// Store the current disk values from GetDetailedVmInfo to preserve them
 		diskUsage := freshVM.Disk
 		maxDiskUsage := freshVM.MaxDisk

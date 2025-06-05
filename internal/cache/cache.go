@@ -342,9 +342,9 @@ func InitGlobalCache(cacheDir string) error {
 			getCacheLogger().Debug("WARNING: Failed to write test item to cache: %v", err)
 		} else {
 			var result map[string]string
-			found, err := globalCache.Get(testKey, &result)
-			if err != nil {
-				getCacheLogger().Debug("WARNING: Failed to read test item from cache: %v", err)
+			found, getErr := globalCache.Get(testKey, &result)
+			if getErr != nil {
+				getCacheLogger().Debug("WARNING: Failed to read test item from cache: %v", getErr)
 			} else if !found {
 				getCacheLogger().Debug("WARNING: Test item was not found in cache immediately after writing")
 			} else {

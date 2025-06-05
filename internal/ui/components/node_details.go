@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // NodeDetails encapsulates the node details panel
@@ -155,16 +156,16 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 
 		for _, vm := range node.VMs {
 			switch vm.Type {
-			case "qemu":
+			case api.VMTypeQemu:
 				if vm.Template {
 					qemuTemplates++
-				} else if vm.Status == "running" {
+				} else if vm.Status == api.VMStatusRunning {
 					qemuRunning++
 				} else {
 					qemuStopped++
 				}
-			case "lxc":
-				if vm.Status == "running" {
+			case api.VMTypeLXC:
+				if vm.Status == api.VMStatusRunning {
 					lxcRunning++
 				} else {
 					lxcStopped++
@@ -202,12 +203,10 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 
 			nd.SetCell(row, 0, tview.NewTableCell("📦 LXC").SetTextColor(tcell.ColorYellow))
 			nd.SetCell(row, 1, tview.NewTableCell(strings.Join(lxcParts, ", ")).SetTextColor(tcell.ColorWhite))
-			row++
 		}
 	} else {
 		// Show "No VMs" if there are none
 		nd.SetCell(row, 0, tview.NewTableCell("🖥️ VMs").SetTextColor(tcell.ColorYellow))
 		nd.SetCell(row, 1, tview.NewTableCell("None").SetTextColor(tcell.ColorGray))
-		row++
 	}
 }

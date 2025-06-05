@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // setupKeyboardHandlers configures global keyboard shortcuts
@@ -40,20 +42,20 @@ func (a *App) setupKeyboardHandlers() {
 		switch event.Key() {
 		case tcell.KeyTab:
 			currentPage, _ := a.pages.GetFrontPage()
-			if currentPage == "Nodes" {
-				a.pages.SwitchToPage("Guests")
+			if currentPage == api.PageNodes {
+				a.pages.SwitchToPage(api.PageGuests)
 				a.SetFocus(a.vmList)
 			} else {
-				a.pages.SwitchToPage("Nodes")
+				a.pages.SwitchToPage(api.PageNodes)
 				a.SetFocus(a.nodeList)
 			}
 			return nil
 		case tcell.KeyF1:
-			a.pages.SwitchToPage("Nodes")
+			a.pages.SwitchToPage(api.PageNodes)
 			a.SetFocus(a.nodeList)
 			return nil
 		case tcell.KeyF2:
-			a.pages.SwitchToPage("Guests")
+			a.pages.SwitchToPage(api.PageGuests)
 			a.SetFocus(a.vmList)
 			return nil
 		case tcell.KeyF5:
@@ -71,10 +73,10 @@ func (a *App) setupKeyboardHandlers() {
 			} else if event.Rune() == 's' || event.Rune() == 'S' {
 				// Open shell session based on current page
 				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == "Nodes" {
+				if currentPage == api.PageNodes {
 					// Handle node shell session
 					a.openNodeShell()
-				} else if currentPage == "Guests" {
+				} else if currentPage == api.PageGuests {
 					// Handle VM shell session
 					a.openVMShell()
 				}
@@ -82,21 +84,21 @@ func (a *App) setupKeyboardHandlers() {
 			} else if event.Rune() == 'm' {
 				// Open context menu based on current page
 				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == "Nodes" {
+				if currentPage == api.PageNodes {
 					a.ShowNodeContextMenu()
-				} else if currentPage == "Guests" {
+				} else if currentPage == api.PageGuests {
 					a.ShowVMContextMenu()
 				}
 				return nil
 			} else if event.Rune() == 'c' || event.Rune() == 'C' {
 				// Open community scripts installer - only available for nodes
 				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == "Nodes" {
+				if currentPage == api.PageNodes {
 					node := a.nodeList.GetSelectedNode()
 					if node != nil {
 						a.openScriptSelector(node, nil)
 					}
-				} else if currentPage == "Guests" {
+				} else if currentPage == api.PageGuests {
 					// Community scripts are not available for individual VMs
 					a.showMessage("Community scripts can only be installed on nodes. Switch to the Nodes tab to install scripts.")
 				}
@@ -108,10 +110,10 @@ func (a *App) setupKeyboardHandlers() {
 			} else if event.Rune() == 'v' || event.Rune() == 'V' {
 				// Open VNC connection based on current page
 				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == "Nodes" {
+				if currentPage == api.PageNodes {
 					// Handle node VNC shell session
 					a.openNodeVNC()
-				} else if currentPage == "Guests" {
+				} else if currentPage == api.PageGuests {
 					// Handle VM VNC console session
 					a.openVMVNC()
 				}
