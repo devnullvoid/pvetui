@@ -106,10 +106,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Build binary
+      - name: Build binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          go build -ldflags="-s -w" -o ./dist/proxmox-tui.exe ./cmd/proxmox-tui
+
+      - name: Build binary (Unix)
+        if: matrix.os != 'windows-latest'
         run: |
           mkdir -p dist
           go build -ldflags="-s -w" -o ./dist/proxmox-tui ./cmd/proxmox-tui
+
+      - name: List built files (debug)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Write-Host "Contents of dist directory:"
+          Get-ChildItem .\dist\
+
+      - name: List built files (debug)
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "Contents of dist directory:"
+          ls -la dist/
 
       - name: Test binary (Unix)
         if: matrix.os != 'windows-latest'
@@ -117,7 +136,14 @@ jobs:
 
       - name: Test binary (Windows)
         if: matrix.os == 'windows-latest'
-        run: .\dist\proxmox-tui.exe --help
+        run: |
+          if (Test-Path ".\dist\proxmox-tui.exe") {
+            .\dist\proxmox-tui.exe --help
+          } else {
+            Write-Error "Binary not found at .\dist\proxmox-tui.exe"
+            Get-ChildItem .\dist\
+            exit 1
+          }
 
       - name: Upload artifacts
         if: success()
