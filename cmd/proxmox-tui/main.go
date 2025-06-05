@@ -17,6 +17,13 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
+// Version information (set by build flags)
+var (
+	version = "dev"
+	buildDate = "unknown"
+	commitHash = "unknown"
+)
+
 // Package-level logger for use throughout main and shutdown functions
 var mainLogger *logger.Logger
 
@@ -32,9 +39,21 @@ func main() {
 
 	// Special flags not in the config struct
 	noCacheFlag := flag.Bool("no-cache", false, "Disable caching")
+	versionFlag := flag.Bool("version", false, "Show version information")
+	versionShortFlag := flag.Bool("v", false, "Show version information (short)")
 
 	// Parse flags
 	flag.Parse()
+
+	// Handle version flag
+	if *versionFlag || *versionShortFlag {
+		fmt.Printf("proxmox-tui version %s\n", version)
+		if *versionFlag {
+			fmt.Printf("Build date: %s\n", buildDate)
+			fmt.Printf("Commit: %s\n", commitHash)
+		}
+		os.Exit(0)
+	}
 
 	// Load config file first if provided
 	if *configPath != "" {

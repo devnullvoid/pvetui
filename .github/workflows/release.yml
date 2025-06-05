@@ -74,7 +74,7 @@ jobs:
             
             echo "🚀 Building $BINARY_NAME..."
             CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH \
-              go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.VERSION }}" \
+              go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.VERSION }} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.commitHash=$(git rev-parse --short HEAD)" \
               -o "$OUTPUT" ./cmd/proxmox-tui
           done
           
@@ -159,4 +159,4 @@ jobs:
             
             ### 🔄 Changelog
             
-            See the [changelog](https://github.com/yourusername/proxmox-tui/blob/main/CHANGELOG.md) for details on what's new in this release.
+            See the [changelog](https://github.com/devnullvoid/proxmox-tui/blob/main/CHANGELOG.md) for details on what's new in this release.

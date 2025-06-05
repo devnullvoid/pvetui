@@ -90,9 +90,35 @@ go build -o proxmox-tui ./cmd/proxmox-tui
 ./proxmox-tui -config ./configs/config.yml
 ```
 
-### Pre-compiled Binaries (Coming Soon)
+### Pre-compiled Binaries
 
-Pre-compiled binaries for various platforms will be available on the Releases page.
+Pre-compiled binaries for various platforms are available on the [Releases page](https://github.com/devnullvoid/proxmox-tui/releases).
+
+#### Download and Install
+
+1. Go to the [Releases page](https://github.com/devnullvoid/proxmox-tui/releases)
+2. Download the appropriate binary for your platform:
+   - **Linux AMD64**: `proxmox-tui-linux-amd64.tar.gz`
+   - **Linux ARM64**: `proxmox-tui-linux-arm64.tar.gz`
+   - **macOS Intel**: `proxmox-tui-darwin-amd64.tar.gz`
+   - **macOS Apple Silicon**: `proxmox-tui-darwin-arm64.tar.gz`
+   - **Windows**: `proxmox-tui-windows-amd64.zip`
+3. Extract the archive:
+   ```bash
+   # For Linux/macOS
+   tar -xzf proxmox-tui-*.tar.gz
+   
+   # For Windows
+   # Extract using your preferred zip tool
+   ```
+4. Make executable (Linux/macOS only):
+   ```bash
+   chmod +x proxmox-tui-*
+   ```
+5. Run the application:
+   ```bash
+   ./proxmox-tui-* -config /path/to/your/config.yml
+   ```
 
 ## ⚙️ Configuration
 
