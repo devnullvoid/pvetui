@@ -246,17 +246,11 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 
 // updateNodeMetrics updates metrics for a single node
 func (c *Client) updateNodeMetrics(node *Node) error {
-	// node.mu.Lock()
-	// defer node.mu.Unlock()
-
 	// If the node is already marked as offline from cluster status, skip detailed metrics
 	if !node.Online {
 		c.logger.Debug("[CLUSTER] Skipping metrics for offline node: %s", node.Name)
 		return nil
 	}
-
-	// Store current CPU usage from cluster resources (if available) to preserve it
-	clusterResourcesCPU := node.CPUUsage
 
 	fullStatus, err := c.GetNodeStatus(node.Name)
 	if err != nil {
@@ -268,21 +262,10 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 		return fmt.Errorf("node %s offline/unreachable: %w", node.Name, err)
 	}
 
-	// Update node fields
+	// Update node fields (CPU usage will be set later from cluster resources which is more reliable)
 	node.Version = fullStatus.Version
 	node.KernelVersion = fullStatus.KernelVersion
 	node.CPUCount = fullStatus.CPUCount
-
-	// Prefer CPU usage from cluster resources if available, otherwise use node status
-	if clusterResourcesCPU > 0 {
-		// Keep the more reliable cluster resources CPU usage
-		node.CPUUsage = clusterResourcesCPU
-		c.logger.Debug("[CLUSTER] Preserving CPU usage from cluster resources for node %s: %.2f%%", node.Name, clusterResourcesCPU*100)
-	} else {
-		// Fallback to node status CPU usage
-		node.CPUUsage = fullStatus.CPUUsage
-		c.logger.Debug("[CLUSTER] Using CPU usage from node status for node %s: %.2f%%", node.Name, fullStatus.CPUUsage*100)
-	}
 
 	// Update memory only if not already set from cluster resources
 	if node.MemoryTotal == 0 {
