@@ -39,23 +39,18 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 		return nil, err
 	}
 
-	// 2. Enrich nodes with their full status data (concurrent)
-	if err := c.enrichNodeStatuses(cluster); err != nil {
-		return nil, err
-	}
-
-	// 3. Get cluster resources for VMs and storage
+	// 2. Get cluster resources for VMs and storage
 	if err := c.processClusterResources(cluster); err != nil {
 		return nil, err
 	}
 
-	// 4. Enrich VMs with detailed status information
+	// 3. Enrich VMs with detailed status information
 	if err := c.EnrichVMs(cluster); err != nil {
 		// Log error but continue
 		c.logger.Debug("[CLUSTER] Error enriching VM data: %v", err)
 	}
 
-	// 5. Calculate cluster-wide totals
+	// 4. Calculate cluster-wide totals
 	c.calculateClusterTotals(cluster)
 
 	c.Cluster = cluster
@@ -188,18 +183,6 @@ func (c *Client) getClusterBasicStatus(cluster *Cluster) error {
 			})
 		}
 	}
-	return nil
-}
-
-// enrichNodeStatuses populates detailed node data from individual node status calls concurrently
-func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
-	// This section is no longer needed
-	return nil
-}
-
-// updateNodeMetrics updates metrics for a single node
-func (c *Client) updateNodeMetrics(node *Node) error {
-	// This section is no longer needed
 	return nil
 }
 
