@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"sync"
@@ -566,9 +567,12 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 					if idx := strings.Index(ip, "/"); idx > 0 {
 						ip = ip[:idx]
 					}
-					vm.IP = ip
-					foundIP = true
-					break
+					// Only set IP if it's a valid IP address (skip "dhcp", "manual", etc.)
+					if isValidIP(ip) {
+						vm.IP = ip
+						foundIP = true
+						break
+					}
 				}
 			}
 
@@ -582,6 +586,17 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 
 	vm.Enriched = true
 	return vm, nil
+}
+
+// isValidIP checks if a string is a valid IP address
+func isValidIP(ip string) bool {
+	// Skip common non-IP values
+	if ip == "" || ip == "dhcp" || ip == "manual" || ip == "static" {
+		return false
+	}
+
+	// Parse as IP address
+	return net.ParseIP(ip) != nil
 }
 
 // EnrichVMs enriches all VMs in the cluster with detailed status information

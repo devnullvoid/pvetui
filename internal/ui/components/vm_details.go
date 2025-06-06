@@ -122,7 +122,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	// Resource Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(tcell.ColorYellow))
 	cpuValue := api.StringNA
-	if vm.CPU > 0 {
+	if vm.CPU >= 0 {
 		cpuValue = fmt.Sprintf("%.1f%%", vm.CPU*100)
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(tcell.ColorWhite))

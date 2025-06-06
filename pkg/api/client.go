@@ -312,10 +312,19 @@ func (c *Client) RefreshVMData(vm *VM) (*VM, error) {
 
 	c.logger.Debug("Cleared cache for VM %s (%d) on node %s", vm.Name, vm.ID, vm.Node)
 
+	// Store the original IP address to preserve it if needed
+	originalIP := vm.IP
+
 	// Fetch fresh VM data using GetDetailedVmInfo for basic information
 	freshVM, err := c.GetDetailedVmInfo(vm.Node, vm.Type, vm.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get VM details: %w", err)
+	}
+
+	// If GetDetailedVmInfo didn't find a valid IP (e.g., config has "dhcp")
+	// but we had a valid IP before, preserve the original IP
+	if freshVM.IP == "" && originalIP != "" {
+		freshVM.IP = originalIP
 	}
 
 	// Now enrich the VM with guest agent data just like the full refresh does
