@@ -272,7 +272,8 @@ func (c *Client) RefreshNodeData(nodeName string) (*Node, error) {
 }
 
 // RefreshVMData refreshes data for a specific VM by clearing its cache entries and fetching fresh data
-func (c *Client) RefreshVMData(vm *VM) (*VM, error) {
+// The onEnrichmentComplete callback is called after VM data has been enriched with guest agent information
+func (c *Client) RefreshVMData(vm *VM, onEnrichmentComplete func(*VM)) (*VM, error) {
 	// Clear cache entries for this specific VM
 	statusPath := fmt.Sprintf("/nodes/%s/%s/%d/status/current", vm.Node, vm.Type, vm.ID)
 	configPath := fmt.Sprintf("/nodes/%s/%s/%d/config", vm.Node, vm.Type, vm.ID)
@@ -348,6 +349,11 @@ func (c *Client) RefreshVMData(vm *VM) (*VM, error) {
 		if freshVM.MaxDisk == 0 && maxDiskUsage > 0 {
 			freshVM.MaxDisk = maxDiskUsage
 		}
+	}
+
+	// Call the callback after VM data has been enriched with guest agent information
+	if onEnrichmentComplete != nil {
+		onEnrichmentComplete(freshVM)
 	}
 
 	return freshVM, nil

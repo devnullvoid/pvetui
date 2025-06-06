@@ -95,14 +95,59 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 
 	// 6. Start background VM enrichment
 	go func() {
+		c.logger.Debug("[BACKGROUND] Starting VM enrichment for %d nodes", len(cluster.Nodes))
+
+		// Count VMs that will be enriched
+		var runningVMCount int
+		for _, node := range cluster.Nodes {
+			if node.Online && node.VMs != nil {
+				for _, vm := range node.VMs {
+					if vm.Status == VMStatusRunning {
+						runningVMCount++
+					}
+				}
+			}
+		}
+		c.logger.Debug("[BACKGROUND] Found %d running VMs to enrich", runningVMCount)
+
 		if err := c.EnrichVMs(cluster); err != nil {
 			c.logger.Debug("[BACKGROUND] Error enriching VM data: %v", err)
 		} else {
-			c.logger.Debug("[BACKGROUND] Successfully enriched VM data")
+			c.logger.Debug("[BACKGROUND] Successfully enriched VM data for %d running VMs", runningVMCount)
 		}
 
-		// Call the callback to notify UI that enrichment is complete
+		// Wait a bit and try to enrich VMs that might not have had guest agent ready
+		time.Sleep(3 * time.Second)
+		c.logger.Debug("[BACKGROUND] Starting delayed enrichment retry for QEMU VMs with missing guest agent data")
+
+		// Second pass: try to enrich QEMU VMs that still don't have guest agent data
+		// LXC containers don't have guest agents, so we skip them
+		// Only retry VMs that have guest agent enabled in their config
+		var retryCount int
+		for _, node := range cluster.Nodes {
+			if !node.Online || node.VMs == nil {
+				continue
+			}
+			for _, vm := range node.VMs {
+				// Only retry QEMU VMs that are running, have guest agent enabled, and don't have guest agent data
+				if vm.Status == VMStatusRunning && vm.Type == VMTypeQemu && vm.AgentEnabled && (!vm.AgentRunning || len(vm.NetInterfaces) == 0) {
+					retryCount++
+					c.logger.Debug("[BACKGROUND] Retrying enrichment for QEMU VM %s (%d) - agent running: %v, interfaces: %d",
+						vm.Name, vm.ID, vm.AgentRunning, len(vm.NetInterfaces))
+
+					// Try to enrich this specific VM again
+					if err := c.GetVmStatus(vm); err != nil {
+						c.logger.Debug("[BACKGROUND] Retry failed for VM %s: %v", vm.Name, err)
+					}
+				}
+			}
+		}
+
+		c.logger.Debug("[BACKGROUND] Completed enrichment process. Initial: %d VMs, QEMU Retry: %d VMs", runningVMCount, retryCount)
+
+		// Call the callback only once after both initial enrichment and retry are complete
 		if onEnrichmentComplete != nil {
+			c.logger.Debug("[BACKGROUND] Calling enrichment complete callback")
 			onEnrichmentComplete()
 		}
 	}()

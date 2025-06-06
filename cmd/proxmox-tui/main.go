@@ -19,8 +19,8 @@ import (
 
 // Version information (set by build flags)
 var (
-	version = "dev"
-	buildDate = "unknown"
+	version    = "dev"
+	buildDate  = "unknown"
 	commitHash = "unknown"
 )
 
@@ -154,22 +154,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Test the connection by trying to get cluster status
-	// This will catch connection errors that weren't caught during client creation
-	if _, err := client.FastGetClusterStatus(nil); err != nil {
-		// Show user-friendly error message for connection issues
-		fmt.Fprintf(os.Stderr, "\n❌ Failed to connect to Proxmox API\n\n")
-		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
-		fmt.Fprintf(os.Stderr, "Please check:\n")
-		fmt.Fprintf(os.Stderr, "• Network connectivity to Proxmox server\n")
-		fmt.Fprintf(os.Stderr, "• Proxmox server address (PROXMOX_ADDR): %s\n", cfg.Addr)
-		fmt.Fprintf(os.Stderr, "• Authentication credentials (PROXMOX_USER/PROXMOX_PASSWORD)\n")
-		fmt.Fprintf(os.Stderr, "• TLS certificate settings (PROXMOX_INSECURE): %v\n", cfg.Insecure)
-		fmt.Fprintf(os.Stderr, "• Firewall rules allowing access to port 8006\n")
-		fmt.Fprintf(os.Stderr, "• Proxmox web interface is accessible\n\n")
-		fmt.Fprintf(os.Stderr, "For more help, see the README.md file or check your Proxmox server logs.\n")
-		os.Exit(1)
-	}
+	// Connection testing will be handled by the UI components during initialization
+	// No need to test connection here since app.go will call FastGetClusterStatus with proper error handling
 
 	// Run the application using the component-based UI architecture
 	if err := ui.RunApp(client, cfg); err != nil {

@@ -174,8 +174,16 @@ func (a *App) refreshVMData(vm *api.VM) {
 
 	// Run refresh in goroutine to avoid blocking UI
 	go func() {
-		// Fetch fresh VM data
-		freshVM, err := a.client.RefreshVMData(vm)
+		// Fetch fresh VM data with callback for when enrichment completes
+		freshVM, err := a.client.RefreshVMData(vm, func(enrichedVM *api.VM) {
+			// This callback is called after guest agent data has been loaded
+			a.QueueUpdateDraw(func() {
+				// Update VM details if this VM is currently selected
+				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil && selectedVM.ID == enrichedVM.ID && selectedVM.Node == enrichedVM.Node {
+					a.vmDetails.Update(enrichedVM)
+				}
+			})
+		})
 		if err != nil {
 			// Update message with error on main thread
 			a.QueueUpdateDraw(func() {

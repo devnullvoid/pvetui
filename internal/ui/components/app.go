@@ -61,20 +61,62 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	app.clusterStatus = NewClusterStatus()
 	app.pages = tview.NewPages()
 
-	// Initialize global state
-	if client.Cluster == nil {
-		if _, err := client.FastGetClusterStatus(func() {
-			// This callback is called when background VM enrichment completes
-			app.QueueUpdateDraw(func() {
-				// Refresh the currently selected VM details if there is one
-				if selectedVM := app.vmList.GetSelectedVM(); selectedVM != nil {
-					app.vmDetails.Update(selectedVM)
+	// Initialize global state and set up background enrichment callback
+	// Always call FastGetClusterStatus with callback to ensure background enrichment happens
+	if _, err := client.FastGetClusterStatus(func() {
+		// This callback is called when background VM enrichment completes
+		app.QueueUpdateDraw(func() {
+			// Debug: Log that the callback fired
+			// TODO: Remove this debug log after testing
+			app.header.ShowLoading("Processing enriched VM data...")
+
+			// Update the cluster status display
+			if client.Cluster != nil {
+				app.clusterStatus.Update(client.Cluster)
+			}
+
+			// Rebuild VM list from enriched cluster data
+			var enrichedVMs []*api.VM
+			if client.Cluster != nil {
+				for _, node := range client.Cluster.Nodes {
+					if node != nil {
+						for _, vm := range node.VMs {
+							if vm != nil {
+								enrichedVMs = append(enrichedVMs, vm)
+							}
+						}
+					}
 				}
-			})
-		}); err != nil {
-			app.header.ShowError("Failed to connect to Proxmox API: " + err.Error())
-			// Continue with empty state rather than crashing
-		}
+			}
+
+			// Update global state with enriched VM data
+			if len(enrichedVMs) > 0 {
+				models.GlobalState.OriginalVMs = make([]*api.VM, len(enrichedVMs))
+				models.GlobalState.FilteredVMs = make([]*api.VM, len(enrichedVMs))
+				copy(models.GlobalState.OriginalVMs, enrichedVMs)
+				copy(models.GlobalState.FilteredVMs, enrichedVMs)
+
+				// Update the VM list display
+				app.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			}
+
+			// Refresh the currently selected VM details if there is one
+			if selectedVM := app.vmList.GetSelectedVM(); selectedVM != nil {
+				// Find the enriched version of the selected VM
+				for _, enrichedVM := range enrichedVMs {
+					if enrichedVM.ID == selectedVM.ID && enrichedVM.Node == selectedVM.Node {
+						app.vmDetails.Update(enrichedVM)
+						break
+					}
+				}
+			}
+
+			// Show a subtle notification that enrichment is complete
+			app.header.ShowSuccess("Guest agent data loaded")
+		})
+	}); err != nil {
+		app.header.ShowError("Failed to connect to Proxmox API: " + err.Error())
+		// Continue with empty state rather than crashing
 	}
 
 	// Initialize VM list from all nodes

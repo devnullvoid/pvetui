@@ -39,6 +39,10 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 		return nil, fmt.Errorf("guest agent not applicable for this VM type or status")
 	}
 
+	if !vm.AgentEnabled {
+		return nil, fmt.Errorf("guest agent is not enabled for this VM")
+	}
+
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/network-get-interfaces", vm.Node, vm.ID)
 
