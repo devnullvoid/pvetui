@@ -72,18 +72,18 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 		lastUpdate:     time.Now(),
 	}
 
-	// 1. Get basic cluster status
+	// 1. Get basic cluster status and node list
 	if err := c.getClusterBasicStatus(cluster); err != nil {
 		return nil, err
 	}
 
-	// 2. Enrich nodes with their full status data (concurrent)
-	if err := c.enrichNodeStatuses(cluster); err != nil {
+	// 2. Get cluster resources and populate all nodes, VMs, and storage
+	if err := c.processClusterResources(cluster); err != nil {
 		return nil, err
 	}
 
-	// 3. Get cluster resources for VMs and storage
-	if err := c.processClusterResources(cluster); err != nil {
+	// 3. Selectively enrich nodes with missing details (Version, KernelVersion, CPUInfo, LoadAvg)
+	if err := c.enrichMissingNodeDetails(cluster); err != nil {
 		return nil, err
 	}
 
@@ -193,6 +193,18 @@ func (c *Client) getClusterBasicStatus(cluster *Cluster) error {
 
 // enrichNodeStatuses populates detailed node data from individual node status calls concurrently
 func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
+	// This section is no longer needed
+	return nil
+}
+
+// updateNodeMetrics updates metrics for a single node
+func (c *Client) updateNodeMetrics(node *Node) error {
+	// This section is no longer needed
+	return nil
+}
+
+// enrichMissingNodeDetails selectively enriches nodes with data not available in cluster resources
+func (c *Client) enrichMissingNodeDetails(cluster *Cluster) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(cluster.Nodes))
 	done := make(chan struct{})
@@ -203,19 +215,17 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 		for err := range errChan {
 			if err != nil {
 				errors = append(errors, err)
-				// Only consider it critical if ALL nodes fail
-				// Individual node failures are expected in a cluster environment
 			}
 		}
 		close(done)
 	}()
 
-	// Process nodes concurrently
+	// Process nodes concurrently, but only for missing details
 	for i := range cluster.Nodes {
 		wg.Add(1)
 		go func(node *Node) {
 			defer wg.Done()
-			errChan <- c.updateNodeMetrics(node)
+			errChan <- c.enrichNodeMissingDetails(node)
 		}(cluster.Nodes[i])
 	}
 
@@ -226,29 +236,29 @@ func (c *Client) enrichNodeStatuses(cluster *Cluster) error {
 
 	// Log individual node errors but don't fail unless ALL nodes are unreachable
 	if len(errors) > 0 {
-		c.logger.Debug("[CLUSTER] Node enrichment completed with %d errors out of %d nodes", len(errors), len(cluster.Nodes))
+		c.logger.Debug("[CLUSTER] Node detail enrichment completed with %d errors out of %d nodes", len(errors), len(cluster.Nodes))
 		for _, err := range errors {
-			c.logger.Debug("[CLUSTER] Node error: %v", err)
+			c.logger.Debug("[CLUSTER] Node detail error: %v", err)
 		}
 
 		// Only fail if ALL nodes failed to respond
 		if len(errors) == len(cluster.Nodes) {
-			return fmt.Errorf("all nodes unreachable: %d errors", len(errors))
+			return fmt.Errorf("all nodes unreachable for detail enrichment: %d errors", len(errors))
 		}
 
 		// If some nodes succeeded, continue with a warning
-		c.logger.Debug("[CLUSTER] Continuing with %d available nodes (%d offline)",
+		c.logger.Debug("[CLUSTER] Continuing with %d nodes having complete details (%d missing details)",
 			len(cluster.Nodes)-len(errors), len(errors))
 	}
 
 	return nil
 }
 
-// updateNodeMetrics updates metrics for a single node
-func (c *Client) updateNodeMetrics(node *Node) error {
-	// If the node is already marked as offline from cluster status, skip detailed metrics
+// enrichNodeMissingDetails enriches a single node with details not available in cluster resources
+func (c *Client) enrichNodeMissingDetails(node *Node) error {
+	// If the node is already marked as offline, skip detailed metrics
 	if !node.Online {
-		c.logger.Debug("[CLUSTER] Skipping metrics for offline node: %s", node.Name)
+		c.logger.Debug("[CLUSTER] Skipping detail enrichment for offline node: %s", node.Name)
 		return nil
 	}
 
@@ -256,33 +266,20 @@ func (c *Client) updateNodeMetrics(node *Node) error {
 	if err != nil {
 		// Mark node as offline if we can't reach it
 		node.Online = false
-		c.logger.Debug("[CLUSTER] Node %s appears to be offline or unreachable: %v", node.Name, err)
+		c.logger.Debug("[CLUSTER] Node %s appears to be offline or unreachable for detail enrichment: %v", node.Name, err)
 
 		// Return error for logging but don't make it critical
-		return fmt.Errorf("node %s offline/unreachable: %w", node.Name, err)
+		return fmt.Errorf("node %s offline/unreachable for details: %w", node.Name, err)
 	}
 
-	// Update node fields (CPU usage will be set later from cluster resources which is more reliable)
+	// Only update fields not available in cluster resources
 	node.Version = fullStatus.Version
 	node.KernelVersion = fullStatus.KernelVersion
-	node.CPUCount = fullStatus.CPUCount
-
-	// Update memory only if not already set from cluster resources
-	if node.MemoryTotal == 0 {
-		node.MemoryTotal = fullStatus.MemoryTotal
-	}
-	if node.MemoryUsed == 0 {
-		node.MemoryUsed = fullStatus.MemoryUsed
-	}
-
-	node.TotalStorage = fullStatus.TotalStorage
-	node.UsedStorage = fullStatus.UsedStorage
-	node.Uptime = fullStatus.Uptime
 	node.CPUInfo = fullStatus.CPUInfo
 	node.LoadAvg = fullStatus.LoadAvg
 	node.lastMetricsUpdate = time.Now()
 
-	c.logger.Debug("[CLUSTER] Successfully updated metrics for node: %s", node.Name)
+	c.logger.Debug("[CLUSTER] Successfully enriched missing details for node: %s", node.Name)
 	return nil
 }
 
@@ -320,21 +317,41 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 
 		switch resType {
 		case "node":
-			// Handle node resources - prefer CPU usage from cluster resources
+			// Handle node resources - populate all available data from cluster resources
 			if node, exists := nodeMap[nodeName]; exists {
-				// Update CPU usage from cluster resources (more reliable than individual node status)
+				// Update all metrics available in cluster resources
 				if cpuUsage := getFloat(resource, "cpu"); cpuUsage >= 0 {
 					node.CPUUsage = cpuUsage
-					c.logger.Debug("[CLUSTER] Updated CPU usage for node %s from cluster resources: %.2f%%", nodeName, cpuUsage*100)
 				}
 
-				// Also update memory if available in cluster resources
+				// Memory (convert bytes to GB)
 				if memUsed := getFloat(resource, "mem"); memUsed > 0 {
-					node.MemoryUsed = memUsed / 1073741824 // Convert bytes to GB
+					node.MemoryUsed = memUsed / 1073741824
 				}
 				if memMax := getFloat(resource, "maxmem"); memMax > 0 {
-					node.MemoryTotal = memMax / 1073741824 // Convert bytes to GB
+					node.MemoryTotal = memMax / 1073741824
 				}
+
+				// CPU count (available as maxcpu in cluster resources)
+				if cpuCount := getFloat(resource, "maxcpu"); cpuCount > 0 {
+					node.CPUCount = cpuCount
+				}
+
+				// Storage (convert bytes to GB)
+				if diskUsed := getFloat(resource, "disk"); diskUsed > 0 {
+					node.UsedStorage = int64(diskUsed / 1073741824)
+				}
+				if diskMax := getFloat(resource, "maxdisk"); diskMax > 0 {
+					node.TotalStorage = int64(diskMax / 1073741824)
+				}
+
+				// Uptime
+				if uptime := getFloat(resource, "uptime"); uptime > 0 {
+					node.Uptime = int64(uptime)
+				}
+
+				c.logger.Debug("[CLUSTER] Populated node %s from cluster resources: CPU=%.2f%%, Mem=%.1fGB/%.1fGB, CPUs=%.0f",
+					nodeName, node.CPUUsage*100, node.MemoryUsed, node.MemoryTotal, node.CPUCount)
 			}
 		case "storage":
 			node, exists := nodeMap[nodeName]
@@ -363,23 +380,27 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 				continue
 			}
 			node.VMs = append(node.VMs, &VM{
-				ID:       getInt(resource, "vmid"),
-				Name:     getString(resource, "name"),
-				Node:     nodeName,
-				Type:     resType,
-				Status:   getString(resource, "status"),
-				IP:       getString(resource, "ip"),
-				CPU:      getFloat(resource, "cpu"),
-				Mem:      int64(getFloat(resource, "mem")),
-				MaxMem:   int64(getFloat(resource, "maxmem")),
-				Disk:     int64(getFloat(resource, "disk")),
-				MaxDisk:  int64(getFloat(resource, "maxdisk")),
-				Uptime:   int64(getFloat(resource, "uptime")),
-				HAState:  getString(resource, "hastate"),
-				Lock:     getString(resource, "lock"),
-				Tags:     getString(resource, "tags"),
-				Template: getBool(resource, "template"),
-				Pool:     getString(resource, "pool"),
+				ID:        getInt(resource, "vmid"),
+				Name:      getString(resource, "name"),
+				Node:      nodeName,
+				Type:      resType,
+				Status:    getString(resource, "status"),
+				IP:        getString(resource, "ip"),
+				CPU:       getFloat(resource, "cpu"),
+				Mem:       int64(getFloat(resource, "mem")),
+				MaxMem:    int64(getFloat(resource, "maxmem")),
+				Disk:      int64(getFloat(resource, "disk")),
+				MaxDisk:   int64(getFloat(resource, "maxdisk")),
+				Uptime:    int64(getFloat(resource, "uptime")),
+				DiskRead:  int64(getFloat(resource, "diskread")),
+				DiskWrite: int64(getFloat(resource, "diskwrite")),
+				NetIn:     int64(getFloat(resource, "netin")),
+				NetOut:    int64(getFloat(resource, "netout")),
+				HAState:   getString(resource, "hastate"),
+				Lock:      getString(resource, "lock"),
+				Tags:      getString(resource, "tags"),
+				Template:  getBool(resource, "template"),
+				Pool:      getString(resource, "pool"),
 			})
 		}
 	}
