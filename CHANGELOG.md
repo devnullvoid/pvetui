@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-01-17
+
+### Fixed
+- Fixed VM details panel scroll position to always start at the top
+- Prevents auto-scroll to bottom when displaying QEMU guests with extensive filesystem and network data
+- Ensures consistent user experience where basic VM information (ID, Name, Node, Type, Status) is always visible first
+- Maintains manual scroll functionality for viewing detailed information
+
+### Improved
+- Enhanced user experience for VM details viewing, especially for QEMU guests with rich metadata
+
 ## [0.1.0] - 2025-06-04
 
 ### Added
@@ -42,5 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform SSH client integration
 - Automatic VNC proxy handling through Proxmox API
 
-[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/devnullvoid/proxmox-tui/releases/tag/v0.1.0
