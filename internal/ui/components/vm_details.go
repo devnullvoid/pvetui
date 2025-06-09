@@ -333,6 +333,9 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	} else {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
 	}
+
+	// Scroll to the top to ensure the most important information (basic details) is visible
+	vd.ScrollToBeginning()
 }
 
 // getFriendlyFilesystemName returns a user-friendly name for a filesystem
