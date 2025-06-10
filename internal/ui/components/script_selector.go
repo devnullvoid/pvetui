@@ -206,7 +206,7 @@ func (s *ScriptSelector) createLoadingPage() *tview.Flex {
 	return tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).           // Top padding
-		AddItem(s.loadingText, 6, 0, false). // Loading message (fixed height)
+		AddItem(s.loadingText, 8, 0, false). // Loading message (increased height)
 		AddItem(nil, 0, 1, false)            // Bottom padding
 }
 
@@ -237,10 +237,12 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 
 	// Switch to loading page immediately and set focus
 	s.pages.SwitchToPage("loading")
-	// Set focus to the pages component so the loading page can receive input
-	s.app.SetFocus(s.pages)
-	// Start the loading animation
-	s.startLoadingAnimation()
+	// Set focus to the loading text view so it can receive input
+	s.app.SetFocus(s.loadingText)
+	// Start the loading animation with a small delay to ensure text view is rendered
+	s.app.QueueUpdateDraw(func() {
+		s.startLoadingAnimation()
+	})
 
 	// Fetch scripts in a goroutine to prevent UI blocking
 	go func() {
