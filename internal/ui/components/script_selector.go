@@ -144,19 +144,29 @@ func (s *ScriptSelector) startLoadingAnimation() {
 	s.animationTicker = time.NewTicker(100 * time.Millisecond)
 
 	go func() {
-		for range s.animationTicker.C {
-			if !s.isLoading {
-				break
+		defer func() {
+			if s.animationTicker != nil {
+				s.animationTicker.Stop()
 			}
+		}()
 
-			spinner := spinners[spinnerIndex%len(spinners)]
-			spinnerIndex++
-
-			s.app.QueueUpdateDraw(func() {
-				if s.loadingText != nil {
-					s.loadingText.SetText(fmt.Sprintf("[yellow]Loading Scripts...[white]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]", spinner))
+		for {
+			select {
+			case <-s.animationTicker.C:
+				if !s.isLoading {
+					return
 				}
-			})
+
+				spinner := spinners[spinnerIndex%len(spinners)]
+				spinnerIndex++
+
+				// Use a non-blocking update to prevent deadlocks
+				go s.app.QueueUpdateDraw(func() {
+					if s.loadingText != nil && s.isLoading {
+						s.loadingText.SetText(fmt.Sprintf("[yellow]Loading Scripts...[white]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]", spinner))
+					}
+				})
+			}
 		}
 	}()
 }
@@ -237,12 +247,10 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 
 	// Switch to loading page immediately and set focus
 	s.pages.SwitchToPage("loading")
-	// Set focus to the loading text view so it can receive input
-	s.app.SetFocus(s.loadingText)
-	// Start the loading animation with a small delay to ensure text view is rendered
-	s.app.QueueUpdateDraw(func() {
-		s.startLoadingAnimation()
-	})
+	// Set focus to the pages component so the loading page can receive input
+	s.app.SetFocus(s.pages)
+	// Start the loading animation
+	s.startLoadingAnimation()
 
 	// Fetch scripts in a goroutine to prevent UI blocking
 	go func() {
