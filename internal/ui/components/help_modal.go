@@ -18,7 +18,7 @@ func NewHelpModal() *HelpModal {
 	textView := tview.NewTextView()
 	textView.SetDynamicColors(true)
 	textView.SetScrollable(true)
-	textView.SetWrap(true)
+	textView.SetWrap(false) // Disable wrapping to prevent awkward line breaks
 	textView.SetBorder(true)
 	textView.SetTitle(" Proxmox TUI - Help & Keybindings ")
 	textView.SetTitleColor(tcell.ColorYellow)
@@ -26,7 +26,7 @@ func NewHelpModal() *HelpModal {
 
 	helpText := `[yellow]Navigation:[-]
   [white]Arrow Keys / hjkl[-]         Navigate lists and panels
-  [white]Tab[-]                       Switch between Nodes and Guests tabs
+  [white]Tab[-]                       Switch between Nodes and Guests
   [white]F1[-]                        Switch to Nodes tab
   [white]F2[-]                        Switch to Guests tab
 
@@ -35,7 +35,7 @@ func NewHelpModal() *HelpModal {
   [white]S[-]                         Open SSH shell (node/guest)
   [white]V[-]                         Open VNC console (node/guest)
   [white]M[-]                         Open context menu
-  [white]C[-]                         Install community scripts (nodes only)
+  [white]C[-]                         Install community scripts (nodes)
   [white]R[-]                         Manual refresh
   [white]Q[-]                         Quit application
 
@@ -55,22 +55,22 @@ func NewHelpModal() *HelpModal {
   [white]Enter[-]                     Activate button
 
 [yellow]Search Functionality:[-]
-  [white]Type to filter[-]            Filter nodes/guests by name, ID, or node
+  [white]Type to filter[-]            Filter by name, ID, or node
   [white]Enter/Escape[-]              Exit search mode
   [white]Arrow keys/jk[-]             Navigate filtered results
 
 [yellow]Context Menu Actions:[-]
   [white]Nodes:[-]                    Shell, VNC, Scripts, Refresh
-  [white]Guests:[-]                   Shell, VNC, Start/Stop/Restart, Refresh
+  [white]Guests:[-]                   Shell, VNC, Start/Stop/Restart
 
 [yellow]Tips & Usage:[-]
   • Use search ([white]/[-]) to quickly find nodes or guests
-  • Context menu ([white]M[-]) provides quick access to common actions
+  • Context menu ([white]M[-]) provides quick access to actions
   • VNC opens in your default browser automatically
   • SSH sessions open in new terminal windows
   • Community scripts are installed interactively via SSH
-  • Use [white]hjkl[-] keys for VI-like navigation throughout the interface
-  • All arrow key functionality is preserved alongside hjkl keys
+  • Use [white]hjkl[-] keys for VI-like navigation throughout
+  • All arrow key functionality is preserved alongside hjkl
 
 [yellow]Troubleshooting:[-]
   • If VNC doesn't open, check your default browser settings
@@ -87,16 +87,16 @@ func NewHelpModal() *HelpModal {
 
 	textView.SetText(helpText)
 
-	// Create a flex container to center the text view
+	// Create a flex container to center the text view with better proportions
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
-		AddItem(nil, 0, 1, false). // Left padding
+		AddItem(nil, 0, 1, false). // Left padding (smaller)
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).     // Top padding
-			AddItem(textView, 0, 8, true). // Main content (takes most space)
-			AddItem(nil, 0, 1, false),     // Bottom padding
-						0, 4, true). // Main column (wider)
-		AddItem(nil, 0, 1, false) // Right padding
+			AddItem(nil, 0, 1, false).      // Top padding
+			AddItem(textView, 0, 10, true). // Main content (takes most space)
+			AddItem(nil, 0, 1, false),      // Bottom padding
+						0, 8, true). // Main column (much wider)
+		AddItem(nil, 0, 1, false) // Right padding (smaller)
 
 	// Create pages container
 	pages := tview.NewPages()
