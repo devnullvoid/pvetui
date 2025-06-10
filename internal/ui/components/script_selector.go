@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -30,6 +31,8 @@ type ScriptSelector struct {
 	isForNode            bool
 	isLoading            bool // Track loading state
 	originalInputCapture func(*tcell.EventKey) *tcell.EventKey
+	loadingText          *tview.TextView // For animation updates
+	animationTicker      *time.Ticker    // For loading animation
 }
 
 // NewScriptSelector creates a new script selector dialog
@@ -129,18 +132,56 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	return selector
 }
 
+// startLoadingAnimation starts the loading animation
+func (s *ScriptSelector) startLoadingAnimation() {
+	if s.animationTicker != nil {
+		return // Already running
+	}
+
+	spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	spinnerIndex := 0
+
+	s.animationTicker = time.NewTicker(100 * time.Millisecond)
+
+	go func() {
+		for range s.animationTicker.C {
+			if !s.isLoading {
+				break
+			}
+
+			spinner := spinners[spinnerIndex%len(spinners)]
+			spinnerIndex++
+
+			s.app.QueueUpdateDraw(func() {
+				if s.loadingText != nil {
+					s.loadingText.SetText(fmt.Sprintf("[yellow]Loading Scripts...[white]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]", spinner))
+				}
+			})
+		}
+	}()
+}
+
+// stopLoadingAnimation stops the loading animation
+func (s *ScriptSelector) stopLoadingAnimation() {
+	if s.animationTicker != nil {
+		s.animationTicker.Stop()
+		s.animationTicker = nil
+	}
+}
+
 // createLoadingPage creates a loading indicator page
 func (s *ScriptSelector) createLoadingPage() *tview.Flex {
 	// Create animated loading text
-	loadingText := tview.NewTextView()
-	loadingText.SetDynamicColors(true)
-	loadingText.SetTextAlign(tview.AlignCenter)
-	loadingText.SetText("[yellow]Loading Scripts...[white]\n\n⏳ Fetching scripts from GitHub\n\nThis may take 10-15 seconds\n\n[gray]Press Backspace or Escape to cancel[white]")
+	s.loadingText = tview.NewTextView()
+	s.loadingText.SetDynamicColors(true)
+	s.loadingText.SetTextAlign(tview.AlignCenter)
+	s.loadingText.SetText("[yellow]Loading Scripts...[white]\n\n⏳ Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]")
 
 	// Set up input capture to allow canceling the loading
-	loadingText.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	s.loadingText.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 || event.Key() == tcell.KeyEscape {
 			// Cancel loading and go back to categories
+			s.stopLoadingAnimation()
 			s.isLoading = false
 			s.app.header.StopLoading()
 			s.pages.SwitchToPage("categories")
@@ -150,6 +191,7 @@ func (s *ScriptSelector) createLoadingPage() *tview.Flex {
 			// Handle VI-like navigation
 			switch event.Rune() {
 			case 'h': // VI-like left navigation - go back to categories
+				s.stopLoadingAnimation()
 				s.isLoading = false
 				s.app.header.StopLoading()
 				s.pages.SwitchToPage("categories")
@@ -163,9 +205,9 @@ func (s *ScriptSelector) createLoadingPage() *tview.Flex {
 	// Create the loading page layout
 	return tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(nil, 0, 1, false).         // Top padding
-		AddItem(loadingText, 6, 0, false). // Loading message (fixed height)
-		AddItem(nil, 0, 1, false)          // Bottom padding
+		AddItem(nil, 0, 1, false).           // Top padding
+		AddItem(s.loadingText, 6, 0, false). // Loading message (fixed height)
+		AddItem(nil, 0, 1, false)            // Bottom padding
 }
 
 // createResponsiveLayout creates a layout that adapts to terminal size
@@ -197,6 +239,8 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 	s.pages.SwitchToPage("loading")
 	// Set focus to the pages component so the loading page can receive input
 	s.app.SetFocus(s.pages)
+	// Start the loading animation
+	s.startLoadingAnimation()
 
 	// Fetch scripts in a goroutine to prevent UI blocking
 	go func() {
@@ -205,6 +249,7 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 		// Update UI on the main thread
 		s.app.QueueUpdateDraw(func() {
 			// Stop loading indicator and reset loading state
+			s.stopLoadingAnimation()
 			s.isLoading = false
 			s.app.header.StopLoading()
 
@@ -417,7 +462,8 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 
 // cleanup handles cleanup when the modal is closed
 func (s *ScriptSelector) cleanup() {
-	// Stop loading indicator if it's running
+	// Stop loading animation and indicator if running
+	s.stopLoadingAnimation()
 	if s.isLoading {
 		s.isLoading = false
 		s.app.header.StopLoading()
