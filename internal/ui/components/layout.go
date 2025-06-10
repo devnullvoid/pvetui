@@ -73,4 +73,7 @@ func (a *App) setupComponentConnections() {
 
 	// Configure VM details
 	a.vmDetails.SetApp(a)
+
+	// Configure help modal
+	a.helpModal.SetApp(a)
 }

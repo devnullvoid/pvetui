@@ -20,7 +20,8 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("scriptInfo") ||
 			a.pages.HasPage("scriptSelector") ||
 			a.pages.HasPage("message") ||
-			a.pages.HasPage("confirmation")
+			a.pages.HasPage("confirmation") ||
+			a.pages.HasPage("help")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {
@@ -116,6 +117,14 @@ func (a *App) setupKeyboardHandlers() {
 				} else if currentPage == api.PageGuests {
 					// Handle VM VNC console session
 					a.openVMVNC()
+				}
+				return nil
+			} else if event.Rune() == '?' {
+				// Toggle help modal
+				if a.pages.HasPage("help") {
+					a.helpModal.Hide()
+				} else {
+					a.helpModal.Show()
 				}
 				return nil
 			}

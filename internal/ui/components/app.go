@@ -22,6 +22,7 @@ type App struct {
 	nodeDetails     *NodeDetails
 	vmDetails       *VMDetails
 	clusterStatus   *ClusterStatus
+	helpModal       *HelpModal
 	mainLayout      *tview.Flex
 	searchInput     *tview.InputField
 	contextMenu     *tview.List
@@ -59,6 +60,7 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	app.nodeDetails = NewNodeDetails()
 	app.vmDetails = NewVMDetails()
 	app.clusterStatus = NewClusterStatus()
+	app.helpModal = NewHelpModal()
 	app.pages = tview.NewPages()
 
 	// Initialize global state and set up background enrichment callback
