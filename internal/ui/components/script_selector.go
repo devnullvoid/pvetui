@@ -106,7 +106,7 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		AddItem(tview.NewTextView().
 								SetText("Select a Script to Install (Backspace: Back)").
 								SetTextAlign(tview.AlignCenter), 1, 0, false).
-		AddItem(selector.scriptList, 18, 0, true). // Fixed height of 18 rows
+		AddItem(selector.scriptList, 0, 1, true). // Flexible height
 		AddItem(backButtonContainer, 1, 0, false)
 
 	// Add pages
@@ -119,16 +119,24 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		SetTitleColor(tcell.ColorYellow)
 		// SetBorderColor(tcell.ColorBlue)
 
-	// Use the pages component directly as the layout
-	selector.layout = tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(selector.pages, 22, 0, true).
-			AddItem(nil, 0, 1, false), 80, 0, true).
-		AddItem(nil, 0, 1, false)
+	// Create a responsive layout that adapts to terminal size
+	selector.layout = selector.createResponsiveLayout()
 
 	return selector
+}
+
+// createResponsiveLayout creates a layout that adapts to terminal size
+func (s *ScriptSelector) createResponsiveLayout() *tview.Flex {
+	// Create a responsive layout using proportional sizing with better ratios
+	return tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(nil, 0, 1, false). // Left padding (flexible)
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).    // Top padding (flexible, smaller)
+			AddItem(s.pages, 0, 8, true). // Main content (takes most space)
+			AddItem(nil, 0, 1, false),    // Bottom padding (flexible, smaller)
+						0, 6, true). // Main column (wider than before)
+		AddItem(nil, 0, 1, false) // Right padding (flexible)
 }
 
 // fetchScriptsForCategory fetches scripts for the selected category
