@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Multiple exit options (?, Escape, q)
   - Professional styling with proper sizing and formatting
   - Includes troubleshooting tips and usage guidance
+- **Script Selector Enhancements**: Major improvements to community scripts installation UI
+  - Responsive modal layout that adapts to terminal size with min/max constraints
+  - Animated loading indicator with smooth Unicode spinner during GitHub API calls
+  - In-modal loading screen with clear progress feedback and time expectations
+  - Cancel functionality during loading (Backspace, Escape, h key)
+  - Professional loading states that prevent UI freeze perception
 
 ### Improved
 - **Footer Simplification**: Streamlined footer from crowded keybindings to clean essentials
@@ -31,12 +37,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No need to reference external documentation for basic usage
   - Context-aware help with detailed explanations
   - Better onboarding experience for new users
+- **Script Selector Modal**: Enhanced community scripts installation experience
+  - Improved modal positioning to prevent clipping in small terminal windows
+  - Dynamic height with flexible content scaling instead of fixed dimensions
+  - Better visual feedback during 10-15 second GitHub script fetching operations
+  - More user-friendly messaging ("may take a moment" vs specific time ranges)
+  - Enhanced error handling and graceful fallbacks
 
 ### Technical Improvements
 - Enhanced keyboard event handling with `tcell.KeyRune` for hjkl support
 - Improved modal system using `tview.Pages` for better sizing control
 - Better focus management and input capture throughout the interface
 - Cleaner code organization with consistent event handling patterns
+- Advanced animation system with proper goroutine management and cleanup
+- Responsive layout calculations with proportional sizing (6:1 ratios)
+- Non-blocking UI updates with proper QueueUpdateDraw handling
+- Deadlock prevention in concurrent loading operations
 
 ## [0.1.1] - 2025-06-09
 
