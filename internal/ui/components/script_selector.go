@@ -109,9 +109,13 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 		AddItem(selector.scriptList, 0, 1, true). // Flexible height
 		AddItem(backButtonContainer, 1, 0, false)
 
+	// Create loading page
+	loadingPage := selector.createLoadingPage()
+
 	// Add pages
 	selector.pages.AddPage("categories", categoryPage, true, true)
 	selector.pages.AddPage("scripts", scriptPage, true, false)
+	selector.pages.AddPage("loading", loadingPage, true, false)
 
 	// Set border and title directly on the pages component
 	selector.pages.SetBorder(true).
@@ -123,6 +127,45 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	selector.layout = selector.createResponsiveLayout()
 
 	return selector
+}
+
+// createLoadingPage creates a loading indicator page
+func (s *ScriptSelector) createLoadingPage() *tview.Flex {
+	// Create animated loading text
+	loadingText := tview.NewTextView()
+	loadingText.SetDynamicColors(true)
+	loadingText.SetTextAlign(tview.AlignCenter)
+	loadingText.SetText("[yellow]Loading Scripts...[white]\n\n⏳ Fetching scripts from GitHub\n\nThis may take 10-15 seconds\n\n[gray]Press Backspace or Escape to cancel[white]")
+
+	// Set up input capture to allow canceling the loading
+	loadingText.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 || event.Key() == tcell.KeyEscape {
+			// Cancel loading and go back to categories
+			s.isLoading = false
+			s.app.header.StopLoading()
+			s.pages.SwitchToPage("categories")
+			s.app.SetFocus(s.categoryList)
+			return nil
+		} else if event.Key() == tcell.KeyRune {
+			// Handle VI-like navigation
+			switch event.Rune() {
+			case 'h': // VI-like left navigation - go back to categories
+				s.isLoading = false
+				s.app.header.StopLoading()
+				s.pages.SwitchToPage("categories")
+				s.app.SetFocus(s.categoryList)
+				return nil
+			}
+		}
+		return event
+	})
+
+	// Create the loading page layout
+	return tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(nil, 0, 1, false).         // Top padding
+		AddItem(loadingText, 6, 0, false). // Loading message (fixed height)
+		AddItem(nil, 0, 1, false)          // Bottom padding
 }
 
 // createResponsiveLayout creates a layout that adapts to terminal size
@@ -146,9 +189,14 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 		return
 	}
 
-	// Show loading indicator
+	// Show loading indicator both in header and in modal
 	s.isLoading = true
 	s.app.header.ShowLoading(fmt.Sprintf("Fetching %s scripts", category.Name))
+
+	// Switch to loading page immediately and set focus
+	s.pages.SwitchToPage("loading")
+	// Set focus to the pages component so the loading page can receive input
+	s.app.SetFocus(s.pages)
 
 	// Fetch scripts in a goroutine to prevent UI blocking
 	go func() {
