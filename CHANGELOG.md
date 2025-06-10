@@ -7,7 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.1] - 2025-01-17
+### Added
+- **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
+  - `h` = left/go back, `j` = down, `k` = up, `l` = right/select/enter
+  - Works in all lists, details panels, and modals
+  - Maintains full backward compatibility with arrow keys
+- **Help Modal**: Added comprehensive help system accessible with `?` key
+  - Detailed keybindings reference organized by category
+  - Scrollable content with VI-like navigation (j/k keys)
+  - Multiple exit options (?, Escape, q)
+  - Professional styling with proper sizing and formatting
+  - Includes troubleshooting tips and usage guidance
+
+### Improved
+- **Footer Simplification**: Streamlined footer from crowded keybindings to clean essentials
+  - Changed from: `F1:Nodes F2:Guests /:Search S:Shell V:VNC C:Scripts M:Menu Tab:Next Tab hjkl:Navigate Q:Quit`
+  - To: `Tab:Switch /:Search M:Menu ?:Help Q:Quit`
+  - Much cleaner and less overwhelming user experience
+- **Navigation Consistency**: All UI components now support both arrow keys and hjkl navigation
+  - Node list, node details, VM list, VM details, script selector, context menu
+  - Consistent behavior across all interface elements
+- **Help System**: Comprehensive documentation accessible within the application
+  - No need to reference external documentation for basic usage
+  - Context-aware help with detailed explanations
+  - Better onboarding experience for new users
+
+### Technical Improvements
+- Enhanced keyboard event handling with `tcell.KeyRune` for hjkl support
+- Improved modal system using `tview.Pages` for better sizing control
+- Better focus management and input capture throughout the interface
+- Cleaner code organization with consistent event handling patterns
+
+## [0.1.1] - 2025-06-09
 
 ### Fixed
 - Fixed VM details panel scroll position to always start at the top
