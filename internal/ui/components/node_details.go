@@ -34,12 +34,28 @@ func NewNodeDetails() *NodeDetails {
 func (nd *NodeDetails) SetApp(app *App) {
 	nd.app = app
 
-	// Set up input capture for arrow keys
+	// Set up input capture for arrow keys and VI-like navigation (hjkl)
 	nd.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyLeft:
 			if nd.app != nil {
 				nd.app.SetFocus(nd.app.nodeList)
+				return nil
+			}
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'h': // VI-like left navigation
+				if nd.app != nil {
+					nd.app.SetFocus(nd.app.nodeList)
+					return nil
+				}
+			case 'j': // VI-like down navigation
+				// Let the table handle down navigation naturally
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k': // VI-like up navigation
+				// Let the table handle up navigation naturally
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			case 'l': // VI-like right navigation - no action for node details (already at rightmost)
 				return nil
 			}
 		}

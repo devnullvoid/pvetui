@@ -215,6 +215,20 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 						// Tab to the back button
 						s.app.SetFocus(s.backButton)
 						return nil
+					} else if event.Key() == tcell.KeyRune {
+						// Handle VI-like navigation (hjkl)
+						switch event.Rune() {
+						case 'j': // VI-like down navigation
+							return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+						case 'k': // VI-like up navigation
+							return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+						case 'h': // VI-like left navigation - go back to categories
+							s.pages.SwitchToPage("categories")
+							s.app.SetFocus(s.categoryList)
+							return nil
+						case 'l': // VI-like right navigation - no action (already at rightmost)
+							return nil
+						}
 					}
 					// Let all other keys (including arrows) pass through normally
 					return event
@@ -421,6 +435,24 @@ func (s *ScriptSelector) Show() {
 			// Backspace on category list closes the modal (handle both backspace variants)
 			s.cleanup()
 			return nil
+		} else if event.Key() == tcell.KeyRune {
+			// Handle VI-like navigation (hjkl)
+			switch event.Rune() {
+			case 'j': // VI-like down navigation
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k': // VI-like up navigation
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			case 'h': // VI-like left navigation - close modal
+				s.cleanup()
+				return nil
+			case 'l': // VI-like right navigation - select category (same as Enter)
+				idx := s.categoryList.GetCurrentItem()
+				if idx >= 0 && idx < len(s.categories) {
+					category := s.categories[idx]
+					s.fetchScriptsForCategory(category)
+				}
+				return nil
+			}
 		}
 		// Let arrow keys pass through for navigation
 		return event

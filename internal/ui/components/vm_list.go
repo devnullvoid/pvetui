@@ -37,12 +37,28 @@ func NewVMList() *VMList {
 func (vl *VMList) SetApp(app *App) {
 	vl.app = app
 
-	// Set up input capture for arrow keys
+	// Set up input capture for arrow keys and VI-like navigation (hjkl)
 	vl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRight:
 			if vl.app != nil {
 				vl.app.SetFocus(vl.app.vmDetails)
+				return nil
+			}
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'l': // VI-like right navigation
+				if vl.app != nil {
+					vl.app.SetFocus(vl.app.vmDetails)
+					return nil
+				}
+			case 'j': // VI-like down navigation
+				// Let the list handle down navigation naturally
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k': // VI-like up navigation
+				// Let the list handle up navigation naturally
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			case 'h': // VI-like left navigation - no action for VM list (already at leftmost)
 				return nil
 			}
 		}

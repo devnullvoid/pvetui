@@ -36,12 +36,28 @@ func NewVMDetails() *VMDetails {
 func (vd *VMDetails) SetApp(app *App) {
 	vd.app = app
 
-	// Set up input capture for arrow keys
+	// Set up input capture for arrow keys and VI-like navigation (hjkl)
 	vd.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyLeft:
 			if vd.app != nil {
 				vd.app.SetFocus(vd.app.vmList)
+				return nil
+			}
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'h': // VI-like left navigation
+				if vd.app != nil {
+					vd.app.SetFocus(vd.app.vmList)
+					return nil
+				}
+			case 'j': // VI-like down navigation
+				// Let the table handle down navigation naturally
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k': // VI-like up navigation
+				// Let the table handle up navigation naturally
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			case 'l': // VI-like right navigation - no action for VM details (already at rightmost)
 				return nil
 			}
 		}

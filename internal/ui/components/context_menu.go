@@ -62,11 +62,35 @@ func (cm *ContextMenu) Show() *tview.List {
 		}
 	})
 
-	// Setup input capture to close on escape
+	// Setup input capture to close on escape and handle VI-like navigation
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape && cm.app != nil {
 			cm.app.CloseContextMenu()
 			return nil
+		} else if event.Key() == tcell.KeyRune {
+			// Handle VI-like navigation (hjkl)
+			switch event.Rune() {
+			case 'j': // VI-like down navigation
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k': // VI-like up navigation
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			case 'h': // VI-like left navigation - close menu
+				if cm.app != nil {
+					cm.app.CloseContextMenu()
+				}
+				return nil
+			case 'l': // VI-like right navigation - select item (same as Enter)
+				index := list.GetCurrentItem()
+				if index >= 0 && index < len(cm.menuItems) {
+					if cm.app != nil {
+						cm.app.CloseContextMenu()
+					}
+					if cm.onAction != nil {
+						cm.onAction(index, cm.menuItems[index])
+					}
+				}
+				return nil
+			}
 		}
 		return event
 	})
