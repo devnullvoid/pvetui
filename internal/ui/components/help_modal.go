@@ -7,65 +7,104 @@ import (
 
 // HelpModal represents a modal dialog showing keybindings and usage information
 type HelpModal struct {
-	*tview.Modal
-	app *App
+	*tview.Pages
+	app      *App
+	textView *tview.TextView
 }
 
 // NewHelpModal creates a new help modal
 func NewHelpModal() *HelpModal {
-	modal := tview.NewModal()
+	// Create a scrollable text view for the help content
+	textView := tview.NewTextView()
+	textView.SetDynamicColors(true)
+	textView.SetScrollable(true)
+	textView.SetWrap(true)
+	textView.SetBorder(true)
+	textView.SetTitle(" Proxmox TUI - Help & Keybindings ")
+	textView.SetTitleColor(tcell.ColorYellow)
+	textView.SetBorderColor(tcell.ColorYellow)
 
-	helpText := `[yellow]Proxmox TUI - Help & Keybindings[-]
-
-[yellow]Navigation:[-]
-  [white]Arrow Keys / hjkl[-]    Navigate lists and panels
-  [white]Tab[-]                  Switch between Nodes and Guests tabs
-  [white]F1[-]                   Switch to Nodes tab
-  [white]F2[-]                   Switch to Guests tab
+	helpText := `[yellow]Navigation:[-]
+  [white]Arrow Keys / hjkl[-]         Navigate lists and panels
+  [white]Tab[-]                       Switch between Nodes and Guests tabs
+  [white]F1[-]                        Switch to Nodes tab
+  [white]F2[-]                        Switch to Guests tab
 
 [yellow]Actions:[-]
-  [white]/[-]                    Search/Filter current list
-  [white]S[-]                    Open SSH shell (node/guest)
-  [white]V[-]                    Open VNC console (node/guest)
-  [white]M[-]                    Open context menu
-  [white]C[-]                    Install community scripts (nodes only)
-  [white]R[-]                    Manual refresh
-  [white]Q[-]                    Quit application
+  [white]/[-]                         Search/Filter current list
+  [white]S[-]                         Open SSH shell (node/guest)
+  [white]V[-]                         Open VNC console (node/guest)
+  [white]M[-]                         Open context menu
+  [white]C[-]                         Install community scripts (nodes only)
+  [white]R[-]                         Manual refresh
+  [white]Q[-]                         Quit application
 
 [yellow]VI-like Navigation:[-]
-  [white]h[-]                    Move left / Go back
-  [white]j[-]                    Move down
-  [white]k[-]                    Move up
-  [white]l[-]                    Move right / Select/Enter
+  [white]h[-]                         Move left / Go back
+  [white]j[-]                         Move down
+  [white]k[-]                         Move up
+  [white]l[-]                         Move right / Select/Enter
 
 [yellow]In Lists:[-]
-  [white]Enter[-]                Select item
-  [white]Escape[-]               Close modal/search
+  [white]Enter[-]                     Select item
+  [white]Escape[-]                    Close modal/search
 
 [yellow]In Modals:[-]
-  [white]Escape[-]               Close modal
-  [white]Tab[-]                  Navigate between buttons
-  [white]Enter[-]                Activate button
+  [white]Escape[-]                    Close modal
+  [white]Tab[-]                       Navigate between buttons
+  [white]Enter[-]                     Activate button
 
-[yellow]Tips:[-]
-  • Use search (/) to quickly find nodes or guests
-  • Context menu (M) provides quick access to common actions
-  • VNC opens in your default browser
+[yellow]Search Functionality:[-]
+  [white]Type to filter[-]            Filter nodes/guests by name, ID, or node
+  [white]Enter/Escape[-]              Exit search mode
+  [white]Arrow keys/jk[-]             Navigate filtered results
+
+[yellow]Context Menu Actions:[-]
+  [white]Nodes:[-]                    Shell, VNC, Scripts, Refresh
+  [white]Guests:[-]                   Shell, VNC, Start/Stop/Restart, Refresh
+
+[yellow]Tips & Usage:[-]
+  • Use search ([white]/[-]) to quickly find nodes or guests
+  • Context menu ([white]M[-]) provides quick access to common actions
+  • VNC opens in your default browser automatically
   • SSH sessions open in new terminal windows
-  • Community scripts are installed interactively
+  • Community scripts are installed interactively via SSH
+  • Use [white]hjkl[-] keys for VI-like navigation throughout the interface
+  • All arrow key functionality is preserved alongside hjkl keys
 
-[yellow]Press ? again or Escape to close this help[-]`
+[yellow]Troubleshooting:[-]
+  • If VNC doesn't open, check your default browser settings
+  • SSH requires proper key-based authentication or password
+  • Community scripts require internet access on the target node
+  • Use [white]R[-] to manually refresh if data seems stale
 
-	modal.SetText(helpText).
-		SetBackgroundColor(tcell.ColorBlack).
-		SetTextColor(tcell.ColorWhite).
-		AddButtons([]string{"Close"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			// Close the help modal when any button is pressed
-		})
+[yellow]Scrolling in Help:[-]
+  [white]Arrow Keys / jk[-]           Scroll up/down through help content
+  [white]Page Up/Down[-]              Scroll by page
+  [white]Home/End[-]                  Go to top/bottom
+
+[gray]Press [white]?[-][gray] again, [white]Escape[-][gray], or [white]q[-][gray] to exit this help[-]`
+
+	textView.SetText(helpText)
+
+	// Create a flex container to center the text view
+	flex := tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(nil, 0, 1, false). // Left padding
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).     // Top padding
+			AddItem(textView, 0, 8, true). // Main content (takes most space)
+			AddItem(nil, 0, 1, false),     // Bottom padding
+						0, 4, true). // Main column (wider)
+		AddItem(nil, 0, 1, false) // Right padding
+
+	// Create pages container
+	pages := tview.NewPages()
+	pages.AddPage("help-content", flex, true, true)
 
 	return &HelpModal{
-		Modal: modal,
+		Pages:    pages,
+		textView: textView,
 	}
 }
 
@@ -77,22 +116,25 @@ func (hm *HelpModal) SetApp(app *App) {
 // Show displays the help modal
 func (hm *HelpModal) Show() {
 	if hm.app != nil {
-		// Set up input capture to handle ? and Escape keys
-		hm.Modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			if event.Key() == tcell.KeyEscape || (event.Key() == tcell.KeyRune && event.Rune() == '?') {
+		// Set up input capture to handle ?, Escape, and q keys, plus scrolling
+		hm.textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch {
+			case event.Key() == tcell.KeyEscape ||
+				(event.Key() == tcell.KeyRune && (event.Rune() == '?' || event.Rune() == 'q')):
 				hm.Hide()
 				return nil
+			case event.Key() == tcell.KeyRune && event.Rune() == 'j':
+				// VI-like down scrolling
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case event.Key() == tcell.KeyRune && event.Rune() == 'k':
+				// VI-like up scrolling
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
 			}
 			return event
 		})
 
-		// Set done function to close modal when Close button is pressed
-		hm.Modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			hm.Hide()
-		})
-
-		hm.app.pages.AddPage("help", hm.Modal, true, true)
-		hm.app.SetFocus(hm.Modal)
+		hm.app.pages.AddPage("help", hm.Pages, true, true)
+		hm.app.SetFocus(hm.textView)
 	}
 }
 
