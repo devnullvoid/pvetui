@@ -83,7 +83,7 @@ func getScriptsLogger() interfaces.Logger {
 		}
 		var err error
 		// Always use our new internal logger system
-		scriptsLogger, err = logger.NewInternalLogger(level)
+		scriptsLogger, err = logger.NewInternalLogger(level, ".")
 		if err != nil {
 			// Fallback to simple logger if file logging fails
 			scriptsLogger = logger.NewSimpleLogger(level)

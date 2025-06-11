@@ -55,9 +55,9 @@ type Config struct {
 	TimeFormat string
 }
 
-// NewInternalLoggerWithCacheDir creates a logger that stores logs in the specified cache directory
+// NewInternalLogger creates a logger that stores logs in the specified cache directory
 // This is designed for TUI applications where stdout logging would interfere with the UI
-func NewInternalLoggerWithCacheDir(level Level, cacheDir string) (*Logger, error) {
+func NewInternalLogger(level Level, cacheDir string) (*Logger, error) {
 	// Use the provided cache directory for log files
 	logsDir := cacheDir
 	if logsDir == "" {
@@ -165,14 +165,6 @@ func NewDualLogger(level Level, logFile string) (*Logger, error) {
 		LogFile:   logFile,
 	}
 	return NewLogger(config)
-}
-
-// NewInternalLogger creates a logger for internal packages that logs to a default file
-// This is designed for TUI applications where stdout logging would interfere with the UI
-// Deprecated: Use NewInternalLoggerWithCacheDir instead to specify cache directory
-func NewInternalLogger(level Level) (*Logger, error) {
-	// Fallback to current directory for backward compatibility
-	return NewInternalLoggerWithCacheDir(level, ".")
 }
 
 // formatMessage creates a formatted log message with timestamp and level

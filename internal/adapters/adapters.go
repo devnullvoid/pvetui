@@ -36,7 +36,7 @@ func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 	}
 
 	// Use the new cache-aware logger system
-	internalLogger, err := logger.NewInternalLoggerWithCacheDir(level, cfg.CacheDir)
+	internalLogger, err := logger.NewInternalLogger(level, cfg.CacheDir)
 	if err != nil {
 		// Fallback to simple logger if file logging fails
 		internalLogger = logger.NewSimpleLogger(level)
