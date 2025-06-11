@@ -259,6 +259,7 @@ func NewMemoryCache() *FileCache {
 var (
 	globalCache     Cache
 	cacheLogger     interfaces.Logger
+	globalCacheDir  string
 	once            sync.Once
 	cacheLoggerOnce sync.Once
 )
@@ -273,8 +274,15 @@ func getCacheLogger() interfaces.Logger {
 			level = logger.LevelDebug
 		}
 		var err error
-		// Always use our new internal logger system
-		cacheLogger, err = logger.NewInternalLogger(level)
+
+		// Use the global cache directory if available, otherwise fallback to current directory
+		cacheDir := globalCacheDir
+		if cacheDir == "" {
+			cacheDir = "."
+		}
+
+		// Always use our new internal logger system with the cache directory
+		cacheLogger, err = logger.NewInternalLoggerWithCacheDir(level, cacheDir)
 		if err != nil {
 			// Fallback to simple logger if file logging fails
 			cacheLogger = logger.NewSimpleLogger(level)
@@ -288,6 +296,9 @@ func InitGlobalCache(cacheDir string) error {
 	var err error
 
 	once.Do(func() {
+		// Store the cache directory globally for logger initialization
+		globalCacheDir = cacheDir
+
 		// Create cache directory if it doesn't exist
 		if err = os.MkdirAll(cacheDir, 0755); err != nil {
 			err = fmt.Errorf("failed to create cache directory: %w", err)

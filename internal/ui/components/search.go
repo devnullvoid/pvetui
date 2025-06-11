@@ -3,7 +3,7 @@ package components
 import (
 	"strings"
 
-	// "github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 
 	"github.com/gdamore/tcell/v2"
@@ -54,7 +54,7 @@ func (a *App) activateSearch() {
 		if a.mainLayout.GetItemCount() > 4 {
 			a.mainLayout.RemoveItem(a.searchInput)
 		}
-		if currentPage == "Nodes" {
+		if currentPage == api.PageNodes {
 			a.SetFocus(a.nodeList)
 		} else {
 			a.SetFocus(a.vmList)
@@ -120,7 +120,7 @@ func (a *App) activateSearch() {
 			state.Filter = filterTerm
 		}
 
-		if currentPage == "Nodes" {
+		if currentPage == api.PageNodes {
 			// Use our common filter function for nodes
 			models.FilterNodes(filterTerm)
 			updateNodeSelection()

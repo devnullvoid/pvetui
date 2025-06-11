@@ -20,8 +20,8 @@ func (a *App) createMainLayout() *tview.Flex {
 		AddItem(a.vmDetails, 0, 2, false)
 
 	// Add pages
-	a.pages.AddPage("Nodes", nodesPage, true, true)
-	a.pages.AddPage("Guests", vmsPage, true, false)
+	a.pages.AddPage(api.PageNodes, nodesPage, true, true)
+	a.pages.AddPage(api.PageGuests, vmsPage, true, false)
 
 	// Build main layout
 	return tview.NewFlex().

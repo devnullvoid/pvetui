@@ -3,6 +3,8 @@
 .cursor/
 config.yml
 /proxmox-tui
+/proxmox-tui.log
+/bin/
 
 # Runtime logs (now stored in XDG cache directory)
 # logs/ - removed since logs are now in ~/.cache/proxmox-tui/

@@ -28,7 +28,7 @@ help: ## Show this help message
 # Go targets
 build: ## Build the application binary
 	@printf "$(GREEN)Building $(APP_NAME)...$(NC)\n"
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo -o $(APP_NAME) ./cmd/proxmox-tui
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo -o ./bin/$(APP_NAME) ./cmd/proxmox-tui
 
 test: ## Run tests
 	@printf "$(GREEN)Running tests...$(NC)\n"

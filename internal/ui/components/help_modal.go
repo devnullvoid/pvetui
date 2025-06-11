@@ -3,6 +3,8 @@ package components
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // HelpModal represents a modal dialog showing keybindings and usage information
@@ -144,9 +146,9 @@ func (hm *HelpModal) Hide() {
 		hm.app.pages.RemovePage("help")
 		// Restore focus to the appropriate component based on current page
 		pageName, _ := hm.app.pages.GetFrontPage()
-		if pageName == "Nodes" {
+		if pageName == api.PageNodes {
 			hm.app.SetFocus(hm.app.nodeList)
-		} else if pageName == "Guests" {
+		} else if pageName == api.PageGuests {
 			hm.app.SetFocus(hm.app.vmList)
 		}
 	}

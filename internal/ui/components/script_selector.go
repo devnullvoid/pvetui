@@ -150,23 +150,20 @@ func (s *ScriptSelector) startLoadingAnimation() {
 			}
 		}()
 
-		for {
-			select {
-			case <-s.animationTicker.C:
-				if !s.isLoading {
-					return
-				}
-
-				spinner := spinners[spinnerIndex%len(spinners)]
-				spinnerIndex++
-
-				// Use a non-blocking update to prevent deadlocks
-				go s.app.QueueUpdateDraw(func() {
-					if s.loadingText != nil && s.isLoading {
-						s.loadingText.SetText(fmt.Sprintf("[yellow]Loading Scripts...[white]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]", spinner))
-					}
-				})
+		for range s.animationTicker.C {
+			if !s.isLoading {
+				return
 			}
+
+			spinner := spinners[spinnerIndex%len(spinners)]
+			spinnerIndex++
+
+			// Use a non-blocking update to prevent deadlocks
+			go s.app.QueueUpdateDraw(func() {
+				if s.loadingText != nil && s.isLoading {
+					s.loadingText.SetText(fmt.Sprintf("[yellow]Loading Scripts...[white]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]", spinner))
+				}
+			})
 		}
 	}()
 }
