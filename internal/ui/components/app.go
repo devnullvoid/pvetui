@@ -1,7 +1,6 @@
 package components
 
 import (
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
@@ -33,27 +32,20 @@ type App struct {
 
 // NewApp creates a new application instance with all UI components
 func NewApp(client *api.Client, cfg *config.Config) *App {
+	logger := models.GetUILogger()
+	logger.Debug("Creating new App instance")
+
 	app := &App{
 		Application: tview.NewApplication(),
 		client:      client,
 		config:      *cfg,
+		pages:       tview.NewPages(),
 	}
 
-	// Set application theme and background color
-	// tview.Styles.PrimitiveBackgroundColor = tcell.ColorBlack
-	tview.Styles.ContrastBackgroundColor = tcell.ColorGray
-	// tview.Styles.MoreContrastBackgroundColor = tcell.ColorDarkGray
-	// tview.Styles.BorderColor = tcell.ColorWhite
-	// tview.Styles.TitleColor = tcell.ColorWhite
-	// tview.Styles.PrimaryTextColor = tcell.ColorWhite
-	// tview.Styles.SecondaryTextColor = tcell.ColorYellow
-	// tview.Styles.TertiaryTextColor = tcell.ColorGreen
-	tview.Styles.InverseTextColor = tcell.ColorBlack
-	// tview.Styles.ContrastSecondaryTextColor = tcell.ColorGray
+	logger.Debug("Initializing UI components")
 
-	// Create UI components
+	// Initialize components
 	app.header = NewHeader()
-	app.header.SetApp(app.Application) // Set app reference for loading animations
 	app.footer = NewFooter()
 	app.nodeList = NewNodeList()
 	app.vmList = NewVMList()
@@ -61,19 +53,22 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	app.vmDetails = NewVMDetails()
 	app.clusterStatus = NewClusterStatus()
 	app.helpModal = NewHelpModal()
-	app.pages = tview.NewPages()
 
-	// Initialize global state and set up background enrichment callback
-	// Always call FastGetClusterStatus with callback to ensure background enrichment happens
+	// Set app reference for components that need it
+	app.header.SetApp(app.Application)
+
+	logger.Debug("Loading initial cluster data")
+
+	// Load initial data with error handling
 	if _, err := client.FastGetClusterStatus(func() {
 		// This callback is called when background VM enrichment completes
+		logger.Debug("VM enrichment callback triggered")
 		app.QueueUpdateDraw(func() {
-			// Debug: Log that the callback fired
-			// TODO: Remove this debug log after testing
-			app.header.ShowLoading("Processing enriched VM data...")
+			logger.Debug("Processing enriched VM data")
 
 			// Update the cluster status display
 			if client.Cluster != nil {
+				logger.Debug("Updating cluster status with %d nodes", len(client.Cluster.Nodes))
 				app.clusterStatus.Update(client.Cluster)
 			}
 
@@ -91,6 +86,8 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 				}
 			}
 
+			logger.Debug("Found %d enriched VMs", len(enrichedVMs))
+
 			// Update global state with enriched VM data
 			if len(enrichedVMs) > 0 {
 				models.GlobalState.OriginalVMs = make([]*api.VM, len(enrichedVMs))
@@ -100,10 +97,12 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 
 				// Update the VM list display
 				app.vmList.SetVMs(models.GlobalState.FilteredVMs)
+				logger.Debug("Updated VM list with enriched data")
 			}
 
 			// Refresh the currently selected VM details if there is one
 			if selectedVM := app.vmList.GetSelectedVM(); selectedVM != nil {
+				logger.Debug("Refreshing details for selected VM: %s", selectedVM.Name)
 				// Find the enriched version of the selected VM
 				for _, enrichedVM := range enrichedVMs {
 					if enrichedVM.ID == selectedVM.ID && enrichedVM.Node == selectedVM.Node {
@@ -115,11 +114,15 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 
 			// Show a subtle notification that enrichment is complete
 			app.header.ShowSuccess("Guest agent data loaded")
+			logger.Debug("VM enrichment completed successfully")
 		})
 	}); err != nil {
+		logger.Error("Failed to load cluster status: %v", err)
 		app.header.ShowError("Failed to connect to Proxmox API: " + err.Error())
 		// Continue with empty state rather than crashing
 	}
+
+	logger.Debug("Initializing VM list from cluster data")
 
 	// Initialize VM list from all nodes
 	var vms []*api.VM
@@ -135,6 +138,8 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 		}
 	}
 
+	logger.Debug("Found %d VMs across all nodes", len(vms))
+
 	models.GlobalState = models.State{
 		SearchStates:  make(map[string]*models.SearchState),
 		OriginalNodes: make([]*api.Node, 0),
@@ -144,6 +149,7 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	}
 
 	if client.Cluster != nil {
+		logger.Debug("Initializing node state with %d nodes", len(client.Cluster.Nodes))
 		models.GlobalState.OriginalNodes = make([]*api.Node, len(client.Cluster.Nodes))
 		models.GlobalState.FilteredNodes = make([]*api.Node, len(client.Cluster.Nodes))
 		copy(models.GlobalState.OriginalNodes, client.Cluster.Nodes)
@@ -151,6 +157,8 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	}
 	copy(models.GlobalState.OriginalVMs, vms)
 	copy(models.GlobalState.FilteredVMs, vms)
+
+	logger.Debug("Setting up component connections")
 
 	// Set up component connections
 	app.setupComponentConnections()
@@ -165,14 +173,25 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	app.SetRoot(app.mainLayout, true)
 	app.SetFocus(app.nodeList)
 
+	logger.Debug("App initialization completed successfully")
+
 	return app
 }
 
 // Run starts the application
 func (a *App) Run() error {
+	logger := models.GetUILogger()
+	logger.Debug("Starting application")
+
 	// We're disabling automatic background refresh to prevent UI issues
 	// The user can manually refresh with a key if needed
 
 	// Start the app
-	return a.Application.Run()
+	err := a.Application.Run()
+	if err != nil {
+		logger.Error("Application run failed: %v", err)
+	} else {
+		logger.Debug("Application stopped normally")
+	}
+	return err
 }

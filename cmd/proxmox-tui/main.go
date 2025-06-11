@@ -14,6 +14,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/internal/ui"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -87,6 +88,10 @@ func main() {
 	}
 	mainLogger.Debug("Debug mode enabled")
 
+	// Set the shared logger for UI components
+	loggerAdapter := adapters.NewLoggerAdapter(cfg)
+	models.SetUILogger(loggerAdapter)
+
 	// Create cache directory if it doesn't exist
 	if cfg.CacheDir != "" {
 		if mkdirErr := os.MkdirAll(cfg.CacheDir, 0755); mkdirErr != nil {
@@ -133,7 +138,6 @@ func main() {
 
 	// Create adapters for our internal implementations
 	configAdapter := adapters.NewConfigAdapter(cfg)
-	loggerAdapter := adapters.NewLoggerAdapter(cfg)
 	cacheAdapter := adapters.NewCacheAdapter()
 
 	// Create the new client with dependency injection

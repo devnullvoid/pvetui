@@ -3,7 +3,6 @@ package models
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/rivo/tview"
 
@@ -44,29 +43,25 @@ var GlobalState = State{
 	OriginalVMs:   make([]*api.VM, 0),
 }
 
-// UI logger instance
-var (
-	uiLogger     interfaces.Logger
-	uiLoggerOnce sync.Once
-)
+// UI logger instance - will be set by the main application
+var uiLogger interfaces.Logger
 
-// getUILogger returns the UI logger, initializing it if necessary
-func getUILogger() interfaces.Logger {
-	uiLoggerOnce.Do(func() {
-		// Create a logger for UI operations that logs to file
-		level := logger.LevelInfo
-		if config.DebugEnabled {
-			level = logger.LevelDebug
-		}
-		var err error
-		// Always use our new internal logger system
-		uiLogger, err = logger.NewInternalLogger(level)
-		if err != nil {
-			// Fallback to simple logger if file logging fails
-			uiLogger = logger.NewSimpleLogger(level)
-		}
-	})
-	return uiLogger
+// SetUILogger sets the shared logger instance for UI components
+func SetUILogger(logger interfaces.Logger) {
+	uiLogger = logger
+}
+
+// GetUILogger returns the UI logger, with fallback if not set
+func GetUILogger() interfaces.Logger {
+	if uiLogger != nil {
+		return uiLogger
+	}
+	// Fallback to simple logger if not set
+	level := logger.LevelInfo
+	if config.DebugEnabled {
+		level = logger.LevelDebug
+	}
+	return logger.NewSimpleLogger(level)
 }
 
 // GetSearchState returns the search state for a given component
@@ -122,7 +117,7 @@ func FilterNodes(filter string) {
 		}
 	}
 
-	getUILogger().Debug("Filtered nodes from %d to %d with filter '%s'",
+	GetUILogger().Debug("Filtered nodes from %d to %d with filter '%s'",
 		len(GlobalState.OriginalNodes), len(GlobalState.FilteredNodes), filter)
 }
 
@@ -179,6 +174,6 @@ func FilterVMs(filter string) {
 		}
 	}
 
-	getUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
+	GetUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
 		len(GlobalState.OriginalVMs), len(GlobalState.FilteredVMs), filter)
 }
