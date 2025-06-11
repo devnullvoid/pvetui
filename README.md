@@ -109,9 +109,18 @@ Proxmox TUI offers flexible configuration through YAML files, environment variab
 2. Configuration file
 3. Environment variables
 
+### XDG Base Directory Compliance
+
+Proxmox TUI follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) for configuration and cache files:
+
+- **Config file**: `$XDG_CONFIG_HOME/proxmox-tui/config.yml` (defaults to `~/.config/proxmox-tui/config.yml`)
+- **Cache directory**: `$XDG_CACHE_HOME/proxmox-tui` (defaults to `~/.cache/proxmox-tui`)
+
+If no config file is specified via the `-config` flag, the application will automatically look for and load the default XDG config file if it exists.
+
 ### Configuration File
 
-Create a `config.yml` file with your Proxmox connection details:
+Create a `config.yml` file in the default location (`~/.config/proxmox-tui/config.yml`) or specify a custom path with your Proxmox connection details:
 
 ```yaml
 # Basic connection settings
@@ -132,7 +141,7 @@ token_secret: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 # Additional settings
 ssh_user: "your-ssh-user"
 debug: false
-cache_dir: "~/.proxmox-tui/cache"
+# cache_dir: "/custom/cache/path"  # Optional: defaults to ~/.cache/proxmox-tui
 ```
 
 ## 🔐 Authentication
@@ -167,7 +176,11 @@ Uses Proxmox API tokens for enhanced security with these benefits:
 Run Proxmox TUI with your configuration file:
 
 ```bash
+# Using explicit config file path
 ./proxmox-tui -config /path/to/your/config.yml
+
+# Or place config.yml in ~/.config/proxmox-tui/ and run without -config flag
+./proxmox-tui
 ```
 
 ### Keyboard Navigation

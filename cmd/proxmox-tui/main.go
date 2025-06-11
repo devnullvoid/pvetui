@@ -35,7 +35,7 @@ func main() {
 	cfg.ParseFlags()
 
 	// Flag for config file path
-	configPath := flag.String("config", "", "Path to YAML config file")
+	configPath := flag.String("config", "", "Path to YAML config file (default: $XDG_CONFIG_HOME/proxmox-tui/config.yml or ~/.config/proxmox-tui/config.yml)")
 
 	// Special flags not in the config struct
 	noCacheFlag := flag.Bool("no-cache", false, "Disable caching")
@@ -52,10 +52,19 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Load config file first if provided
-	if *configPath != "" {
-		if err := cfg.MergeWithFile(*configPath); err != nil {
-			log.Fatalf("Error loading config file: %v", err)
+	// Load config file - either specified or default XDG location
+	configFileToLoad := *configPath
+	if configFileToLoad == "" {
+		// Try default XDG config location
+		defaultConfigPath := config.GetDefaultConfigPath()
+		if _, err := os.Stat(defaultConfigPath); err == nil {
+			configFileToLoad = defaultConfigPath
+		}
+	}
+
+	if configFileToLoad != "" {
+		if err := cfg.MergeWithFile(configFileToLoad); err != nil {
+			log.Fatalf("Error loading config file %s: %v", configFileToLoad, err)
 		}
 	}
 

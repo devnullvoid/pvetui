@@ -29,6 +29,43 @@ type Config struct {
 	CacheDir    string `yaml:"cache_dir"` // Directory for caching data
 }
 
+// getXDGCacheDir returns the XDG-compliant cache directory for the application
+func getXDGCacheDir() string {
+	// Check XDG_CACHE_HOME first
+	if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
+		return filepath.Join(xdgCache, "proxmox-tui")
+	}
+
+	// Fallback to $HOME/.cache/proxmox-tui
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(homeDir, ".cache", "proxmox-tui")
+	}
+
+	// Final fallback to temp directory
+	return filepath.Join(os.TempDir(), "proxmox-tui-cache")
+}
+
+// getXDGConfigDir returns the XDG-compliant config directory for the application
+func getXDGConfigDir() string {
+	// Check XDG_CONFIG_HOME first
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		return filepath.Join(xdgConfig, "proxmox-tui")
+	}
+
+	// Fallback to $HOME/.config/proxmox-tui
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(homeDir, ".config", "proxmox-tui")
+	}
+
+	// Final fallback to current directory
+	return "."
+}
+
+// GetDefaultConfigPath returns the default XDG-compliant config file path
+func GetDefaultConfigPath() string {
+	return filepath.Join(getXDGConfigDir(), "config.yml")
+}
+
 // NewConfig creates a Config with values from environment variables
 func NewConfig() *Config {
 	return &Config{
@@ -78,7 +115,7 @@ func (c *Config) ParseFlags() {
 	flag.StringVar(&c.ApiPath, "api-path", c.ApiPath, "Proxmox API path (env PROXMOX_API_PATH)")
 	flag.StringVar(&c.SSHUser, "ssh-user", c.SSHUser, "SSH username (env PROXMOX_SSH_USER)")
 	flag.BoolVar(&c.Debug, "debug", c.Debug, "Enable debug logging (env PROXMOX_DEBUG)")
-	flag.StringVar(&c.CacheDir, "cache-dir", c.CacheDir, "Cache directory path (env PROXMOX_CACHE_DIR)")
+	flag.StringVar(&c.CacheDir, "cache-dir", c.CacheDir, "Cache directory path (env PROXMOX_CACHE_DIR, default: $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui)")
 }
 
 func (c *Config) MergeWithFile(path string) error {
@@ -186,14 +223,7 @@ func (c *Config) SetDefaults() {
 		c.ApiPath = "/api2/json"
 	}
 	if c.CacheDir == "" {
-		// Default to a subdirectory in the user's home directory
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			// Use a stable cache directory to maintain cache between runs
-			c.CacheDir = filepath.Join(homeDir, ".proxmox-tui", "cache", "badger-store")
-		} else {
-			// Fallback to a temporary directory if home directory isn't available
-			c.CacheDir = filepath.Join(os.TempDir(), "proxmox-tui-cache", "badger-store")
-		}
+		// Use XDG_CACHE_HOME for cache directory
+		c.CacheDir = getXDGCacheDir()
 	}
 }
