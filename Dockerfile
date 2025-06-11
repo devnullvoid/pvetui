@@ -43,8 +43,9 @@ COPY --from=builder /app/proxmox-tui .
 COPY --from=builder /app/configs ./configs
 
 # Create necessary directories with proper ownership
-RUN mkdir -p /app/cache /app/logs /app/cache/badger
-# RUN mkdir -p /app/cache /app/logs /app/cache/badger && \
+# Note: logs are now stored in cache directory (XDG-compliant)
+RUN mkdir -p /app/cache /app/cache/badger
+# RUN mkdir -p /app/cache /app/cache/badger && \
     # chown -R appuser:appgroup /app
 
 # Switch to non-root user
@@ -52,7 +53,7 @@ RUN mkdir -p /app/cache /app/logs /app/cache/badger
 
 # Set environment variables
 ENV CACHE_DIR=/app/cache
-ENV LOG_DIR=/app/logs
+# LOG_DIR removed - logs are now stored in cache directory
 
 # Health check (optional)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

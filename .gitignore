@@ -4,8 +4,8 @@
 config.yml
 /proxmox-tui
 
-# Runtime logs
-logs/
+# Runtime logs (now stored in XDG cache directory)
+# logs/ - removed since logs are now in ~/.cache/proxmox-tui/
 
 # Docker/Container files
 .env

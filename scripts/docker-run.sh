@@ -50,8 +50,9 @@ else
 fi
 
 # Create necessary directories
-log_info "Creating cache and logs directories..."
-mkdir -p cache logs
+# Note: logs are now stored in cache directory (XDG-compliant)
+log_info "Creating cache directory..."
+mkdir -p cache
 
 # Stop and remove existing container if it exists
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
@@ -63,13 +64,13 @@ fi
 log_info "Starting proxmox-tui container..."
 
 # Run the container with proper TTY settings for TUI
+# Note: logs are now stored in cache directory (XDG-compliant)
 docker run \
     --name "$CONTAINER_NAME" \
     --rm \
     -it \
     $ENV_FILE \
     -v "$(pwd)/cache:/app/cache" \
-    -v "$(pwd)/logs:/app/logs" \
     -v "$(pwd)/configs:/app/configs:ro" \
     "$IMAGE_NAME" \
     "$@"

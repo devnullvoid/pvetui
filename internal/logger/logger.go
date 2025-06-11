@@ -55,6 +55,30 @@ type Config struct {
 	TimeFormat string
 }
 
+// NewInternalLoggerWithCacheDir creates a logger that stores logs in the specified cache directory
+// This is designed for TUI applications where stdout logging would interfere with the UI
+func NewInternalLoggerWithCacheDir(level Level, cacheDir string) (*Logger, error) {
+	// Use the provided cache directory for log files
+	logsDir := cacheDir
+	if logsDir == "" {
+		// Fallback to current directory if no cache dir provided
+		logsDir = "."
+	}
+
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		// If we can't create cache directory, fall back to current directory
+		logsDir = "."
+	}
+
+	logFile := filepath.Join(logsDir, "proxmox-tui.log")
+	config := &Config{
+		Level:     level,
+		LogToFile: true,
+		LogFile:   logFile,
+	}
+	return NewLogger(config)
+}
+
 // DefaultConfig returns a default logger configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -145,21 +169,10 @@ func NewDualLogger(level Level, logFile string) (*Logger, error) {
 
 // NewInternalLogger creates a logger for internal packages that logs to a default file
 // This is designed for TUI applications where stdout logging would interfere with the UI
+// Deprecated: Use NewInternalLoggerWithCacheDir instead to specify cache directory
 func NewInternalLogger(level Level) (*Logger, error) {
-	// Create logs directory if it doesn't exist
-	logsDir := "logs"
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
-		// If we can't create logs directory, fall back to current directory
-		logsDir = "."
-	}
-
-	logFile := filepath.Join(logsDir, "proxmox-tui.log")
-	config := &Config{
-		Level:     level,
-		LogToFile: true,
-		LogFile:   logFile,
-	}
-	return NewLogger(config)
+	// Fallback to current directory for backward compatibility
+	return NewInternalLoggerWithCacheDir(level, ".")
 }
 
 // formatMessage creates a formatted log message with timestamp and level

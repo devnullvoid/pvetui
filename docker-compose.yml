@@ -24,9 +24,9 @@ services:
       - PROXMOX_SSH_USER=${PROXMOX_SSH_USER}
     
     # Volumes for persistence
+    # Note: logs are now stored in cache directory (XDG-compliant)
     volumes:
       - ./cache:/app/cache
-      - ./logs:/app/logs
       - ./configs:/app/configs:ro
     
     # TTY and interactive for TUI applications

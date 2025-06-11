@@ -115,6 +115,7 @@ Proxmox TUI follows the [XDG Base Directory Specification](https://specification
 
 - **Config file**: `$XDG_CONFIG_HOME/proxmox-tui/config.yml` (defaults to `~/.config/proxmox-tui/config.yml`)
 - **Cache directory**: `$XDG_CACHE_HOME/proxmox-tui` (defaults to `~/.cache/proxmox-tui`)
+- **Log files**: Stored in the cache directory as `proxmox-tui.log`
 
 If no config file is specified via the `-config` flag, the application will automatically look for and load the default XDG config file if it exists.
 

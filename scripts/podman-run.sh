@@ -50,8 +50,9 @@ else
 fi
 
 # Create necessary directories
-log_info "Creating cache and logs directories..."
-mkdir -p cache logs
+# Note: logs are now stored in cache directory (XDG-compliant)
+log_info "Creating cache directory..."
+mkdir -p cache
 
 # Stop and remove existing container if it exists
 if podman ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
@@ -70,7 +71,6 @@ podman run \
     -it \
     $ENV_FILE \
     -v "$(pwd)/cache:/app/cache:Z" \
-    -v "$(pwd)/logs:/app/logs:Z" \
     -v "$(pwd)/configs:/app/configs:ro,Z" \
     "$IMAGE_NAME" \
     "$@"

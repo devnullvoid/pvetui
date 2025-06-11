@@ -80,7 +80,7 @@ func main() {
 		level = logger.LevelDebug
 	}
 	var err error
-	mainLogger, err = logger.NewInternalLogger(level)
+	mainLogger, err = logger.NewInternalLoggerWithCacheDir(level, cfg.CacheDir)
 	if err != nil {
 		// Fallback to simple logger if file logging fails
 		mainLogger = logger.NewSimpleLogger(level)
