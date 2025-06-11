@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - In-modal loading screen with clear progress feedback and time expectations
   - Cancel functionality during loading (Backspace, Escape, h key)
   - Professional loading states that prevent UI freeze perception
+- **XDG Base Directory Compliance**: Full compliance with XDG Base Directory specification
+  - Config files: `$XDG_CONFIG_HOME/proxmox-tui/config.yml` (defaults to `~/.config/proxmox-tui/config.yml`)
+  - Cache directory: `$XDG_CACHE_HOME/proxmox-tui` (defaults to `~/.cache/proxmox-tui`)
+  - Log files: Stored in cache directory as `proxmox-tui.log`
+  - Automatic config loading from default XDG location if no `-config` flag specified
+  - Maintains backward compatibility with existing configurations
+- **Comprehensive Logging System**: Enhanced debug logging infrastructure
+  - Centralized logger system shared across all application components
+  - Detailed application lifecycle logging (startup, initialization, shutdown)
+  - API operation tracking (authentication, requests, responses, errors)
+  - UI component state changes and user interactions
+  - Cache operations and performance metrics
+  - All logs stored in XDG-compliant cache directory
 
 ### Improved
 - **Footer Simplification**: Streamlined footer from crowded keybindings to clean essentials
@@ -43,6 +56,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better visual feedback during 10-15 second GitHub script fetching operations
   - More user-friendly messaging ("may take a moment" vs specific time ranges)
   - Enhanced error handling and graceful fallbacks
+- **Configuration Management**: Streamlined configuration and file organization
+  - Automatic detection and loading of config files from standard XDG locations
+  - Simplified Docker setup with unified cache/log directory structure
+  - Better error messages and validation for configuration issues
+  - Improved help text with XDG path information
+- **Debug Experience**: Significantly enhanced debugging and troubleshooting capabilities
+  - Comprehensive logging covers all application operations and state changes
+  - Centralized logger prevents missing debug information from different components
+  - Better error tracking and context for issue diagnosis
+  - Performance monitoring through detailed cache and API operation logging
 
 ### Technical Improvements
 - Enhanced keyboard event handling with `tcell.KeyRune` for hjkl support
@@ -53,6 +76,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Responsive layout calculations with proportional sizing (6:1 ratios)
 - Non-blocking UI updates with proper QueueUpdateDraw handling
 - Deadlock prevention in concurrent loading operations
+- **XDG Standards Implementation**: Complete XDG Base Directory specification compliance
+  - Helper functions for XDG cache and config directory resolution
+  - Environment variable support (`XDG_CACHE_HOME`, `XDG_CONFIG_HOME`)
+  - Graceful fallbacks to standard locations (`~/.cache`, `~/.config`)
+  - Unified file organization following Linux desktop standards
+- **Logging Architecture Overhaul**: Centralized and comprehensive logging system
+  - Shared logger instance across all application components
+  - Cache-aware logger that follows XDG directory structure
+  - Improved LoggerAdapter with proper dependency injection
+  - Enhanced error handling and debug information capture
+  - Performance monitoring and operation tracking throughout the application
 
 ## [0.1.1] - 2025-06-09
 
