@@ -87,6 +87,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved LoggerAdapter with proper dependency injection
   - Enhanced error handling and debug information capture
   - Performance monitoring and operation tracking throughout the application
+  - **Logger Function Consolidation**: Eliminated confusing dual logger creation functions
+    - Unified `NewInternalLogger(level, cacheDir)` function for all internal logging
+    - Removed deprecated `NewInternalLoggerWithCacheDir` to prevent confusion
+    - Consistent logger creation pattern across all packages
+    - All cache-related logging now properly centralized to cache directory
 
 ## [0.1.1] - 2025-06-09
 
