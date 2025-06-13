@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Node Storage Display**: Fixed node details showing "0.00 GB" for storage values
+  - Resolved inconsistent storage units between cluster and individual node data
+  - Node storage values now consistently stored in GB (converted from bytes)
+  - Storage percentages now display with correct used/total GB values
+  - Maintains consistency with cluster resource processing
+
 ### Added
 - **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
   - `h` = left/go back, `j` = down, `k` = up, `l` = right/select/enter
