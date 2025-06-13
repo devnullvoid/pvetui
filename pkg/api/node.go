@@ -102,10 +102,10 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 		node.MemoryUsed = getFloat(memory, "used") / 1073741824
 	}
 
-	// Get storage stats
+	// Get storage stats (convert bytes to GB for consistency with cluster data)
 	if rootfs, ok := data["rootfs"].(map[string]interface{}); ok {
-		node.TotalStorage = int64(getFloat(rootfs, "total"))
-		node.UsedStorage = int64(getFloat(rootfs, "used"))
+		node.TotalStorage = int64(getFloat(rootfs, "total") / 1073741824)
+		node.UsedStorage = int64(getFloat(rootfs, "used") / 1073741824)
 	}
 
 	// Get uptime

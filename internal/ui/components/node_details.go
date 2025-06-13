@@ -126,9 +126,9 @@ func (nd *NodeDetails) Update(node *api.Node, fullNodeList []*api.Node) {
 		memoryTotalFormatted)).SetTextColor(tcell.ColorWhite))
 	row++
 
-	// Storage
-	storageUsedFormatted := utils.FormatBytes(node.UsedStorage)
-	storageTotalFormatted := utils.FormatBytes(node.TotalStorage)
+	// Storage (values are in GB)
+	storageUsedFormatted := utils.FormatBytesFloat(float64(node.UsedStorage))
+	storageTotalFormatted := utils.FormatBytesFloat(float64(node.TotalStorage))
 	storagePercent := utils.CalculatePercentageInt(node.UsedStorage, node.TotalStorage)
 
 	nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(tcell.ColorYellow))
