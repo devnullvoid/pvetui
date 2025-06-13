@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-06-11
+
 ### Fixed
 - **Node Storage Display**: Fixed node details showing "0.00 GB" for storage values
   - Resolved inconsistent storage units between cluster and individual node data
@@ -146,6 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform SSH client integration
 - Automatic VNC proxy handling through Proxmox API
 
-[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/devnullvoid/proxmox-tui/releases/tag/v0.1.0
