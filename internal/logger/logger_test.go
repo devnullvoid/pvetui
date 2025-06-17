@@ -152,16 +152,44 @@ func TestNewInternalLogger(t *testing.T) {
 }
 
 func TestNewInternalLogger_EmptyCacheDir(t *testing.T) {
+	// Create a temporary directory for this test to avoid creating files in current directory
+	tempDir := t.TempDir()
+
+	// Change to temp directory temporarily
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer os.Chdir(originalDir)
+
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
 	logger, err := NewInternalLogger(LevelInfo, "")
 	require.NoError(t, err)
 	assert.NotNil(t, logger)
+
+	// Clean up any created log files
+	defer logger.Close()
 }
 
 func TestNewInternalLogger_InvalidCacheDir(t *testing.T) {
-	// Try with invalid cache directory
+	// Create a temporary directory for this test to avoid creating files in current directory
+	tempDir := t.TempDir()
+
+	// Change to temp directory temporarily
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer os.Chdir(originalDir)
+
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
+	// Try with invalid cache directory - should fall back to current directory (which is now tempDir)
 	logger, err := NewInternalLogger(LevelInfo, "/root/nonexistent")
 	require.NoError(t, err) // Should not error, falls back to current directory
 	assert.NotNil(t, logger)
+
+	// Clean up any created log files
+	defer logger.Close()
 }
 
 func TestNewSimpleLogger(t *testing.T) {

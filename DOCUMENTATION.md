@@ -231,17 +231,18 @@ func main() {
     }
     
     // Create logger
-    logger, err := logger.NewInternalLogger(logger.LevelInfo, cfg.CacheDir)
+    loggerInstance, err := logger.NewInternalLogger(logger.LevelInfo, cfg.CacheDir)
     if err != nil {
         log.Fatal("Failed to create logger:", err)
     }
-    defer logger.Close()
+    defer loggerInstance.Close()
     
     // Create adapters
     configAdapter := adapters.NewConfigAdapter(cfg)
-    loggerAdapter := adapters.NewLoggerAdapter(logger)
+    loggerAdapter := adapters.NewLoggerAdapter(cfg)
     
     // Create API client
+    // Note: This will attempt initial authentication and may fail if credentials are invalid
     client, err := api.NewClient(configAdapter,
         api.WithLogger(loggerAdapter))
     if err != nil {
@@ -249,12 +250,88 @@ func main() {
     }
     
     // Use the client
-    vms, err := client.GetVmList(context.Background())
+    ctx := context.Background()
+    vms, err := client.GetVmList(ctx)
     if err != nil {
         log.Fatal("Failed to get VMs:", err)
     }
     
     log.Printf("Found %d VMs", len(vms))
+}
+```
+
+### Robust Client Setup with Error Handling
+
+For production use, you should include proper error handling:
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "time"
+    
+    "github.com/devnullvoid/proxmox-tui/internal/config"
+    "github.com/devnullvoid/proxmox-tui/internal/logger"
+    "github.com/devnullvoid/proxmox-tui/internal/adapters"
+    "github.com/devnullvoid/proxmox-tui/pkg/api"
+)
+
+func main() {
+    // Load configuration with error handling
+    cfg := config.NewConfig()
+    cfg.ParseFlags()
+    cfg.SetDefaults()
+    
+    if err := cfg.Validate(); err != nil {
+        log.Printf("Configuration validation failed: %v", err)
+        log.Println("Please check your configuration and try again.")
+        return
+    }
+    
+    // Create logger with error handling
+    loggerInstance, err := logger.NewInternalLogger(logger.LevelInfo, cfg.CacheDir)
+    if err != nil {
+        log.Printf("Failed to create logger: %v", err)
+        log.Println("Falling back to simple logging...")
+        loggerInstance = logger.NewSimpleLogger(logger.LevelInfo)
+    }
+    defer loggerInstance.Close()
+    
+    // Create adapters
+    configAdapter := adapters.NewConfigAdapter(cfg)
+    loggerAdapter := adapters.NewLoggerAdapter(cfg)
+    
+    // Create API client with error handling
+    client, err := api.NewClient(configAdapter,
+        api.WithLogger(loggerAdapter))
+    if err != nil {
+        log.Printf("Failed to create client: %v", err)
+        log.Println("Please check your Proxmox server address and credentials.")
+        return
+    }
+    
+    // Use the client with timeout
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    
+    vms, err := client.GetVmList(ctx)
+    if err != nil {
+        log.Printf("Failed to get VMs: %v", err)
+        log.Println("This could be due to network issues or insufficient permissions.")
+        return
+    }
+    
+    log.Printf("Successfully retrieved %d VMs", len(vms))
+    
+         // Example: List VM details
+     for _, vm := range vms {
+         vmid := api.SafeStringValue(vm["vmid"])
+         name := api.SafeStringValue(vm["name"])
+         status := api.SafeStringValue(vm["status"])
+         log.Printf("VM %s: %s (Status: %s)", vmid, name, status)
+     }
 }
 ```
 

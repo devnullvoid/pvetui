@@ -45,6 +45,8 @@
 package adapters
 
 import (
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
@@ -68,7 +70,16 @@ type LoggerAdapter struct {
 	logger *logger.Logger
 }
 
-// NewLoggerAdapter creates a new logger adapter with the given configuration
+// NewLoggerAdapter creates a new logger adapter with the given configuration.
+//
+// This function attempts to create a file-based logger using the provided cache
+// directory. If the cache directory is invalid or inaccessible, it falls back
+// to a simple stdout logger to avoid creating log files in unexpected locations.
+//
+// Parameters:
+//   - cfg: Configuration containing debug settings and cache directory
+//
+// Returns a logger adapter that implements the interfaces.Logger interface.
 func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 	// Determine log level based on debug setting
 	level := logger.LevelInfo
@@ -76,15 +87,28 @@ func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 		level = logger.LevelDebug
 	}
 
-	// Use the new cache-aware logger system
-	internalLogger, err := logger.NewInternalLogger(level, cfg.CacheDir)
-	if err != nil {
-		// Fallback to simple logger if file logging fails
-		internalLogger = logger.NewSimpleLogger(level)
+	// Validate cache directory before attempting to use it
+	if cfg.CacheDir != "" {
+		// Test if we can create the directory and write to it
+		if err := os.MkdirAll(cfg.CacheDir, 0755); err == nil {
+			// Test write access by creating a temporary file
+			testFile := filepath.Join(cfg.CacheDir, ".write_test")
+			if file, err := os.Create(testFile); err == nil {
+				file.Close()
+				os.Remove(testFile) // Clean up test file
+
+				// Cache directory is valid, use file-based logging
+				internalLogger, err := logger.NewInternalLogger(level, cfg.CacheDir)
+				if err == nil {
+					return &LoggerAdapter{logger: internalLogger}
+				}
+			}
+		}
 	}
 
+	// Fallback to simple logger if cache directory is invalid or inaccessible
 	return &LoggerAdapter{
-		logger: internalLogger,
+		logger: logger.NewSimpleLogger(level),
 	}
 }
 

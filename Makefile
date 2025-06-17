@@ -32,11 +32,11 @@ build: ## Build the application binary
 
 test: ## Run tests
 	@printf "$(GREEN)Running tests...$(NC)\n"
-	go test -v ./...
+	go test -v $(shell go list ./... | grep -v /examples)
 
 test-coverage: ## Run tests with coverage
 	@printf "$(GREEN)Running tests with coverage...$(NC)\n"
-	go test -v -coverprofile=coverage.out ./...
+	go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples)
 	go tool cover -html=coverage.out -o coverage.html
 
 clean: ## Clean build artifacts

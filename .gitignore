@@ -4,6 +4,8 @@
 config.yml
 /proxmox-tui
 /proxmox-tui.log
+# Ignore log files anywhere in the project (including test-generated ones)
+**/proxmox-tui.log
 /bin/
 
 # Runtime logs (now stored in XDG cache directory)
