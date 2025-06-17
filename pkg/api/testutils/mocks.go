@@ -1,3 +1,69 @@
+// Package testutils provides testing utilities, mocks, and helper functions for the Proxmox TUI API package.
+//
+// This package contains mock implementations of core interfaces, test data generators,
+// and utility functions that make it easier to write comprehensive unit tests for
+// the API client and related components.
+//
+// Key Components:
+//
+//   - Mock Implementations: Thread-safe mocks for Logger, Cache, and Config interfaces
+//   - Test Data Generators: Functions to create test configurations and data
+//   - Test Utilities: Helper functions for common testing patterns
+//   - In-Memory Implementations: Simple implementations for testing scenarios
+//
+// Mock Implementations:
+//
+// All mock implementations are built using testify/mock and provide:
+//   - Expectation setting and verification
+//   - Call recording and replay
+//   - Thread-safe operation
+//   - Flexible argument matching
+//
+// Test Data Generators:
+//
+// The package provides several functions to generate test data:
+//   - NewTestConfig(): Basic configuration with sensible defaults
+//   - NewTestConfigWithToken(): Configuration for API token testing
+//   - NewTestLogger(): Logger that captures messages for verification
+//   - NewInMemoryCache(): Simple in-memory cache for testing
+//
+// Example usage:
+//
+//	func TestAPIClient(t *testing.T) {
+//		// Create mocks
+//		mockLogger := &testutils.MockLogger{}
+//		mockCache := &testutils.MockCache{}
+//		config := testutils.NewTestConfig()
+//
+//		// Set expectations
+//		mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything).Return()
+//		mockCache.On("Get", "test-key", mock.Anything).Return(false, nil)
+//
+//		// Create client with mocks
+//		client, err := api.NewClient(config,
+//			api.WithLogger(mockLogger),
+//			api.WithCache(mockCache))
+//		require.NoError(t, err)
+//
+//		// Test client operations
+//		// ...
+//
+//		// Verify expectations
+//		mockLogger.AssertExpectations(t)
+//		mockCache.AssertExpectations(t)
+//	}
+//
+// Thread Safety:
+//
+// All mock implementations are thread-safe and can be used in concurrent tests.
+// The underlying testify/mock framework handles synchronization automatically.
+//
+// Best Practices:
+//
+//   - Always call AssertExpectations() to verify mock usage
+//   - Use specific argument matchers when possible for better test reliability
+//   - Reset mocks between test cases if reusing them
+//   - Use the provided test data generators for consistent test scenarios
 package testutils
 
 import (
@@ -9,7 +75,23 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockLogger is a mock implementation of the Logger interface
+// MockLogger is a mock implementation of the Logger interface using testify/mock.
+//
+// This mock provides full expectation setting and verification capabilities
+// for testing code that depends on the Logger interface. All methods support
+// flexible argument matching and call verification.
+//
+// Example usage:
+//
+//	mockLogger := &MockLogger{}
+//	mockLogger.On("Debug", "Processing user: %s", "john").Return()
+//	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything).Return()
+//
+//	// Use mockLogger in your code
+//	// ...
+//
+//	// Verify all expectations were met
+//	mockLogger.AssertExpectations(t)
 type MockLogger struct {
 	mock.Mock
 }

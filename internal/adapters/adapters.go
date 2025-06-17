@@ -1,6 +1,47 @@
-// Package adapters provides adapter implementations that bridge internal components
-// with the external API package interfaces, enabling dependency injection and
-// clean architecture patterns.
+// Package adapters provides bridge implementations that connect internal application
+// components with the external API package interfaces, enabling dependency injection and
+// clean separation of concerns.
+//
+// This package implements the Adapter pattern to translate between the internal
+// configuration, logging, and caching systems and the standardized interfaces
+// expected by the API client. This design allows for:
+//
+//   - Clean dependency injection throughout the application
+//   - Easy testing with mock implementations
+//   - Loose coupling between internal and external components
+//   - Consistent interface contracts across the codebase
+//
+// The adapters handle the translation of internal types to interface implementations
+// while maintaining type safety and proper error handling.
+//
+// Available Adapters:
+//
+//   - ConfigAdapter: Wraps internal.Config to implement interfaces.Config
+//   - LoggerAdapter: Wraps internal.Logger to implement interfaces.Logger
+//   - CacheAdapter: Wraps internal.Cache to implement interfaces.Cache
+//
+// Example usage:
+//
+//	// Create internal components
+//	config := config.NewConfig()
+//	logger := logger.NewInternalLogger(logger.LevelInfo, config.CacheDir)
+//	cache := cache.NewFileCache(config.CacheDir, false)
+//
+//	// Wrap with adapters for API client
+//	configAdapter := adapters.NewConfigAdapter(config)
+//	loggerAdapter := adapters.NewLoggerAdapter(logger)
+//	cacheAdapter := adapters.NewCacheAdapter(cache)
+//
+//	// Use with API client
+//	client, err := api.NewClient(configAdapter,
+//		api.WithLogger(loggerAdapter),
+//		api.WithCache(cacheAdapter))
+//
+// Thread Safety:
+//
+// All adapters are designed to be thread-safe and delegate thread safety
+// concerns to their underlying implementations. The adapters themselves
+// add no additional synchronization overhead.
 package adapters
 
 import (
