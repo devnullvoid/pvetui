@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No browser session management or manual authentication required
   - Enhanced security with automatic session cleanup and timeout handling
   - Implementation inspired by community solution from [Proxmox Forum discussion](https://forum.proxmox.com/threads/proxmox-api-vncwebsocket.73184/page-2)
+- **Concurrent VNC Sessions**: Support for multiple simultaneous VNC connections
+  - Session management system allows connecting to multiple VMs and nodes simultaneously
+  - Each VNC session runs on its own dedicated port with independent WebSocket proxy
+  - Automatic session tracking with unique identifiers and metadata
+  - Real-time session count display in footer (e.g., "VNC:3" for 3 active sessions)
+  - Smart session reuse - connecting to the same target returns existing session
+  - Automatic cleanup of inactive sessions after 30 minutes of inactivity
+  - Session lifecycle management with proper resource cleanup on application exit
+  - Backward compatibility maintained with existing VNC functionality
 - **Authentication Handling**: Improved VNC authentication to work correctly with both QEMU VMs and LXC containers
 - **VNC User Experience**: Removed outdated VNC warning modal since embedded client no longer requires Proxmox web UI login
 - **Comprehensive VNC Logging**: Added detailed logging throughout VNC components for better debugging and monitoring

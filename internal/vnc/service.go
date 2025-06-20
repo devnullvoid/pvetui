@@ -4,19 +4,20 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// Service handles VNC connections for VMs and nodes
+// Service provides VNC connection management with support for multiple concurrent sessions
 type Service struct {
-	client *api.Client
-	server *Server
-	logger *logger.Logger
+	client         *api.Client
+	sessionManager *SessionManager
+	logger         *logger.Logger
 }
 
-// NewService creates a new VNC service
+// NewService creates a new VNC service with session management capabilities
 func NewService(client *api.Client) *Service {
 	// Create a logger for VNC operations
 	vncLogger, err := logger.NewInternalLogger(logger.LevelDebug, "")
@@ -25,12 +26,12 @@ func NewService(client *api.Client) *Service {
 		vncLogger = logger.NewSimpleLogger(logger.LevelInfo)
 	}
 
-	vncLogger.Info("Creating new VNC service")
+	vncLogger.Info("Creating new VNC service with session management")
 
 	return &Service{
-		client: client,
-		server: NewServer(),
-		logger: vncLogger,
+		client:         client,
+		sessionManager: NewSessionManager(client),
+		logger:         vncLogger,
 	}
 }
 
@@ -135,97 +136,135 @@ func (s *Service) GetNodeVNCStatus(nodeName string) (bool, string) {
 }
 
 // ConnectToVMEmbedded opens an embedded VNC connection to a VM using the built-in noVNC client
-// This method does not require users to be logged into the Proxmox web interface
+// This method supports multiple concurrent sessions - each VM gets its own session
 func (s *Service) ConnectToVMEmbedded(vm *api.VM) error {
 	s.logger.Info("Starting embedded VNC connection for VM: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
-	// Stop any existing server
-	if s.server.IsRunning() {
-		s.logger.Debug("Stopping existing embedded VNC server before starting new connection")
-		s.server.Stop()
-	}
-
-	// Start embedded VNC server for the VM
-	s.logger.Debug("Starting embedded VNC server for VM %s", vm.Name)
-	vncURL, err := s.server.StartVMVNCServer(s.client, vm)
+	// Create or get existing session for this VM
+	session, err := s.sessionManager.CreateVMSession(vm)
 	if err != nil {
-		s.logger.Error("Failed to start embedded VNC server for VM %s: %v", vm.Name, err)
-		return fmt.Errorf("failed to start embedded VNC server: %w", err)
+		s.logger.Error("Failed to create VM session for %s: %v", vm.Name, err)
+		return fmt.Errorf("failed to create VM session: %w", err)
 	}
 
-	s.logger.Info("Embedded VNC server started for VM %s on port %d", vm.Name, s.server.GetPort())
-	s.logger.Debug("Generated embedded VNC URL for VM %s: %s", vm.Name, vncURL)
+	s.logger.Info("VM VNC session ready: %s (Port: %d, Session: %s)", vm.Name, session.Port, session.ID)
 
 	// Open the embedded VNC client in the default browser
-	err = openBrowser(vncURL)
+	err = openBrowser(session.URL)
 	if err != nil {
 		s.logger.Error("Failed to open embedded VNC client for VM %s: %v", vm.Name, err)
 		return err
 	}
 
-	s.logger.Info("Successfully opened embedded VNC client for VM %s", vm.Name)
+	s.logger.Info("Successfully opened embedded VNC client for VM %s (Session: %s)", vm.Name, session.ID)
 	return nil
 }
 
 // ConnectToNodeEmbedded opens an embedded VNC shell connection to a node using the built-in noVNC client
-// This method does not require users to be logged into the Proxmox web interface
+// This method supports multiple concurrent sessions - each node gets its own session
 func (s *Service) ConnectToNodeEmbedded(nodeName string) error {
 	s.logger.Info("Starting embedded VNC shell connection for node: %s", nodeName)
 
-	// Stop any existing server
-	if s.server.IsRunning() {
-		s.logger.Debug("Stopping existing embedded VNC server before starting new connection")
-		s.server.Stop()
-	}
-
-	// Start embedded VNC server for the node
-	s.logger.Debug("Starting embedded VNC server for node %s", nodeName)
-	vncURL, err := s.server.StartNodeVNCServer(s.client, nodeName)
+	// Create or get existing session for this node
+	session, err := s.sessionManager.CreateNodeSession(nodeName)
 	if err != nil {
-		s.logger.Error("Failed to start embedded VNC server for node %s: %v", nodeName, err)
-		return fmt.Errorf("failed to start embedded VNC server: %w", err)
+		s.logger.Error("Failed to create node session for %s: %v", nodeName, err)
+		return fmt.Errorf("failed to create node session: %w", err)
 	}
 
-	s.logger.Info("Embedded VNC server started for node %s on port %d", nodeName, s.server.GetPort())
-	s.logger.Debug("Generated embedded VNC URL for node %s: %s", nodeName, vncURL)
+	s.logger.Info("Node VNC session ready: %s (Port: %d, Session: %s)", nodeName, session.Port, session.ID)
 
 	// Open the embedded VNC client in the default browser
-	err = openBrowser(vncURL)
+	err = openBrowser(session.URL)
 	if err != nil {
 		s.logger.Error("Failed to open embedded VNC client for node %s: %v", nodeName, err)
 		return err
 	}
 
-	s.logger.Info("Successfully opened embedded VNC client for node %s", nodeName)
+	s.logger.Info("Successfully opened embedded VNC client for node %s (Session: %s)", nodeName, session.ID)
 	return nil
 }
 
-// StopEmbeddedServer stops the embedded VNC server
-func (s *Service) StopEmbeddedServer() error {
-	if s.server.IsRunning() {
-		s.logger.Info("Stopping embedded VNC server on port %d", s.server.GetPort())
-		err := s.server.Stop()
-		if err != nil {
-			s.logger.Error("Failed to stop embedded VNC server: %v", err)
-			return err
-		}
-		s.logger.Info("Embedded VNC server stopped successfully")
-	} else {
-		s.logger.Debug("Embedded VNC server not running, no action needed")
+// Session Management Methods
+
+// ListActiveSessions returns all active VNC sessions
+func (s *Service) ListActiveSessions() []*VNCSession {
+	sessions := s.sessionManager.ListSessions()
+	s.logger.Debug("Retrieved %d active VNC sessions", len(sessions))
+	return sessions
+}
+
+// GetActiveSessionCount returns the number of active VNC sessions
+func (s *Service) GetActiveSessionCount() int {
+	count := s.sessionManager.GetSessionCount()
+	s.logger.Debug("Active VNC session count: %d", count)
+	return count
+}
+
+// CloseSession closes a specific VNC session by ID
+func (s *Service) CloseSession(sessionID string) error {
+	s.logger.Info("Closing VNC session: %s", sessionID)
+	err := s.sessionManager.CloseSession(sessionID)
+	if err != nil {
+		s.logger.Error("Failed to close VNC session %s: %v", sessionID, err)
+		return err
 	}
+	s.logger.Info("VNC session closed successfully: %s", sessionID)
 	return nil
 }
 
-// IsEmbeddedServerRunning returns whether the embedded VNC server is running
+// CloseAllSessions closes all active VNC sessions
+func (s *Service) CloseAllSessions() error {
+	s.logger.Info("Closing all VNC sessions")
+	err := s.sessionManager.CloseAllSessions()
+	if err != nil {
+		s.logger.Error("Failed to close all VNC sessions: %v", err)
+		return err
+	}
+	s.logger.Info("All VNC sessions closed successfully")
+	return nil
+}
+
+// GetSessionByTarget finds a session by target (VM name or node name)
+func (s *Service) GetSessionByTarget(sessionType SessionType, target string) (*VNCSession, bool) {
+	session, exists := s.sessionManager.GetSessionByTarget(sessionType, target)
+	if exists {
+		s.logger.Debug("Found existing VNC session for %s %s: %s", sessionType, target, session.ID)
+	} else {
+		s.logger.Debug("No existing VNC session found for %s %s", sessionType, target)
+	}
+	return session, exists
+}
+
+// CleanupInactiveSessions removes sessions that haven't been accessed recently
+func (s *Service) CleanupInactiveSessions(maxAge time.Duration) {
+	s.logger.Debug("Cleaning up inactive VNC sessions (max age: %s)", maxAge.String())
+	s.sessionManager.CleanupInactiveSessions(maxAge)
+}
+
+// Legacy Methods (maintained for backward compatibility)
+
+// StopEmbeddedServer stops all embedded VNC servers (legacy method - now closes all sessions)
+func (s *Service) StopEmbeddedServer() error {
+	s.logger.Info("Legacy StopEmbeddedServer called - closing all VNC sessions")
+	return s.CloseAllSessions()
+}
+
+// IsEmbeddedServerRunning returns whether any embedded VNC servers are running
 func (s *Service) IsEmbeddedServerRunning() bool {
-	running := s.server.IsRunning()
-	s.logger.Debug("Embedded VNC server running status: %t", running)
+	running := s.GetActiveSessionCount() > 0
+	s.logger.Debug("Embedded VNC server running status: %t (%d active sessions)", running, s.GetActiveSessionCount())
 	return running
 }
 
-// GetEmbeddedServerPort returns the port the embedded VNC server is running on
+// GetEmbeddedServerPort returns the port of the first active session (legacy method)
 func (s *Service) GetEmbeddedServerPort() int {
-	port := s.server.GetPort()
-	s.logger.Debug("Embedded VNC server port: %d", port)
-	return port
+	sessions := s.ListActiveSessions()
+	if len(sessions) > 0 {
+		port := sessions[0].Port
+		s.logger.Debug("Legacy GetEmbeddedServerPort returning first session port: %d", port)
+		return port
+	}
+	s.logger.Debug("Legacy GetEmbeddedServerPort: no active sessions")
+	return 0
 }

@@ -1,10 +1,13 @@
 package components
 
 import (
+	"time"
+
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+	"github.com/devnullvoid/proxmox-tui/internal/vnc"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -13,6 +16,7 @@ type App struct {
 	*tview.Application
 	client        *api.Client
 	config        config.Config
+	vncService    *vnc.Service
 	pages         *tview.Pages
 	header        *Header
 	footer        *Footer
@@ -38,6 +42,7 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 		Application: tview.NewApplication(),
 		client:      client,
 		config:      *cfg,
+		vncService:  vnc.NewService(client),
 		pages:       tview.NewPages(),
 	}
 
@@ -172,9 +177,44 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	app.SetRoot(app.mainLayout, true)
 	app.SetFocus(app.nodeList)
 
+	// Start VNC session monitoring
+	app.startVNCSessionMonitoring()
+
 	logger.Debug("App initialization completed successfully")
 
 	return app
+}
+
+// GetVNCService returns the VNC service instance
+func (a *App) GetVNCService() *vnc.Service {
+	return a.vncService
+}
+
+// startVNCSessionMonitoring starts a background goroutine to monitor and update VNC session count
+func (a *App) startVNCSessionMonitoring() {
+	logger := models.GetUILogger()
+	logger.Debug("Starting VNC session monitoring")
+
+	go func() {
+		ticker := time.NewTicker(2 * time.Second) // Update every 2 seconds
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				// Get current session count
+				sessionCount := a.vncService.GetActiveSessionCount()
+
+				// Update footer with session count
+				a.QueueUpdateDraw(func() {
+					a.footer.UpdateVNCSessionCount(sessionCount)
+				})
+
+				// Clean up inactive sessions (older than 30 minutes)
+				a.vncService.CleanupInactiveSessions(30 * time.Minute)
+			}
+		}
+	}()
 }
 
 // Run starts the application
@@ -191,6 +231,11 @@ func (a *App) Run() error {
 		logger.Error("Application run failed: %v", err)
 	} else {
 		logger.Debug("Application stopped normally")
+		// Clean up VNC sessions on exit
+		logger.Debug("Cleaning up VNC sessions on application exit")
+		if closeErr := a.vncService.CloseAllSessions(); closeErr != nil {
+			logger.Error("Failed to close VNC sessions on exit: %v", closeErr)
+		}
 	}
 	return err
 }
