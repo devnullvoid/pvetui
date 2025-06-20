@@ -87,6 +87,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Maintains consistency with cluster resource processing
 
 ### Added
+- **noVNC Git Submodule Integration**: Replaced manual noVNC file copying with git submodules
+  - noVNC client now managed as a git submodule from official repository (v1.6.0)
+  - Easy updates to new noVNC versions with standard git commands
+  - Improved maintainability and version tracking
+  - Added comprehensive documentation for submodule management
+  - Requires `git clone --recurse-submodules` for new installations
+  - Migrated from embedded filesystem to direct filesystem serving for better flexibility
 - **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
   - `h` = left/go back, `j` = down, `k` = up, `l` = right/select/enter
   - Works in all lists, details panels, and modals

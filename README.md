@@ -54,9 +54,12 @@ Proxmox TUI brings lightning-fast cluster management directly to your terminal. 
 ### From Source
 
 ```bash
-# Clone the repository
-git clone https://github.com/devnullvoid/proxmox-tui.git
+# Clone the repository with submodules
+git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
 cd proxmox-tui
+
+# If you already cloned without submodules, initialize them:
+# git submodule update --init --recursive
 
 # Build the application
 go build -o proxmox-tui ./cmd/proxmox-tui

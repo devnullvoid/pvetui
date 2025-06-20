@@ -1,0 +1,3 @@
+[submodule "internal/vnc/novnc"]
+	path = internal/vnc/novnc
+	url = https://github.com/novnc/noVNC.git
