@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Message-level debugging for WebSocket communication (configurable verbosity)
 
 ### Fixed
+- **VNC Session Auto-Disconnect**: Removed automatic 30-minute session timeout
+  - VNC sessions now remain active for 24 hours instead of 30 minutes
+  - Cleanup process runs every 30 minutes instead of every 5 minutes for efficiency
+  - Sessions are only cleaned up when truly inactive for extended periods
+  - Prevents unexpected disconnections during long VNC sessions
 - **VNC Session Timeouts**: Fixed VNC connections disconnecting after 20-30 seconds
   - Increased WebSocket proxy timeout from 30 seconds to 30 minutes for long-lived VNC sessions
   - Removed HTTP server read/write timeouts that were terminating WebSocket connections
@@ -45,6 +50,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced connection stability with proper deadline management and error handling
   - VNC sessions now remain active during periods of user inactivity
   - Improved logging for connection lifecycle and timeout debugging
+- **VNC Session Management**: Enhanced session lifecycle and client disconnect detection
+  - Added real-time client connection/disconnection tracking for accurate session state
+  - Implemented immediate session cleanup when browser tabs are closed
+  - Fixed session reuse issues where reconnecting after browser close would fail
+  - Added session state management (Active, Connected, Disconnected, Closed)
+  - Sessions now properly detect and handle client disconnections
+  - Improved session reuse logic to prevent "connection is closed" errors
+  - Added 5-second grace period for reconnections to prevent premature cleanup
+  - **Fixed session count accuracy**: Disconnected sessions are now properly removed after grace period
+  - **Fixed stale VNC ticket reuse**: Sessions are completely removed instead of reused with expired tickets
+  - **Reduced excessive logging**: VNC session monitoring reduced from 2-second to 30-second intervals
+  - **Improved logging efficiency**: Session count only logged when it changes, not continuously
+- **Unified Logging System**: Fixed multiple log files being created in different locations
+  - All VNC components now use shared logger instance instead of creating separate loggers
+  - Eliminated duplicate log files (internal/cache/, test/integration/, root directory)
+  - All logging now unified to single file in cache directory (e.g., ./cache/proxmox-tui.log)
+  - VNC service, session manager, WebSocket proxy, and HTTP server all use shared logger
+  - Improved logging architecture with proper dependency injection throughout VNC components
+  - Better log organization and debugging experience with centralized logging
 - **Configuration Realm Handling**: Fixed critical bug where config file realm setting was ignored
   - Configuration files now properly merge the `realm` field from YAML config
   - API authentication now uses correct realm (e.g., 'pve' instead of defaulting to 'pam')

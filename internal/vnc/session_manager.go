@@ -44,6 +44,16 @@ const (
 	SessionTypeNode SessionType = "node"
 )
 
+// SessionState represents the current state of a VNC session
+type SessionState int
+
+const (
+	SessionStateActive       SessionState = iota // Session is active and ready for connections
+	SessionStateConnected                        // Client is currently connected
+	SessionStateDisconnected                     // Client disconnected, session may be reusable
+	SessionStateClosed                           // Session is closed and should be cleaned up
+)
+
 // VNCSession represents an active VNC session with comprehensive metadata
 // and lifecycle management. Each session corresponds to a single VNC connection
 // to a Proxmox target (VM, container, or node shell).
@@ -62,14 +72,20 @@ type VNCSession struct {
 	URL  string // Full URL to access this session
 
 	// Session lifecycle tracking
-	CreatedAt time.Time // When this session was created
-	LastUsed  time.Time // Last time this session was accessed
+	CreatedAt time.Time    // When this session was created
+	LastUsed  time.Time    // Last time this session was accessed
+	State     SessionState // Current connection state
 
 	// VNC connection details
 	ProxyConfig *ProxyConfig // VNC proxy configuration from Proxmox API
 
 	// Server management
 	Server *Server // The HTTP server instance for this session
+
+	// Connection tracking
+	activeConnections int             // Number of active WebSocket connections
+	disconnectChan    chan struct{}   // Channel to signal disconnection
+	sessionManager    *SessionManager // Reference to session manager for cleanup notifications
 
 	// Cleanup management
 	cancelFunc context.CancelFunc // Function to cancel the session context
@@ -83,6 +99,48 @@ func (s *VNCSession) UpdateLastUsed() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.LastUsed = time.Now()
+}
+
+// OnClientConnected is called when a client connects to this session
+func (s *VNCSession) OnClientConnected() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.activeConnections++
+	s.State = SessionStateConnected
+	s.LastUsed = time.Now()
+}
+
+// OnClientDisconnected is called when a client disconnects from this session
+func (s *VNCSession) OnClientDisconnected() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.activeConnections > 0 {
+		s.activeConnections--
+	}
+
+	if s.activeConnections == 0 {
+		s.State = SessionStateDisconnected
+		// Signal disconnection for immediate cleanup consideration
+		select {
+		case s.disconnectChan <- struct{}{}:
+		default: // Non-blocking send
+		}
+	}
+}
+
+// IsReusable returns true if this session can be reused for new connections
+func (s *VNCSession) IsReusable() bool {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.State == SessionStateActive || s.State == SessionStateDisconnected
+}
+
+// GetConnectionCount returns the number of active connections to this session
+func (s *VNCSession) GetConnectionCount() int {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.activeConnections
 }
 
 // IsExpired checks if this session has been inactive for longer than the
@@ -105,9 +163,18 @@ func (s *VNCSession) Shutdown() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	// Mark session as closed
+	s.State = SessionStateClosed
+
 	// Cancel the session context
 	if s.cancelFunc != nil {
 		s.cancelFunc()
+	}
+
+	// Close the disconnect channel
+	if s.disconnectChan != nil {
+		close(s.disconnectChan)
+		s.disconnectChan = nil
 	}
 
 	// Stop the HTTP server
@@ -171,13 +238,24 @@ type SessionManager struct {
 // The manager must be shut down properly using Shutdown() to clean up
 // background goroutines and active sessions.
 func NewSessionManager(client *api.Client) *SessionManager {
+	return NewSessionManagerWithLogger(client, nil)
+}
+
+// NewSessionManagerWithLogger creates a new VNC session manager with a shared logger
+func NewSessionManagerWithLogger(client *api.Client, sharedLogger *logger.Logger) *SessionManager {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Create a logger for session management
-	sessionLogger, err := logger.NewInternalLogger(logger.LevelDebug, "")
-	if err != nil {
-		// Fallback to a simple logger if file logging fails
-		sessionLogger = logger.NewSimpleLogger(logger.LevelInfo)
+	var sessionLogger *logger.Logger
+	if sharedLogger != nil {
+		sessionLogger = sharedLogger
+	} else {
+		// Create a logger for session management
+		var err error
+		sessionLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
+		if err != nil {
+			// Fallback to a simple logger if file logging fails
+			sessionLogger = logger.NewSimpleLogger(logger.LevelInfo)
+		}
 	}
 
 	manager := &SessionManager{
@@ -187,7 +265,7 @@ func NewSessionManager(client *api.Client) *SessionManager {
 		logger:         sessionLogger,
 		ctx:            ctx,
 		cancelFunc:     cancel,
-		sessionTimeout: 30 * time.Minute, // Sessions expire after 30 minutes
+		sessionTimeout: 24 * time.Hour, // Sessions expire after 24 hours (effectively disabled)
 	}
 
 	// Configure port range for dynamic allocation
@@ -201,7 +279,7 @@ func NewSessionManager(client *api.Client) *SessionManager {
 		sessionLogger.Info("VNC Session Manager initialized",
 			"port_range", fmt.Sprintf("%d-%d", manager.portRange.start, manager.portRange.end),
 			"session_timeout", manager.sessionTimeout,
-			"cleanup_interval", "5m")
+			"cleanup_interval", "30m")
 	}
 
 	return manager
@@ -240,14 +318,32 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 	// Check if we can reuse an existing session
 	if existingSession := sm.findReusableSession(targetKey); existingSession != nil {
 		existingSession.UpdateLastUsed()
-		if sm.logger != nil {
-			sm.logger.Info("Reusing existing VNC session",
-				"session_id", existingSession.ID,
-				"target_type", sessionType,
-				"node", nodeName,
-				"vmid", vmid,
-				"port", existingSession.Port)
+
+		// If session was disconnected, reset it to active state
+		if existingSession.State == SessionStateDisconnected {
+			existingSession.mutex.Lock()
+			existingSession.State = SessionStateActive
+			existingSession.mutex.Unlock()
+
+			if sm.logger != nil {
+				sm.logger.Info("Reactivating disconnected VNC session",
+					"session_id", existingSession.ID,
+					"target_type", sessionType,
+					"node", nodeName,
+					"vmid", vmid,
+					"port", existingSession.Port)
+			}
+		} else {
+			if sm.logger != nil {
+				sm.logger.Info("Reusing existing VNC session",
+					"session_id", existingSession.ID,
+					"target_type", sessionType,
+					"node", nodeName,
+					"vmid", vmid,
+					"port", existingSession.Port)
+			}
 		}
+
 		return existingSession, nil
 	}
 
@@ -256,17 +352,21 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 
 	// Create the session
 	session := &VNCSession{
-		ID:         sessionID,
-		TargetType: sessionType,
-		NodeName:   nodeName,
-		VMID:       vmid,
-		TargetName: targetName,
-		CreatedAt:  time.Now(),
-		LastUsed:   time.Now(),
+		ID:                sessionID,
+		TargetType:        sessionType,
+		NodeName:          nodeName,
+		VMID:              vmid,
+		TargetName:        targetName,
+		CreatedAt:         time.Now(),
+		LastUsed:          time.Now(),
+		State:             SessionStateActive,
+		activeConnections: 0,
+		disconnectChan:    make(chan struct{}, 1),
+		sessionManager:    sm,
 	}
 
 	// Create and start the VNC server for this session
-	server := NewServer()
+	server := NewServerWithLogger(sm.logger)
 	session.Server = server
 
 	var vncURL string
@@ -295,13 +395,13 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 			return nil, fmt.Errorf("VM not found: %s on node %s", vmid, nodeName)
 		}
 
-		vncURL, err = server.StartVMVNCServer(sm.client, targetVM)
+		vncURL, err = server.StartVMVNCServerWithSession(sm.client, targetVM, session)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start VM VNC server: %w", err)
 		}
 
 	case SessionTypeNode:
-		vncURL, err = server.StartNodeVNCServer(sm.client, nodeName)
+		vncURL, err = server.StartNodeVNCServerWithSession(sm.client, nodeName, session)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start node VNC server: %w", err)
 		}
@@ -316,6 +416,9 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 
 	// Store the session
 	sm.sessions[sessionID] = session
+
+	// Start monitoring for disconnections
+	go sm.monitorSessionDisconnect(session)
 
 	if sm.logger != nil {
 		sm.logger.Info("Created new VNC session",
@@ -438,6 +541,15 @@ func (sm *SessionManager) CleanupInactiveSessions(maxAge time.Duration) {
 		}
 	}
 
+	// Only log and clean up if there are expired sessions
+	if len(expiredSessions) == 0 {
+		return
+	}
+
+	if sm.logger != nil {
+		sm.logger.Info("Found %d expired VNC sessions to clean up", len(expiredSessions))
+	}
+
 	// Clean up expired sessions
 	for _, sessionID := range expiredSessions {
 		session := sm.sessions[sessionID]
@@ -462,7 +574,7 @@ func (sm *SessionManager) CleanupInactiveSessions(maxAge time.Duration) {
 		delete(sm.sessions, sessionID)
 	}
 
-	if len(expiredSessions) > 0 && sm.logger != nil {
+	if sm.logger != nil {
 		sm.logger.Info("Completed VNC session cleanup",
 			"cleaned_sessions", len(expiredSessions),
 			"remaining_sessions", len(sm.sessions))
@@ -515,7 +627,7 @@ func (sm *SessionManager) Shutdown() error {
 // This method must be called with the manager mutex held.
 func (sm *SessionManager) findReusableSession(targetKey string) *VNCSession {
 	for _, session := range sm.sessions {
-		if session.GetTargetKey() == targetKey && !session.IsExpired(sm.sessionTimeout) {
+		if session.GetTargetKey() == targetKey && session.IsReusable() && !session.IsExpired(sm.sessionTimeout) {
 			return session
 		}
 	}
@@ -526,7 +638,7 @@ func (sm *SessionManager) findReusableSession(targetKey string) *VNCSession {
 // cleans up expired sessions. This ensures that inactive sessions
 // don't accumulate and consume resources indefinitely.
 func (sm *SessionManager) startCleanupProcess() {
-	sm.cleanupTicker = time.NewTicker(5 * time.Minute)
+	sm.cleanupTicker = time.NewTicker(30 * time.Minute)
 
 	go func() {
 		defer sm.cleanupTicker.Stop()
@@ -585,5 +697,59 @@ func (sm *SessionManager) cleanupExpiredSessions() {
 		sm.logger.Info("Completed VNC session cleanup",
 			"cleaned_sessions", len(expiredSessions),
 			"remaining_sessions", len(sm.sessions))
+	}
+}
+
+// monitorSessionDisconnect monitors a session for client disconnections
+// and handles immediate cleanup when clients disconnect
+func (sm *SessionManager) monitorSessionDisconnect(session *VNCSession) {
+	for {
+		select {
+		case <-session.disconnectChan:
+			// Client disconnected, consider cleanup after a grace period
+			if sm.logger != nil {
+				sm.logger.Info("Client disconnected from VNC session",
+					"session_id", session.ID,
+					"target_type", session.TargetType,
+					"target_name", session.TargetName,
+					"active_connections", session.GetConnectionCount())
+			}
+
+			// Wait a short grace period to allow for reconnections
+			time.Sleep(5 * time.Second)
+
+			// Check if session is still disconnected and remove it
+			sm.mutex.Lock()
+			if existingSession, exists := sm.sessions[session.ID]; exists {
+				if existingSession.GetConnectionCount() == 0 && existingSession.State == SessionStateDisconnected {
+					if sm.logger != nil {
+						sm.logger.Info("Removing disconnected VNC session after grace period",
+							"session_id", session.ID,
+							"target_type", session.TargetType,
+							"target_name", session.TargetName)
+					}
+
+					// Shutdown the session
+					if err := existingSession.Shutdown(); err != nil && sm.logger != nil {
+						sm.logger.Error("Failed to shutdown disconnected session",
+							"session_id", session.ID,
+							"error", err)
+					}
+
+					// Remove from sessions map
+					delete(sm.sessions, session.ID)
+
+					// Free up the port
+					if existingSession.Port > 0 {
+						delete(sm.usedPorts, existingSession.Port)
+					}
+				}
+			}
+			sm.mutex.Unlock()
+
+		case <-sm.ctx.Done():
+			// Session manager is shutting down
+			return
+		}
 	}
 }
