@@ -374,10 +374,17 @@ func CreateNodeProxyConfig(client *api.Client, nodeName string) (*ProxyConfig, e
 	authToken := client.GetAuthToken()
 	configLogger.Debug("Authentication token type for node %s: %s", nodeName, getAuthTokenType(authToken))
 
+	// For node shells, use the ticket as password if no password is generated
+	password := proxy.Password
+	if password == "" {
+		password = proxy.Ticket
+		configLogger.Debug("Using ticket as password for node shell %s", nodeName)
+	}
+
 	config := &ProxyConfig{
 		Port:        proxy.Port,
 		Ticket:      proxy.Ticket,
-		Password:    proxy.Password,
+		Password:    password,
 		ProxmoxHost: u.Host,
 		NodeName:    nodeName,
 		VMID:        0, // Not applicable for node shells

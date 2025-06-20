@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Node storage values now consistently stored in GB (converted from bytes)
   - Storage percentages now display with correct used/total GB values
   - Maintains consistency with cluster resource processing
+- **Node VNC Support**: Fixed VNC shell access for nodes by removing unsupported `generate-password` parameter
+  - Node VNC shells use ticket-based authentication instead of one-time passwords
+  - Resolves "property is not defined in schema" API errors for node VNC connections
+  - Maintains compatibility with Proxmox API limitations for node shell sessions
 
 ### Added
 - **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface

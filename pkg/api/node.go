@@ -255,10 +255,10 @@ func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyRespons
 
 	c.logger.Debug("Node VNC shell WebSocket API path: %s", path)
 
-	// POST request with websocket=1 and generate-password=1 parameters for WebSocket compatibility
+	// POST request with websocket=1 parameter for WebSocket compatibility
+	// Note: Node VNC shells don't support generate-password parameter
 	data := map[string]interface{}{
-		"websocket":         1,
-		"generate-password": 1,
+		"websocket": 1,
 	}
 
 	c.logger.Debug("Node VNC shell WebSocket request data for %s: %+v", nodeName, data)
@@ -305,7 +305,7 @@ func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyRespons
 		response.Password = password
 		c.logger.Debug("VNC shell one-time password obtained for node %s (length: %d)", nodeName, len(password))
 	} else {
-		c.logger.Debug("No one-time password in VNC shell WebSocket response for node %s", nodeName)
+		c.logger.Debug("No one-time password for node shell %s (expected behavior - will use ticket)", nodeName)
 	}
 
 	c.logger.Info("VNC shell with WebSocket created successfully for node %s - Port: %s, Has Password: %t",
