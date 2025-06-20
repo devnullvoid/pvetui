@@ -8,34 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Embedded noVNC Client**: Revolutionary VNC console access without requiring Proxmox web UI login
-  - Self-contained noVNC client embedded directly in the application
-  - Automatic authentication handling for both API token and password authentication
-  - WebSocket reverse proxy bridges noVNC client to Proxmox VNC websocket endpoints
-  - One-time password generation and automatic connection establishment
-  - Local HTTP server hosts noVNC client on dynamically allocated ports
-  - Supports QEMU VMs, LXC containers, and node shell sessions
-  - No browser session management or manual authentication required
-  - Enhanced security with automatic session cleanup and timeout handling
-  - Implementation inspired by community solution from [Proxmox Forum discussion](https://forum.proxmox.com/threads/proxmox-api-vncwebsocket.73184/page-2)
 - **Concurrent VNC Sessions**: Support for multiple simultaneous VNC connections
   - Session management system allows connecting to multiple VMs and nodes simultaneously
   - Each VNC session runs on its own dedicated port with independent WebSocket proxy
   - Automatic session tracking with unique identifiers and metadata
   - Real-time session count display in footer (e.g., "VNC:3" for 3 active sessions)
   - Smart session reuse - connecting to the same target returns existing session
-  - Automatic cleanup of inactive sessions after 30 minutes of inactivity
+  - Automatic cleanup of inactive sessions after 24 hours of inactivity
   - Session lifecycle management with proper resource cleanup on application exit
   - Backward compatibility maintained with existing VNC functionality
-- **Authentication Handling**: Improved VNC authentication to work correctly with both QEMU VMs and LXC containers
-- **VNC User Experience**: Removed outdated VNC warning modal since embedded client no longer requires Proxmox web UI login
-- **Comprehensive VNC Logging**: Added detailed logging throughout VNC components for better debugging and monitoring
-  - API call logging with request/response details and authentication methods
-  - WebSocket proxy logging with connection status, message counts, and error tracking
-  - HTTP server logging with port allocation, startup/shutdown, and file serving
-  - Service-level logging with connection attempts, status checks, and browser launching
-  - Proxy configuration logging with authentication token types and endpoint details
-  - Message-level debugging for WebSocket communication (configurable verbosity)
+- **noVNC Git Submodule Integration**: Replaced manual noVNC file copying with git submodules
+  - noVNC client now managed as a git submodule from official repository (v1.6.0)
+  - Easy updates to new noVNC versions with standard git commands
+  - Improved maintainability and version tracking
+  - Added comprehensive documentation for submodule management
+  - Requires `git clone --recurse-submodules` for new installations
+  - Migrated from embedded filesystem to direct filesystem serving for better flexibility
 
 ### Fixed
 - **VNC Session Auto-Disconnect**: Removed automatic 30-minute session timeout
@@ -75,11 +63,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - VNC service, session manager, WebSocket proxy, and HTTP server all use shared logger
   - Improved logging architecture with proper dependency injection throughout VNC components
   - Better log organization and debugging experience with centralized logging
+
+## [0.3.0] - 2025-06-20
+
+### Added
+- **Embedded noVNC Client**: Revolutionary VNC console access without requiring Proxmox web UI login
+  - Self-contained noVNC client embedded directly in the application
+  - Automatic authentication handling for both API token and password authentication
+  - WebSocket reverse proxy bridges noVNC client to Proxmox VNC websocket endpoints
+  - One-time password generation and automatic connection establishment
+  - Local HTTP server hosts noVNC client on dynamically allocated ports
+  - Supports QEMU VMs, LXC containers, and node shell sessions
+  - No browser session management or manual authentication required
+  - Enhanced security with automatic session cleanup and timeout handling
+  - Implementation inspired by community solution from [Proxmox Forum discussion](https://forum.proxmox.com/threads/proxmox-api-vncwebsocket.73184/page-2)
+- **Authentication Handling**: Improved VNC authentication to work correctly with both QEMU VMs and LXC containers
+- **VNC User Experience**: Removed outdated VNC warning modal since embedded client no longer requires Proxmox web UI login
+- **Comprehensive VNC Logging**: Added detailed logging throughout VNC components for better debugging and monitoring
+  - API call logging with request/response details and authentication methods
+  - WebSocket proxy logging with connection status, message counts, and error tracking
+  - HTTP server logging with port allocation, startup/shutdown, and file serving
+  - Service-level logging with connection attempts, status checks, and browser launching
+  - Proxy configuration logging with authentication token types and endpoint details
+  - Message-level debugging for WebSocket communication (configurable verbosity)
+
+### Fixed
 - **Configuration Realm Handling**: Fixed critical bug where config file realm setting was ignored
   - Configuration files now properly merge the `realm` field from YAML config
   - API authentication now uses correct realm (e.g., 'pve' instead of defaulting to 'pam')
   - Resolves authentication failures when using non-PAM realms with API tokens
   - Ensures proper authentication for all Proxmox API operations
+- **Node VNC Shell Access**: Resolved node VNC shell functionality by removing unsupported generate-password parameter
+  - Node shells now properly authenticate using VNC ticket as password
+  - Fixed API compatibility issues specific to node shell VNC endpoints
+  - Improved error handling and user feedback for node VNC operations
+
+## [0.2.0] - 2025-06-11
+
+### Fixed
 - **Node Storage Display**: Fixed node details showing "0.00 GB" for storage values
   - Resolved inconsistent storage units between cluster and individual node data
   - Node storage values now consistently stored in GB (converted from bytes)
@@ -87,13 +108,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Maintains consistency with cluster resource processing
 
 ### Added
-- **noVNC Git Submodule Integration**: Replaced manual noVNC file copying with git submodules
-  - noVNC client now managed as a git submodule from official repository (v1.6.0)
-  - Easy updates to new noVNC versions with standard git commands
-  - Improved maintainability and version tracking
-  - Added comprehensive documentation for submodule management
-  - Requires `git clone --recurse-submodules` for new installations
-  - Migrated from embedded filesystem to direct filesystem serving for better flexibility
 - **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
   - `h` = left/go back, `j` = down, `k` = up, `l` = right/select/enter
   - Works in all lists, details panels, and modals
@@ -225,7 +239,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform SSH client integration
 - Automatic VNC proxy handling through Proxmox API
 
-
-[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/devnullvoid/proxmox-tui/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/devnullvoid/proxmox-tui/releases/tag/v0.1.0
