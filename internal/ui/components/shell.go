@@ -7,6 +7,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ssh"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/vnc"
 )
 
@@ -80,22 +81,20 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 func (a *App) openNodeVNC() {
 	node := a.nodeList.GetSelectedNode()
 	if node == nil {
-		a.showMessage("No node selected")
+		a.header.ShowError("No node selected")
 		return
 	}
 
-	if !node.Online {
-		a.showMessage("Node is offline")
-		return
-	}
+	logger := models.GetUILogger()
+	logger.Debug("Opening VNC shell for node: %s", node.Name)
 
-	// Create VNC service
-	vncService := vnc.NewService(a.client)
+	// Use the shared VNC service instead of creating a new one
+	vncService := a.GetVNCService()
 
 	// Check if VNC is available for this node
 	available, reason := vncService.GetNodeVNCStatus(node.Name)
 	if !available {
-		a.showMessage(reason)
+		a.header.ShowError(reason)
 		return
 	}
 
@@ -107,17 +106,17 @@ func (a *App) openNodeVNC() {
 func (a *App) openVMVNC() {
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
-		a.showMessage("No VM selected")
+		a.header.ShowError("No VM selected")
 		return
 	}
 
-	// Create VNC service
-	vncService := vnc.NewService(a.client)
+	// Use the shared VNC service instead of creating a new one
+	vncService := a.GetVNCService()
 
 	// Check if VNC is available for this VM
 	available, reason := vncService.GetVMVNCStatus(vm)
 	if !available {
-		a.showMessage(reason)
+		a.header.ShowError(reason)
 		return
 	}
 
