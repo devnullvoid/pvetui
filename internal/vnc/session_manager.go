@@ -185,6 +185,9 @@ func (s *VNCSession) Shutdown() error {
 	return nil
 }
 
+// SessionCountCallback is called when the session count changes
+type SessionCountCallback func(count int)
+
 // SessionManager manages multiple concurrent VNC sessions with comprehensive
 // lifecycle management, automatic cleanup, and smart session reuse.
 //
@@ -194,6 +197,7 @@ func (s *VNCSession) Shutdown() error {
 // - Automatic cleanup of inactive sessions
 // - Session reuse for the same target
 // - Background monitoring and maintenance
+// - Real-time session count notifications via callbacks
 //
 // All operations are thread-safe and can be called concurrently from
 // multiple goroutines.
@@ -218,6 +222,9 @@ type SessionManager struct {
 
 	// Background maintenance
 	cleanupTicker *time.Ticker // Ticker for periodic cleanup operations
+
+	// Callback for session count changes
+	sessionCountCallback SessionCountCallback // Called when session count changes
 
 	// Thread safety
 	mutex sync.RWMutex // Protects concurrent access to manager state
@@ -417,6 +424,9 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 	// Store the session
 	sm.sessions[sessionID] = session
 
+	// Notify callback of session count change
+	sm.notifySessionCountChange()
+
 	// Start monitoring for disconnections
 	go sm.monitorSessionDisconnect(session)
 
@@ -440,6 +450,24 @@ func (sm *SessionManager) GetSessionCount() int {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
 	return len(sm.sessions)
+}
+
+// SetSessionCountCallback registers a callback function that will be called
+// whenever the session count changes. This allows for real-time UI updates.
+func (sm *SessionManager) SetSessionCountCallback(callback SessionCountCallback) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	sm.sessionCountCallback = callback
+}
+
+// notifySessionCountChange calls the registered callback with the current session count.
+// This method must be called with the manager mutex held.
+func (sm *SessionManager) notifySessionCountChange() {
+	if sm.sessionCountCallback != nil {
+		count := len(sm.sessions)
+		// Call callback in a separate goroutine to avoid blocking session management
+		go sm.sessionCountCallback(count)
+	}
 }
 
 // ListSessions returns a slice of all currently active VNC sessions.
@@ -484,6 +512,9 @@ func (sm *SessionManager) CloseSession(sessionID string) error {
 	// Remove from sessions map
 	delete(sm.sessions, sessionID)
 
+	// Notify callback of session count change
+	sm.notifySessionCountChange()
+
 	return err
 }
 
@@ -505,6 +536,9 @@ func (sm *SessionManager) CloseAllSessions() error {
 
 	// Clear all sessions
 	sm.sessions = make(map[string]*VNCSession)
+
+	// Notify callback of session count change
+	sm.notifySessionCountChange()
 
 	if len(errors) > 0 {
 		return fmt.Errorf("encountered %d errors closing sessions: %v", len(errors), errors)
@@ -573,6 +607,9 @@ func (sm *SessionManager) CleanupInactiveSessions(maxAge time.Duration) {
 		// Remove from sessions map
 		delete(sm.sessions, sessionID)
 	}
+
+	// Notify callback of session count change
+	sm.notifySessionCountChange()
 
 	if sm.logger != nil {
 		sm.logger.Info("Completed VNC session cleanup",
@@ -743,6 +780,9 @@ func (sm *SessionManager) monitorSessionDisconnect(session *VNCSession) {
 					if existingSession.Port > 0 {
 						delete(sm.usedPorts, existingSession.Port)
 					}
+
+					// Notify callback of session count change
+					sm.notifySessionCountChange()
 				}
 			}
 			sm.mutex.Unlock()

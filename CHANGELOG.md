@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cleanup process runs every 30 minutes instead of every 5 minutes for efficiency
   - Sessions are only cleaned up when truly inactive for extended periods
   - Prevents unexpected disconnections during long VNC sessions
+- **VNC Session Count Update Delay**: Implemented real-time session count updates
+  - Added callback system for immediate UI updates when sessions are created or removed
+  - Session count now updates instantly when browser tabs are closed (within 5 seconds)
+  - Reduced polling interval from 30 seconds to 5 seconds as backup mechanism
+  - UI footer now reflects accurate session count without delays
+  - Improved user experience with responsive session management
 - **VNC Session Timeouts**: Fixed VNC connections disconnecting after 20-30 seconds
   - Increased WebSocket proxy timeout from 30 seconds to 30 minutes for long-lived VNC sessions
   - Removed HTTP server read/write timeouts that were terminating WebSocket connections

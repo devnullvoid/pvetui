@@ -19,18 +19,30 @@ type Service struct {
 
 // NewService creates a new VNC service with session management capabilities
 func NewService(client *api.Client) *Service {
-	// Create a logger for VNC operations
-	vncLogger, err := logger.NewInternalLogger(logger.LevelDebug, "")
-	if err != nil {
-		// Fallback to a simple logger if file logging fails
-		vncLogger = logger.NewSimpleLogger(logger.LevelInfo)
+	return NewServiceWithLogger(client, nil)
+}
+
+// NewServiceWithLogger creates a new VNC service with a shared logger
+func NewServiceWithLogger(client *api.Client, sharedLogger *logger.Logger) *Service {
+	var vncLogger *logger.Logger
+
+	if sharedLogger != nil {
+		vncLogger = sharedLogger
+	} else {
+		// Fallback: create a logger for VNC operations
+		var err error
+		vncLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
+		if err != nil {
+			// Fallback to a simple logger if file logging fails
+			vncLogger = logger.NewSimpleLogger(logger.LevelInfo)
+		}
 	}
 
 	vncLogger.Info("Creating new VNC service with session management")
 
 	return &Service{
 		client:         client,
-		sessionManager: NewSessionManager(client),
+		sessionManager: NewSessionManagerWithLogger(client, vncLogger),
 		logger:         vncLogger,
 	}
 }
@@ -197,8 +209,13 @@ func (s *Service) ListActiveSessions() []*VNCSession {
 // GetActiveSessionCount returns the number of active VNC sessions
 func (s *Service) GetActiveSessionCount() int {
 	count := s.sessionManager.GetSessionCount()
-	s.logger.Debug("Active VNC session count: %d", count)
 	return count
+}
+
+// SetSessionCountCallback registers a callback function that will be called
+// whenever the session count changes. This allows for real-time UI updates.
+func (s *Service) SetSessionCountCallback(callback func(int)) {
+	s.sessionManager.SetSessionCountCallback(callback)
 }
 
 // CloseSession closes a specific VNC session by ID
@@ -238,7 +255,6 @@ func (s *Service) GetSessionByTarget(sessionType SessionType, target string) (*V
 
 // CleanupInactiveSessions removes sessions that haven't been accessed recently
 func (s *Service) CleanupInactiveSessions(maxAge time.Duration) {
-	s.logger.Debug("Cleaning up inactive VNC sessions (max age: %s)", maxAge.String())
 	s.sessionManager.CleanupInactiveSessions(maxAge)
 }
 
