@@ -40,55 +40,37 @@ func (a *App) openNodeShell() {
 	})
 }
 
-// showVNCWarning displays a warning about VNC browser requirements
-func (a *App) showVNCWarning(onConfirm func()) {
-	message := "VNC Console Information\n\n" +
-		"The VNC console will open in your default web browser.\n\n" +
-		"Important: You must be logged into the Proxmox web interface " +
-		"in the same browser session for VNC to work properly.\n\n" +
-		"If you see authentication errors, please log into your " +
-		"Proxmox web interface first.\n\n" +
-		"Do you want to continue?"
-
-	a.showConfirmationDialog(message, func() {
-		// Mark that the warning has been shown
-		a.vncWarningShown = true
-		// Execute the VNC connection
-		onConfirm()
-	})
-}
-
-// connectToNodeVNC performs the actual node VNC connection
+// connectToNodeVNC performs the actual node VNC connection using embedded noVNC client
 func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 	// Show loading message
-	a.header.ShowLoading(fmt.Sprintf("Opening VNC shell for %s...", node.Name))
+	a.header.ShowLoading(fmt.Sprintf("Starting embedded VNC shell for %s...", node.Name))
 
-	// Open VNC connection in a goroutine to avoid blocking UI
+	// Open embedded VNC connection in a goroutine to avoid blocking UI
 	go func() {
-		err := vncService.ConnectToNode(node.Name)
+		err := vncService.ConnectToNodeEmbedded(node.Name)
 		a.QueueUpdateDraw(func() {
 			if err != nil {
-				a.header.ShowError(fmt.Sprintf("Failed to open VNC shell: %v", err))
+				a.header.ShowError(fmt.Sprintf("Failed to start VNC shell: %v", err))
 			} else {
-				a.header.ShowSuccess(fmt.Sprintf("VNC shell opened for %s", node.Name))
+				a.header.ShowSuccess(fmt.Sprintf("Embedded VNC shell started for %s", node.Name))
 			}
 		})
 	}()
 }
 
-// connectToVMVNC performs the actual VM VNC connection
+// connectToVMVNC performs the actual VM VNC connection using embedded noVNC client
 func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 	// Show loading message
-	a.header.ShowLoading(fmt.Sprintf("Opening VNC console for %s...", vm.Name))
+	a.header.ShowLoading(fmt.Sprintf("Starting embedded VNC console for %s...", vm.Name))
 
-	// Open VNC connection in a goroutine to avoid blocking UI
+	// Open embedded VNC connection in a goroutine to avoid blocking UI
 	go func() {
-		err := vncService.ConnectToVM(vm)
+		err := vncService.ConnectToVMEmbedded(vm)
 		a.QueueUpdateDraw(func() {
 			if err != nil {
-				a.header.ShowError(fmt.Sprintf("Failed to open VNC console: %v", err))
+				a.header.ShowError(fmt.Sprintf("Failed to start VNC console: %v", err))
 			} else {
-				a.header.ShowSuccess(fmt.Sprintf("VNC console opened for %s", vm.Name))
+				a.header.ShowSuccess(fmt.Sprintf("Embedded VNC console started for %s", vm.Name))
 			}
 		})
 	}()
@@ -117,15 +99,7 @@ func (a *App) openNodeVNC() {
 		return
 	}
 
-	// Show VNC warning if this is the first time
-	if !a.vncWarningShown {
-		a.showVNCWarning(func() {
-			a.connectToNodeVNC(node, vncService)
-		})
-		return
-	}
-
-	// Connect directly if warning has been shown before
+	// Connect directly to VNC
 	a.connectToNodeVNC(node, vncService)
 }
 
@@ -147,15 +121,7 @@ func (a *App) openVMVNC() {
 		return
 	}
 
-	// Show VNC warning if this is the first time
-	if !a.vncWarningShown {
-		a.showVNCWarning(func() {
-			a.connectToVMVNC(vm, vncService)
-		})
-		return
-	}
-
-	// Connect directly if warning has been shown before
+	// Connect directly to VNC
 	a.connectToVMVNC(vm, vncService)
 }
 

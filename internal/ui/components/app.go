@@ -11,23 +11,22 @@ import (
 // App is the main application component
 type App struct {
 	*tview.Application
-	client          *api.Client
-	config          config.Config
-	pages           *tview.Pages
-	header          *Header
-	footer          *Footer
-	nodeList        *NodeList
-	vmList          *VMList
-	nodeDetails     *NodeDetails
-	vmDetails       *VMDetails
-	clusterStatus   *ClusterStatus
-	helpModal       *HelpModal
-	mainLayout      *tview.Flex
-	searchInput     *tview.InputField
-	contextMenu     *tview.List
-	isMenuOpen      bool
-	lastFocus       tview.Primitive
-	vncWarningShown bool // Track if VNC warning has been shown
+	client        *api.Client
+	config        config.Config
+	pages         *tview.Pages
+	header        *Header
+	footer        *Footer
+	nodeList      *NodeList
+	vmList        *VMList
+	nodeDetails   *NodeDetails
+	vmDetails     *VMDetails
+	clusterStatus *ClusterStatus
+	helpModal     *HelpModal
+	mainLayout    *tview.Flex
+	searchInput   *tview.InputField
+	contextMenu   *tview.List
+	isMenuOpen    bool
+	lastFocus     tview.Primitive
 }
 
 // NewApp creates a new application instance with all UI components

@@ -83,6 +83,29 @@ func (c *Client) IsUsingTokenAuth() bool {
 	return c.authManager != nil && c.authManager.IsTokenAuth()
 }
 
+// GetBaseURL returns the base URL of the Proxmox API
+func (c *Client) GetBaseURL() string {
+	return c.baseURL
+}
+
+// GetAuthToken returns the authentication token for API requests
+func (c *Client) GetAuthToken() string {
+	if c.httpClient.apiToken != "" {
+		return c.httpClient.apiToken
+	}
+
+	// For ticket-based authentication, get the current ticket
+	if c.authManager != nil {
+		ctx := context.Background()
+		token, err := c.authManager.GetValidToken(ctx)
+		if err == nil && token != nil {
+			return fmt.Sprintf("PVEAuthCookie=%s", token.Ticket)
+		}
+	}
+
+	return ""
+}
+
 // GetWithCache makes a GET request to the Proxmox API with caching
 func (c *Client) GetWithCache(path string, result *map[string]interface{}, ttl time.Duration) error {
 	// Generate cache key based on API path

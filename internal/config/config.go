@@ -1,3 +1,70 @@
+// Package config provides configuration management for the Proxmox TUI application.
+//
+// This package handles loading configuration from multiple sources with proper
+// precedence ordering:
+//  1. Command-line flags (highest priority)
+//  2. Environment variables
+//  3. Configuration files (YAML format)
+//  4. Default values (lowest priority)
+//
+// The package follows XDG Base Directory Specification for configuration and
+// cache file locations, providing a clean and predictable user experience.
+//
+// Configuration Sources:
+//
+// Environment Variables:
+//   - PROXMOX_ADDR: Proxmox server URL
+//   - PROXMOX_USER: Username for authentication
+//   - PROXMOX_PASSWORD: Password for password-based auth
+//   - PROXMOX_TOKEN_ID: API token ID for token-based auth
+//   - PROXMOX_TOKEN_SECRET: API token secret
+//   - PROXMOX_REALM: Authentication realm (default: "pam")
+//   - PROXMOX_INSECURE: Skip TLS verification ("true"/"false")
+//   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
+//   - PROXMOX_CACHE_DIR: Custom cache directory path
+//
+// Configuration File Format (YAML):
+//
+//	addr: "https://pve.example.com:8006"
+//	user: "root"
+//	password: "secret"
+//	realm: "pam"
+//	insecure: false
+//	debug: true
+//	cache_dir: "/custom/cache/path"
+//
+// XDG Directory Support:
+//
+// The package automatically determines appropriate directories for configuration
+// and cache files based on XDG specifications:
+//   - Config: $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui
+//   - Cache: $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+//
+// Authentication Methods:
+//
+// The package supports both password and API token authentication:
+//   - Password: Requires user + password + realm
+//   - API Token: Requires user + token_id + token_secret + realm
+//
+// Example usage:
+//
+//	// Load configuration with automatic source detection
+//	config := NewConfig()
+//	config.ParseFlags()
+//
+//	// Merge with config file if specified
+//	if configPath != "" {
+//		err := config.MergeWithFile(configPath)
+//		if err != nil {
+//			log.Fatal("Failed to load config file:", err)
+//		}
+//	}
+//
+//	// Set defaults and validate
+//	config.SetDefaults()
+//	if err := config.Validate(); err != nil {
+//		log.Fatal("Invalid configuration:", err)
+//	}
 package config
 
 import (
@@ -11,25 +78,58 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DebugEnabled is a global flag to enable debug logging
+// DebugEnabled is a global flag to enable debug logging throughout the application.
+//
+// This variable is set during configuration parsing and used by various
+// components to determine whether to emit debug-level log messages.
 var DebugEnabled bool
 
-// Config represents the application configuration
+// Config represents the complete application configuration with support for
+// multiple authentication methods and XDG-compliant directory handling.
+//
+// The configuration supports both password-based and API token authentication
+// for Proxmox VE. All fields can be populated from environment variables,
+// command-line flags, or YAML configuration files.
+//
+// Authentication Methods:
+//   - Password: Use User + Password + Realm
+//   - API Token: Use User + TokenID + TokenSecret + Realm
+//
+// Example configuration:
+//
+//	config := &Config{
+//		Addr:     "https://pve.example.com:8006",
+//		User:     "root",
+//		Password: "secret",
+//		Realm:    "pam",
+//		Insecure: false,
+//		Debug:    true,
+//	}
 type Config struct {
-	Addr        string `yaml:"addr"`
-	User        string `yaml:"user"`
-	Password    string `yaml:"password"`
-	TokenID     string `yaml:"token_id"`
-	TokenSecret string `yaml:"token_secret"`
-	Realm       string `yaml:"realm"`
-	ApiPath     string `yaml:"api_path"`
-	Insecure    bool   `yaml:"insecure"`
-	SSHUser     string `yaml:"ssh_user"`
-	Debug       bool   `yaml:"debug"`
-	CacheDir    string `yaml:"cache_dir"` // Directory for caching data
+	Addr        string `yaml:"addr"`         // Proxmox server URL (e.g., "https://pve.example.com:8006")
+	User        string `yaml:"user"`         // Username for authentication (without realm)
+	Password    string `yaml:"password"`     // Password for password-based authentication
+	TokenID     string `yaml:"token_id"`     // API token ID for token-based authentication
+	TokenSecret string `yaml:"token_secret"` // API token secret for token-based authentication
+	Realm       string `yaml:"realm"`        // Authentication realm (e.g., "pam", "pve")
+	ApiPath     string `yaml:"api_path"`     // API base path (default: "/api2/json")
+	Insecure    bool   `yaml:"insecure"`     // Skip TLS certificate verification
+	SSHUser     string `yaml:"ssh_user"`     // SSH username for shell connections
+	Debug       bool   `yaml:"debug"`        // Enable debug logging
+	CacheDir    string `yaml:"cache_dir"`    // Custom cache directory path
 }
 
-// getXDGCacheDir returns the XDG-compliant cache directory for the application
+// getXDGCacheDir returns the XDG-compliant cache directory for the application.
+//
+// This function follows the XDG Base Directory Specification for determining
+// the appropriate cache directory:
+//  1. Uses $XDG_CACHE_HOME/proxmox-tui if XDG_CACHE_HOME is set
+//  2. Falls back to $HOME/.cache/proxmox-tui if HOME is available
+//  3. Uses system temp directory as final fallback
+//
+// The returned directory may not exist yet - callers should create it as needed.
+//
+// Returns the absolute path to the cache directory.
 func getXDGCacheDir() string {
 	// Check XDG_CACHE_HOME first
 	if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
@@ -45,7 +145,17 @@ func getXDGCacheDir() string {
 	return filepath.Join(os.TempDir(), "proxmox-tui-cache")
 }
 
-// getXDGConfigDir returns the XDG-compliant config directory for the application
+// getXDGConfigDir returns the XDG-compliant configuration directory for the application.
+//
+// This function follows the XDG Base Directory Specification for determining
+// the appropriate configuration directory:
+//  1. Uses $XDG_CONFIG_HOME/proxmox-tui if XDG_CONFIG_HOME is set
+//  2. Falls back to $HOME/.config/proxmox-tui if HOME is available
+//  3. Uses current directory as final fallback
+//
+// The returned directory may not exist yet - callers should create it as needed.
+//
+// Returns the absolute path to the configuration directory.
 func getXDGConfigDir() string {
 	// Check XDG_CONFIG_HOME first
 	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
@@ -61,12 +171,60 @@ func getXDGConfigDir() string {
 	return "."
 }
 
-// GetDefaultConfigPath returns the default XDG-compliant config file path
+// GetDefaultConfigPath returns the default path for the application configuration file.
+//
+// This function combines the XDG-compliant configuration directory with the
+// standard configuration filename "config.yml". The path follows XDG Base
+// Directory Specification conventions.
+//
+// The returned path may not exist - callers should check for file existence
+// before attempting to read from it.
+//
+// Returns the absolute path to the default configuration file.
+//
+// Example usage:
+//
+//	configPath := GetDefaultConfigPath()
+//	if _, err := os.Stat(configPath); err == nil {
+//		// Config file exists, load it
+//		err := config.MergeWithFile(configPath)
+//	}
 func GetDefaultConfigPath() string {
 	return filepath.Join(getXDGConfigDir(), "config.yml")
 }
 
-// NewConfig creates a Config with values from environment variables
+// NewConfig creates a new Config instance populated with values from environment variables.
+//
+// This function reads all supported environment variables and creates a Config
+// with those values. Environment variables that are not set will result in
+// zero values for the corresponding fields.
+//
+// Environment variables read:
+//   - PROXMOX_ADDR: Server URL
+//   - PROXMOX_USER: Username
+//   - PROXMOX_PASSWORD: Password for password auth
+//   - PROXMOX_TOKEN_ID: Token ID for token auth
+//   - PROXMOX_TOKEN_SECRET: Token secret for token auth
+//   - PROXMOX_REALM: Authentication realm (default: "pam")
+//   - PROXMOX_API_PATH: API base path (default: "/api2/json")
+//   - PROXMOX_INSECURE: Skip TLS verification ("true"/"false")
+//   - PROXMOX_SSH_USER: SSH username
+//   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
+//   - PROXMOX_CACHE_DIR: Custom cache directory
+//
+// The returned Config should typically be further configured with command-line
+// flags and/or configuration files before validation.
+//
+// Returns a new Config instance with environment variable values.
+//
+// Example usage:
+//
+//	config := NewConfig()
+//	config.ParseFlags()
+//	config.SetDefaults()
+//	if err := config.Validate(); err != nil {
+//		log.Fatal("Invalid config:", err)
+//	}
 func NewConfig() *Config {
 	return &Config{
 		Addr:        os.Getenv("PROXMOX_ADDR"),
@@ -148,6 +306,9 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.TokenSecret != "" {
 		c.TokenSecret = fileConfig.TokenSecret
+	}
+	if fileConfig.Realm != "" {
+		c.Realm = fileConfig.Realm
 	}
 	if fileConfig.ApiPath != "" {
 		c.ApiPath = fileConfig.ApiPath

@@ -30,13 +30,33 @@ build: ## Build the application binary
 	@printf "$(GREEN)Building $(APP_NAME)...$(NC)\n"
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo -o ./bin/$(APP_NAME) ./cmd/proxmox-tui
 
-test: ## Run tests
-	@printf "$(GREEN)Running tests...$(NC)\n"
-	go test -v ./...
+test: ## Run unit tests
+	@printf "$(GREEN)Running unit tests...$(NC)\n"
+	go test -v $(shell go list ./... | grep -v /examples | grep -v /test/integration)
 
-test-coverage: ## Run tests with coverage
-	@printf "$(GREEN)Running tests with coverage...$(NC)\n"
-	go test -v -coverprofile=coverage.out ./...
+test-unit: test ## Alias for test (unit tests only)
+
+test-integration: ## Run integration tests
+	@printf "$(GREEN)Running integration tests...$(NC)\n"
+	go test -v ./test/integration/...
+
+test-integration-real: ## Run integration tests against real Proxmox (requires PROXMOX_INTEGRATION_TEST=true)
+	@printf "$(GREEN)Running integration tests against real Proxmox...$(NC)\n"
+	@printf "$(YELLOW)Make sure PROXMOX_TEST_* environment variables are set$(NC)\n"
+	PROXMOX_INTEGRATION_TEST=true go test -v ./test/integration/...
+
+test-all: ## Run all tests (unit + integration)
+	@printf "$(GREEN)Running all tests...$(NC)\n"
+	go test -v $(shell go list ./... | grep -v /examples)
+
+test-coverage: ## Run unit tests with coverage
+	@printf "$(GREEN)Running unit tests with coverage...$(NC)\n"
+	go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples | grep -v /test/integration)
+	go tool cover -html=coverage.out -o coverage.html
+
+test-coverage-all: ## Run all tests with coverage
+	@printf "$(GREEN)Running all tests with coverage...$(NC)\n"
+	go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples)
 	go tool cover -html=coverage.out -o coverage.html
 
 clean: ## Clean build artifacts
