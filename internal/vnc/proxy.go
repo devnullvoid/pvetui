@@ -144,6 +144,31 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 	// Channel to signal when either connection closes
 	done := make(chan error, 2)
 
+	// Start ping ticker to keep connections alive
+	pingTicker := time.NewTicker(30 * time.Second)
+	defer pingTicker.Stop()
+
+	go func() {
+		for {
+			select {
+			case <-pingTicker.C:
+				// Send ping to client
+				if err := clientConn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+					p.logger.Debug("Failed to ping client for %s: %v", targetName, err)
+					return
+				}
+				// Send ping to Proxmox
+				if err := proxmoxConn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+					p.logger.Debug("Failed to ping Proxmox for %s: %v", targetName, err)
+					return
+				}
+				p.logger.Debug("Sent keepalive pings for %s", targetName)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	// Proxy from client to Proxmox
 	go func() {
 		p.logger.Debug("Starting client->Proxmox message relay for %s", targetName)
@@ -251,6 +276,14 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 	p.logger.Debug("Starting message proxy %s for %s", direction, targetName)
 	messageCount := 0
 
+	// Set up ping/pong handlers to keep connection alive
+	src.SetReadDeadline(time.Now().Add(5 * time.Minute))
+	src.SetPongHandler(func(string) error {
+		p.logger.Debug("Pong received (%s) for %s", direction, targetName)
+		src.SetReadDeadline(time.Now().Add(5 * time.Minute))
+		return nil
+	})
+
 	for {
 		messageType, message, err := src.ReadMessage()
 		if err != nil {
@@ -261,6 +294,9 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 			p.logger.Debug("Normal close for %s (%s) after %d messages", direction, targetName, messageCount)
 			return nil // Normal close
 		}
+
+		// Reset read deadline on each message
+		src.SetReadDeadline(time.Now().Add(5 * time.Minute))
 
 		messageCount++
 		if messageCount == 1 {
@@ -332,7 +368,7 @@ func CreateVMProxyConfig(client *api.Client, vm *api.VM) (*ProxyConfig, error) {
 		VMID:        vm.ID,
 		VMType:      vm.Type,
 		AuthToken:   authToken,
-		Timeout:     30 * time.Second,
+		Timeout:     30 * time.Minute, // Increased to 30 minutes for VNC sessions
 	}
 
 	configLogger.Info("VNC proxy configuration created successfully for VM %s", vm.Name)
@@ -390,7 +426,7 @@ func CreateNodeProxyConfig(client *api.Client, nodeName string) (*ProxyConfig, e
 		VMID:        0, // Not applicable for node shells
 		VMType:      "node",
 		AuthToken:   authToken,
-		Timeout:     30 * time.Second,
+		Timeout:     30 * time.Minute, // Increased to 30 minutes for VNC sessions
 	}
 
 	configLogger.Info("VNC proxy configuration created successfully for node %s", nodeName)

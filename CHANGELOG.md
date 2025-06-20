@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Message-level debugging for WebSocket communication (configurable verbosity)
 
 ### Fixed
+- **VNC Session Timeouts**: Fixed VNC connections disconnecting after 20-30 seconds
+  - Increased WebSocket proxy timeout from 30 seconds to 30 minutes for long-lived VNC sessions
+  - Removed HTTP server read/write timeouts that were terminating WebSocket connections
+  - Added WebSocket ping/pong keepalive mechanism with 30-second intervals
+  - Enhanced connection stability with proper deadline management and error handling
+  - VNC sessions now remain active during periods of user inactivity
+  - Improved logging for connection lifecycle and timeout debugging
 - **Configuration Realm Handling**: Fixed critical bug where config file realm setting was ignored
   - Configuration files now properly merge the `realm` field from YAML config
   - API authentication now uses correct realm (e.g., 'pve' instead of defaulting to 'pam')

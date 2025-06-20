@@ -157,9 +157,9 @@ func (s *Server) startHTTPServer() error {
 	s.httpServer = &http.Server{
 		Addr:         fmt.Sprintf("localhost:%d", s.port),
 		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  0,                // No timeout for WebSocket connections
+		WriteTimeout: 0,                // No timeout for WebSocket connections
+		IdleTimeout:  10 * time.Minute, // 10 minutes idle timeout
 	}
 
 	s.logger.Debug("Starting HTTP server on %s", s.httpServer.Addr)
