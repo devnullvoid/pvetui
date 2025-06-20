@@ -135,6 +135,11 @@ func (l *LoggerAdapter) Error(format string, args ...interface{}) {
 	l.logger.Error(format, args...)
 }
 
+// GetInternalLogger returns the internal logger instance for VNC service compatibility
+func (l *LoggerAdapter) GetInternalLogger() *logger.Logger {
+	return l.logger
+}
+
 // CacheAdapter adapts our internal cache to the API interface
 type CacheAdapter struct {
 	cache cache.Cache

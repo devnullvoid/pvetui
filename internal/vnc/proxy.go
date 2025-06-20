@@ -44,15 +44,39 @@ type WebSocketProxy struct {
 	config   *ProxyConfig
 	upgrader websocket.Upgrader
 	logger   *logger.Logger
+	session  SessionNotifier // Interface for session lifecycle notifications
+}
+
+// SessionNotifier interface for notifying session about connection events
+type SessionNotifier interface {
+	OnClientConnected()
+	OnClientDisconnected()
 }
 
 // NewWebSocketProxy creates a new WebSocket proxy with the given configuration
 func NewWebSocketProxy(config *ProxyConfig) *WebSocketProxy {
-	// Create a logger for WebSocket proxy operations
-	proxyLogger, err := logger.NewInternalLogger(logger.LevelDebug, "")
-	if err != nil {
-		// Fallback to a simple logger if file logging fails
-		proxyLogger = logger.NewSimpleLogger(logger.LevelInfo)
+	return NewWebSocketProxyWithSession(config, nil)
+}
+
+// NewWebSocketProxyWithSession creates a new WebSocket proxy with session notifications
+func NewWebSocketProxyWithSession(config *ProxyConfig, session SessionNotifier) *WebSocketProxy {
+	return NewWebSocketProxyWithSessionAndLogger(config, session, nil)
+}
+
+// NewWebSocketProxyWithSessionAndLogger creates a new WebSocket proxy with session notifications and shared logger
+func NewWebSocketProxyWithSessionAndLogger(config *ProxyConfig, session SessionNotifier, sharedLogger *logger.Logger) *WebSocketProxy {
+	var proxyLogger *logger.Logger
+
+	if sharedLogger != nil {
+		proxyLogger = sharedLogger
+	} else {
+		// Create a logger for WebSocket proxy operations
+		var err error
+		proxyLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
+		if err != nil {
+			// Fallback to a simple logger if file logging fails
+			proxyLogger = logger.NewSimpleLogger(logger.LevelInfo)
+		}
 	}
 
 	proxyLogger.Info("Creating new WebSocket proxy for %s (Type: %s, Node: %s)",
@@ -60,8 +84,9 @@ func NewWebSocketProxy(config *ProxyConfig) *WebSocketProxy {
 	proxyLogger.Debug("Proxy config - Port: %s, Proxmox Host: %s", config.Port, config.ProxmoxHost)
 
 	return &WebSocketProxy{
-		config: config,
-		logger: proxyLogger,
+		config:  config,
+		logger:  proxyLogger,
+		session: session,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				// Allow connections from localhost only for security
@@ -117,6 +142,20 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 	}()
 
 	p.logger.Info("WebSocket connection established with client for %s", targetName)
+
+	// Notify session about client connection
+	if p.session != nil {
+		p.session.OnClientConnected()
+		p.logger.Debug("Notified session about client connection for %s", targetName)
+	}
+
+	// Ensure we notify session about disconnection
+	defer func() {
+		if p.session != nil {
+			p.session.OnClientDisconnected()
+			p.logger.Debug("Notified session about client disconnection for %s", targetName)
+		}
+	}()
 
 	// Create connection to Proxmox VNC websocket
 	p.logger.Debug("Establishing connection to Proxmox VNC websocket for %s", targetName)
@@ -318,10 +357,22 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 
 // CreateVMProxyConfig creates a proxy configuration for a VM VNC connection
 func CreateVMProxyConfig(client *api.Client, vm *api.VM) (*ProxyConfig, error) {
-	// Create a logger for proxy configuration
-	configLogger, err := logger.NewInternalLogger(logger.LevelDebug, "")
-	if err != nil {
-		configLogger = logger.NewSimpleLogger(logger.LevelInfo)
+	return CreateVMProxyConfigWithLogger(client, vm, nil)
+}
+
+// CreateVMProxyConfigWithLogger creates a proxy configuration for a VM VNC connection with shared logger
+func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger *logger.Logger) (*ProxyConfig, error) {
+	var configLogger *logger.Logger
+
+	if sharedLogger != nil {
+		configLogger = sharedLogger
+	} else {
+		// Create a logger for proxy configuration
+		var err error
+		configLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
+		if err != nil {
+			configLogger = logger.NewSimpleLogger(logger.LevelInfo)
+		}
 	}
 
 	configLogger.Info("Creating VNC proxy configuration for VM: %s (ID: %d, Type: %s, Node: %s)",
@@ -377,10 +428,22 @@ func CreateVMProxyConfig(client *api.Client, vm *api.VM) (*ProxyConfig, error) {
 
 // CreateNodeProxyConfig creates a proxy configuration for a node VNC shell connection
 func CreateNodeProxyConfig(client *api.Client, nodeName string) (*ProxyConfig, error) {
-	// Create a logger for proxy configuration
-	configLogger, err := logger.NewInternalLogger(logger.LevelDebug, "")
-	if err != nil {
-		configLogger = logger.NewSimpleLogger(logger.LevelInfo)
+	return CreateNodeProxyConfigWithLogger(client, nodeName, nil)
+}
+
+// CreateNodeProxyConfigWithLogger creates a proxy configuration for a node VNC shell connection with shared logger
+func CreateNodeProxyConfigWithLogger(client *api.Client, nodeName string, sharedLogger *logger.Logger) (*ProxyConfig, error) {
+	var configLogger *logger.Logger
+
+	if sharedLogger != nil {
+		configLogger = sharedLogger
+	} else {
+		// Create a logger for proxy configuration
+		var err error
+		configLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
+		if err != nil {
+			configLogger = logger.NewSimpleLogger(logger.LevelInfo)
+		}
 	}
 
 	configLogger.Info("Creating VNC proxy configuration for node: %s", nodeName)

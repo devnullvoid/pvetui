@@ -31,11 +31,23 @@ type Server struct {
 
 // NewServer creates a new embedded HTTP server for VNC connections
 func NewServer() *Server {
-	// Create a logger for VNC server operations
-	serverLogger, err := logger.NewInternalLogger(logger.LevelDebug, "")
-	if err != nil {
-		// Fallback to a simple logger if file logging fails
-		serverLogger = logger.NewSimpleLogger(logger.LevelInfo)
+	return NewServerWithLogger(nil)
+}
+
+// NewServerWithLogger creates a new embedded HTTP server with a shared logger
+func NewServerWithLogger(sharedLogger *logger.Logger) *Server {
+	var serverLogger *logger.Logger
+
+	if sharedLogger != nil {
+		serverLogger = sharedLogger
+	} else {
+		// Create a logger for VNC server operations
+		var err error
+		serverLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
+		if err != nil {
+			// Fallback to a simple logger if file logging fails
+			serverLogger = logger.NewSimpleLogger(logger.LevelInfo)
+		}
 	}
 
 	serverLogger.Debug("Creating new VNC server instance")
@@ -47,11 +59,16 @@ func NewServer() *Server {
 
 // StartVMVNCServer starts the embedded server for a VM VNC connection
 func (s *Server) StartVMVNCServer(client *api.Client, vm *api.VM) (string, error) {
+	return s.StartVMVNCServerWithSession(client, vm, nil)
+}
+
+// StartVMVNCServerWithSession starts the embedded server for a VM VNC connection with session notifications
+func (s *Server) StartVMVNCServerWithSession(client *api.Client, vm *api.VM, session SessionNotifier) (string, error) {
 	s.logger.Info("Starting VM VNC server for: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
 	// Create proxy configuration
 	s.logger.Debug("Creating VNC proxy configuration for VM %s", vm.Name)
-	config, err := CreateVMProxyConfig(client, vm)
+	config, err := CreateVMProxyConfigWithLogger(client, vm, s.logger)
 	if err != nil {
 		s.logger.Error("Failed to create VM proxy config for %s: %v", vm.Name, err)
 		return "", fmt.Errorf("failed to create VM proxy config: %w", err)
@@ -59,9 +76,9 @@ func (s *Server) StartVMVNCServer(client *api.Client, vm *api.VM) (string, error
 
 	s.logger.Debug("VM proxy config created - Port: %s, VM Type: %s", config.Port, config.VMType)
 
-	// Create WebSocket proxy
+	// Create WebSocket proxy with session notifications
 	s.logger.Debug("Creating WebSocket proxy for VM %s", vm.Name)
-	s.proxy = NewWebSocketProxy(config)
+	s.proxy = NewWebSocketProxyWithSessionAndLogger(config, session, s.logger)
 
 	// Start HTTP server
 	s.logger.Debug("Starting HTTP server for VM %s", vm.Name)
@@ -82,11 +99,16 @@ func (s *Server) StartVMVNCServer(client *api.Client, vm *api.VM) (string, error
 
 // StartNodeVNCServer starts the embedded server for a node VNC shell connection
 func (s *Server) StartNodeVNCServer(client *api.Client, nodeName string) (string, error) {
+	return s.StartNodeVNCServerWithSession(client, nodeName, nil)
+}
+
+// StartNodeVNCServerWithSession starts the embedded server for a node VNC shell connection with session notifications
+func (s *Server) StartNodeVNCServerWithSession(client *api.Client, nodeName string, session SessionNotifier) (string, error) {
 	s.logger.Info("Starting node VNC server for: %s", nodeName)
 
 	// Create proxy configuration
 	s.logger.Debug("Creating VNC proxy configuration for node %s", nodeName)
-	config, err := CreateNodeProxyConfig(client, nodeName)
+	config, err := CreateNodeProxyConfigWithLogger(client, nodeName, s.logger)
 	if err != nil {
 		s.logger.Error("Failed to create node proxy config for %s: %v", nodeName, err)
 		return "", fmt.Errorf("failed to create node proxy config: %w", err)
@@ -94,9 +116,9 @@ func (s *Server) StartNodeVNCServer(client *api.Client, nodeName string) (string
 
 	s.logger.Debug("Node proxy config created - Port: %s", config.Port)
 
-	// Create WebSocket proxy
+	// Create WebSocket proxy with session notifications
 	s.logger.Debug("Creating WebSocket proxy for node %s", nodeName)
-	s.proxy = NewWebSocketProxy(config)
+	s.proxy = NewWebSocketProxyWithSessionAndLogger(config, session, s.logger)
 
 	// Start HTTP server
 	s.logger.Debug("Starting HTTP server for node %s", nodeName)
