@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-06-20
+
 ### Added
 - **Concurrent VNC Sessions**: Support for multiple simultaneous VNC connections
   - Session management system allows connecting to multiple VMs and nodes simultaneously
@@ -240,7 +242,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic VNC proxy handling through Proxmox API
 
 
-[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/devnullvoid/proxmox-tui/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/devnullvoid/proxmox-tui/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.0...v0.1.1
