@@ -796,10 +796,11 @@ func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
 
 // VNCProxyResponse represents the response from a VNC proxy request
 type VNCProxyResponse struct {
-	Ticket string `json:"ticket"`
-	Port   string `json:"port"`
-	User   string `json:"user"`
-	Cert   string `json:"cert"`
+	Ticket   string `json:"ticket"`
+	Port     string `json:"port"`
+	User     string `json:"user"`
+	Cert     string `json:"cert"`
+	Password string `json:"password,omitempty"` // One-time password for WebSocket connections
 }
 
 // GetVNCProxy creates a VNC proxy for a VM and returns connection details
@@ -843,6 +844,68 @@ func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
 
 	if cert, ok := responseData["cert"].(string); ok {
 		response.Cert = cert
+	}
+
+	return response, nil
+}
+
+// GetVNCProxyWithWebSocket creates a VNC proxy for a VM with WebSocket support and one-time password
+func (c *Client) GetVNCProxyWithWebSocket(vm *VM) (*VNCProxyResponse, error) {
+	if vm.Type != VMTypeQemu && vm.Type != VMTypeLXC {
+		return nil, fmt.Errorf("VNC proxy only available for QEMU VMs and LXC containers")
+	}
+
+	var res map[string]interface{}
+	path := fmt.Sprintf("/nodes/%s/%s/%d/vncproxy", vm.Node, vm.Type, vm.ID)
+
+	// Different parameters based on VM type
+	// LXC containers don't support generate-password parameter
+	var data map[string]interface{}
+	if vm.Type == VMTypeLXC {
+		// LXC containers only support websocket parameter
+		data = map[string]interface{}{
+			"websocket": 1,
+		}
+	} else {
+		// QEMU VMs support both websocket and generate-password
+		data = map[string]interface{}{
+			"websocket":         1,
+			"generate-password": 1,
+		}
+	}
+
+	if err := c.PostWithResponse(path, data, &res); err != nil {
+		return nil, fmt.Errorf("failed to create VNC proxy with WebSocket: %w", err)
+	}
+
+	responseData, ok := res["data"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected VNC proxy response format")
+	}
+
+	response := &VNCProxyResponse{}
+
+	if ticket, ok := responseData["ticket"].(string); ok {
+		response.Ticket = ticket
+	}
+
+	if port, ok := responseData["port"].(string); ok {
+		response.Port = port
+	} else if portFloat, ok := responseData["port"].(float64); ok {
+		response.Port = fmt.Sprintf("%.0f", portFloat)
+	}
+
+	if user, ok := responseData["user"].(string); ok {
+		response.User = user
+	}
+
+	if cert, ok := responseData["cert"].(string); ok {
+		response.Cert = cert
+	}
+
+	// Password is only available for QEMU VMs with generate-password=1
+	if password, ok := responseData["password"].(string); ok {
+		response.Password = password
 	}
 
 	return response, nil

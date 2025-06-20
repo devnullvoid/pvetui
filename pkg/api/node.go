@@ -219,6 +219,58 @@ func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 	return response, nil
 }
 
+// GetNodeVNCShellWithWebSocket creates a VNC shell connection for a node with WebSocket support and one-time password
+func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyResponse, error) {
+	// Node VNC shells don't work with API token authentication
+	if c.IsUsingTokenAuth() {
+		return nil, fmt.Errorf("node VNC shells are not supported with API token authentication, please use password authentication")
+	}
+
+	var res map[string]interface{}
+	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
+
+	// POST request with websocket=1 and generate-password=1 parameters for WebSocket compatibility
+	data := map[string]interface{}{
+		"websocket":         1,
+		"generate-password": 1,
+	}
+
+	if err := c.PostWithResponse(path, data, &res); err != nil {
+		return nil, fmt.Errorf("failed to create VNC shell with WebSocket: %w", err)
+	}
+
+	responseData, ok := res["data"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected VNC shell response format")
+	}
+
+	response := &VNCProxyResponse{}
+
+	if ticket, ok := responseData["ticket"].(string); ok {
+		response.Ticket = ticket
+	}
+
+	if port, ok := responseData["port"].(string); ok {
+		response.Port = port
+	} else if portFloat, ok := responseData["port"].(float64); ok {
+		response.Port = fmt.Sprintf("%.0f", portFloat)
+	}
+
+	if user, ok := responseData["user"].(string); ok {
+		response.User = user
+	}
+
+	if cert, ok := responseData["cert"].(string); ok {
+		response.Cert = cert
+	}
+
+	if password, ok := responseData["password"].(string); ok {
+		response.Password = password
+	}
+
+	return response, nil
+}
+
 // GenerateNodeVNCURL creates a noVNC shell URL for the given node
 func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
 	// Get VNC shell proxy details

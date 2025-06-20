@@ -28,7 +28,7 @@ Proxmox TUI brings lightning-fast cluster management directly to your terminal. 
 - 🖥️ **Complete Management**: VMs, containers, nodes, and resources
 - 🔐 **Secure**: API token or password authentication
 - 🐚 **Integrated Shells**: SSH directly to nodes, VMs, and containers
-- 🖱️ **VNC Support**: Browser-based console access
+- 🖱️ **VNC Support**: Embedded noVNC client with automatic authentication
 - 📜 **Community Scripts**: Install Proxmox community scripts directly
 
 ## 📸 Screenshots
@@ -171,6 +171,38 @@ Uses Proxmox API tokens for enhanced security with these benefits:
 6. Decide whether to check **Privilege Separation** (unchecked gives the token the same permissions as the user)
 7. Click **Create**
 8. **Important**: Copy both the **Token ID** and **Secret** as the secret will only be shown once
+
+## 🖥️ VNC Console Access
+
+Proxmox TUI includes an embedded noVNC client that provides seamless VNC console access to your VMs and node shells without requiring separate browser sessions or manual authentication.
+
+### Key Features
+
+- **Self-Contained**: Built-in noVNC client embedded in the application
+- **Automatic Authentication**: No need to log into Proxmox web interface separately
+- **Secure Proxy**: WebSocket reverse proxy handles authentication and connection management
+- **Universal Support**: Works with QEMU VMs, LXC containers, and node shell sessions
+- **Zero Configuration**: Works out of the box with both API token and password authentication
+
+### How It Works
+
+1. **Press `V`** while selecting a VM, container, or node
+2. **Embedded Server Starts**: A local HTTP server launches automatically on an available port
+3. **VNC Proxy Created**: Application creates a VNC proxy session with Proxmox using the API
+4. **Browser Opens**: Your default browser opens to the embedded noVNC client
+5. **Auto-Connect**: The client automatically connects using the one-time password from the proxy
+
+### Authentication Requirements
+
+**Important**: Node VNC shells have different authentication requirements:
+
+- **VMs and Containers**: Work with both API tokens and password authentication
+- **Node Shells**: Only work with password authentication (Proxmox limitation)
+
+To use node VNC shells, you must configure password authentication:
+1. Set `PROXMOX_PASSWORD` environment variable or use password in config file
+2. Remove API token configuration (`PROXMOX_TOKEN_ID` and `PROXMOX_TOKEN_SECRET`)
+3. Use username/password authentication instead of API tokens
 
 ## 🖥️ Usage
 

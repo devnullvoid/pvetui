@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Embedded noVNC Client**: Revolutionary VNC console access without requiring Proxmox web UI login
+  - Self-contained noVNC client embedded directly in the application
+  - Automatic authentication handling for both API token and password authentication
+  - WebSocket reverse proxy bridges noVNC client to Proxmox VNC websocket endpoints
+  - One-time password generation and automatic connection establishment
+  - Local HTTP server hosts noVNC client on dynamically allocated ports
+  - Supports QEMU VMs, LXC containers, and node shell sessions
+  - No browser session management or manual authentication required
+  - Enhanced security with automatic session cleanup and timeout handling
+- **Authentication Handling**: Improved VNC authentication to work correctly with both QEMU VMs and LXC containers
+- **VNC User Experience**: Removed outdated VNC warning modal since embedded client no longer requires Proxmox web UI login
+
 ### Fixed
 - **Node Storage Display**: Fixed node details showing "0.00 GB" for storage values
   - Resolved inconsistent storage units between cluster and individual node data

@@ -68,7 +68,7 @@ func NewHelpModal() *HelpModal {
 [yellow]Tips & Usage:[-]
   • Use search ([white]/[-]) to quickly find nodes or guests
   • Context menu ([white]M[-]) provides quick access to actions
-  • VNC opens in your default browser automatically
+  • VNC opens in your browser using embedded noVNC client
   • SSH sessions open in new terminal windows
   • Community scripts are installed interactively via SSH
   • Use [white]hjkl[-] keys for VI-like navigation throughout
