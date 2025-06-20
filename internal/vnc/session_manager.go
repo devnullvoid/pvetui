@@ -283,10 +283,8 @@ func NewSessionManagerWithLogger(client *api.Client, sharedLogger *logger.Logger
 	manager.startCleanupProcess()
 
 	if sessionLogger != nil {
-		sessionLogger.Info("VNC Session Manager initialized",
-			"port_range", fmt.Sprintf("%d-%d", manager.portRange.start, manager.portRange.end),
-			"session_timeout", manager.sessionTimeout,
-			"cleanup_interval", "30m")
+		sessionLogger.Info("VNC Session Manager initialized: port_range=%s, session_timeout=%v, cleanup_interval=30m",
+			fmt.Sprintf("%d-%d", manager.portRange.start, manager.portRange.end), manager.sessionTimeout)
 	}
 
 	return manager
@@ -333,21 +331,13 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 			existingSession.mutex.Unlock()
 
 			if sm.logger != nil {
-				sm.logger.Info("Reactivating disconnected VNC session",
-					"session_id", existingSession.ID,
-					"target_type", sessionType,
-					"node", nodeName,
-					"vmid", vmid,
-					"port", existingSession.Port)
+				sm.logger.Info("Reactivating disconnected VNC session: session_id=%s, target_type=%s, node=%s, vmid=%s, port=%d",
+					existingSession.ID, sessionType, nodeName, vmid, existingSession.Port)
 			}
 		} else {
 			if sm.logger != nil {
-				sm.logger.Info("Reusing existing VNC session",
-					"session_id", existingSession.ID,
-					"target_type", sessionType,
-					"node", nodeName,
-					"vmid", vmid,
-					"port", existingSession.Port)
+				sm.logger.Info("Reusing existing VNC session: session_id=%s, target_type=%s, node=%s, vmid=%s, port=%d",
+					existingSession.ID, sessionType, nodeName, vmid, existingSession.Port)
 			}
 		}
 
@@ -431,14 +421,8 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 	go sm.monitorSessionDisconnect(session)
 
 	if sm.logger != nil {
-		sm.logger.Info("Created new VNC session",
-			"session_id", sessionID,
-			"target_type", sessionType,
-			"node", nodeName,
-			"vmid", vmid,
-			"target_name", targetName,
-			"port", session.Port,
-			"total_sessions", len(sm.sessions))
+		sm.logger.Info("Created new VNC session: session_id=%s, target_type=%s, node=%s, vmid=%s, target_name=%s, port=%d, total_sessions=%d",
+			sessionID, sessionType, nodeName, vmid, targetName, session.Port, len(sm.sessions))
 	}
 
 	return session, nil
@@ -495,18 +479,14 @@ func (sm *SessionManager) CloseSession(sessionID string) error {
 	}
 
 	if sm.logger != nil {
-		sm.logger.Info("Closing VNC session",
-			"session_id", sessionID,
-			"target_type", session.TargetType,
-			"target_name", session.TargetName)
+		sm.logger.Info("Closing VNC session: session_id=%s, target_type=%s, target_name=%s",
+			sessionID, session.TargetType, session.TargetName)
 	}
 
 	// Shutdown the session
 	err := session.Shutdown()
 	if err != nil && sm.logger != nil {
-		sm.logger.Error("Failed to shutdown session",
-			"session_id", sessionID,
-			"error", err)
+		sm.logger.Error("Failed to shutdown session: session_id=%s, error=%v", sessionID, err)
 	}
 
 	// Remove from sessions map
@@ -524,7 +504,7 @@ func (sm *SessionManager) CloseAllSessions() error {
 	defer sm.mutex.Unlock()
 
 	if sm.logger != nil {
-		sm.logger.Info("Closing all VNC sessions", "count", len(sm.sessions))
+		sm.logger.Info("Closing all VNC sessions: count=%d", len(sm.sessions))
 	}
 
 	var errors []error
@@ -589,19 +569,13 @@ func (sm *SessionManager) CleanupInactiveSessions(maxAge time.Duration) {
 		session := sm.sessions[sessionID]
 
 		if sm.logger != nil {
-			sm.logger.Info("Cleaning up expired VNC session",
-				"session_id", sessionID,
-				"target_type", session.TargetType,
-				"target_name", session.TargetName,
-				"age", time.Since(session.CreatedAt),
-				"inactive_for", time.Since(session.LastUsed))
+			sm.logger.Info("Cleaning up expired VNC session: session_id=%s, target_type=%s, target_name=%s, age=%v, inactive_for=%v",
+				sessionID, session.TargetType, session.TargetName, time.Since(session.CreatedAt), time.Since(session.LastUsed))
 		}
 
 		// Shutdown the session
 		if err := session.Shutdown(); err != nil && sm.logger != nil {
-			sm.logger.Error("Failed to shutdown expired session",
-				"session_id", sessionID,
-				"error", err)
+			sm.logger.Error("Failed to shutdown expired session: session_id=%s, error=%v", sessionID, err)
 		}
 
 		// Remove from sessions map
@@ -612,9 +586,8 @@ func (sm *SessionManager) CleanupInactiveSessions(maxAge time.Duration) {
 	sm.notifySessionCountChange()
 
 	if sm.logger != nil {
-		sm.logger.Info("Completed VNC session cleanup",
-			"cleaned_sessions", len(expiredSessions),
-			"remaining_sessions", len(sm.sessions))
+		sm.logger.Info("Completed VNC session cleanup: cleaned_sessions=%d, remaining_sessions=%d",
+			len(expiredSessions), len(sm.sessions))
 	}
 }
 
@@ -626,8 +599,7 @@ func (sm *SessionManager) Shutdown() error {
 	defer sm.mutex.Unlock()
 
 	if sm.logger != nil {
-		sm.logger.Info("Shutting down VNC Session Manager",
-			"active_sessions", len(sm.sessions))
+		sm.logger.Info("Shutting down VNC Session Manager: active_sessions=%d", len(sm.sessions))
 	}
 
 	// Stop the cleanup process
@@ -711,19 +683,13 @@ func (sm *SessionManager) cleanupExpiredSessions() {
 		session := sm.sessions[sessionID]
 
 		if sm.logger != nil {
-			sm.logger.Info("Cleaning up expired VNC session",
-				"session_id", sessionID,
-				"target_type", session.TargetType,
-				"target_name", session.TargetName,
-				"age", time.Since(session.CreatedAt),
-				"inactive_for", time.Since(session.LastUsed))
+			sm.logger.Info("Cleaning up expired VNC session: session_id=%s, target_type=%s, target_name=%s, age=%v, inactive_for=%v",
+				sessionID, session.TargetType, session.TargetName, time.Since(session.CreatedAt), time.Since(session.LastUsed))
 		}
 
 		// Shutdown the session
 		if err := session.Shutdown(); err != nil && sm.logger != nil {
-			sm.logger.Error("Failed to shutdown expired session",
-				"session_id", sessionID,
-				"error", err)
+			sm.logger.Error("Failed to shutdown expired session: session_id=%s, error=%v", sessionID, err)
 		}
 
 		// Remove from sessions map
@@ -731,9 +697,8 @@ func (sm *SessionManager) cleanupExpiredSessions() {
 	}
 
 	if len(expiredSessions) > 0 && sm.logger != nil {
-		sm.logger.Info("Completed VNC session cleanup",
-			"cleaned_sessions", len(expiredSessions),
-			"remaining_sessions", len(sm.sessions))
+		sm.logger.Info("Completed VNC session cleanup: cleaned_sessions=%d, remaining_sessions=%d",
+			len(expiredSessions), len(sm.sessions))
 	}
 }
 
@@ -745,11 +710,8 @@ func (sm *SessionManager) monitorSessionDisconnect(session *VNCSession) {
 		case <-session.disconnectChan:
 			// Client disconnected, consider cleanup after a grace period
 			if sm.logger != nil {
-				sm.logger.Info("Client disconnected from VNC session",
-					"session_id", session.ID,
-					"target_type", session.TargetType,
-					"target_name", session.TargetName,
-					"active_connections", session.GetConnectionCount())
+				sm.logger.Info("Client disconnected from VNC session: session_id=%s, target_type=%s, target_name=%s, active_connections=%d",
+					session.ID, session.TargetType, session.TargetName, session.GetConnectionCount())
 			}
 
 			// Wait a short grace period to allow for reconnections
@@ -760,17 +722,13 @@ func (sm *SessionManager) monitorSessionDisconnect(session *VNCSession) {
 			if existingSession, exists := sm.sessions[session.ID]; exists {
 				if existingSession.GetConnectionCount() == 0 && existingSession.State == SessionStateDisconnected {
 					if sm.logger != nil {
-						sm.logger.Info("Removing disconnected VNC session after grace period",
-							"session_id", session.ID,
-							"target_type", session.TargetType,
-							"target_name", session.TargetName)
+						sm.logger.Info("Removing disconnected VNC session after grace period: session_id=%s, target_type=%s, target_name=%s",
+							session.ID, session.TargetType, session.TargetName)
 					}
 
 					// Shutdown the session
 					if err := existingSession.Shutdown(); err != nil && sm.logger != nil {
-						sm.logger.Error("Failed to shutdown disconnected session",
-							"session_id", session.ID,
-							"error", err)
+						sm.logger.Error("Failed to shutdown disconnected session: session_id=%s, error=%v", session.ID, err)
 					}
 
 					// Remove from sessions map
