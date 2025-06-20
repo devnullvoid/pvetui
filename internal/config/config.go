@@ -307,6 +307,9 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.TokenSecret != "" {
 		c.TokenSecret = fileConfig.TokenSecret
 	}
+	if fileConfig.Realm != "" {
+		c.Realm = fileConfig.Realm
+	}
 	if fileConfig.ApiPath != "" {
 		c.ApiPath = fileConfig.ApiPath
 	}
