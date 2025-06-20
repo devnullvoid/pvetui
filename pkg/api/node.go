@@ -174,25 +174,38 @@ func (c *Client) GetNodeConfig(nodeName string) (map[string]interface{}, error) 
 
 // GetNodeVNCShell creates a VNC shell connection for a node and returns connection details
 func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
+	c.logger.Info("Creating VNC shell for node: %s", nodeName)
+
 	// Node VNC shells don't work with API token authentication
 	if c.IsUsingTokenAuth() {
+		c.logger.Error("VNC shell not supported with API token authentication for node: %s", nodeName)
 		return nil, fmt.Errorf("node VNC shells are not supported with API token authentication, please use password authentication")
 	}
 
+	c.logger.Debug("Using password authentication for node VNC shell: %s", nodeName)
+
 	var res map[string]interface{}
 	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
+
+	c.logger.Debug("Node VNC shell API path: %s", path)
 
 	// POST request with websocket=1 parameter for noVNC compatibility
 	data := map[string]interface{}{
 		"websocket": 1,
 	}
 
+	c.logger.Debug("Node VNC shell request data for %s: %+v", nodeName, data)
+
 	if err := c.PostWithResponse(path, data, &res); err != nil {
+		c.logger.Error("Failed to create VNC shell for node %s: %v", nodeName, err)
 		return nil, fmt.Errorf("failed to create VNC shell: %w", err)
 	}
 
+	c.logger.Debug("Node VNC shell API response for %s: %+v", nodeName, res)
+
 	responseData, ok := res["data"].(map[string]interface{})
 	if !ok {
+		c.logger.Error("Unexpected VNC shell response format for node %s", nodeName)
 		return nil, fmt.Errorf("unexpected VNC shell response format")
 	}
 
@@ -200,34 +213,47 @@ func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 
 	if ticket, ok := responseData["ticket"].(string); ok {
 		response.Ticket = ticket
+		c.logger.Debug("VNC shell ticket obtained for node %s (length: %d)", nodeName, len(ticket))
 	}
 
 	if port, ok := responseData["port"].(string); ok {
 		response.Port = port
+		c.logger.Debug("VNC shell port for node %s: %s", nodeName, port)
 	} else if portFloat, ok := responseData["port"].(float64); ok {
 		response.Port = fmt.Sprintf("%.0f", portFloat)
+		c.logger.Debug("VNC shell port for node %s (converted from float): %s", nodeName, response.Port)
 	}
 
 	if user, ok := responseData["user"].(string); ok {
 		response.User = user
+		c.logger.Debug("VNC shell user for node %s: %s", nodeName, user)
 	}
 
 	if cert, ok := responseData["cert"].(string); ok {
 		response.Cert = cert
+		c.logger.Debug("VNC shell certificate obtained for node %s (length: %d)", nodeName, len(cert))
 	}
 
+	c.logger.Info("VNC shell created successfully for node %s - Port: %s", nodeName, response.Port)
 	return response, nil
 }
 
 // GetNodeVNCShellWithWebSocket creates a VNC shell connection for a node with WebSocket support and one-time password
 func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyResponse, error) {
+	c.logger.Info("Creating VNC shell with WebSocket for node: %s", nodeName)
+
 	// Node VNC shells don't work with API token authentication
 	if c.IsUsingTokenAuth() {
+		c.logger.Error("VNC shell with WebSocket not supported with API token authentication for node: %s", nodeName)
 		return nil, fmt.Errorf("node VNC shells are not supported with API token authentication, please use password authentication")
 	}
 
+	c.logger.Debug("Using password authentication for node VNC shell with WebSocket: %s", nodeName)
+
 	var res map[string]interface{}
 	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
+
+	c.logger.Debug("Node VNC shell WebSocket API path: %s", path)
 
 	// POST request with websocket=1 and generate-password=1 parameters for WebSocket compatibility
 	data := map[string]interface{}{
@@ -235,12 +261,18 @@ func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyRespons
 		"generate-password": 1,
 	}
 
+	c.logger.Debug("Node VNC shell WebSocket request data for %s: %+v", nodeName, data)
+
 	if err := c.PostWithResponse(path, data, &res); err != nil {
+		c.logger.Error("Failed to create VNC shell with WebSocket for node %s: %v", nodeName, err)
 		return nil, fmt.Errorf("failed to create VNC shell with WebSocket: %w", err)
 	}
 
+	c.logger.Debug("Node VNC shell WebSocket API response for %s: %+v", nodeName, res)
+
 	responseData, ok := res["data"].(map[string]interface{})
 	if !ok {
+		c.logger.Error("Unexpected VNC shell WebSocket response format for node %s", nodeName)
 		return nil, fmt.Errorf("unexpected VNC shell response format")
 	}
 
@@ -248,47 +280,67 @@ func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyRespons
 
 	if ticket, ok := responseData["ticket"].(string); ok {
 		response.Ticket = ticket
+		c.logger.Debug("VNC shell WebSocket ticket obtained for node %s (length: %d)", nodeName, len(ticket))
 	}
 
 	if port, ok := responseData["port"].(string); ok {
 		response.Port = port
+		c.logger.Debug("VNC shell WebSocket port for node %s: %s", nodeName, port)
 	} else if portFloat, ok := responseData["port"].(float64); ok {
 		response.Port = fmt.Sprintf("%.0f", portFloat)
+		c.logger.Debug("VNC shell WebSocket port for node %s (converted from float): %s", nodeName, response.Port)
 	}
 
 	if user, ok := responseData["user"].(string); ok {
 		response.User = user
+		c.logger.Debug("VNC shell WebSocket user for node %s: %s", nodeName, user)
 	}
 
 	if cert, ok := responseData["cert"].(string); ok {
 		response.Cert = cert
+		c.logger.Debug("VNC shell WebSocket certificate obtained for node %s (length: %d)", nodeName, len(cert))
 	}
 
 	if password, ok := responseData["password"].(string); ok {
 		response.Password = password
+		c.logger.Debug("VNC shell one-time password obtained for node %s (length: %d)", nodeName, len(password))
+	} else {
+		c.logger.Debug("No one-time password in VNC shell WebSocket response for node %s", nodeName)
 	}
 
+	c.logger.Info("VNC shell with WebSocket created successfully for node %s - Port: %s, Has Password: %t",
+		nodeName, response.Port, response.Password != "")
 	return response, nil
 }
 
 // GenerateNodeVNCURL creates a noVNC shell URL for the given node
 func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
+	c.logger.Info("Generating VNC shell URL for node: %s", nodeName)
+
 	// Get VNC shell proxy details
+	c.logger.Debug("Requesting VNC shell proxy for URL generation for node %s", nodeName)
 	proxy, err := c.GetNodeVNCShell(nodeName)
 	if err != nil {
+		c.logger.Error("Failed to get VNC shell proxy for URL generation for node %s: %v", nodeName, err)
 		return "", err
 	}
 
 	// Extract server details from base URL
 	serverURL := strings.TrimSuffix(c.baseURL, "/api2/json")
+	c.logger.Debug("Base server URL for node %s: %s", nodeName, serverURL)
 
 	// URL encode the VNC ticket (critical for avoiding 401 errors)
 	encodedTicket := url.QueryEscape(proxy.Ticket)
+	c.logger.Debug("VNC shell ticket encoded for node %s (original length: %d, encoded length: %d)",
+		nodeName, len(proxy.Ticket), len(encodedTicket))
 
 	// Build the noVNC shell URL using the working format from the forum post
 	// Format: https://server:8006/?console=shell&novnc=1&node=nodename&resize=off&cmd=&vncticket=encoded_ticket
 	vncURL := fmt.Sprintf("%s/?console=shell&novnc=1&node=%s&resize=off&cmd=&vncticket=%s",
 		serverURL, nodeName, encodedTicket)
+
+	c.logger.Info("VNC shell URL generated successfully for node %s", nodeName)
+	c.logger.Debug("VNC shell URL for node %s: %s", nodeName, vncURL)
 
 	return vncURL, nil
 }

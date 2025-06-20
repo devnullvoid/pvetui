@@ -17,8 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports QEMU VMs, LXC containers, and node shell sessions
   - No browser session management or manual authentication required
   - Enhanced security with automatic session cleanup and timeout handling
+  - Implementation inspired by community solution from [Proxmox Forum discussion](https://forum.proxmox.com/threads/proxmox-api-vncwebsocket.73184/page-2)
 - **Authentication Handling**: Improved VNC authentication to work correctly with both QEMU VMs and LXC containers
 - **VNC User Experience**: Removed outdated VNC warning modal since embedded client no longer requires Proxmox web UI login
+- **Comprehensive VNC Logging**: Added detailed logging throughout VNC components for better debugging and monitoring
+  - API call logging with request/response details and authentication methods
+  - WebSocket proxy logging with connection status, message counts, and error tracking
+  - HTTP server logging with port allocation, startup/shutdown, and file serving
+  - Service-level logging with connection attempts, status checks, and browser launching
+  - Proxy configuration logging with authentication token types and endpoint details
+  - Message-level debugging for WebSocket communication (configurable verbosity)
 
 ### Fixed
 - **Node Storage Display**: Fixed node details showing "0.00 GB" for storage values
@@ -158,6 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supports both Proxmox username/password and API token authentication
 - Cross-platform SSH client integration
 - Automatic VNC proxy handling through Proxmox API
+
 
 [Unreleased]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.1...HEAD
 [0.1.1]: https://github.com/devnullvoid/proxmox-tui/compare/v0.1.0...v0.1.1
