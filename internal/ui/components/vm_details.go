@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -353,15 +354,41 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+interfaceText).SetTextColor(tcell.ColorLightSkyBlue))
 
-			// MAC Address in right column
-			macText := net.MACAddr
-			if macText == "" {
-				macText = "Auto-generated"
+			// MAC address and IP details in right column
+			rightColumnText := net.MACAddr
+
+			// Add IP configuration details
+			var ipParts []string
+
+			// Add configured IP (from VM config)
+			if net.ConfiguredIP != "" {
+				if net.ConfiguredIP == "dhcp" {
+					ipParts = append(ipParts, "DHCP")
+				} else {
+					ipParts = append(ipParts, net.ConfiguredIP)
+				}
+				if net.Gateway != "" {
+					ipParts = append(ipParts, "GW: "+net.Gateway)
+				}
 			}
-			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(tcell.ColorWhite))
+
+			// Add runtime IPs (from guest agent)
+			if len(net.RuntimeIPs) > 0 {
+				if len(ipParts) > 0 {
+					ipParts = append(ipParts, "Runtime: "+strings.Join(net.RuntimeIPs, ", "))
+				} else {
+					ipParts = append(ipParts, "IPs: "+strings.Join(net.RuntimeIPs, ", "))
+				}
+			}
+
+			if len(ipParts) > 0 {
+				rightColumnText += "\n" + strings.Join(ipParts, " | ")
+			}
+
+			vd.SetCell(row, 1, tview.NewTableCell(rightColumnText).SetTextColor(tcell.ColorWhite))
 			row++
 
-			// Configuration details (bridge, VLAN, etc.) in gray in right column
+			// Network configuration details in gray in right column
 			var configParts []string
 			if net.Bridge != "" {
 				configParts = append(configParts, "Bridge: "+net.Bridge)
@@ -381,33 +408,6 @@ func (vd *VMDetails) Update(vm *api.VM) {
 				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(configParts, ", ")).SetTextColor(tcell.ColorGray))
 				row++
 			}
-
-			// IP Configuration details in left column (indented)
-			var ipParts []string
-			if net.ConfiguredIP != "" {
-				if net.ConfiguredIP == "dhcp" {
-					ipParts = append(ipParts, "DHCP")
-				} else {
-					ipParts = append(ipParts, "Static: "+net.ConfiguredIP)
-				}
-				if net.Gateway != "" {
-					ipParts = append(ipParts, "GW: "+net.Gateway)
-				}
-			}
-
-			if len(net.RuntimeIPs) > 0 {
-				if len(ipParts) > 0 {
-					ipParts = append(ipParts, "Runtime: "+strings.Join(net.RuntimeIPs, ", "))
-				} else {
-					ipParts = append(ipParts, "IPs: "+strings.Join(net.RuntimeIPs, ", "))
-				}
-			}
-
-			if len(ipParts) > 0 {
-				vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(ipParts, " | ")).SetTextColor(tcell.ColorGray))
-				vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
-				row++
-			}
 		}
 	} else {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
@@ -416,15 +416,16 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	// Show storage devices configuration
 	if len(vm.StorageDevices) > 0 {
-		vd.SetCell(row, 0, tview.NewTableCell("💽 Storage Configuration").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 0, tview.NewTableCell("💽 Storage Devices").SetTextColor(tcell.ColorYellow))
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d device(s)", len(vm.StorageDevices))).SetTextColor(tcell.ColorWhite))
 		row++
 
 		for _, storage := range vm.StorageDevices {
-			// Device name with size
+			// Device name with formatted size
 			deviceText := storage.Device
 			if storage.Size != "" {
-				deviceText += fmt.Sprintf(" (%s)", storage.Size)
+				formattedSize := formatStorageSize(storage.Size)
+				deviceText += fmt.Sprintf(" (%s)", formattedSize)
 			}
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+deviceText).SetTextColor(tcell.ColorLightSkyBlue))
 
@@ -466,6 +467,9 @@ func (vd *VMDetails) Update(vm *api.VM) {
 				row++
 			}
 		}
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
+		row++
 	}
 
 	// Show additional configuration details
@@ -728,4 +732,47 @@ type EnhancedNetworkInterface struct {
 	IsUp          bool
 	HasGuestAgent bool
 	IsGuestOnly   bool // True if this interface is only visible via guest agent
+}
+
+// formatStorageSize converts Proxmox storage size strings to human-readable format
+// Handles formats like "32G", "500G", "8T", etc.
+func formatStorageSize(sizeStr string) string {
+	if sizeStr == "" {
+		return ""
+	}
+
+	// Remove any whitespace
+	sizeStr = strings.TrimSpace(sizeStr)
+	if len(sizeStr) < 2 {
+		return sizeStr
+	}
+
+	// Extract numeric part and unit
+	unit := strings.ToUpper(sizeStr[len(sizeStr)-1:])
+	numStr := sizeStr[:len(sizeStr)-1]
+
+	// Parse the numeric value
+	var multiplier int64 = 1
+	switch unit {
+	case "K":
+		multiplier = 1024
+	case "M":
+		multiplier = 1024 * 1024
+	case "G":
+		multiplier = 1024 * 1024 * 1024
+	case "T":
+		multiplier = 1024 * 1024 * 1024 * 1024
+	default:
+		// If no recognized unit, return as-is
+		return sizeStr
+	}
+
+	// Parse the number
+	if num, err := strconv.ParseFloat(numStr, 64); err == nil {
+		bytes := int64(num * float64(multiplier))
+		return utils.FormatBytes(bytes)
+	}
+
+	// If parsing fails, return original
+	return sizeStr
 }
