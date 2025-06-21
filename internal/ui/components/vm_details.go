@@ -361,6 +361,27 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(tcell.ColorWhite))
 			row++
 
+			// Configuration details (bridge, VLAN, etc.) in gray in right column
+			var configParts []string
+			if net.Bridge != "" {
+				configParts = append(configParts, "Bridge: "+net.Bridge)
+			}
+			if net.VLAN != "" {
+				configParts = append(configParts, "VLAN: "+net.VLAN)
+			}
+			if net.Rate != "" {
+				configParts = append(configParts, "Rate: "+net.Rate)
+			}
+			if net.Firewall {
+				configParts = append(configParts, "Firewall: enabled")
+			}
+
+			if len(configParts) > 0 {
+				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
+				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(configParts, ", ")).SetTextColor(tcell.ColorGray))
+				row++
+			}
+
 			// IP Configuration details in left column (indented)
 			var ipParts []string
 			if net.ConfiguredIP != "" {
@@ -387,29 +408,6 @@ func (vd *VMDetails) Update(vm *api.VM) {
 				vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
 				row++
 			}
-
-			// Configuration details (bridge, VLAN, etc.)
-			if net.Bridge != "" || net.VLAN != "" || net.Rate != "" {
-				var configParts []string
-				if net.Bridge != "" {
-					configParts = append(configParts, "Bridge: "+net.Bridge)
-				}
-				if net.VLAN != "" {
-					configParts = append(configParts, "VLAN: "+net.VLAN)
-				}
-				if net.Rate != "" {
-					configParts = append(configParts, "Rate: "+net.Rate)
-				}
-				if net.Firewall {
-					configParts = append(configParts, "Firewall: enabled")
-				}
-
-				if len(configParts) > 0 {
-					vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(configParts, ", ")).SetTextColor(tcell.ColorGray))
-					vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
-					row++
-				}
-			}
 		}
 	} else {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
@@ -430,13 +428,15 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+deviceText).SetTextColor(tcell.ColorLightSkyBlue))
 
-			// Storage pool/path and additional options in right column
+			// Storage pool/path in right column
 			storageText := storage.Storage
 			if storage.Format != "" {
 				storageText += fmt.Sprintf(" [%s]", storage.Format)
 			}
+			vd.SetCell(row, 1, tview.NewTableCell(storageText).SetTextColor(tcell.ColorWhite))
+			row++
 
-			// Additional storage options in the same cell
+			// Additional storage options in gray in right column
 			var options []string
 			if storage.Cache != "" {
 				options = append(options, fmt.Sprintf("Cache: %s", storage.Cache))
@@ -461,11 +461,10 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 
 			if len(options) > 0 {
-				storageText += "\n" + strings.Join(options, ", ")
+				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
+				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(options, ", ")).SetTextColor(tcell.ColorGray))
+				row++
 			}
-
-			vd.SetCell(row, 1, tview.NewTableCell(storageText).SetTextColor(tcell.ColorWhite))
-			row++
 		}
 	}
 
