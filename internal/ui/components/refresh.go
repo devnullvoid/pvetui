@@ -12,9 +12,23 @@ func (a *App) manualRefresh() {
 	// Show animated loading indicator
 	a.header.ShowLoading("Refreshing data")
 
-	// Store current selection indices
-	nodeCurrentIndex := a.nodeList.GetCurrentItem()
-	vmCurrentIndex := a.vmList.GetCurrentItem()
+	// Store current selection by VM/Node identity rather than index
+	var selectedVMID int
+	var selectedVMNode string
+	var selectedNodeName string
+	var hasSelectedVM bool
+	var hasSelectedNode bool
+
+	if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+		selectedVMID = selectedVM.ID
+		selectedVMNode = selectedVM.Node
+		hasSelectedVM = true
+	}
+
+	if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
+		selectedNodeName = selectedNode.Name
+		hasSelectedNode = true
+	}
 
 	// Use goroutine to avoid blocking the UI
 	go func() {
@@ -79,13 +93,34 @@ func (a *App) manualRefresh() {
 				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
 			}
 
-			// Restore selection indices
-			if nodeCurrentIndex >= 0 && nodeCurrentIndex < len(models.GlobalState.FilteredNodes) {
-				a.nodeList.SetCurrentItem(nodeCurrentIndex)
+			// Restore VM selection by finding the VM with matching ID and node
+			if hasSelectedVM {
+				vmList := models.GlobalState.FilteredVMs
+				for i, vm := range vmList {
+					if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
+						a.vmList.SetCurrentItem(i)
+						// Update search state with correct index
+						if vmSearchState != nil {
+							vmSearchState.SelectedIndex = i
+						}
+						break
+					}
+				}
 			}
 
-			if vmCurrentIndex >= 0 && vmCurrentIndex < len(models.GlobalState.FilteredVMs) {
-				a.vmList.SetCurrentItem(vmCurrentIndex)
+			// Restore node selection by finding the node with matching name
+			if hasSelectedNode {
+				nodeList := models.GlobalState.FilteredNodes
+				for i, node := range nodeList {
+					if node != nil && node.Name == selectedNodeName {
+						a.nodeList.SetCurrentItem(i)
+						// Update search state with correct index
+						if nodeSearchState != nil {
+							nodeSearchState.SelectedIndex = i
+						}
+						break
+					}
+				}
 			}
 
 			// Update details if items are selected
@@ -169,8 +204,9 @@ func (a *App) refreshVMData(vm *api.VM) {
 	// Show loading indicator
 	a.header.ShowLoading(fmt.Sprintf("Refreshing VM %s", vm.Name))
 
-	// Store current selection index
-	currentIndex := a.vmList.GetCurrentItem()
+	// Store VM identity for selection restoration
+	vmID := vm.ID
+	vmNode := vm.Node
 
 	// Run refresh in goroutine to avoid blocking UI
 	go func() {
@@ -194,9 +230,12 @@ func (a *App) refreshVMData(vm *api.VM) {
 
 		// Update UI with fresh data on main thread
 		a.QueueUpdateDraw(func() {
+			// Get current search state
+			vmSearchState := models.GlobalState.GetSearchState("vms")
+
 			// Find the VM in the global state and update it
 			for i, originalVM := range models.GlobalState.OriginalVMs {
-				if originalVM != nil && originalVM.ID == vm.ID && originalVM.Node == vm.Node {
+				if originalVM != nil && originalVM.ID == vmID && originalVM.Node == vmNode {
 					models.GlobalState.OriginalVMs[i] = freshVM
 					break
 				}
@@ -204,7 +243,7 @@ func (a *App) refreshVMData(vm *api.VM) {
 
 			// Update filtered VMs if they exist
 			for i, filteredVM := range models.GlobalState.FilteredVMs {
-				if filteredVM != nil && filteredVM.ID == vm.ID && filteredVM.Node == vm.Node {
+				if filteredVM != nil && filteredVM.ID == vmID && filteredVM.Node == vmNode {
 					models.GlobalState.FilteredVMs[i] = freshVM
 					break
 				}
@@ -212,9 +251,9 @@ func (a *App) refreshVMData(vm *api.VM) {
 
 			// Also update the VM in the node's VM list
 			for _, node := range models.GlobalState.OriginalNodes {
-				if node != nil && node.Name == vm.Node {
+				if node != nil && node.Name == vmNode {
 					for i, nodeVM := range node.VMs {
-						if nodeVM != nil && nodeVM.ID == vm.ID {
+						if nodeVM != nil && nodeVM.ID == vmID {
 							node.VMs[i] = freshVM
 							break
 						}
@@ -226,13 +265,21 @@ func (a *App) refreshVMData(vm *api.VM) {
 			// Update the VM list display
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 
-			// Restore the selection index
-			if currentIndex >= 0 && currentIndex < len(models.GlobalState.FilteredVMs) {
-				a.vmList.SetCurrentItem(currentIndex)
+			// Find and select the refreshed VM by ID and node
+			vmList := models.GlobalState.FilteredVMs
+			for i, refreshedVM := range vmList {
+				if refreshedVM != nil && refreshedVM.ID == vmID && refreshedVM.Node == vmNode {
+					a.vmList.SetCurrentItem(i)
+					// Update search state with correct index
+					if vmSearchState != nil {
+						vmSearchState.SelectedIndex = i
+					}
+					break
+				}
 			}
 
 			// Update VM details if this VM is currently selected
-			if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil && selectedVM.ID == vm.ID && selectedVM.Node == vm.Node {
+			if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil && selectedVM.ID == vmID && selectedVM.Node == vmNode {
 				a.vmDetails.Update(freshVM)
 			}
 

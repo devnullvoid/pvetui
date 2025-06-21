@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced VM details panel with network interface and storage configuration
 - Quit confirmation for active VNC sessions
 
+### Fixed
+- VM selection and search filter preservation during operations and refreshes
+  - VM operations (start/stop/restart) now preserve selected VM position even when status changes
+  - Search filters remain active after VM operations and manual refreshes
+  - Selection tracking by VM ID and node instead of list position prevents losing selection when VMs move due to status sorting
+
 ### Improved
 - Network interface display layout in VM details
 - Storage configuration display layout

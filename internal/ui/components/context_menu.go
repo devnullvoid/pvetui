@@ -264,8 +264,8 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 			// Wait a moment before refreshing to allow the operation to complete on the server
 			time.Sleep(1 * time.Second)
 
-			// Manually refresh data to show updated state
-			a.manualRefresh()
+			// Use the existing targeted refresh that preserves VM selection
+			a.refreshVMData(vm)
 		}
 	}()
 }
