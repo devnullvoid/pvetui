@@ -74,6 +74,9 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 
 	uiLogger.Debug("Loading initial cluster data")
 
+	// Show loading indicator for guest data enrichment
+	app.header.ShowLoading("Loading guest agent data")
+
 	// Load initial data with error handling
 	if _, err := client.FastGetClusterStatus(func() {
 		// This callback is called when background VM enrichment completes
@@ -127,12 +130,14 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 				}
 			}
 
-			// Show a subtle notification that enrichment is complete
+			// Stop the loading indicator and show success notification
+			app.header.StopLoading()
 			app.header.ShowSuccess("Guest agent data loaded")
 			uiLogger.Debug("VM enrichment completed successfully")
 		})
 	}); err != nil {
 		uiLogger.Error("Failed to load cluster status: %v", err)
+		app.header.StopLoading()
 		app.header.ShowError("Failed to connect to Proxmox API: " + err.Error())
 		// Continue with empty state rather than crashing
 	}

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Guest Data Loading Indicator**: Enhanced user feedback during application startup
+  - Added animated loading indicator in header showing "Loading guest agent data..."
+  - Provides clear visual feedback about background VM enrichment process
+  - Loading indicator appears immediately on app launch and clears when enrichment completes
+  - Improves user experience by indicating that guest agent data is being collected in the background
+  - Consistent with existing loading indicators used throughout the application
 - **Enhanced VM Details Panel**: Comprehensive configuration information display
   - **Unified Network Interface Display**: Combined configuration and runtime network information
     - Merges VM config data with guest agent runtime data for complete view
