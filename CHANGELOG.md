@@ -48,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Immediate quit when no VNC sessions are active (preserves existing behavior)
   - Updated help documentation to reflect new quit behavior
 
+### Improved
+- **Network Interface Display Layout**: Reorganized VM details network interface information
+  - Moved IP configuration details to the right column under MAC addresses
+  - More compact and organized display with better visual hierarchy
+  - IP details (DHCP, static IPs, runtime IPs, gateway) now appear directly under MAC address
+  - Reduces vertical space usage while maintaining all information visibility
+  - Cleaner separation between interface configuration and network settings
+
 ## [0.4.0] - 2025-06-20
 
 ### Added

@@ -353,12 +353,42 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+interfaceText).SetTextColor(tcell.ColorLightSkyBlue))
 
+			// MAC Address and IP details in right column
+			rightColumnText := ""
+
 			// MAC Address
 			macText := net.MACAddr
 			if macText == "" {
 				macText = "Auto-generated"
 			}
-			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(tcell.ColorWhite))
+			rightColumnText = macText
+
+			// IP Configuration - add under MAC address
+			var ipParts []string
+			if net.ConfiguredIP != "" {
+				if net.ConfiguredIP == "dhcp" {
+					ipParts = append(ipParts, "DHCP")
+				} else {
+					ipParts = append(ipParts, "Static: "+net.ConfiguredIP)
+				}
+				if net.Gateway != "" {
+					ipParts = append(ipParts, "GW: "+net.Gateway)
+				}
+			}
+
+			if len(net.RuntimeIPs) > 0 {
+				if len(ipParts) > 0 {
+					ipParts = append(ipParts, "Runtime: "+strings.Join(net.RuntimeIPs, ", "))
+				} else {
+					ipParts = append(ipParts, "IPs: "+strings.Join(net.RuntimeIPs, ", "))
+				}
+			}
+
+			if len(ipParts) > 0 {
+				rightColumnText += "\n" + strings.Join(ipParts, " | ")
+			}
+
+			vd.SetCell(row, 1, tview.NewTableCell(rightColumnText).SetTextColor(tcell.ColorWhite))
 			row++
 
 			// Configuration details (bridge, VLAN, etc.)
@@ -382,33 +412,6 @@ func (vd *VMDetails) Update(vm *api.VM) {
 					vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
 					row++
 				}
-			}
-
-			// IP Configuration - show both configured and runtime IPs
-			var ipParts []string
-			if net.ConfiguredIP != "" {
-				if net.ConfiguredIP == "dhcp" {
-					ipParts = append(ipParts, "DHCP")
-				} else {
-					ipParts = append(ipParts, "Static: "+net.ConfiguredIP)
-				}
-				if net.Gateway != "" {
-					ipParts = append(ipParts, "GW: "+net.Gateway)
-				}
-			}
-
-			if len(net.RuntimeIPs) > 0 {
-				if len(ipParts) > 0 {
-					ipParts = append(ipParts, "Runtime: "+strings.Join(net.RuntimeIPs, ", "))
-				} else {
-					ipParts = append(ipParts, "IPs: "+strings.Join(net.RuntimeIPs, ", "))
-				}
-			}
-
-			if len(ipParts) > 0 {
-				vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(ipParts, " | ")).SetTextColor(tcell.ColorGray))
-				vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
-				row++
 			}
 		}
 	} else {
