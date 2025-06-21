@@ -353,17 +353,15 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+interfaceText).SetTextColor(tcell.ColorLightSkyBlue))
 
-			// MAC Address and IP details in right column
-			rightColumnText := ""
-
-			// MAC Address
+			// MAC Address in right column
 			macText := net.MACAddr
 			if macText == "" {
 				macText = "Auto-generated"
 			}
-			rightColumnText = macText
+			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(tcell.ColorWhite))
+			row++
 
-			// IP Configuration - add under MAC address
+			// IP Configuration details in a separate row, indented under the interface
 			var ipParts []string
 			if net.ConfiguredIP != "" {
 				if net.ConfiguredIP == "dhcp" {
@@ -385,11 +383,10 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 
 			if len(ipParts) > 0 {
-				rightColumnText += "\n" + strings.Join(ipParts, " | ")
+				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
+				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(ipParts, " | ")).SetTextColor(tcell.ColorGray))
+				row++
 			}
-
-			vd.SetCell(row, 1, tview.NewTableCell(rightColumnText).SetTextColor(tcell.ColorWhite))
-			row++
 
 			// Configuration details (bridge, VLAN, etc.)
 			if net.Bridge != "" || net.VLAN != "" || net.Rate != "" {
