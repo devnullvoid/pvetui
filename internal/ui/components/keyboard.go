@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -65,7 +66,24 @@ func (a *App) setupKeyboardHandlers() {
 			return nil
 		case tcell.KeyRune:
 			if event.Rune() == 'q' {
-				a.Stop()
+				// Check if there are active VNC sessions
+				sessionCount := a.vncService.GetActiveSessionCount()
+				if sessionCount > 0 {
+					// Show confirmation dialog with session count
+					var message string
+					if sessionCount == 1 {
+						message = "There is 1 active VNC session that will be disconnected.\n\nAre you sure you want to quit?"
+					} else {
+						message = fmt.Sprintf("There are %d active VNC sessions that will be disconnected.\n\nAre you sure you want to quit?", sessionCount)
+					}
+
+					a.showConfirmationDialog(message, func() {
+						a.Stop()
+					})
+				} else {
+					// No active sessions, quit immediately
+					a.Stop()
+				}
 				return nil
 			} else if event.Rune() == '/' {
 				// Activate search

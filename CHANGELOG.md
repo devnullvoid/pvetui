@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Quit Confirmation for Active VNC Sessions**: Added user-friendly quit confirmation when VNC sessions are active
+  - Application now prompts before quitting when there are active VNC sessions
+  - Shows session count and warns that sessions will be disconnected
+  - Provides "Yes/No" confirmation dialog to prevent accidental disconnections
+  - Immediate quit when no VNC sessions are active (preserves existing behavior)
+  - Updated help documentation to reflect new quit behavior
+
 ## [0.4.0] - 2025-06-20
 
 ### Added

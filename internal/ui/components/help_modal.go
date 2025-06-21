@@ -39,7 +39,7 @@ func NewHelpModal() *HelpModal {
   [white]M[-]                         Open context menu
   [white]C[-]                         Install community scripts (nodes)
   [white]R[-]                         Manual refresh
-  [white]Q[-]                         Quit application
+  [white]Q[-]                         Quit application (confirms if VNC sessions active)
 
 [yellow]VI-like Navigation:[-]
   [white]h[-]                         Move left / Go back
@@ -73,6 +73,7 @@ func NewHelpModal() *HelpModal {
   • Community scripts are installed interactively via SSH
   • Use [white]hjkl[-] keys for VI-like navigation throughout
   • All arrow key functionality is preserved alongside hjkl
+  • Quitting with active VNC sessions will prompt for confirmation
 
 [yellow]Troubleshooting:[-]
   • If VNC doesn't open, check your default browser settings
