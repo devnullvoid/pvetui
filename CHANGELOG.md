@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Enhanced VM Details Panel**: Comprehensive configuration information display
+  - **Unified Network Interface Display**: Combined configuration and runtime network information
+    - Merges VM config data with guest agent runtime data for complete view
+    - Shows interface status indicators (🟢 up, 🔴 down) when guest agent available
+    - Displays both configured and runtime IP addresses side-by-side
+    - Interface type/model (virtio, e1000, etc. for QEMU; interface name for LXC)
+    - MAC addresses (configured or auto-generated)
+    - Bridge assignments, VLAN tags, rate limiting, and firewall settings
+    - Eliminates duplication between guest agent and configuration data
+    - Clearly identifies guest-only interfaces not in VM configuration
+  - **Storage Configuration**: Complete storage device details
+    - Storage devices (SCSI, IDE, VirtIO, SATA, EFI disk for QEMU; rootfs, mount points for LXC)
+    - Storage pools and device paths (including direct device assignments)
+    - Storage formats (raw, qcow2, etc.), cache modes, and performance options
+    - SSD flags, discard settings, IOThread usage
+    - Serial numbers, backup settings, and replication configuration
+  - **System Configuration**: Additional VM configuration details
+    - CPU core and socket counts from configuration
+    - Architecture and OS type information
+    - Boot order configuration
+    - Auto-start (onboot) settings with visual indicators
+  - **Enhanced Description Display**: Sanitized VM description placement
+    - Moved description to prominent position under VM name
+    - HTML tag stripping and whitespace normalization
+    - Prevents UI corruption from malformed description content
+  - Organized display with clear visual hierarchy and color coding
+  - Maintains backward compatibility with existing guest agent information
 - **Quit Confirmation for Active VNC Sessions**: Added user-friendly quit confirmation when VNC sessions are active
   - Application now prompts before quitting when there are active VNC sessions
   - Shows session count and warns that sessions will be disconnected

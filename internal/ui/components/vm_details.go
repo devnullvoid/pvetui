@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -84,6 +85,16 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 0, tview.NewTableCell("📛 Name").SetTextColor(tcell.ColorYellow))
 	vd.SetCell(row, 1, tview.NewTableCell(vm.Name).SetTextColor(tcell.ColorWhite))
 	row++
+
+	// Show description if available
+	if vm.Description != "" {
+		cleanDesc := sanitizeDescription(vm.Description)
+		if cleanDesc != "" {
+			vd.SetCell(row, 0, tview.NewTableCell("📝 Description").SetTextColor(tcell.ColorYellow))
+			vd.SetCell(row, 1, tview.NewTableCell(cleanDesc).SetTextColor(tcell.ColorLightBlue))
+			row++
+		}
+	}
 
 	vd.SetCell(row, 0, tview.NewTableCell("📍 Node").SetTextColor(tcell.ColorYellow))
 	vd.SetCell(row, 1, tview.NewTableCell(vm.Node).SetTextColor(tcell.ColorWhite))
@@ -307,48 +318,220 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
 	}
 
-	// Show network interfaces from guest agent if available
+	// Show merged network interfaces (configuration + runtime data)
+	enhancedNetworks := mergeNetworkInterfaces(vm.ConfiguredNetworks, vm.NetInterfaces)
 	vd.SetCell(row, 0, tview.NewTableCell("🌐 Network Interfaces").SetTextColor(tcell.ColorYellow))
-	if len(vm.NetInterfaces) > 0 {
-		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d available", len(vm.NetInterfaces))).SetTextColor(tcell.ColorWhite))
+	if len(enhancedNetworks) > 0 {
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d interface(s)", len(enhancedNetworks))).SetTextColor(tcell.ColorWhite))
 		row++
 
-		// Show interface details
-		for _, iface := range vm.NetInterfaces {
-			// Skip loopback interfaces
-			if iface.IsLoopback {
-				continue
+		for _, net := range enhancedNetworks {
+			// Interface name with model/type and status
+			interfaceText := ""
+			if net.Interface != "" {
+				interfaceText = net.Interface
+				if net.Model != "" {
+					interfaceText += fmt.Sprintf(" (%s)", net.Model)
+				}
+			} else if net.RuntimeName != "" {
+				interfaceText = net.RuntimeName
 			}
 
-			// Show interface name and MAC
-			vd.SetCell(row, 0, tview.NewTableCell("  • "+iface.Name).SetTextColor(tcell.ColorLightSkyBlue))
-			vd.SetCell(row, 1, tview.NewTableCell(iface.MACAddress).SetTextColor(tcell.ColorWhite))
+			// Add status indicator if we have guest agent data
+			if net.HasGuestAgent {
+				if net.IsUp {
+					interfaceText += " 🟢"
+				} else {
+					interfaceText += " 🔴"
+				}
+			}
+
+			// Mark guest-only interfaces
+			if net.IsGuestOnly {
+				interfaceText += " (guest only)"
+			}
+
+			vd.SetCell(row, 0, tview.NewTableCell("  • "+interfaceText).SetTextColor(tcell.ColorLightSkyBlue))
+
+			// MAC Address
+			macText := net.MACAddr
+			if macText == "" {
+				macText = "Auto-generated"
+			}
+			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(tcell.ColorWhite))
 			row++
 
-			// Show IP addresses
-			for _, ip := range iface.IPAddresses {
-				ipColor := tcell.ColorWhite
-				if ip.Type == api.IPTypeIPv6 {
-					ipColor = tcell.ColorLightSkyBlue
+			// Configuration details (bridge, VLAN, etc.)
+			if net.Bridge != "" || net.VLAN != "" || net.Rate != "" {
+				var configParts []string
+				if net.Bridge != "" {
+					configParts = append(configParts, "Bridge: "+net.Bridge)
 				}
-				vd.SetCell(row, 0, tview.NewTableCell("    "+ip.Type).SetTextColor(tcell.ColorGray))
-				vd.SetCell(row, 1, tview.NewTableCell(ip.Address).SetTextColor(ipColor))
-				row++
+				if net.VLAN != "" {
+					configParts = append(configParts, "VLAN: "+net.VLAN)
+				}
+				if net.Rate != "" {
+					configParts = append(configParts, "Rate: "+net.Rate)
+				}
+				if net.Firewall {
+					configParts = append(configParts, "Firewall: enabled")
+				}
+
+				if len(configParts) > 0 {
+					vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(configParts, ", ")).SetTextColor(tcell.ColorGray))
+					vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
+					row++
+				}
 			}
 
-			// Show interface traffic
-			if iface.Statistics.RxBytes > 0 || iface.Statistics.TxBytes > 0 {
-				vd.SetCell(row, 0, tview.NewTableCell("    Traffic").SetTextColor(tcell.ColorGray))
-				vd.SetCell(row, 1, tview.NewTableCell(
-					fmt.Sprintf("↓ %s ↑ %s",
-						utils.FormatBytes(iface.Statistics.RxBytes),
-						utils.FormatBytes(iface.Statistics.TxBytes))).SetTextColor(tcell.ColorWhite))
+			// IP Configuration - show both configured and runtime IPs
+			var ipParts []string
+			if net.ConfiguredIP != "" {
+				if net.ConfiguredIP == "dhcp" {
+					ipParts = append(ipParts, "DHCP")
+				} else {
+					ipParts = append(ipParts, "Static: "+net.ConfiguredIP)
+				}
+				if net.Gateway != "" {
+					ipParts = append(ipParts, "GW: "+net.Gateway)
+				}
+			}
+
+			if len(net.RuntimeIPs) > 0 {
+				if len(ipParts) > 0 {
+					ipParts = append(ipParts, "Runtime: "+strings.Join(net.RuntimeIPs, ", "))
+				} else {
+					ipParts = append(ipParts, "IPs: "+strings.Join(net.RuntimeIPs, ", "))
+				}
+			}
+
+			if len(ipParts) > 0 {
+				vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(ipParts, " | ")).SetTextColor(tcell.ColorGray))
+				vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
 				row++
 			}
 		}
 	} else {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(tcell.ColorWhite))
+		row++
 	}
+
+	// Show storage devices configuration
+	if len(vm.StorageDevices) > 0 {
+		vd.SetCell(row, 0, tview.NewTableCell("💽 Storage Configuration").SetTextColor(tcell.ColorYellow))
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d device(s)", len(vm.StorageDevices))).SetTextColor(tcell.ColorWhite))
+		row++
+
+		for _, storage := range vm.StorageDevices {
+			// Device name with size
+			deviceText := storage.Device
+			if storage.Size != "" {
+				deviceText += fmt.Sprintf(" (%s)", storage.Size)
+			}
+			vd.SetCell(row, 0, tview.NewTableCell("  • "+deviceText).SetTextColor(tcell.ColorLightSkyBlue))
+
+			// Storage pool/path
+			storageText := storage.Storage
+			if storage.Format != "" {
+				storageText += fmt.Sprintf(" [%s]", storage.Format)
+			}
+			vd.SetCell(row, 1, tview.NewTableCell(storageText).SetTextColor(tcell.ColorWhite))
+			row++
+
+			// Additional storage options
+			var options []string
+			if storage.Cache != "" {
+				options = append(options, fmt.Sprintf("Cache: %s", storage.Cache))
+			}
+			if storage.IOThread {
+				options = append(options, "IOThread")
+			}
+			if storage.SSD {
+				options = append(options, "SSD")
+			}
+			if storage.Discard != "" {
+				options = append(options, fmt.Sprintf("Discard: %s", storage.Discard))
+			}
+			if storage.Serial != "" {
+				options = append(options, fmt.Sprintf("Serial: %s", storage.Serial))
+			}
+			if !storage.Backup {
+				options = append(options, "No Backup")
+			}
+			if storage.Replicate {
+				options = append(options, "Replicate")
+			}
+
+			if len(options) > 0 {
+				vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(options, ", ")).SetTextColor(tcell.ColorGray))
+				vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
+				row++
+			}
+		}
+	}
+
+	// Show additional configuration details
+	vd.SetCell(row, 0, tview.NewTableCell("⚙️ Configuration").SetTextColor(tcell.ColorYellow))
+	vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
+	row++
+
+	// CPU Configuration
+	if vm.CPUCores > 0 || vm.CPUSockets > 0 {
+		cpuText := ""
+		if vm.CPUCores > 0 {
+			cpuText = fmt.Sprintf("%d cores", vm.CPUCores)
+		}
+		if vm.CPUSockets > 0 {
+			if cpuText != "" {
+				cpuText += fmt.Sprintf(", %d sockets", vm.CPUSockets)
+			} else {
+				cpuText = fmt.Sprintf("%d sockets", vm.CPUSockets)
+			}
+		}
+		if cpuText != "" {
+			vd.SetCell(row, 0, tview.NewTableCell("  • CPU").SetTextColor(tcell.ColorLightSkyBlue))
+			vd.SetCell(row, 1, tview.NewTableCell(cpuText).SetTextColor(tcell.ColorWhite))
+			row++
+		}
+	}
+
+	// Architecture and OS Type
+	if vm.Architecture != "" || vm.OSType != "" {
+		archText := ""
+		if vm.Architecture != "" {
+			archText = vm.Architecture
+		}
+		if vm.OSType != "" {
+			if archText != "" {
+				archText += fmt.Sprintf(" (%s)", vm.OSType)
+			} else {
+				archText = vm.OSType
+			}
+		}
+		if archText != "" {
+			vd.SetCell(row, 0, tview.NewTableCell("  • Architecture").SetTextColor(tcell.ColorLightSkyBlue))
+			vd.SetCell(row, 1, tview.NewTableCell(archText).SetTextColor(tcell.ColorWhite))
+			row++
+		}
+	}
+
+	// Boot Order
+	if vm.BootOrder != "" {
+		vd.SetCell(row, 0, tview.NewTableCell("  • Boot Order").SetTextColor(tcell.ColorLightSkyBlue))
+		vd.SetCell(row, 1, tview.NewTableCell(vm.BootOrder).SetTextColor(tcell.ColorWhite))
+		row++
+	}
+
+	// Auto-start
+	vd.SetCell(row, 0, tview.NewTableCell("  • Auto-start").SetTextColor(tcell.ColorLightSkyBlue))
+	autoStartText := "Disabled"
+	autoStartColor := tcell.ColorGray
+	if vm.OnBoot {
+		autoStartText = "Enabled"
+		autoStartColor = tcell.ColorGreen
+	}
+	vd.SetCell(row, 1, tview.NewTableCell(autoStartText).SetTextColor(autoStartColor))
+	row++
 
 	// Scroll to the top to ensure the most important information (basic details) is visible
 	vd.ScrollToBeginning()
@@ -429,4 +612,122 @@ func getFriendlyFilesystemName(fs api.Filesystem) string {
 	}
 
 	return fsName
+}
+
+// sanitizeDescription removes HTML tags and trims whitespace from description text
+func sanitizeDescription(desc string) string {
+	if desc == "" {
+		return ""
+	}
+
+	// Remove HTML tags using regex
+	htmlTagRegex := regexp.MustCompile(`<[^>]*>`)
+	cleaned := htmlTagRegex.ReplaceAllString(desc, "")
+
+	// Remove HTML entities (basic ones)
+	cleaned = strings.ReplaceAll(cleaned, "&lt;", "<")
+	cleaned = strings.ReplaceAll(cleaned, "&gt;", ">")
+	cleaned = strings.ReplaceAll(cleaned, "&amp;", "&")
+	cleaned = strings.ReplaceAll(cleaned, "&quot;", "\"")
+	cleaned = strings.ReplaceAll(cleaned, "&apos;", "'")
+	cleaned = strings.ReplaceAll(cleaned, "&nbsp;", " ")
+
+	// Trim whitespace and normalize multiple spaces
+	cleaned = strings.TrimSpace(cleaned)
+	spaceRegex := regexp.MustCompile(`\s+`)
+	cleaned = spaceRegex.ReplaceAllString(cleaned, " ")
+
+	return cleaned
+}
+
+// mergeNetworkInterfaces combines configured networks with guest agent interfaces
+// Returns enhanced network information with both config and runtime data
+func mergeNetworkInterfaces(configuredNets []api.ConfiguredNetwork, guestInterfaces []api.NetworkInterface) []EnhancedNetworkInterface {
+	var enhanced []EnhancedNetworkInterface
+
+	// Create a map of guest interfaces by MAC for quick lookup
+	guestByMAC := make(map[string]api.NetworkInterface)
+	for _, iface := range guestInterfaces {
+		if iface.MACAddress != "" {
+			guestByMAC[strings.ToUpper(iface.MACAddress)] = iface
+		}
+	}
+
+	// Process configured networks first (these are authoritative)
+	for _, configured := range configuredNets {
+		enhancedNet := EnhancedNetworkInterface{
+			Interface:    configured.Interface,
+			Model:        configured.Model,
+			MACAddr:      configured.MACAddr,
+			Bridge:       configured.Bridge,
+			VLAN:         configured.VLAN,
+			Rate:         configured.Rate,
+			ConfiguredIP: configured.IP,
+			Gateway:      configured.Gateway,
+			Firewall:     configured.Firewall,
+		}
+
+		// Try to find matching guest interface by MAC
+		if configured.MACAddr != "" {
+			if guest, found := guestByMAC[strings.ToUpper(configured.MACAddr)]; found {
+				enhancedNet.RuntimeName = guest.Name
+				// Convert IPAddress slice to string slice
+				for _, ip := range guest.IPAddresses {
+					enhancedNet.RuntimeIPs = append(enhancedNet.RuntimeIPs, ip.Address)
+				}
+				// Determine if interface is up based on having IP addresses
+				enhancedNet.IsUp = len(guest.IPAddresses) > 0
+				enhancedNet.HasGuestAgent = true
+				// Remove from map so we don't show it again
+				delete(guestByMAC, strings.ToUpper(configured.MACAddr))
+			}
+		}
+
+		enhanced = append(enhanced, enhancedNet)
+	}
+
+	// Add any remaining guest interfaces that didn't match configured ones
+	for _, guest := range guestByMAC {
+		if guest.IsLoopback {
+			continue // Skip loopback interfaces
+		}
+
+		enhancedNet := EnhancedNetworkInterface{
+			RuntimeName:   guest.Name,
+			MACAddr:       guest.MACAddress,
+			HasGuestAgent: true,
+			IsGuestOnly:   true, // Flag to indicate this is guest-agent only
+		}
+
+		// Convert IPAddress slice to string slice
+		for _, ip := range guest.IPAddresses {
+			enhancedNet.RuntimeIPs = append(enhancedNet.RuntimeIPs, ip.Address)
+		}
+		enhancedNet.IsUp = len(guest.IPAddresses) > 0
+
+		enhanced = append(enhanced, enhancedNet)
+	}
+
+	return enhanced
+}
+
+// EnhancedNetworkInterface combines configured and runtime network information
+type EnhancedNetworkInterface struct {
+	// From configuration
+	Interface    string
+	Model        string
+	MACAddr      string
+	Bridge       string
+	VLAN         string
+	Rate         string
+	ConfiguredIP string
+	Gateway      string
+	Firewall     bool
+
+	// From guest agent
+	RuntimeName   string
+	RuntimeIPs    []string
+	IsUp          bool
+	HasGuestAgent bool
+	IsGuestOnly   bool // True if this interface is only visible via guest agent
 }
