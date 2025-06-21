@@ -361,7 +361,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(tcell.ColorWhite))
 			row++
 
-			// IP Configuration details in a separate row, indented under the interface
+			// IP Configuration details in left column (indented)
 			var ipParts []string
 			if net.ConfiguredIP != "" {
 				if net.ConfiguredIP == "dhcp" {
@@ -383,8 +383,8 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 
 			if len(ipParts) > 0 {
-				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
-				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(ipParts, " | ")).SetTextColor(tcell.ColorGray))
+				vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(ipParts, " | ")).SetTextColor(tcell.ColorGray))
+				vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
 				row++
 			}
 
@@ -430,15 +430,13 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+deviceText).SetTextColor(tcell.ColorLightSkyBlue))
 
-			// Storage pool/path
+			// Storage pool/path and additional options in right column
 			storageText := storage.Storage
 			if storage.Format != "" {
 				storageText += fmt.Sprintf(" [%s]", storage.Format)
 			}
-			vd.SetCell(row, 1, tview.NewTableCell(storageText).SetTextColor(tcell.ColorWhite))
-			row++
 
-			// Additional storage options
+			// Additional storage options in the same cell
 			var options []string
 			if storage.Cache != "" {
 				options = append(options, fmt.Sprintf("Cache: %s", storage.Cache))
@@ -463,10 +461,11 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 
 			if len(options) > 0 {
-				vd.SetCell(row, 0, tview.NewTableCell("    "+strings.Join(options, ", ")).SetTextColor(tcell.ColorGray))
-				vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
-				row++
+				storageText += "\n" + strings.Join(options, ", ")
 			}
+
+			vd.SetCell(row, 1, tview.NewTableCell(storageText).SetTextColor(tcell.ColorWhite))
+			row++
 		}
 	}
 

@@ -8,52 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Guest Data Loading Indicator**: Enhanced user feedback during application startup
-  - Added animated loading indicator in header showing "Loading guest agent data..."
-  - Provides clear visual feedback about background VM enrichment process
-  - Loading indicator appears immediately on app launch and clears when enrichment completes
-  - Improves user experience by indicating that guest agent data is being collected in the background
-  - Consistent with existing loading indicators used throughout the application
-- **Enhanced VM Details Panel**: Comprehensive configuration information display
-  - **Unified Network Interface Display**: Combined configuration and runtime network information
-    - Merges VM config data with guest agent runtime data for complete view
-    - Shows interface status indicators (🟢 up, 🔴 down) when guest agent available
-    - Displays both configured and runtime IP addresses side-by-side
-    - Interface type/model (virtio, e1000, etc. for QEMU; interface name for LXC)
-    - MAC addresses (configured or auto-generated)
-    - Bridge assignments, VLAN tags, rate limiting, and firewall settings
-    - Eliminates duplication between guest agent and configuration data
-    - Clearly identifies guest-only interfaces not in VM configuration
-  - **Storage Configuration**: Complete storage device details
-    - Storage devices (SCSI, IDE, VirtIO, SATA, EFI disk for QEMU; rootfs, mount points for LXC)
-    - Storage pools and device paths (including direct device assignments)
-    - Storage formats (raw, qcow2, etc.), cache modes, and performance options
-    - SSD flags, discard settings, IOThread usage
-    - Serial numbers, backup settings, and replication configuration
-  - **System Configuration**: Additional VM configuration details
-    - CPU core and socket counts from configuration
-    - Architecture and OS type information
-    - Boot order configuration
-    - Auto-start (onboot) settings with visual indicators
-  - **Enhanced Description Display**: Sanitized VM description placement
-    - Moved description to prominent position under VM name
-    - HTML tag stripping and whitespace normalization
-    - Prevents UI corruption from malformed description content
-  - Organized display with clear visual hierarchy and color coding
-  - Maintains backward compatibility with existing guest agent information
-- **Quit Confirmation for Active VNC Sessions**: Added user-friendly quit confirmation when VNC sessions are active
-  - Application now prompts before quitting when there are active VNC sessions
-  - Shows session count and warns that sessions will be disconnected
-  - Provides "Yes/No" confirmation dialog to prevent accidental disconnections
-  - Immediate quit when no VNC sessions are active (preserves existing behavior)
-  - Updated help documentation to reflect new quit behavior
+- Guest data loading indicator on app startup
+- Enhanced VM details panel with network interface and storage configuration
+- Quit confirmation for active VNC sessions
 
 ### Improved
-- **Network Interface Display Layout**: Reorganized VM details network interface information
-  - IP configuration details now display on separate row below MAC addresses
-  - Cleaner visual hierarchy with proper spacing and indentation
-  - IP details (DHCP, static IPs, runtime IPs, gateway) appear directly under MAC address
-  - More readable layout that separates network configuration from addressing information
+- Network interface display layout in VM details
+- Storage configuration display layout
 
 ## [0.4.0] - 2025-06-20
 
