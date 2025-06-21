@@ -354,10 +354,15 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+interfaceText).SetTextColor(tcell.ColorLightSkyBlue))
 
-			// MAC address and IP details in right column
-			rightColumnText := net.MACAddr
+			// MAC address in right column
+			macText := net.MACAddr
+			if macText == "" {
+				macText = "Auto-generated"
+			}
+			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(tcell.ColorWhite))
+			row++
 
-			// Add IP configuration details
+			// IP configuration details in right column (indented)
 			var ipParts []string
 
 			// Add configured IP (from VM config)
@@ -382,11 +387,10 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			}
 
 			if len(ipParts) > 0 {
-				rightColumnText += "\n" + strings.Join(ipParts, " | ")
+				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(tcell.ColorWhite))
+				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(ipParts, " | ")).SetTextColor(tcell.ColorGray))
+				row++
 			}
-
-			vd.SetCell(row, 1, tview.NewTableCell(rightColumnText).SetTextColor(tcell.ColorWhite))
-			row++
 
 			// Network configuration details in gray in right column
 			var configParts []string
