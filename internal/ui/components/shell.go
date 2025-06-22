@@ -8,6 +8,7 @@ import (
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ssh"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/internal/vnc"
 )
 
@@ -37,7 +38,7 @@ func (a *App) openNodeShell() {
 
 		// Wait for user to press Enter
 		fmt.Print("\nPress Enter to return to the TUI...")
-		fmt.Scanln()
+		utils.WaitForEnter()
 	})
 }
 
@@ -205,6 +206,6 @@ func (a *App) openVMShell() {
 
 		// Wait for user to press Enter
 		fmt.Print("\nPress Enter to return to the TUI...")
-		fmt.Scanln()
+		utils.WaitForEnter()
 	})
 }

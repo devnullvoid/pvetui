@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/scripts"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -438,32 +439,44 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 		// Display installation message
 		fmt.Printf("\nInstalling %s on node %s (%s)...\n", script.Name, s.node.Name, s.nodeIP)
 		fmt.Printf("Script: %s\n", script.ScriptPath)
-		fmt.Printf("This script may require interactive input. Please follow the prompts.\n\n")
+		fmt.Printf("This script may require interactive input. Please follow the prompts.\n")
+		fmt.Printf("Note: Custom MOTD output is suppressed to prevent script interference.\n\n")
 
 		// Validate SSH connection before attempting installation
 		fmt.Print("Validating SSH connection...")
 		err := scripts.ValidateConnection(s.user, s.nodeIP)
 		if err != nil {
 			fmt.Printf("\nSSH connection failed: %v\n", err)
+			fmt.Printf("\nTroubleshooting tips:\n")
+			fmt.Printf("• Ensure SSH key authentication is set up\n")
+			fmt.Printf("• Check that the node IP address is correct\n")
+			fmt.Printf("• Verify the SSH user has sudo privileges\n")
 			fmt.Print("\nPress Enter to return to the TUI...")
-			fmt.Scanln()
+			utils.WaitForEnter()
 			return
 		}
 		fmt.Println(" ✓ Connected")
 
 		// Install the script interactively
+		fmt.Printf("Executing installation script...\n")
 		err = scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
 
 		if err != nil {
 			fmt.Printf("\nScript installation failed: %v\n", err)
+			fmt.Printf("\nTroubleshooting tips:\n")
+			fmt.Printf("• If you see repeated 'Please answer yes or no' messages, press Ctrl+C\n")
+			fmt.Printf("• Check that your Proxmox node has internet access\n")
+			fmt.Printf("• Ensure the script is compatible with your Proxmox version\n")
+			fmt.Printf("• Some scripts may conflict with custom MOTD configurations\n")
+			fmt.Printf("• Try running the script manually via SSH if the issue persists\n")
 		} else {
-			fmt.Printf("\n%s installed successfully!\n", script.Name)
+			fmt.Printf("\n✓ %s installed successfully!\n", script.Name)
 			fmt.Printf("You may need to refresh your node/guest list to see any new resources.\n")
 		}
 
 		// Wait for user to press Enter
 		fmt.Print("\nPress Enter to return to the TUI...")
-		fmt.Scanln()
+		utils.WaitForEnter()
 	})
 }
 

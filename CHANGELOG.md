@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated release script with full workflow automation
 - Makefile integration for release commands
 
+### Fixed
+- Script execution return issue where users couldn't return to TUI after script completion
+  - Replaced unreliable `fmt.Scanln()` with `bufio.Scanner` for post-suspension input handling
+  - Fixed both script installation and SSH shell "Press Enter to return" functionality
+  - Created shared `utils.WaitForEnter()` function for consistent input handling after TUI suspension
+  - Resolves issue where Enter key would only insert newlines instead of returning to application
+
 ### Improved
 - Release process now fully automated from changelog to GitHub release
 

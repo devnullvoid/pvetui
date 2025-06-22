@@ -381,20 +381,50 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 
 	// Command to download and execute the script interactively
 	// This mirrors the official installation pattern but runs interactively
-	installCommand := fmt.Sprintf("sudo /bin/bash -c \"curl -fsSL '%s' | /bin/bash\"", scriptURL)
+	// Use a clean environment to avoid MOTD interference and set non-interactive defaults
+	// Addresses GitHub issue #11: prevents custom MOTD (like neofetch) from interfering with script execution
+	installCommand := fmt.Sprintf(`sudo /bin/bash -c "
+		# Set environment to avoid interactive prompts and MOTD interference
+		export DEBIAN_FRONTEND=noninteractive
+		export NEEDRESTART_MODE=a
+		export NEEDRESTART_SUSPEND=1
+		export APT_LISTCHANGES_FRONTEND=none
+		export LANG=en_US.UTF-8
+		export LC_ALL=en_US.UTF-8
+		
+		# Suppress login shell behaviors that might interfere
+		export BASH_SILENCE_DEPRECATION_WARNING=1
+		
+		# Set timeout for curl to prevent hanging
+		# Download and execute the script with error handling
+		if ! curl -fsSL --connect-timeout 30 --max-time 300 '%s' | /bin/bash; then
+			echo 'Script execution failed. Check the output above for details.'
+			exit 1
+		fi
+	"`, scriptURL)
 
 	getScriptsLogger().Debug("Running interactive SSH command for script: %s", scriptPath)
 
 	// Execute the command via SSH with interactive terminal
 	// Use -t to force pseudo-terminal allocation for interactive scripts
-	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), installCommand)
+	// Add SSH options to bypass login shell interactions and suppress MOTD
+	sshCmd := exec.Command("ssh",
+		"-t",                   // Force pseudo-terminal allocation
+		"-o", "LogLevel=ERROR", // Reduce SSH verbosity
+		"-o", "UserKnownHostsFile=/dev/null", // Don't save host keys
+		"-o", "StrictHostKeyChecking=no", // Don't prompt for host verification
+		"-o", "ServerAliveInterval=30", // Keep connection alive
+		"-o", "ServerAliveCountMax=3", // Max failed keepalives
+		"-o", "ConnectTimeout=10", // Connection timeout
+		fmt.Sprintf("%s@%s", user, nodeIP),
+		installCommand)
 
 	// Connect stdin/stdout/stderr for interactive session
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
 
-	// Set environment variables
+	// Set environment variables for the SSH process
 	sshCmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
 		"LANG=en_US.UTF-8",
@@ -414,12 +444,15 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 // ValidateConnection checks if SSH connection to the node is possible
 func ValidateConnection(user, nodeIP string) error {
 	// Simple command to test SSH connection with timeout
+	// Use similar SSH options as InstallScript for consistency
 	cmd := exec.Command("ssh",
 		"-o", "ConnectTimeout=5", // 5 second connection timeout
 		"-o", "ServerAliveInterval=2", // Send keepalive every 2 seconds
 		"-o", "ServerAliveCountMax=1", // Give up after 1 failed keepalive
 		"-o", "BatchMode=yes", // Don't prompt for passwords
 		"-o", "StrictHostKeyChecking=no", // Don't prompt for host key verification
+		"-o", "UserKnownHostsFile=/dev/null", // Don't save host keys
+		"-o", "LogLevel=ERROR", // Reduce SSH verbosity
 		fmt.Sprintf("%s@%s", user, nodeIP),
 		"echo 'Connection test successful'")
 
