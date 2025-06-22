@@ -84,6 +84,18 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 		app.QueueUpdateDraw(func() {
 			uiLogger.Debug("Processing enriched VM data")
 
+			// Store current VM selection to preserve user's position
+			var selectedVMID int
+			var selectedVMNode string
+			var hasSelectedVM bool
+
+			if selectedVM := app.vmList.GetSelectedVM(); selectedVM != nil {
+				selectedVMID = selectedVM.ID
+				selectedVMNode = selectedVM.Node
+				hasSelectedVM = true
+				uiLogger.Debug("Preserving selection for VM %d on node %s", selectedVMID, selectedVMNode)
+			}
+
 			// Update the cluster status display
 			if client.Cluster != nil {
 				uiLogger.Debug("Updating cluster status with %d nodes", len(client.Cluster.Nodes))
@@ -116,6 +128,18 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 				// Update the VM list display
 				app.vmList.SetVMs(models.GlobalState.FilteredVMs)
 				uiLogger.Debug("Updated VM list with enriched data")
+
+				// Restore the user's VM selection if they had one
+				if hasSelectedVM {
+					vmList := models.GlobalState.FilteredVMs
+					for i, vm := range vmList {
+						if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
+							app.vmList.SetCurrentItem(i)
+							uiLogger.Debug("Restored selection to VM %d on node %s at index %d", selectedVMID, selectedVMNode, i)
+							break
+						}
+					}
+				}
 			}
 
 			// Refresh the currently selected VM details if there is one
