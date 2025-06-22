@@ -118,6 +118,25 @@ jobs:
           echo "🔍 Checksums:"
           cat checksums.txt
 
+      - name: Extract changelog content
+        id: changelog
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          echo "Extracting changelog for version $VERSION..."
+          
+          # Extract content between version headers
+          CONTENT=$(sed -n "/## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '/^## \[/d' | tail -n +2)
+          
+          # Save to file and environment variable
+          echo "$CONTENT" > changelog_content.md
+          
+          # Set output for use in release body (escape for JSON)
+          {
+            echo 'CHANGELOG_CONTENT<<EOF'
+            echo "$CONTENT"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         env:
@@ -127,13 +146,13 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
             dist/checksums.txt
-          generate_release_notes: true
           draft: false
           prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
           body: |
             ## 🚀 Release ${{ steps.version.outputs.VERSION }}
+            ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
             
-            ### 📦 Downloads
+            ## 📦 Downloads
             
             Choose the appropriate binary for your platform:
             
@@ -143,20 +162,16 @@ jobs:
             - **macOS Apple Silicon**: `proxmox-tui-darwin-arm64.tar.gz`
             - **Windows**: `proxmox-tui-windows-amd64.zip`
             
-            ### 🔐 Verification
+            ## 🔐 Verification
             
             Verify your download with the provided `checksums.txt` file:
             ```bash
             shasum -a 256 -c checksums.txt
             ```
             
-            ### 📋 Installation
+            ## 📋 Installation
             
             1. Download the appropriate archive for your platform
             2. Extract the binary: `tar -xzf proxmox-tui-*.tar.gz` (or unzip for Windows)
             3. Make executable (Unix): `chmod +x proxmox-tui-*`
             4. Run: `./proxmox-tui-* --help`
-            
-            ### 🔄 Changelog
-            
-            See the [changelog](https://github.com/devnullvoid/proxmox-tui/blob/main/CHANGELOG.md) for details on what's new in this release.
