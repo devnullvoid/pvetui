@@ -13,10 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Script execution return issue where users couldn't return to TUI after script completion
-  - Replaced unreliable `fmt.Scanln()` with `bufio.Scanner` for post-suspension input handling
+  - Implemented proper terminal raw mode handling for post-suspension input
   - Fixed both script installation and SSH shell "Press Enter to return" functionality
-  - Created shared `utils.WaitForEnter()` function for consistent input handling after TUI suspension
+  - Created robust `utils.WaitForEnter()` function that handles terminal state correctly
+  - Added fallback for non-terminal environments and error conditions
   - Resolves issue where Enter key would only insert newlines instead of returning to application
+  - Solution addresses known tview suspension/resume terminal state problems
 
 ### Improved
 - Release process now fully automated from changelog to GitHub release
