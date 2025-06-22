@@ -286,7 +286,21 @@ func (c *Config) MergeWithFile(path string) error {
 		return err
 	}
 
-	var fileConfig Config
+	// Use a struct with pointers to distinguish between unset and explicitly set values
+	var fileConfig struct {
+		Addr        string `yaml:"addr"`
+		User        string `yaml:"user"`
+		Password    string `yaml:"password"`
+		TokenID     string `yaml:"token_id"`
+		TokenSecret string `yaml:"token_secret"`
+		Realm       string `yaml:"realm"`
+		ApiPath     string `yaml:"api_path"`
+		Insecure    *bool  `yaml:"insecure"`
+		SSHUser     string `yaml:"ssh_user"`
+		Debug       *bool  `yaml:"debug"`
+		CacheDir    string `yaml:"cache_dir"`
+	}
+
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
 		return err
 	}
@@ -313,14 +327,14 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.ApiPath != "" {
 		c.ApiPath = fileConfig.ApiPath
 	}
-	if fileConfig.Insecure {
-		c.Insecure = true
+	if fileConfig.Insecure != nil {
+		c.Insecure = *fileConfig.Insecure
 	}
 	if fileConfig.SSHUser != "" {
 		c.SSHUser = fileConfig.SSHUser
 	}
-	if fileConfig.Debug {
-		c.Debug = true
+	if fileConfig.Debug != nil {
+		c.Debug = *fileConfig.Debug
 	}
 	if fileConfig.CacheDir != "" {
 		c.CacheDir = fileConfig.CacheDir

@@ -18,7 +18,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup
 
 # Default target
 help: ## Show this help message
@@ -58,6 +58,42 @@ test-coverage-all: ## Run all tests with coverage
 	@printf "$(GREEN)Running all tests with coverage...$(NC)\n"
 	go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples)
 	go tool cover -html=coverage.out -o coverage.html
+
+# Workflow testing targets
+test-workflows: ## Run all GitHub Actions workflows locally using act
+	@printf "$(GREEN)Running all GitHub Actions workflows locally...$(NC)\n"
+	@chmod +x scripts/test-workflows.sh
+	./scripts/test-workflows.sh ci all
+
+test-workflow-lint: ## Run lint workflow locally
+	@printf "$(GREEN)Running lint workflow locally...$(NC)\n"
+	@chmod +x scripts/test-workflows.sh
+	./scripts/test-workflows.sh ci lint
+
+test-workflow-test: ## Run test workflow locally
+	@printf "$(GREEN)Running test workflow locally...$(NC)\n"
+	@chmod +x scripts/test-workflows.sh
+	./scripts/test-workflows.sh ci test
+
+test-workflow-build: ## Run build workflow locally
+	@printf "$(GREEN)Running build workflow locally...$(NC)\n"
+	@chmod +x scripts/test-workflows.sh
+	./scripts/test-workflows.sh ci build
+
+test-workflow-integration: ## Run integration test workflow locally
+	@printf "$(GREEN)Running integration test workflow locally...$(NC)\n"
+	@chmod +x scripts/test-workflows.sh
+	./scripts/test-workflows.sh ci integration
+
+workflow-list: ## List available GitHub Actions workflows
+	@printf "$(GREEN)Available GitHub Actions workflows:$(NC)\n"
+	@chmod +x scripts/test-workflows.sh
+	./scripts/test-workflows.sh list
+
+workflow-setup: ## Set up local workflow testing environment
+	@printf "$(GREEN)Setting up local workflow testing environment...$(NC)\n"
+	@chmod +x scripts/test-workflows.sh
+	./scripts/test-workflows.sh setup
 
 clean: ## Clean build artifacts
 	@printf "$(GREEN)Cleaning...$(NC)\n"
