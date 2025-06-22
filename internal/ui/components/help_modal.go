@@ -39,6 +39,7 @@ func NewHelpModal() *HelpModal {
   [white]M[-]                         Open context menu
   [white]C[-]                         Install community scripts (nodes)
   [white]R[-]                         Manual refresh
+  [white]A[-]                         Toggle auto-refresh (10s interval)
   [white]Q[-]                         Quit application (confirms if VNC sessions active)
 
 [yellow]VI-like Navigation:[-]

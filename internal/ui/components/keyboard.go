@@ -126,6 +126,10 @@ func (a *App) setupKeyboardHandlers() {
 				// Manual refresh
 				a.manualRefresh()
 				return nil
+			} else if event.Rune() == 'a' || event.Rune() == 'A' {
+				// Toggle auto-refresh
+				a.toggleAutoRefresh()
+				return nil
 			} else if event.Rune() == 'v' || event.Rune() == 'V' {
 				// Open VNC connection based on current page
 				currentPage, _ := a.pages.GetFrontPage()

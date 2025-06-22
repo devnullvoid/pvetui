@@ -33,6 +33,11 @@ type App struct {
 	contextMenu   *tview.List
 	isMenuOpen    bool
 	lastFocus     tview.Primitive
+
+	// Auto-refresh functionality
+	autoRefreshEnabled bool
+	autoRefreshTicker  *time.Ticker
+	autoRefreshStop    chan bool
 }
 
 // NewApp creates a new application instance with all UI components
@@ -317,6 +322,8 @@ func (a *App) Run() error {
 		uiLogger.Error("Application run failed: %v", err)
 	} else {
 		uiLogger.Debug("Application stopped normally")
+		// Clean up auto-refresh
+		a.stopAutoRefresh()
 		// Clean up VNC sessions on exit
 		uiLogger.Debug("Cleaning up VNC sessions on application exit")
 		if closeErr := a.vncService.CloseAllSessions(); closeErr != nil {
@@ -324,4 +331,200 @@ func (a *App) Run() error {
 		}
 	}
 	return err
+}
+
+// toggleAutoRefresh toggles the auto-refresh functionality on/off
+func (a *App) toggleAutoRefresh() {
+	uiLogger := models.GetUILogger()
+
+	if a.autoRefreshEnabled {
+		// Disable auto-refresh
+		a.stopAutoRefresh()
+		a.footer.UpdateAutoRefreshStatus(false)
+		a.header.ShowSuccess("Auto-refresh disabled")
+		uiLogger.Debug("Auto-refresh disabled by user")
+	} else {
+		// Enable auto-refresh
+		a.startAutoRefresh()
+		a.footer.UpdateAutoRefreshStatus(true)
+		a.header.ShowSuccess("Auto-refresh enabled (10s interval)")
+		uiLogger.Debug("Auto-refresh enabled by user")
+	}
+}
+
+// startAutoRefresh starts the auto-refresh timer
+func (a *App) startAutoRefresh() {
+	if a.autoRefreshEnabled {
+		return // Already running
+	}
+
+	a.autoRefreshEnabled = true
+	a.autoRefreshStop = make(chan bool, 1)
+	a.autoRefreshTicker = time.NewTicker(10 * time.Second) // 10 second interval
+
+	go func() {
+		uiLogger := models.GetUILogger()
+		uiLogger.Debug("Auto-refresh goroutine started")
+
+		for {
+			select {
+			case <-a.autoRefreshStop:
+				uiLogger.Debug("Auto-refresh stopped")
+				return
+			case <-a.autoRefreshTicker.C:
+				// Only refresh if not currently loading something
+				if !a.header.isLoading {
+					uiLogger.Debug("Auto-refresh triggered")
+					a.QueueUpdateDraw(func() {
+						a.autoRefreshData()
+					})
+				} else {
+					uiLogger.Debug("Auto-refresh skipped - operation in progress")
+				}
+			}
+		}
+	}()
+}
+
+// stopAutoRefresh stops the auto-refresh timer
+func (a *App) stopAutoRefresh() {
+	if !a.autoRefreshEnabled {
+		return // Already stopped
+	}
+
+	a.autoRefreshEnabled = false
+
+	if a.autoRefreshTicker != nil {
+		a.autoRefreshTicker.Stop()
+		a.autoRefreshTicker = nil
+	}
+
+	if a.autoRefreshStop != nil {
+		select {
+		case a.autoRefreshStop <- true:
+		default:
+		}
+		close(a.autoRefreshStop)
+		a.autoRefreshStop = nil
+	}
+}
+
+// autoRefreshData performs a lightweight refresh of performance data
+func (a *App) autoRefreshData() {
+	uiLogger := models.GetUILogger()
+
+	// Store current selections to preserve them
+	var selectedVMID int
+	var selectedVMNode string
+	var selectedNodeName string
+	var hasSelectedVM bool
+	var hasSelectedNode bool
+
+	if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+		selectedVMID = selectedVM.ID
+		selectedVMNode = selectedVM.Node
+		hasSelectedVM = true
+	}
+
+	if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
+		selectedNodeName = selectedNode.Name
+		hasSelectedNode = true
+	}
+
+	// Use goroutine to avoid blocking the UI
+	go func() {
+		// Fetch fresh cluster resources data (this includes performance metrics)
+		cluster, err := a.client.GetFreshClusterStatus()
+		if err != nil {
+			uiLogger.Debug("Auto-refresh failed: %v", err)
+			return
+		}
+
+		// Update UI with new data
+		a.QueueUpdateDraw(func() {
+			// Get current search states
+			nodeSearchState := models.GlobalState.GetSearchState("nodes")
+			vmSearchState := models.GlobalState.GetSearchState("vms")
+
+			// Update cluster status (this shows updated CPU/memory/storage totals)
+			a.clusterStatus.Update(cluster)
+
+			// Rebuild VM list from fresh cluster data
+			var vms []*api.VM
+			for _, node := range cluster.Nodes {
+				if node != nil {
+					for _, vm := range node.VMs {
+						if vm != nil {
+							vms = append(vms, vm)
+						}
+					}
+				}
+			}
+
+			// Update global state with fresh data
+			models.GlobalState.OriginalNodes = make([]*api.Node, len(cluster.Nodes))
+			models.GlobalState.FilteredNodes = make([]*api.Node, len(cluster.Nodes))
+			models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
+			models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+
+			copy(models.GlobalState.OriginalNodes, cluster.Nodes)
+			copy(models.GlobalState.FilteredNodes, cluster.Nodes)
+			copy(models.GlobalState.OriginalVMs, vms)
+			copy(models.GlobalState.FilteredVMs, vms)
+
+			// Apply filters if active, otherwise use all data
+			if nodeSearchState != nil && nodeSearchState.Filter != "" {
+				models.FilterNodes(nodeSearchState.Filter)
+				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			} else {
+				a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+			}
+
+			if vmSearchState != nil && vmSearchState.Filter != "" {
+				models.FilterVMs(vmSearchState.Filter)
+				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			} else {
+				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+			}
+
+			// Restore VM selection
+			if hasSelectedVM {
+				vmList := a.vmList.GetVMs()
+				for i, vm := range vmList {
+					if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
+						a.vmList.SetCurrentItem(i)
+						if vmSearchState != nil {
+							vmSearchState.SelectedIndex = i
+						}
+						break
+					}
+				}
+			}
+
+			// Restore node selection
+			if hasSelectedNode {
+				nodeList := a.nodeList.GetNodes()
+				for i, node := range nodeList {
+					if node != nil && node.Name == selectedNodeName {
+						a.nodeList.SetCurrentItem(i)
+						if nodeSearchState != nil {
+							nodeSearchState.SelectedIndex = i
+						}
+						break
+					}
+				}
+			}
+
+			// Update details if items are selected
+			if node := a.nodeList.GetSelectedNode(); node != nil {
+				a.nodeDetails.Update(node, cluster.Nodes)
+			}
+
+			if vm := a.vmList.GetSelectedVM(); vm != nil {
+				a.vmDetails.Update(vm)
+			}
+
+			uiLogger.Debug("Auto-refresh completed successfully")
+		})
+	}()
 }

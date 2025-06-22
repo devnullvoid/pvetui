@@ -95,7 +95,7 @@ func (a *App) manualRefresh() {
 
 			// Restore VM selection by finding the VM with matching ID and node
 			if hasSelectedVM {
-				vmList := models.GlobalState.FilteredVMs
+				vmList := a.vmList.GetVMs()
 				for i, vm := range vmList {
 					if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
 						a.vmList.SetCurrentItem(i)
@@ -110,7 +110,7 @@ func (a *App) manualRefresh() {
 
 			// Restore node selection by finding the node with matching name
 			if hasSelectedNode {
-				nodeList := models.GlobalState.FilteredNodes
+				nodeList := a.nodeList.GetNodes()
 				for i, node := range nodeList {
 					if node != nil && node.Name == selectedNodeName {
 						a.nodeList.SetCurrentItem(i)

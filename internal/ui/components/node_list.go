@@ -1,6 +1,8 @@
 package components
 
 import (
+	"sort"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
@@ -66,9 +68,22 @@ func (nl *NodeList) SetApp(app *App) {
 // SetNodes updates the list with the provided nodes
 func (nl *NodeList) SetNodes(nodes []*api.Node) {
 	nl.Clear()
-	nl.nodes = nodes
 
-	for _, node := range nodes {
+	// Create a copy of the nodes slice to avoid modifying the original
+	nodesCopy := make([]*api.Node, len(nodes))
+	copy(nodesCopy, nodes)
+
+	// Sort nodes by name for consistent ordering
+	sort.Slice(nodesCopy, func(i, j int) bool {
+		if nodesCopy[i] == nil || nodesCopy[j] == nil {
+			return nodesCopy[i] != nil
+		}
+		return nodesCopy[i].Name < nodesCopy[j].Name
+	})
+
+	nl.nodes = nodesCopy
+
+	for _, node := range nl.nodes {
 		if node != nil {
 			var statusString string
 			if node.Online {
@@ -83,10 +98,10 @@ func (nl *NodeList) SetNodes(nodes []*api.Node) {
 	}
 
 	// If there are nodes, select the first one by default
-	if len(nodes) > 0 {
+	if len(nl.nodes) > 0 {
 		nl.SetCurrentItem(0)
 		if nl.onSelect != nil {
-			nl.onSelect(nodes[0])
+			nl.onSelect(nl.nodes[0])
 		}
 	}
 }
@@ -98,6 +113,11 @@ func (nl *NodeList) GetSelectedNode() *api.Node {
 		return nl.nodes[idx]
 	}
 	return nil
+}
+
+// GetNodes returns the current nodes slice
+func (nl *NodeList) GetNodes() []*api.Node {
+	return nl.nodes
 }
 
 // SetSelectedFunc sets the function to be called when a node is selected
