@@ -93,7 +93,7 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 				selectedVMID = selectedVM.ID
 				selectedVMNode = selectedVM.Node
 				hasSelectedVM = true
-				uiLogger.Debug("Preserving selection for VM %d on node %s", selectedVMID, selectedVMNode)
+				uiLogger.Debug("Preserving selection for VM %d (%s) on node %s", selectedVMID, selectedVM.Name, selectedVMNode)
 			}
 
 			// Update the cluster status display
@@ -131,13 +131,33 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 
 				// Restore the user's VM selection if they had one
 				if hasSelectedVM {
-					vmList := models.GlobalState.FilteredVMs
+					// Get the VM list's internal sorted slice, not the global unsorted one
+					vmList := app.vmList.GetVMs()
+					uiLogger.Debug("Attempting to restore selection for VM %d on node %s among %d VMs", selectedVMID, selectedVMNode, len(vmList))
+					found := false
 					for i, vm := range vmList {
-						if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
-							app.vmList.SetCurrentItem(i)
-							uiLogger.Debug("Restored selection to VM %d on node %s at index %d", selectedVMID, selectedVMNode, i)
-							break
+						if vm != nil {
+							uiLogger.Debug("Checking VM at index %d: ID=%d, Name=%s, Node=%s", i, vm.ID, vm.Name, vm.Node)
+							if vm.ID == selectedVMID && vm.Node == selectedVMNode {
+								app.vmList.SetCurrentItem(i)
+								uiLogger.Debug("MATCH FOUND: Restored selection to VM %d (%s) on node %s at index %d", selectedVMID, vm.Name, selectedVMNode, i)
+
+								// Verify what's actually selected after SetCurrentItem
+								currentIndex := app.vmList.GetCurrentItem()
+								actualSelected := app.vmList.GetSelectedVM()
+								if actualSelected != nil {
+									uiLogger.Debug("VERIFICATION: Current index is %d, selected VM is %d (%s) on node %s", currentIndex, actualSelected.ID, actualSelected.Name, actualSelected.Node)
+								} else {
+									uiLogger.Debug("VERIFICATION: Current index is %d, but GetSelectedVM returned nil", currentIndex)
+								}
+
+								found = true
+								break
+							}
 						}
+					}
+					if !found {
+						uiLogger.Debug("WARNING: No matching VM found for ID=%d, Node=%s. Selection will remain at default position.", selectedVMID, selectedVMNode)
 					}
 				}
 			}

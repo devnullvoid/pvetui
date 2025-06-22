@@ -135,6 +135,11 @@ func (vl *VMList) GetSelectedVM() *api.VM {
 	return nil
 }
 
+// GetVMs returns the internal sorted VMs slice
+func (vl *VMList) GetVMs() []*api.VM {
+	return vl.vms
+}
+
 // SetVMSelectedFunc sets the function to be called when a VM is selected
 func (vl *VMList) SetVMSelectedFunc(handler func(*api.VM)) {
 	vl.onSelect = handler
