@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-06-22
+
 ### Added
 - Guest data loading indicator on app startup
 - Enhanced VM details panel with network interface and storage configuration
 - Quit confirmation for active VNC sessions
 - Auto-refresh functionality with 'A' hotkey toggle (10-second interval)
 - Always-visible status indicators in footer (VNC sessions and auto-refresh status)
+- Workflow testing integration in Makefile with targets for local CI testing
+- Build tags for examples to prevent linting conflicts
 
 ### Fixed
 - VM selection and search filter preservation during operations and refreshes
@@ -23,12 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-refresh cache bypass for real-time performance data updates
 - Node list ordering consistency during auto-refresh operations
 - Manual refresh (R hotkey) VM selection preservation using correct sorted slice
+- Logger test panic with nil pointer dereference handling
+- Config integration tests with proper environment variable isolation
+- Boolean field merging logic in configuration file processing
+- Container runtime prioritization (Podman first, Docker fallback)
 
 ### Improved
 - Network interface display layout in VM details
 - Storage configuration display layout
 - Footer layout with right-aligned status indicators
 - Consistent node list sorting (alphabetical by name)
+- Test infrastructure with comprehensive fixes and improvements
 
 ## [0.4.0] - 2025-06-20
 
