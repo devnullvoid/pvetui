@@ -18,7 +18,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-dry-run release-no-github
 
 # Default target
 help: ## Show this help message
@@ -168,6 +168,33 @@ format: ## Format code
 	goimports -w .
 
 # Release targets
+release: ## Create a new release (usage: make release VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make release VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/create-release.sh
+	./scripts/create-release.sh $(VERSION)
+
+release-dry-run: ## Preview release changes (usage: make release-dry-run VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make release-dry-run VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/create-release.sh
+	./scripts/create-release.sh $(VERSION) --dry-run
+
+release-no-github: ## Create release without GitHub integration (usage: make release-no-github VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make release-no-github VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/create-release.sh
+	./scripts/create-release.sh $(VERSION) --no-github
+
 release-build: ## Build release binaries for multiple platforms
 	@printf "$(GREEN)Building release binaries...$(NC)\n"
 	@mkdir -p dist
