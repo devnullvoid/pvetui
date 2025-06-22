@@ -13,12 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Script execution return issue where users couldn't return to TUI after script completion
-  - Implemented proper terminal raw mode handling for post-suspension input
-  - Fixed both script installation and SSH shell "Press Enter to return" functionality
-  - Created robust `utils.WaitForEnter()` function that handles terminal state correctly
-  - Added fallback for non-terminal environments and error conditions
-  - Resolves issue where Enter key would only insert newlines instead of returning to application
-  - Solution addresses known tview suspension/resume terminal state problems
+  - Replaced problematic "Press Enter to return" with automatic countdown return (3 seconds)
+  - Completely avoids terminal state issues that occur after TUI suspension
+  - Fixed both script installation and SSH shell return functionality
+  - More user-friendly experience with clear countdown indication
+  - Resolves all input reading problems after tview suspension/resume cycles
 
 ### Improved
 - Release process now fully automated from changelog to GitHub release
