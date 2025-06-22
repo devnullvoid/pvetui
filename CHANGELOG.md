@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guest data loading indicator on app startup
 - Enhanced VM details panel with network interface and storage configuration
 - Quit confirmation for active VNC sessions
+- Auto-refresh functionality with 'A' hotkey toggle (10-second interval)
+- Always-visible status indicators in footer (VNC sessions and auto-refresh status)
 
 ### Fixed
 - VM selection and search filter preservation during operations and refreshes
@@ -18,10 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Search filters remain active after VM operations and manual refreshes
   - Startup enrichment process preserves user's VM selection if they navigate during loading
   - Selection tracking by VM ID and node instead of list position prevents losing selection when VMs move due to status sorting
+- Auto-refresh cache bypass for real-time performance data updates
+- Node list ordering consistency during auto-refresh operations
+- Manual refresh (R hotkey) VM selection preservation using correct sorted slice
 
 ### Improved
 - Network interface display layout in VM details
 - Storage configuration display layout
+- Footer layout with right-aligned status indicators
+- Consistent node list sorting (alphabetical by name)
 
 ## [0.4.0] - 2025-06-20
 

@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rivo/tview"
@@ -446,8 +447,39 @@ func (a *App) autoRefreshData() {
 			nodeSearchState := models.GlobalState.GetSearchState("nodes")
 			vmSearchState := models.GlobalState.GetSearchState("vms")
 
+			// Preserve cluster version from existing data
+			if models.GlobalState.OriginalNodes != nil && len(models.GlobalState.OriginalNodes) > 0 {
+				// Find existing cluster version by checking if we have any node with version info
+				for _, existingNode := range models.GlobalState.OriginalNodes {
+					if existingNode != nil && existingNode.Version != "" {
+						cluster.Version = fmt.Sprintf("Proxmox VE %s", existingNode.Version)
+						break
+					}
+				}
+			}
+
 			// Update cluster status (this shows updated CPU/memory/storage totals)
 			a.clusterStatus.Update(cluster)
+
+			// Preserve detailed node data while updating performance metrics
+			for _, freshNode := range cluster.Nodes {
+				if freshNode != nil {
+					// Find the corresponding existing node with detailed data
+					for _, existingNode := range models.GlobalState.OriginalNodes {
+						if existingNode != nil && existingNode.Name == freshNode.Name {
+							// Preserve detailed fields that aren't in cluster resources
+							freshNode.Version = existingNode.Version
+							freshNode.KernelVersion = existingNode.KernelVersion
+							freshNode.CPUInfo = existingNode.CPUInfo
+							freshNode.LoadAvg = existingNode.LoadAvg
+							freshNode.CGroupMode = existingNode.CGroupMode
+							freshNode.Level = existingNode.Level
+							freshNode.Storage = existingNode.Storage
+							break
+						}
+					}
+				}
+			}
 
 			// Rebuild VM list from fresh cluster data
 			var vms []*api.VM
