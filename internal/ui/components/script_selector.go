@@ -23,8 +23,10 @@ type ScriptSelector struct {
 	vm                   *api.VM
 	categories           []scripts.ScriptCategory
 	scripts              []scripts.Script
+	filteredScripts      []scripts.Script // Filtered scripts based on search
 	categoryList         *tview.List
 	scriptList           *tview.List
+	searchInput          *tview.InputField // Search input field
 	backButton           *tview.Button
 	layout               *tview.Flex
 	pages                *tview.Pages
@@ -33,6 +35,7 @@ type ScriptSelector struct {
 	originalInputCapture func(*tcell.EventKey) *tcell.EventKey
 	loadingText          *tview.TextView // For animation updates
 	animationTicker      *time.Ticker    // For loading animation
+	searchActive         bool            // Whether search mode is active
 }
 
 // NewScriptSelector creates a new script selector
@@ -70,11 +73,11 @@ func (s *ScriptSelector) createLayout() {
 		SetHighlightFullLine(true)
 
 	// Add categories to the list
-	for i, category := range s.categories {
+	for _, category := range s.categories {
 		s.categoryList.AddItem(
 			category.Name,
 			category.Description,
-			rune('a'+i),
+			0,   // Remove shortcut label
 			nil, // Remove selection function - we handle Enter manually
 		)
 	}
@@ -88,6 +91,13 @@ func (s *ScriptSelector) createLayout() {
 	s.scriptList = tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true)
+
+	// Create search input field
+	s.searchInput = tview.NewInputField().
+		SetLabel("Search: ").
+		SetFieldWidth(0).
+		SetPlaceholder("Type to filter scripts...").
+		SetChangedFunc(s.onSearchChanged)
 
 	// Create a back button for the script list
 	s.backButton = tview.NewButton("Back").
@@ -104,20 +114,48 @@ func (s *ScriptSelector) createLayout() {
 			SetTextAlign(tview.AlignCenter), 1, 0, false).
 		AddItem(s.categoryList, 0, 1, true)
 
-	// Set up the script page with title and back button
+	// Set up the script page with title, search, and back button
 	backButtonContainer := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(nil, 0, 1, false).
 		AddItem(s.backButton, 10, 0, true).
 		AddItem(nil, 0, 1, false)
 
+	// Create script page header with instructions
+	headerText := tview.NewTextView().
+		SetText("Select a Script to Install (/ or Tab = Search, Backspace = Back, Escape = Clear Search)").
+		SetTextAlign(tview.AlignCenter)
+
 	scriptPage := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(tview.NewTextView().
-			SetText("Select a Script to Install (Backspace: Back)").
-			SetTextAlign(tview.AlignCenter), 1, 0, false).
+		AddItem(headerText, 1, 0, false).
+		AddItem(s.searchInput, 1, 0, false).
 		AddItem(s.scriptList, 0, 1, true).
 		AddItem(backButtonContainer, 1, 0, false)
+
+	// Add global Tab navigation to the script page
+	scriptPage.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyTab {
+			// Handle Tab navigation globally for the script page
+			currentFocus := s.app.GetFocus()
+			if currentFocus == s.searchInput {
+				// From search input to script list
+				s.app.SetFocus(s.scriptList)
+				return nil
+			} else if currentFocus == s.scriptList {
+				// From script list to back button
+				s.app.SetFocus(s.backButton)
+				return nil
+			} else if currentFocus == s.backButton {
+				// From back button to search input
+				s.searchActive = true
+				s.app.SetFocus(s.searchInput)
+				return nil
+			}
+		}
+		// Let other events pass through to focused components
+		return event
+	})
 
 	// Create loading page
 	loadingPage := s.createLoadingPage()
@@ -280,14 +318,15 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 				return fetchedScripts[i].Name < fetchedScripts[j].Name
 			})
 
-			// Store scripts
+			// Store scripts and initialize filtered scripts
 			s.scripts = fetchedScripts
+			s.filteredScripts = fetchedScripts // Initially show all scripts
 
 			// Clear the existing script list
 			s.scriptList.Clear()
 
 			// Add scripts to the existing list
-			for i, script := range s.scripts {
+			for _, script := range s.filteredScripts {
 				// Add more detailed information in the secondary text
 				var secondaryText string
 				if script.Type == "ct" {
@@ -299,12 +338,12 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 				}
 
 				// Truncate description if too long
-				if len(secondaryText) > 70 {
-					secondaryText = secondaryText[:67] + "..."
+				if len(secondaryText) > 100 {
+					secondaryText = secondaryText[:99] + "..."
 				}
 
 				// Add item without selection function - we handle Enter manually
-				s.scriptList.AddItem(script.Name, secondaryText, rune('a'+i), nil)
+				s.scriptList.AddItem(script.Name, secondaryText, 0, nil) // Remove shortcut label
 			}
 
 			// Set up input capture on the script list (only once, not every time)
@@ -315,23 +354,25 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 						s.pages.SwitchToPage("categories")
 						s.app.SetFocus(s.categoryList)
 						return nil
+					} else if event.Key() == tcell.KeyEscape {
+						// Clear search and show all scripts
+						s.searchInput.SetText("")
+						s.searchActive = false
+						s.app.SetFocus(s.scriptList)
+						return nil
 					} else if event.Key() == tcell.KeyEnter {
-						// Manually trigger the script selection
+						// Manually trigger the script selection using filtered scripts
 						idx := s.scriptList.GetCurrentItem()
-						if idx >= 0 && idx < len(s.scripts) {
-							script := s.scripts[idx]
+						if idx >= 0 && idx < len(s.filteredScripts) {
+							script := s.filteredScripts[idx]
 							selectFunc := s.createScriptSelectFunc(script)
 							if selectFunc != nil {
 								selectFunc()
 							}
 						}
 						return nil
-					} else if event.Key() == tcell.KeyTab {
-						// Tab to the back button
-						s.app.SetFocus(s.backButton)
-						return nil
 					} else if event.Key() == tcell.KeyRune {
-						// Handle VI-like navigation (hjkl)
+						// Handle VI-like navigation and search activation
 						switch event.Rune() {
 						case 'j': // VI-like down navigation
 							return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
@@ -343,12 +384,40 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 							return nil
 						case 'l': // VI-like right navigation - no action (already at rightmost)
 							return nil
+						case '/': // Activate search
+							s.searchActive = true
+							s.app.SetFocus(s.searchInput)
+							return nil
 						}
 					}
-					// Let all other keys (including arrows) pass through normally
+					// Let all other keys (including arrows and Tab) pass through normally
 					return event
 				})
 			}
+
+			// Set up input capture on search input field
+			if s.searchInput.GetInputCapture() == nil {
+				s.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					if event.Key() == tcell.KeyEscape {
+						// Clear search and return to script list
+						s.searchInput.SetText("")
+						s.searchActive = false
+						s.app.SetFocus(s.scriptList)
+						return nil
+					} else if event.Key() == tcell.KeyEnter {
+						// Move focus to script list
+						s.searchActive = false
+						s.app.SetFocus(s.scriptList)
+						return nil
+					}
+					// Let all other keys (including Tab) pass through normally
+					return event
+				})
+			}
+
+			// Clear search input for new category
+			s.searchInput.SetText("")
+			s.searchActive = false
 
 			// Switch to scripts page and set focus
 			s.pages.SwitchToPage("scripts")
@@ -415,7 +484,7 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 			s.app.SetFocus(s.scriptList)
 			return nil
 		} else if event.Key() == tcell.KeyTab {
-			// Tab between buttons
+			// Tab between buttons in the script info dialog
 			if s.app.GetFocus() == installButton {
 				s.app.SetFocus(cancelButton)
 			} else {
@@ -583,20 +652,52 @@ func (s *ScriptSelector) Show() {
 		// Let arrow keys pass through for navigation
 		return event
 	})
+}
 
-	// Set input capture on back button to handle Tab back to script list
-	s.backButton.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyTab {
-			// Tab back to script list
-			s.app.SetFocus(s.scriptList)
-			return nil
-		} else if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
-			// Backspace also goes back to categories (handle both backspace variants)
-			s.pages.SwitchToPage("categories")
-			s.app.SetFocus(s.categoryList)
-			return nil
+// onSearchChanged is called when the search input changes
+func (s *ScriptSelector) onSearchChanged(text string) {
+	// If search is empty, show all scripts
+	if text == "" {
+		s.filteredScripts = s.scripts
+	} else {
+		// Filter scripts based on search text
+		s.filteredScripts = []scripts.Script{}
+		searchLower := strings.ToLower(text)
+
+		for _, script := range s.scripts {
+			// Search in name, description, and type
+			if strings.Contains(strings.ToLower(script.Name), searchLower) ||
+				strings.Contains(strings.ToLower(script.Description), searchLower) ||
+				strings.Contains(strings.ToLower(script.Type), searchLower) {
+				s.filteredScripts = append(s.filteredScripts, script)
+			}
 		}
-		// Let other keys pass through (Enter will trigger the button)
-		return event
-	})
+	}
+
+	// Update the script list
+	s.scriptList.Clear()
+	for _, script := range s.filteredScripts {
+		// Add more detailed information in the secondary text
+		var secondaryText string
+		if script.Type == "ct" {
+			secondaryText = fmt.Sprintf("Container: %s", script.Description)
+		} else if script.Type == "vm" {
+			secondaryText = fmt.Sprintf("VM: %s", script.Description)
+		} else {
+			secondaryText = script.Description
+		}
+
+		// Truncate description if too long
+		if len(secondaryText) > 70 {
+			secondaryText = secondaryText[:67] + "..."
+		}
+
+		// Add item without selection function - we handle Enter manually
+		s.scriptList.AddItem(script.Name, secondaryText, 0, nil) // Remove shortcut label
+	}
+
+	// If we're in search mode and there are results, reset selection to first item
+	if s.searchActive && len(s.filteredScripts) > 0 {
+		s.scriptList.SetCurrentItem(0)
+	}
 }

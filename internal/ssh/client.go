@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 )
 
 // SSHClient wraps an SSH connection context
@@ -26,10 +28,14 @@ func ExecuteNodeShell(user, nodeIP string) error {
 	sshCmd.Stderr = os.Stderr
 
 	// Execute command using the current process environment and stdin/stdout
-	if err := sshCmd.Run(); err != nil {
+	err := sshCmd.Run()
+
+	// Show completion status and wait for user input before returning
+	utils.WaitForEnterToReturn(err, "SSH session completed successfully", "SSH session ended with error")
+
+	if err != nil {
 		return fmt.Errorf("failed to execute SSH command: %w", err)
 	}
-
 	return nil
 }
 
@@ -48,10 +54,14 @@ func ExecuteLXCShell(user, nodeIP string, vmID int) error {
 	sshCmd.Stderr = os.Stderr
 
 	// Execute command using the current process environment and stdin/stdout
-	if err := sshCmd.Run(); err != nil {
+	err := sshCmd.Run()
+
+	// Show completion status and wait for user input before returning
+	utils.WaitForEnterToReturn(err, "LXC shell session completed successfully", "LXC shell session ended with error")
+
+	if err != nil {
 		return fmt.Errorf("failed to execute LXC shell command: %w", err)
 	}
-
 	return nil
 }
 
@@ -68,10 +78,14 @@ func ExecuteQemuShell(user, vmIP string) error {
 	sshCmd.Stderr = os.Stderr
 
 	// Execute command using the current process environment and stdin/stdout
-	if err := sshCmd.Run(); err != nil {
+	err := sshCmd.Run()
+
+	// Show completion status and wait for user input before returning
+	utils.WaitForEnterToReturn(err, "VM SSH session completed successfully", "VM SSH session ended with error")
+
+	if err != nil {
 		return fmt.Errorf("failed to connect to VM via SSH: %w", err)
 	}
-
 	return nil
 }
 
@@ -94,9 +108,13 @@ func ExecuteQemuGuestAgentShell(user, nodeIP string, vmID int) error {
 	sshCmd.Stderr = os.Stderr
 
 	// Execute command using the current process environment and stdin/stdout
-	if err := sshCmd.Run(); err != nil {
+	err := sshCmd.Run()
+
+	// Show completion status and wait for user input before returning
+	utils.WaitForEnterToReturn(err, "QEMU guest agent session completed successfully", "QEMU guest agent session ended with error")
+
+	if err != nil {
 		return fmt.Errorf("failed to execute QEMU guest shell command: %w", err)
 	}
-
 	return nil
 }

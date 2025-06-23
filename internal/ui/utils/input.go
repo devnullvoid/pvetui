@@ -5,19 +5,36 @@ import (
 	"time"
 )
 
-// WaitForReturnWithCountdown displays a countdown and automatically returns after the specified duration.
-// This completely avoids the terminal input issues that occur after TUI suspension.
+// WaitForReturnWithCountdown waits for a specified number of seconds,
+// displaying a countdown, before returning to the TUI.
 func WaitForReturnWithCountdown(seconds int) {
-	fmt.Printf("Returning to TUI in ")
 	for i := seconds; i > 0; i-- {
-		fmt.Printf("%d...", i)
+		fmt.Printf("\rReturning to TUI in %d seconds... (Press Enter to return immediately)", i)
 		time.Sleep(1 * time.Second)
 	}
-	fmt.Println("0")
-	fmt.Println("Returning to TUI...")
+	fmt.Print("\r" + fmt.Sprintf("%*s", 80, " ") + "\r") // Clear the line
 }
 
-// WaitForEnter is now just a wrapper that uses a 3-second countdown
+// WaitForEnter waits for the user to press Enter before continuing.
+// This is useful for pausing execution and waiting for user acknowledgment.
 func WaitForEnter() {
+	fmt.Scanln()
+
+	// Add a small delay and countdown for better UX
 	WaitForReturnWithCountdown(3)
+}
+
+// WaitForEnterToReturn displays a status message and waits for the user to press Enter
+// before returning to the TUI. This provides a consistent experience across all
+// suspend/resume operations.
+func WaitForEnterToReturn(err error, successMsg, failureMsg string) {
+	// Show completion status
+	if err != nil {
+		fmt.Printf("\n❌ %s: %v\n", failureMsg, err)
+	} else {
+		fmt.Printf("\n✅ %s\n", successMsg)
+	}
+
+	fmt.Print("\nPress Enter to return to the TUI...")
+	fmt.Scanln() // Simple blocking read for Enter key
 }

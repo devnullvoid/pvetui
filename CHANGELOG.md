@@ -37,6 +37,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scripts now properly detect root privileges and execute successfully
   - Maintains working suspend/resume pattern without UI interference
 
+### Enhanced
+- **Press Enter to Return**: Re-implemented "Press Enter to return to TUI" functionality for both script installation and SSH sessions
+  - Users can now see complete script output and error messages before returning to the application
+  - Status messages show success (✅) or failure (❌) with clear feedback
+  - Simple Enter key press returns to TUI after user has reviewed the output
+  - Applied to all SSH session types: node shells, LXC containers, QEMU VMs, and guest agent shells
+  - Maintains the working suspend/resume pattern while providing better user control
+  - Allows users to troubleshoot issues or verify successful installations before continuing
+- **Community Script Search**: Added comprehensive search functionality to the script selector
+  - Real-time search filtering as you type in the search input field
+  - Searches across script names, descriptions, and types (container/VM)
+  - Press `/` or `Tab` to activate search mode from the script list
+  - Press `Escape` to clear search and return to full script list
+  - Press `Enter` or `Tab` to move from search field back to script list
+  - Maintains all existing navigation (hjkl, arrows, backspace to go back)
+  - Search input shows placeholder text "Type to filter scripts..."
+  - Filtered results update instantly and preserve selection behavior
+
 ### Improved
 - Release process now fully automated from changelog to GitHub release
 

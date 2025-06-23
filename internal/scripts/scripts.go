@@ -14,6 +14,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
@@ -393,11 +394,15 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 
 	// Run the command interactively
 	err := sshCmd.Run()
+
+	// Show completion status and wait for user input before returning
+	utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+
+	getScriptsLogger().Debug("Script installation completed, returning to TUI")
+
 	if err != nil {
 		return fmt.Errorf("script installation failed: %w", err)
 	}
-
-	getScriptsLogger().Debug("Script installation completed successfully")
 	return nil
 }
 
