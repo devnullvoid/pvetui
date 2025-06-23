@@ -27,6 +27,11 @@ func ExecuteNodeShell(user, nodeIP string) error {
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
 
+	// Set environment variables for better terminal compatibility
+	// Override TERM to xterm-256color for better compatibility with remote systems
+	// This fixes issues with terminals like Kitty (xterm-kitty) that aren't recognized on all systems
+	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
 	// Execute command using the current process environment and stdin/stdout
 	err := sshCmd.Run()
 
@@ -53,6 +58,11 @@ func ExecuteLXCShell(user, nodeIP string, vmID int) error {
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
 
+	// Set environment variables for better terminal compatibility
+	// Override TERM to xterm-256color for better compatibility with remote systems
+	// This fixes issues with terminals like Kitty (xterm-kitty) that aren't recognized on all systems
+	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
 	// Execute command using the current process environment and stdin/stdout
 	err := sshCmd.Run()
 
@@ -76,6 +86,11 @@ func ExecuteQemuShell(user, vmIP string) error {
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
+
+	// Set environment variables for better terminal compatibility
+	// Override TERM to xterm-256color for better compatibility with remote systems
+	// This fixes issues with terminals like Kitty (xterm-kitty) that aren't recognized on all systems
+	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
 	// Execute command using the current process environment and stdin/stdout
 	err := sshCmd.Run()
@@ -106,6 +121,11 @@ func ExecuteQemuGuestAgentShell(user, nodeIP string, vmID int) error {
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
+
+	// Set environment variables for better terminal compatibility
+	// Override TERM to xterm-256color for better compatibility with remote systems
+	// This fixes issues with terminals like Kitty (xterm-kitty) that aren't recognized on all systems
+	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
 	// Execute command using the current process environment and stdin/stdout
 	err := sshCmd.Run()

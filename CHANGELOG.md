@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminated multiple log files being created in current directory (scripts, VNC components)
   - Proper cache directory initialization ensures consistent logging location across all packages
   - Eliminates confusion from multiple log files and significantly improves debugging experience
+- **Kitty Terminal Compatibility**: Fixed terminal compatibility issues with Kitty and other modern terminal emulators
+  - Set `TERM=xterm-256color` for all SSH connections to ensure remote systems recognize the terminal type
+  - Fixes "unknown terminal type" errors when installing community scripts or using SSH shells
+  - Applied to script installation, node shells, LXC containers, and QEMU guest agent shells
+  - Improves compatibility across different terminal emulators (Kitty, Alacritty, etc.)
 
 ### Enhanced
 - **Press Enter to Return**: Re-implemented "Press Enter to return to TUI" functionality for both script installation and SSH sessions

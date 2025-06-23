@@ -381,6 +381,11 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
 
+	// Set environment variables for better terminal compatibility
+	// Override TERM to xterm-256color for better compatibility with remote systems
+	// This fixes issues with terminals like Kitty (xterm-kitty) that aren't recognized on all systems
+	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
 	// Run the command interactively
 	err := sshCmd.Run()
 
