@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
@@ -24,6 +25,20 @@ type Cluster struct {
 
 	// For metrics tracking
 	lastUpdate time.Time
+}
+
+// ClusterTask represents a cluster task from the Proxmox API
+type ClusterTask struct {
+	ID        string `json:"id"`
+	Node      string `json:"node"`
+	Type      string `json:"type"`
+	Status    string `json:"status"`
+	User      string `json:"user"`
+	TokenID   string `json:"tokenid,omitempty"`
+	UPID      string `json:"upid"`
+	Saved     string `json:"saved"`
+	StartTime int64  `json:"starttime"`
+	EndTime   int64  `json:"endtime"`
 }
 
 // GetClusterStatus retrieves high-level cluster status and node list
@@ -434,4 +449,53 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 
 	c.logger.Debug("[CLUSTER] Cluster totals calculated: %d/%d nodes online, %d with complete metrics",
 		onlineNodes, len(cluster.Nodes), nodesWithMetrics)
+}
+
+// GetClusterTasks retrieves recent cluster tasks
+func (c *Client) GetClusterTasks() ([]*ClusterTask, error) {
+	var result map[string]interface{}
+	if err := c.Get("/cluster/tasks", &result); err != nil {
+		return nil, fmt.Errorf("failed to get cluster tasks: %w", err)
+	}
+
+	data, ok := result["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected format for cluster tasks data")
+	}
+
+	var tasks []*ClusterTask
+	for _, item := range data {
+		taskData, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		task := &ClusterTask{
+			ID:      SafeStringValue(taskData["id"]),
+			Node:    SafeStringValue(taskData["node"]),
+			Type:    SafeStringValue(taskData["type"]),
+			Status:  SafeStringValue(taskData["status"]),
+			User:    SafeStringValue(taskData["user"]),
+			TokenID: SafeStringValue(taskData["tokenid"]),
+			UPID:    SafeStringValue(taskData["upid"]),
+			Saved:   SafeStringValue(taskData["saved"]),
+		}
+
+		// Parse timestamps
+		if startTime, ok := taskData["starttime"].(float64); ok {
+			task.StartTime = int64(startTime)
+		}
+		if endTime, ok := taskData["endtime"].(float64); ok {
+			task.EndTime = int64(endTime)
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	// Sort by start time (newest first)
+	sort.Slice(tasks, func(i, j int) bool {
+		return tasks[i].StartTime > tasks[j].StartTime
+	})
+
+	return tasks, nil
 }

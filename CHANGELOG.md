@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **DRY Implementation**: Unified approach across all VM operations for consistency
   - **Targeted Refresh**: Uses VM-specific refresh to preserve selection and context
   - Immediate success feedback with automatic state updates
+- **Cluster Tasks Page**: New dedicated page for viewing recent cluster tasks
+  - Access via Tab navigation or F3 key
+  - Shows task history with timestamps, status, duration, and details
+  - Automatic sorting by newest tasks first
+  - Colored status indicators (green for OK, red for errors, yellow for running)
+  - Friendly task type formatting (e.g., "VM Start" instead of "qmstart")
+  - Auto-refresh integration when tasks page is active
+  - Comprehensive task type support for VMs, containers, backups, and system operations
 
 ### Fixed
 - **TUI Suspend/Resume Issue**: Fixed critical issue where users couldn't return to TUI after script installation or SSH sessions

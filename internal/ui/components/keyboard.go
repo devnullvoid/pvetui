@@ -44,10 +44,14 @@ func (a *App) setupKeyboardHandlers() {
 		switch event.Key() {
 		case tcell.KeyTab:
 			currentPage, _ := a.pages.GetFrontPage()
-			if currentPage == api.PageNodes {
+			switch currentPage {
+			case api.PageNodes:
 				a.pages.SwitchToPage(api.PageGuests)
 				a.SetFocus(a.vmList)
-			} else {
+			case api.PageGuests:
+				a.pages.SwitchToPage(api.PageTasks)
+				a.SetFocus(a.tasksList)
+			default:
 				a.pages.SwitchToPage(api.PageNodes)
 				a.SetFocus(a.nodeList)
 			}
@@ -59,6 +63,10 @@ func (a *App) setupKeyboardHandlers() {
 		case tcell.KeyF2:
 			a.pages.SwitchToPage(api.PageGuests)
 			a.SetFocus(a.vmList)
+			return nil
+		case tcell.KeyF3:
+			a.pages.SwitchToPage(api.PageTasks)
+			a.SetFocus(a.tasksList)
 			return nil
 		case tcell.KeyF5:
 			// Manual refresh

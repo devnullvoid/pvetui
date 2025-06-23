@@ -27,6 +27,7 @@ type App struct {
 	vmList        *VMList
 	nodeDetails   *NodeDetails
 	vmDetails     *VMDetails
+	tasksList     *TasksList
 	clusterStatus *ClusterStatus
 	helpModal     *HelpModal
 	mainLayout    *tview.Flex
@@ -72,6 +73,7 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	app.vmList = NewVMList()
 	app.nodeDetails = NewNodeDetails()
 	app.vmDetails = NewVMDetails()
+	app.tasksList = NewTasksList()
 	app.clusterStatus = NewClusterStatus()
 	app.helpModal = NewHelpModal()
 
@@ -556,7 +558,45 @@ func (a *App) autoRefreshData() {
 				a.vmDetails.Update(vm)
 			}
 
+			// Refresh tasks if on tasks page
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageTasks {
+				// Refresh tasks data without showing loading indicator (background refresh)
+				go func() {
+					tasks, err := a.client.GetClusterTasks()
+					if err == nil {
+						a.QueueUpdateDraw(func() {
+							a.tasksList.SetTasks(tasks)
+						})
+					}
+				}()
+			}
+
 			uiLogger.Debug("Auto-refresh completed successfully")
+		})
+	}()
+}
+
+// refreshTasks refreshes the tasks list
+func (a *App) refreshTasks() {
+	uiLogger := models.GetUILogger()
+	uiLogger.Debug("Refreshing cluster tasks")
+
+	a.header.ShowLoading("Loading tasks")
+
+	go func() {
+		tasks, err := a.client.GetClusterTasks()
+		a.QueueUpdateDraw(func() {
+			a.header.StopLoading()
+			if err != nil {
+				uiLogger.Error("Failed to refresh tasks: %v", err)
+				a.header.ShowError("Failed to load tasks: " + err.Error())
+				return
+			}
+
+			uiLogger.Debug("Loaded %d cluster tasks", len(tasks))
+			a.tasksList.SetTasks(tasks)
+			a.header.ShowSuccess("Tasks refreshed")
 		})
 	}()
 }

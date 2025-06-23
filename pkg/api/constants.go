@@ -38,6 +38,7 @@ const (
 const (
 	PageNodes  = "Nodes"
 	PageGuests = "Guests"
+	PageTasks  = "Tasks"
 )
 
 // Menu actions

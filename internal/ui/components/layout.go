@@ -19,9 +19,13 @@ func (a *App) createMainLayout() *tview.Flex {
 		AddItem(a.vmList, 0, 1, true).
 		AddItem(a.vmDetails, 0, 2, false)
 
+	// Setup Tasks page
+	tasksPage := a.tasksList
+
 	// Add pages
 	a.pages.AddPage(api.PageNodes, nodesPage, true, true)
 	a.pages.AddPage(api.PageGuests, vmsPage, true, false)
+	a.pages.AddPage(api.PageTasks, tasksPage, true, false)
 
 	// Build main layout
 	return tview.NewFlex().
@@ -73,6 +77,19 @@ func (a *App) setupComponentConnections() {
 
 	// Configure VM details
 	a.vmDetails.SetApp(a)
+
+	// Configure tasks list
+	a.tasksList.SetApp(a)
+
+	// Load initial tasks data
+	go func() {
+		tasks, err := a.client.GetClusterTasks()
+		if err == nil {
+			a.QueueUpdateDraw(func() {
+				a.tasksList.SetTasks(tasks)
+			})
+		}
+	}()
 
 	// Configure help modal
 	a.helpModal.SetApp(a)
