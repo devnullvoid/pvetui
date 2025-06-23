@@ -256,13 +256,8 @@ func NewSessionManagerWithLogger(client *api.Client, sharedLogger *logger.Logger
 	if sharedLogger != nil {
 		sessionLogger = sharedLogger
 	} else {
-		// Create a logger for session management
-		var err error
-		sessionLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
-		if err != nil {
-			// Fallback to a simple logger if file logging fails
-			sessionLogger = logger.NewSimpleLogger(logger.LevelInfo)
-		}
+		// Use the global logger system for unified logging
+		sessionLogger = logger.GetPackageLoggerConcrete("vnc-session-manager")
 	}
 
 	manager := &SessionManager{

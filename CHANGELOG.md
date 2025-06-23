@@ -36,6 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Interactive script execution with proper terminal allocation (`ssh -t`)
   - Scripts now properly detect root privileges and execute successfully
   - Maintains working suspend/resume pattern without UI interference
+- **Release Script**: Changed default to NOT use GitHub CLI since releases are handled by GitHub Actions
+  - `make release` now defaults to tag-and-merge only (no GitHub release creation)
+  - Added `make release-github` target for when GitHub CLI release creation is desired
+  - Updated help text and examples to reflect new defaults
+  - Maintains backward compatibility with `--github` and `--no-github` flags
+- **Unified Logging System**: Fixed all packages to use unified log file instead of separate log files
+  - Implemented global logger system that all packages (scripts, VNC services, etc.) now use
+  - All components now log to the same `proxmox-tui.log` file in the configured cache directory
+  - Eliminated multiple log files being created in current directory (scripts, VNC components)
+  - Proper cache directory initialization ensures consistent logging location across all packages
+  - Eliminates confusion from multiple log files and significantly improves debugging experience
 
 ### Enhanced
 - **Press Enter to Return**: Re-implemented "Press Enter to return to TUI" functionality for both script installation and SSH sessions
@@ -45,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applied to all SSH session types: node shells, LXC containers, QEMU VMs, and guest agent shells
   - Maintains the working suspend/resume pattern while providing better user control
   - Allows users to troubleshoot issues or verify successful installations before continuing
+- **Community Script Selector UI**: Converted from modal to full-page view for better usability
+  - Provides more screen real estate for script browsing and selection
+  - Improved responsive layout that adapts to terminal size
+  - Better integration with the overall application navigation flow
+  - Enhanced readability with larger content area
 - **Community Script Search**: Added comprehensive search functionality to the script selector
   - Real-time search filtering as you type in the search input field
   - Searches across script names, descriptions, and types (container/VM)
@@ -141,13 +157,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Fixed stale VNC ticket reuse**: Sessions are completely removed instead of reused with expired tickets
   - **Reduced excessive logging**: VNC session monitoring reduced from 2-second to 30-second intervals
   - **Improved logging efficiency**: Session count only logged when it changes, not continuously
-- **Unified Logging System**: Fixed multiple log files being created in different locations
-  - All VNC components now use shared logger instance instead of creating separate loggers
-  - Eliminated duplicate log files (internal/cache/, test/integration/, root directory)
-  - All logging now unified to single file in cache directory (e.g., ./cache/proxmox-tui.log)
-  - VNC service, session manager, WebSocket proxy, and HTTP server all use shared logger
-  - Improved logging architecture with proper dependency injection throughout VNC components
-  - Better log organization and debugging experience with centralized logging
+- **Unified Logging System**: Fixed all packages to use unified log file instead of separate log files
+  - Implemented global logger system that all packages (scripts, VNC services, etc.) now use
+  - All components now log to the same `proxmox-tui.log` file in the configured cache directory
+  - Eliminated multiple log files being created in current directory (scripts, VNC components)
+  - Proper cache directory initialization ensures consistent logging location across all packages
+  - Eliminates confusion from multiple log files and significantly improves debugging experience
 
 ## [0.3.0] - 2025-06-20
 

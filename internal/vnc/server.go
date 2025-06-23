@@ -37,13 +37,8 @@ func NewServerWithLogger(sharedLogger *logger.Logger) *Server {
 	if sharedLogger != nil {
 		serverLogger = sharedLogger
 	} else {
-		// Create a logger for VNC server operations
-		var err error
-		serverLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
-		if err != nil {
-			// Fallback to a simple logger if file logging fails
-			serverLogger = logger.NewSimpleLogger(logger.LevelInfo)
-		}
+		// Use the global logger system for unified logging
+		serverLogger = logger.GetPackageLoggerConcrete("vnc-server")
 	}
 
 	serverLogger.Debug("Creating new VNC server instance")

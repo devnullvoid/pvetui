@@ -9,8 +9,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
@@ -219,3 +221,79 @@ func (l *Logger) Close() error {
 
 // Verify that Logger implements the interfaces.Logger interface
 var _ interfaces.Logger = (*Logger)(nil)
+
+// Global logger system for unified logging across all packages
+var (
+	globalLogger     interfaces.Logger
+	globalLoggerOnce sync.Once
+	globalCacheDir   string
+)
+
+// InitGlobalLogger initializes the global logger with the specified cache directory
+// This should be called early in application initialization
+func InitGlobalLogger(level Level, cacheDir string) error {
+	var err error
+	globalLoggerOnce.Do(func() {
+		globalCacheDir = cacheDir
+		globalLogger, err = NewInternalLogger(level, cacheDir)
+		if err != nil {
+			// Fallback to simple logger if file logging fails
+			globalLogger = NewSimpleLogger(level)
+		}
+	})
+	return err
+}
+
+// GetGlobalLogger returns the global logger instance
+// If not initialized, it creates a simple logger with Info level
+func GetGlobalLogger() interfaces.Logger {
+	if globalLogger == nil {
+		// Create a fallback logger if global logger wasn't initialized
+		globalLogger = NewSimpleLogger(LevelInfo)
+	}
+	return globalLogger
+}
+
+// GetPackageLogger returns a logger for a specific package using the global cache directory
+// This ensures all packages log to the same unified log file
+func GetPackageLogger(packageName string) interfaces.Logger {
+	level := LevelInfo
+	if config.DebugEnabled {
+		level = LevelDebug
+	}
+
+	// Use global cache directory if available
+	cacheDir := globalCacheDir
+	if cacheDir == "" {
+		cacheDir = "."
+	}
+
+	logger, err := NewInternalLogger(level, cacheDir)
+	if err != nil {
+		// Fallback to simple logger if file logging fails
+		return NewSimpleLogger(level)
+	}
+	return logger
+}
+
+// GetPackageLoggerConcrete returns a concrete Logger instance for packages that need the specific type
+// This ensures all packages log to the same unified log file while maintaining type compatibility
+func GetPackageLoggerConcrete(packageName string) *Logger {
+	level := LevelInfo
+	if config.DebugEnabled {
+		level = LevelDebug
+	}
+
+	// Use global cache directory if available
+	cacheDir := globalCacheDir
+	if cacheDir == "" {
+		cacheDir = "."
+	}
+
+	logger, err := NewInternalLogger(level, cacheDir)
+	if err != nil {
+		// Fallback to simple logger if file logging fails
+		return NewSimpleLogger(level)
+	}
+	return logger
+}

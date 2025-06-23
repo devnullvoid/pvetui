@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
@@ -77,18 +76,8 @@ var (
 // getScriptsLogger returns the scripts logger, initializing it if necessary
 func getScriptsLogger() interfaces.Logger {
 	scriptsLoggerOnce.Do(func() {
-		// Create a logger for scripts operations that logs to file
-		level := logger.LevelInfo
-		if config.DebugEnabled {
-			level = logger.LevelDebug
-		}
-		var err error
-		// Always use our new internal logger system
-		scriptsLogger, err = logger.NewInternalLogger(level, ".")
-		if err != nil {
-			// Fallback to simple logger if file logging fails
-			scriptsLogger = logger.NewSimpleLogger(level)
-		}
+		// Use the global logger system for unified logging
+		scriptsLogger = logger.GetPackageLogger("scripts")
 	})
 	return scriptsLogger
 }

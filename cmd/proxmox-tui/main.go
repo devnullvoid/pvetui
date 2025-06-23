@@ -118,6 +118,9 @@ func main() {
 		mainLogger.Debug("Caching disabled with --no-cache flag")
 	}
 
+	// Initialize scripts logger with the same cache directory for unified logging
+	logger.InitGlobalLogger(level, cfg.CacheDir)
+
 	// Set up a graceful shutdown to close the BadgerDB
 	setupGracefulShutdown()
 

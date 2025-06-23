@@ -70,13 +70,8 @@ func NewWebSocketProxyWithSessionAndLogger(config *ProxyConfig, session SessionN
 	if sharedLogger != nil {
 		proxyLogger = sharedLogger
 	} else {
-		// Create a logger for WebSocket proxy operations
-		var err error
-		proxyLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
-		if err != nil {
-			// Fallback to a simple logger if file logging fails
-			proxyLogger = logger.NewSimpleLogger(logger.LevelInfo)
-		}
+		// Use the global logger system for unified logging
+		proxyLogger = logger.GetPackageLoggerConcrete("vnc-proxy")
 	}
 
 	proxyLogger.Info("Creating new WebSocket proxy for %s (Type: %s, Node: %s)",

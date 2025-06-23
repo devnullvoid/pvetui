@@ -18,7 +18,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-dry-run release-no-github release-dry-run-no-github
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all
 
 # Default target
 help: ## Show this help message
@@ -176,6 +176,15 @@ release: ## Create a new release (usage: make release VERSION=v0.6.0)
 	fi
 	@chmod +x scripts/create-release.sh
 	./scripts/create-release.sh $(VERSION)
+
+release-github: ## Create release with GitHub CLI (usage: make release-github VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make release-github VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/create-release.sh
+	./scripts/create-release.sh $(VERSION) --github
 
 release-dry-run: ## Preview release changes (usage: make release-dry-run VERSION=v0.6.0)
 	@if [ -z "$(VERSION)" ]; then \

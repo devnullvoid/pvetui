@@ -8,7 +8,7 @@
 # 4. Creates and pushes release tag
 # 5. Creates GitHub release
 #
-# Usage: ./scripts/create-release.sh v0.6.0 [--dry-run] [--no-github]
+# Usage: ./scripts/create-release.sh v0.6.0 [--dry-run] [--github|--no-github]
 
 set -e
 
@@ -21,7 +21,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 DRY_RUN=false
-NO_GITHUB=false
+NO_GITHUB=true
 CURRENT_BRANCH=""
 
 # Parse arguments
@@ -36,21 +36,26 @@ while [[ $# -gt 0 ]]; do
             NO_GITHUB=true
             shift
             ;;
+        --github)
+            NO_GITHUB=false
+            shift
+            ;;
         -h|--help)
-            echo "Usage: $0 <version> [--dry-run] [--no-github]"
+            echo "Usage: $0 <version> [--dry-run] [--github|--no-github]"
             echo ""
             echo "Arguments:"
             echo "  version     Release version (e.g., v0.6.0)"
             echo ""
             echo "Options:"
             echo "  --dry-run   Show what would be done without making changes"
-            echo "  --no-github Skip GitHub release creation"
+            echo "  --github    Create GitHub release (requires GitHub CLI)"
+            echo "  --no-github Skip GitHub release creation (default)"
             echo "  --help      Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0 v0.6.0                    # Full release"
-            echo "  $0 v0.6.0 --dry-run          # Preview changes"
-            echo "  $0 v0.6.0 --no-github       # Skip GitHub release"
+            echo "  $0 v0.6.0                    # Tag and merge only"
+            echo "  $0 v0.6.0 --github          # Tag, merge, and create GitHub release"
+            echo "  $0 v0.6.0 --dry-run         # Preview changes"
             exit 0
             ;;
         v[0-9]*)
@@ -72,7 +77,7 @@ done
 
 if [[ -z "$VERSION" ]]; then
     echo -e "${RED}Error: Version argument required${NC}"
-    echo "Usage: $0 <version> [--dry-run] [--no-github]"
+    echo "Usage: $0 <version> [--dry-run] [--github|--no-github]"
     echo "Example: $0 v0.6.0"
     exit 1
 fi

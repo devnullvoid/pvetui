@@ -29,13 +29,8 @@ func NewServiceWithLogger(client *api.Client, sharedLogger *logger.Logger) *Serv
 	if sharedLogger != nil {
 		vncLogger = sharedLogger
 	} else {
-		// Fallback: create a logger for VNC operations
-		var err error
-		vncLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
-		if err != nil {
-			// Fallback to a simple logger if file logging fails
-			vncLogger = logger.NewSimpleLogger(logger.LevelInfo)
-		}
+		// Use the global logger system for unified logging
+		vncLogger = logger.GetPackageLoggerConcrete("vnc-service")
 	}
 
 	vncLogger.Info("Creating new VNC service with session management")
