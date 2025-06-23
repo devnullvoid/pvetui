@@ -488,11 +488,11 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
 	s.app.Suspend(func() {
 		// Install the script interactively
-		fmt.Printf("Testing SSH connection to %s...\n", script.Name)
+		fmt.Printf("Installing %s...\n", script.Name)
 		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
 
 		if err != nil {
-			fmt.Printf("\nSSH connection failed: %v\n", err)
+			fmt.Printf("\nScript installation failed: %v\n", err)
 		}
 		// No waiting inside suspend block - let it complete naturally like working shell functions
 	})

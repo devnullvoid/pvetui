@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed conflicting return mechanisms that caused duplicate prompts and blank screens
   - Script installation now properly downloads and executes scripts from GitHub repository
   - Eliminated duplicate "Press Enter" prompts that conflicted with script's own completion handling
+- **Complete Script Installation Implementation**: Fully working community script installation
+  - Uses official curl command format: `curl -fsSL` matching Proxmox community documentation
+  - Proper root execution with `sudo su - root` for complete root environment
+  - Bash shell environment with `SHELL=/bin/bash` for script compatibility
+  - Interactive script execution with proper terminal allocation (`ssh -t`)
+  - Scripts now properly detect root privileges and execute successfully
+  - Maintains working suspend/resume pattern without UI interference
 
 ### Improved
 - Release process now fully automated from changelog to GitHub release

@@ -378,8 +378,13 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 
 	getScriptsLogger().Debug("Installing script: %s on node %s", scriptPath, nodeIP)
 
-	// For testing: just open SSH session to test suspend/resume mechanism
-	sshCmd := exec.Command("ssh", fmt.Sprintf("%s@%s", user, nodeIP))
+	// Build the script installation command using curl (matches official instructions)
+	scriptURL := fmt.Sprintf("%s/%s", RawGitHubRepo, scriptPath)
+	// Switch to root user completely and run in bash environment
+	installCmd := fmt.Sprintf("sudo su - root -c \"SHELL=/bin/bash /bin/bash -c \\\"\\$(curl -fsSL %s)\\\"\"", scriptURL)
+
+	// Use SSH to run the script installation command interactively with proper terminal environment
+	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), installCmd)
 
 	// Connect stdin/stdout/stderr for interactive session
 	sshCmd.Stdin = os.Stdin
