@@ -566,7 +566,17 @@ func (a *App) autoRefreshData() {
 					tasks, err := a.client.GetClusterTasks()
 					if err == nil {
 						a.QueueUpdateDraw(func() {
-							a.tasksList.SetTasks(tasks)
+							// Check if there's an active search filter
+							if state := models.GlobalState.GetSearchState(api.PageTasks); state != nil && state.Filter != "" {
+								// Update global state and apply filter
+								models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+								copy(models.GlobalState.OriginalTasks, tasks)
+								models.FilterTasks(state.Filter)
+								a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+							} else {
+								// No filter active, just update normally
+								a.tasksList.SetTasks(tasks)
+							}
 						})
 					}
 				}()

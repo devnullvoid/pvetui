@@ -56,6 +56,8 @@ func (a *App) activateSearch() {
 		}
 		if currentPage == api.PageNodes {
 			a.SetFocus(a.nodeList)
+		} else if currentPage == api.PageTasks {
+			a.SetFocus(a.tasksList)
 		} else {
 			a.SetFocus(a.vmList)
 		}
@@ -111,6 +113,29 @@ func (a *App) activateSearch() {
 		}
 	}
 
+	// Function to update tasks selection with filtered results
+	updateTaskSelection := func() {
+		// Update tasks list with filtered tasks
+		a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+
+		// Update selected index if needed
+		if len(models.GlobalState.FilteredTasks) > 0 {
+			idx := 0
+			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
+				idx = state.SelectedIndex
+				if idx < 0 || idx >= len(models.GlobalState.FilteredTasks) {
+					idx = 0
+				}
+				state.SelectedIndex = idx
+			}
+			a.tasksList.Select(idx+1, 0) // +1 because row 0 is header
+		} else {
+			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
+				state.SelectedIndex = 0
+			}
+		}
+	}
+
 	// Handle search text changes
 	a.searchInput.SetChangedFunc(func(text string) {
 		filterTerm := strings.TrimSpace(text)
@@ -124,6 +149,10 @@ func (a *App) activateSearch() {
 			// Use our common filter function for nodes
 			models.FilterNodes(filterTerm)
 			updateNodeSelection()
+		} else if currentPage == api.PageTasks {
+			// Use our common filter function for tasks
+			models.FilterTasks(filterTerm)
+			updateTaskSelection()
 		} else {
 			// Use our common filter function for VMs
 			models.FilterVMs(filterTerm)

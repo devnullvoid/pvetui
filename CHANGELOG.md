@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Friendly task type formatting (e.g., "VM Start" instead of "qmstart")
   - Auto-refresh integration when tasks page is active
   - Comprehensive task type support for VMs, containers, backups, and system operations
+  - **Search Filtering**: Full search support with `/` key activation
+    - Real-time filtering across task ID, node, type, status, user, and UPID
+    - Search state preservation during auto-refresh operations
+    - Integrated with existing search system used by Nodes and Guests pages
 
 ### Fixed
 - **TUI Suspend/Resume Issue**: Fixed critical issue where users couldn't return to TUI after script installation or SSH sessions

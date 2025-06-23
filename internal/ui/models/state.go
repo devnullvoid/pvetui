@@ -28,10 +28,12 @@ type State struct {
 	// Current filtered lists
 	FilteredNodes []*api.Node
 	FilteredVMs   []*api.VM
+	FilteredTasks []*api.ClusterTask
 
 	// Original lists
 	OriginalNodes []*api.Node
 	OriginalVMs   []*api.VM
+	OriginalTasks []*api.ClusterTask
 }
 
 // GlobalState is the singleton instance for UI state
@@ -39,8 +41,10 @@ var GlobalState = State{
 	SearchStates:  make(map[string]*SearchState),
 	FilteredNodes: make([]*api.Node, 0),
 	FilteredVMs:   make([]*api.VM, 0),
+	FilteredTasks: make([]*api.ClusterTask, 0),
 	OriginalNodes: make([]*api.Node, 0),
 	OriginalVMs:   make([]*api.VM, 0),
+	OriginalTasks: make([]*api.ClusterTask, 0),
 }
 
 // UI logger instance - will be set by the main application
@@ -176,4 +180,66 @@ func FilterVMs(filter string) {
 
 	GetUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
 		len(GlobalState.OriginalVMs), len(GlobalState.FilteredVMs), filter)
+}
+
+// FilterTasks filters the tasks based on the given search string
+func FilterTasks(filter string) {
+	if filter == "" {
+		// No filter, use all tasks
+		GlobalState.FilteredTasks = make([]*api.ClusterTask, len(GlobalState.OriginalTasks))
+		copy(GlobalState.FilteredTasks, GlobalState.OriginalTasks)
+		return
+	}
+
+	// Convert filter to lowercase for case-insensitive search
+	filter = strings.ToLower(filter)
+
+	// Create a new filtered list
+	GlobalState.FilteredTasks = make([]*api.ClusterTask, 0)
+
+	// Add tasks that match the filter
+	for _, task := range GlobalState.OriginalTasks {
+		if task == nil {
+			continue
+		}
+
+		// Check task ID
+		if strings.Contains(strings.ToLower(task.ID), filter) {
+			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+			continue
+		}
+
+		// Check task node
+		if strings.Contains(strings.ToLower(task.Node), filter) {
+			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+			continue
+		}
+
+		// Check task type
+		if strings.Contains(strings.ToLower(task.Type), filter) {
+			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+			continue
+		}
+
+		// Check task status
+		if strings.Contains(strings.ToLower(task.Status), filter) {
+			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+			continue
+		}
+
+		// Check task user
+		if strings.Contains(strings.ToLower(task.User), filter) {
+			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+			continue
+		}
+
+		// Check UPID
+		if strings.Contains(strings.ToLower(task.UPID), filter) {
+			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+			continue
+		}
+	}
+
+	GetUILogger().Debug("Filtered tasks from %d to %d with filter '%s'",
+		len(GlobalState.OriginalTasks), len(GlobalState.FilteredTasks), filter)
 }

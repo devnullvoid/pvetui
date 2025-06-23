@@ -31,6 +31,7 @@ func NewHelpModal() *HelpModal {
   [white]Tab[-]                       Switch between Nodes and Guests
   [white]F1[-]                        Switch to Nodes tab
   [white]F2[-]                        Switch to Guests tab
+  [white]F3[-]                        Switch to Tasks tab
 
 [yellow]Actions:[-]
   [white]/[-]                         Search/Filter current list

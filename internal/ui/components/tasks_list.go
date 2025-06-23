@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -54,9 +55,22 @@ func (tl *TasksList) SetApp(app *App) {
 	tl.app = app
 }
 
-// SetTasks updates the tasks list
+// SetTasks updates the tasks list and global state
 func (tl *TasksList) SetTasks(tasks []*api.ClusterTask) {
-	tl.tasks = tasks
+	// Update global state
+	models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+	models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
+	copy(models.GlobalState.OriginalTasks, tasks)
+	copy(models.GlobalState.FilteredTasks, tasks)
+
+	// Apply current filter if any
+	if state := models.GlobalState.GetSearchState(api.PageTasks); state != nil && state.Filter != "" {
+		models.FilterTasks(state.Filter)
+		tl.tasks = models.GlobalState.FilteredTasks
+	} else {
+		tl.tasks = tasks
+	}
+
 	tl.updateTable()
 }
 
@@ -67,6 +81,17 @@ func (tl *TasksList) GetSelectedTask() *api.ClusterTask {
 		return nil
 	}
 	return tl.tasks[row-1] // -1 because row 0 is the header
+}
+
+// GetTasks returns the current tasks list
+func (tl *TasksList) GetTasks() []*api.ClusterTask {
+	return tl.tasks
+}
+
+// SetFilteredTasks updates the tasks list with filtered data
+func (tl *TasksList) SetFilteredTasks(tasks []*api.ClusterTask) {
+	tl.tasks = tasks
+	tl.updateTable()
 }
 
 // updateTable refreshes the table content
