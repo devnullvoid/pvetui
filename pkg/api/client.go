@@ -76,6 +76,12 @@ func (c *Client) PostWithResponse(path string, data interface{}, result *map[str
 	return c.httpClient.Post(context.Background(), path, postData, result)
 }
 
+// Delete makes a DELETE request to the Proxmox API
+func (c *Client) Delete(path string) error {
+	c.logger.Debug("API DELETE: %s", path)
+	return c.httpClient.Delete(context.Background(), path, nil)
+}
+
 // IsUsingTokenAuth returns true if the client is using API token authentication
 func (c *Client) IsUsingTokenAuth() bool {
 	// Check if the auth manager is using token authentication

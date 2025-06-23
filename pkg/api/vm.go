@@ -807,6 +807,58 @@ func (c *Client) RestartVM(vm *VM) error {
 	return c.Post(path, nil)
 }
 
+// DeleteVM permanently deletes a VM or container
+// WARNING: This operation is irreversible and will destroy all VM data including disks
+func (c *Client) DeleteVM(vm *VM) error {
+	return c.DeleteVMWithOptions(vm, nil)
+}
+
+// DeleteVMOptions contains options for deleting a VM
+type DeleteVMOptions struct {
+	// Force deletion even if VM is running
+	Force bool `json:"force,omitempty"`
+	// Skip lock checking
+	SkipLock bool `json:"skiplock,omitempty"`
+	// Destroy unreferenced disks owned by guest
+	DestroyUnreferencedDisks bool `json:"destroy-unreferenced-disks,omitempty"`
+	// Remove VMID from configurations (backup, replication jobs, HA)
+	Purge bool `json:"purge,omitempty"`
+}
+
+// DeleteVMWithOptions permanently deletes a VM or container with specific options
+// WARNING: This operation is irreversible and will destroy all VM data including disks
+func (c *Client) DeleteVMWithOptions(vm *VM, options *DeleteVMOptions) error {
+	path := fmt.Sprintf("/nodes/%s/%s/%d", vm.Node, vm.Type, vm.ID)
+
+	// Build query parameters
+	params := make(map[string]interface{})
+	if options != nil {
+		if options.Force {
+			params["force"] = "1"
+		}
+		if options.SkipLock {
+			params["skiplock"] = "1"
+		}
+		if options.DestroyUnreferencedDisks {
+			params["destroy-unreferenced-disks"] = "1"
+		}
+		if options.Purge {
+			params["purge"] = "1"
+		}
+	}
+
+	// Add query parameters to path if any
+	if len(params) > 0 {
+		queryParts := make([]string, 0, len(params))
+		for key, value := range params {
+			queryParts = append(queryParts, fmt.Sprintf("%s=%v", key, value))
+		}
+		path += "?" + strings.Join(queryParts, "&")
+	}
+
+	return c.Delete(path)
+}
+
 // GetGuestAgentFilesystems retrieves filesystem information from the QEMU guest agent
 func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
 	if vm.Type != VMTypeQemu || vm.Status != VMStatusRunning {

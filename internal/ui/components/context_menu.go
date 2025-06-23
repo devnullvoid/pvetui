@@ -179,6 +179,9 @@ func (a *App) ShowVMContextMenu() {
 		menuItems = append(menuItems, "Start")
 	}
 
+	// Add delete option (always available)
+	menuItems = append(menuItems, "Delete")
+
 	// Note: Removed "Install Community Script" as it's only applicable to nodes
 
 	// Create and show context menu
@@ -211,6 +214,18 @@ func (a *App) ShowVMContextMenu() {
 					a.performVMOperation(vm, a.client.RestartVM, "Restarting")
 				},
 			)
+		case "Delete":
+			// Check if VM is running and provide appropriate options
+			if vm.Status == api.VMStatusRunning {
+				a.showDeleteRunningVMDialog(vm)
+			} else {
+				a.showConfirmationDialog(
+					fmt.Sprintf("⚠️  DANGER: Are you sure you want to permanently DELETE VM '%s' (ID: %d)?\\n\\nThis action is IRREVERSIBLE and will destroy all VM data including disks!", vm.Name, vm.ID),
+					func() {
+						a.performVMDeleteOperation(vm, false) // false = not forced
+					},
+				)
+			}
 		}
 	})
 	menu.SetApp(a)
@@ -261,11 +276,74 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 				a.header.ShowSuccess(fmt.Sprintf("%s %s completed successfully", operationName, vm.Name))
 			})
 
-			// Wait a moment before refreshing to allow the operation to complete on the server
-			time.Sleep(1 * time.Second)
+			// Clear API cache to ensure fresh VM state is loaded
+			a.client.ClearAPICache()
 
-			// Use the existing targeted refresh that preserves VM selection
-			a.refreshVMData(vm)
+			// Wait a moment for the Proxmox server to fully process the operation
+			// before refreshing the VM data
+			go func() {
+				time.Sleep(2 * time.Second) // Shorter delay for non-delete operations
+				a.QueueUpdateDraw(func() {
+					a.refreshVMData(vm) // Use targeted refresh for state changes
+				})
+			}()
 		}
 	}()
+}
+
+// performVMDeleteOperation performs an asynchronous VM delete operation and refreshes the VM list
+func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
+	// Show loading indicator
+	a.header.ShowLoading(fmt.Sprintf("Deleting %s", vm.Name))
+
+	// Run operation in goroutine to avoid blocking UI
+	go func() {
+		var err error
+		if forced {
+			// Use force delete for running VMs
+			options := &api.DeleteVMOptions{
+				Force:                    true,
+				DestroyUnreferencedDisks: true,
+				Purge:                    true,
+			}
+			err = a.client.DeleteVMWithOptions(vm, options)
+		} else {
+			// Regular delete
+			err = a.client.DeleteVM(vm)
+		}
+
+		if err != nil {
+			// Update message with error on main thread
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Error deleting %s: %v", vm.Name, err))
+			})
+		} else {
+			// Update message with success on main thread
+			a.QueueUpdateDraw(func() {
+				a.header.ShowSuccess(fmt.Sprintf("Successfully deleted %s", vm.Name))
+			})
+
+			// Clear API cache to ensure deleted VM is removed from the list
+			a.client.ClearAPICache()
+
+			// Wait a few seconds for the Proxmox server to fully process the deletion
+			// before refreshing the VM list
+			go func() {
+				time.Sleep(3 * time.Second)
+				a.QueueUpdateDraw(func() {
+					a.manualRefresh()
+				})
+			}()
+		}
+	}()
+}
+
+// showDeleteRunningVMDialog shows a dialog with options for deleting a running VM
+func (a *App) showDeleteRunningVMDialog(vm *api.VM) {
+	message := fmt.Sprintf("⚠️  VM '%s' (ID: %d) is currently RUNNING\\n\\nProxmox can force delete running VMs.\\n\\nAre you sure you want to FORCE DELETE this running VM?\\n\\nThis will IMMEDIATELY DESTROY the VM and ALL its data!", vm.Name, vm.ID)
+
+	a.showConfirmationDialog(message, func() {
+		// User chose to force delete the running VM
+		a.performVMDeleteOperation(vm, true) // true = forced
+	})
 }
