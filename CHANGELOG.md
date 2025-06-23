@@ -52,46 +52,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applied fix to both script installation and SSH shell functionality
   - Based on known tview issue where terminal state doesn't restore properly after suspension
   - Users can now successfully return to the application after all suspend operations
-- Script execution return issue where users couldn't return to TUI after script completion
-  - Replaced problematic "Press Enter to return" with automatic countdown return (3 seconds)
-  - Completely avoids terminal state issues that occur after TUI suspension
-  - Fixed both script installation and SSH shell return functionality
-  - More user-friendly experience with clear countdown indication
-  - Resolves all input reading problems after tview suspension/resume cycles
-- **Script Installation Lockup**: Fixed application freezing when pressing install button
-  - Fixed `InstallScript` function to actually execute the installation command instead of just opening SSH
-  - Removed conflicting return mechanisms that caused duplicate prompts and blank screens
-  - Script installation now properly downloads and executes scripts from GitHub repository
-  - Eliminated duplicate "Press Enter" prompts that conflicted with script's own completion handling
-- **Complete Script Installation Implementation**: Fully working community script installation
-  - Uses official curl command format: `curl -fsSL` matching Proxmox community documentation
-  - Proper root execution with `sudo su - root` for complete root environment
-  - Bash shell environment with `SHELL=/bin/bash` for script compatibility
-  - Interactive script execution with proper terminal allocation (`ssh -t`)
-  - Scripts now properly detect root privileges and execute successfully
-  - Maintains working suspend/resume pattern without UI interference
-- **Release Script**: Changed default to NOT use GitHub CLI since releases are handled by GitHub Actions
-  - `make release` now defaults to tag-and-merge only (no GitHub release creation)
-  - Added `make release-github` target for when GitHub CLI release creation is desired
-  - Updated help text and examples to reflect new defaults
-  - Maintains backward compatibility with `--github` and `--no-github` flags
 - **Unified Logging System**: Fixed all packages to use unified log file instead of separate log files
   - Implemented global logger system that all packages (scripts, VNC services, etc.) now use
   - All components now log to the same `proxmox-tui.log` file in the configured cache directory
   - Eliminated multiple log files being created in current directory (scripts, VNC components)
   - Proper cache directory initialization ensures consistent logging location across all packages
-  - Eliminates confusion from multiple log files and significantly improves debugging experience
-- **Kitty Terminal Compatibility**: Fixed terminal compatibility issues with Kitty and other modern terminal emulators
-  - Set `TERM=xterm-256color` for all SSH connections to ensure remote systems recognize the terminal type
-  - Fixes "unknown terminal type" errors when installing community scripts or using SSH shells
-  - Applied to script installation, node shells, LXC containers, and QEMU guest agent shells
-  - Improves compatibility across different terminal emulators (Kitty, Alacritty, etc.)
 
 ### Enhanced
 - **Press Enter to Return**: Re-implemented "Press Enter to return to TUI" functionality for both script installation and SSH sessions
   - Users can now see complete script output and error messages before returning to the application
   - Status messages show success (✅) or failure (❌) with clear feedback
-  - Simple Enter key press returns to TUI after user has reviewed the output
   - Applied to all SSH session types: node shells, LXC containers, QEMU VMs, and guest agent shells
   - Maintains the working suspend/resume pattern while providing better user control
   - Allows users to troubleshoot issues or verify successful installations before continuing
@@ -99,15 +69,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provides more screen real estate for script browsing and selection
   - Improved responsive layout that adapts to terminal size
   - Better integration with the overall application navigation flow
-  - Enhanced readability with larger content area
-- **Community Script Search**: Added comprehensive search functionality to the script selector
+- **Community Script Search**: Added search functionality to the script selector
   - Real-time search filtering as you type in the search input field
   - Searches across script names, descriptions, and types (container/VM)
   - Press `/` or `Tab` to activate search mode from the script list
   - Press `Escape` to clear search and return to full script list
   - Press `Enter` or `Tab` to move from search field back to script list
   - Maintains all existing navigation (hjkl, arrows, backspace to go back)
-  - Search input shows placeholder text "Type to filter scripts..."
   - Filtered results update instantly and preserve selection behavior
 
 ### Improved

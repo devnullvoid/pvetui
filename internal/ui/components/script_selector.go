@@ -688,8 +688,8 @@ func (s *ScriptSelector) onSearchChanged(text string) {
 		}
 
 		// Truncate description if too long
-		if len(secondaryText) > 70 {
-			secondaryText = secondaryText[:67] + "..."
+		if len(secondaryText) > 100 {
+			secondaryText = secondaryText[:99] + "..."
 		}
 
 		// Add item without selection function - we handle Enter manually
