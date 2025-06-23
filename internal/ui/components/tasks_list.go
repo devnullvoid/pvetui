@@ -224,6 +224,50 @@ func formatTaskType(taskType string) string {
 		return "CT Migrate"
 	case "pctrestore":
 		return "CT Restore"
+	case "vzcreate":
+		return "LXC Create"
+	case "vzstart":
+		return "LXC Start"
+	case "vzstop":
+		return "LXC Stop"
+	case "vzdestroy":
+		return "LXC Delete"
+	case "vzrestart":
+		return "LXC Restart"
+	case "vzshutdown":
+		return "LXC Shutdown"
+	case "vzclone":
+		return "LXC Clone"
+	case "vzmigrate":
+		return "LXC Migrate"
+	case "vzrestore":
+		return "LXC Restore"
+	case "vztemplate":
+		return "LXC Template"
+	case "aptupdate":
+		return "APT Update"
+	case "aptupgrade":
+		return "APT Upgrade"
+	case "startall":
+		return "Start All VMs"
+	case "stopall":
+		return "Stop All VMs"
+	case "srvstart":
+		return "Service Start"
+	case "srvstop":
+		return "Service Stop"
+	case "srvrestart":
+		return "Service Restart"
+	case "srvreload":
+		return "Service Reload"
+	case "imgcopy":
+		return "Image Copy"
+	case "imgdel":
+		return "Image Delete"
+	case "download":
+		return "Download"
+	case "upload":
+		return "Upload"
 	default:
 		return taskType
 	}

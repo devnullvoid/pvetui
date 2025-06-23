@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Friendly task type formatting (e.g., "VM Start" instead of "qmstart")
   - Auto-refresh integration when tasks page is active
   - Comprehensive task type support for VMs, containers, backups, and system operations
+    - **VM Operations**: Start, Stop, Restart, Shutdown, Reset, Reboot, Create, Delete, Clone, Migrate, Restore, Template
+    - **Container Operations**: PCT and LXC variants (Start, Stop, Create, Delete, etc.)
+    - **System Operations**: APT Update/Upgrade, Service management, Image operations, File transfers
+    - **Legacy LXC**: vzcreate, vzstart, vzstop, vzdestroy and other vz* operations
   - **Search Filtering**: Full search support with `/` key activation
     - Real-time filtering across task ID, node, type, status, user, and UPID
     - Search state preservation during auto-refresh operations
