@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-06-23
+
+### Added
+- Automated release script with full workflow automation
+- Makefile integration for release commands
+- **VM/Container Deletion**: Added delete option to VM/LXC context menu with confirmation
+  - Delete option available for all VMs and containers regardless of state
+  - Comprehensive confirmation dialog warns about irreversible data destruction
+  - Uses DELETE method on `/nodes/{node}/{type}/{vmid}` endpoint as specified
+  - **Smart Running VM Handling**: Detects running VMs and offers direct force deletion
+  - **Simplified Approach**: Uses force deletion directly for running VMs (no stop-and-delete)
+  - **Force Delete Options**: Supports force deletion with `force`, `destroy-unreferenced-disks`, and `purge` parameters
+  - **Cache Invalidation**: Clears API cache after deletion to ensure VM is removed from list immediately
+  - **Delayed Refresh**: Waits 3 seconds after deletion before refreshing to allow server processing
+  - Proper error handling and success feedback with status messages
+  - Automatic VM list refresh after successful deletion
+  - Specialized delete operation handler that refreshes entire VM list instead of trying to refresh deleted VM
+- **Enhanced VM Operations**: Improved all VM operations (start/stop/restart) with auto-refresh
+  - **Cache Invalidation**: Clears API cache after each operation for fresh state data
+  - **Delayed Refresh**: Waits 2 seconds after operations before refreshing VM data
+  - **DRY Implementation**: Unified approach across all VM operations for consistency
+  - **Targeted Refresh**: Uses VM-specific refresh to preserve selection and context
+  - Immediate success feedback with automatic state updates
+- **Cluster Tasks Page**: New dedicated page for viewing recent cluster tasks
+  - Access via Tab navigation or F3 key
+  - Shows task history with timestamps, status, duration, and details
+  - Automatic sorting by newest tasks first
+  - Colored status indicators (green for OK, red for errors, yellow for running)
+  - Friendly task type formatting (e.g., "VM Start" instead of "qmstart")
+  - Auto-refresh integration when tasks page is active
+  - Comprehensive task type support for VMs, containers, backups, and system operations
+    - **VM Operations**: Start, Stop, Restart, Shutdown, Reset, Reboot, Create, Delete, Clone, Migrate, Restore, Template
+    - **Container Operations**: PCT and LXC variants (Start, Stop, Create, Delete, etc.)
+    - **System Operations**: APT Update/Upgrade, Service management, Image operations, File transfers
+    - **Legacy LXC**: vzcreate, vzstart, vzstop, vzdestroy and other vz* operations
+  - **Search Filtering**: Full search support with `/` key activation
+    - Real-time filtering across task ID, node, type, status, user, and UPID
+    - Search state preservation during auto-refresh operations
+    - Integrated with existing search system used by Nodes and Guests pages
+
+### Fixed
+- **TUI Suspend/Resume Issue**: Fixed critical issue where users couldn't return to TUI after script installation or SSH sessions
+  - Added `app.Sync()` calls after `app.Suspend()` to properly restore terminal state
+  - Resolves the problem where "Press Enter to return to the TUI..." would not work
+  - Applied fix to both script installation and SSH shell functionality
+  - Based on known tview issue where terminal state doesn't restore properly after suspension
+  - Users can now successfully return to the application after all suspend operations
+- **Unified Logging System**: Fixed all packages to use unified log file instead of separate log files
+  - Implemented global logger system that all packages (scripts, VNC services, etc.) now use
+  - All components now log to the same `proxmox-tui.log` file in the configured cache directory
+  - Eliminated multiple log files being created in current directory (scripts, VNC components)
+  - Proper cache directory initialization ensures consistent logging location across all packages
+
+### Enhanced
+- **Press Enter to Return**: Re-implemented "Press Enter to return to TUI" functionality for both script installation and SSH sessions
+  - Users can now see complete script output and error messages before returning to the application
+  - Status messages show success (✅) or failure (❌) with clear feedback
+  - Applied to all SSH session types: node shells, LXC containers, QEMU VMs, and guest agent shells
+  - Maintains the working suspend/resume pattern while providing better user control
+  - Allows users to troubleshoot issues or verify successful installations before continuing
+- **Community Script Selector UI**: Converted from modal to full-page view for better usability
+  - Provides more screen real estate for script browsing and selection
+  - Improved responsive layout that adapts to terminal size
+  - Better integration with the overall application navigation flow
+- **Community Script Search**: Added search functionality to the script selector
+  - Real-time search filtering as you type in the search input field
+  - Searches across script names, descriptions, and types (container/VM)
+  - Press `/` or `Tab` to activate search mode from the script list
+  - Press `Escape` to clear search and return to full script list
+  - Press `Enter` or `Tab` to move from search field back to script list
+  - Maintains all existing navigation (hjkl, arrows, backspace to go back)
+  - Filtered results update instantly and preserve selection behavior
+
+### Improved
+- Release process now fully automated from changelog to GitHub release
+
+
 ### Added
 - Automated release script with full workflow automation
 - Makefile integration for release commands
