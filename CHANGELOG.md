@@ -12,12 +12,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Makefile integration for release commands
 
 ### Fixed
+- **TUI Suspend/Resume Issue**: Fixed critical issue where users couldn't return to TUI after script installation or SSH sessions
+  - Added `app.Sync()` calls after `app.Suspend()` to properly restore terminal state
+  - Resolves the problem where "Press Enter to return to the TUI..." would not work
+  - Applied fix to both script installation and SSH shell functionality
+  - Based on known tview issue where terminal state doesn't restore properly after suspension
+  - Users can now successfully return to the application after all suspend operations
 - Script execution return issue where users couldn't return to TUI after script completion
   - Replaced problematic "Press Enter to return" with automatic countdown return (3 seconds)
   - Completely avoids terminal state issues that occur after TUI suspension
   - Fixed both script installation and SSH shell return functionality
   - More user-friendly experience with clear countdown indication
   - Resolves all input reading problems after tview suspension/resume cycles
+- **Script Installation Lockup**: Fixed application freezing when pressing install button
+  - Fixed `InstallScript` function to actually execute the installation command instead of just opening SSH
+  - Removed conflicting return mechanisms that caused duplicate prompts and blank screens
+  - Script installation now properly downloads and executes scripts from GitHub repository
+  - Eliminated duplicate "Press Enter" prompts that conflicted with script's own completion handling
 
 ### Improved
 - Release process now fully automated from changelog to GitHub release

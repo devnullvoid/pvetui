@@ -10,13 +10,12 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/scripts"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// ScriptSelector represents a modal dialog for selecting and running community scripts
+// ScriptSelector represents a page-based script selector for installing community scripts
 type ScriptSelector struct {
-	*tview.Modal
+	*tview.Pages
 	app                  *App
 	user                 string
 	nodeIP               string
@@ -36,29 +35,43 @@ type ScriptSelector struct {
 	animationTicker      *time.Ticker    // For loading animation
 }
 
-// NewScriptSelector creates a new script selector dialog
+// NewScriptSelector creates a new script selector
 func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *ScriptSelector {
-	selector := &ScriptSelector{
-		app:        app,
-		user:       user,
-		node:       node,
-		vm:         vm,
-		nodeIP:     node.IP,
-		isForNode:  vm == nil,
-		categories: scripts.GetScriptCategories(),
-		Modal:      tview.NewModal(),
+	// Create the main pages container
+	mainPages := tview.NewPages()
+
+	s := &ScriptSelector{
+		Pages:     mainPages,
+		app:       app,
+		user:      user,
+		node:      node,
+		vm:        vm,
+		isForNode: vm == nil,
+		pages:     tview.NewPages(), // Internal pages for categories/scripts
 	}
 
+	// Set node IP
+	if node != nil {
+		s.nodeIP = node.IP
+	}
+
+	// Initialize the layout
+	s.categories = scripts.GetScriptCategories()
+	s.createLayout()
+
+	return s
+}
+
+// createLayout creates the main layout for the script selector
+func (s *ScriptSelector) createLayout() {
 	// Create the category list
-	selector.categoryList = tview.NewList().
+	s.categoryList = tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true)
-		// SetSelectedBackgroundColor(tcell.ColorBlue).
-		// SetSelectedTextColor(tcell.ColorGray)
 
 	// Add categories to the list
-	for i, category := range selector.categories {
-		selector.categoryList.AddItem(
+	for i, category := range s.categories {
+		s.categoryList.AddItem(
 			category.Name,
 			category.Description,
 			rune('a'+i),
@@ -67,70 +80,63 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	}
 
 	// Add a test item if no categories were loaded
-	if len(selector.categories) == 0 {
-		selector.categoryList.AddItem("No categories found", "Check script configuration", 'x', nil)
+	if len(s.categories) == 0 {
+		s.categoryList.AddItem("No categories found", "Check script configuration", 'x', nil)
 	}
 
 	// Create the script list
-	selector.scriptList = tview.NewList().
+	s.scriptList = tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true)
-		// SetSelectedBackgroundColor(tcell.ColorBlue).
-		// SetSelectedTextColor(tcell.ColorGray)
 
 	// Create a back button for the script list
-	selector.backButton = tview.NewButton("Back").
+	s.backButton = tview.NewButton("Back").
 		SetSelectedFunc(func() {
-			selector.pages.SwitchToPage("categories")
-			app.SetFocus(selector.categoryList)
+			s.pages.SwitchToPage("categories")
+			s.app.SetFocus(s.categoryList)
 		})
 
-	// selector.backButton.SetBackgroundColor(tcell.ColorGray)
-	// Create pages to switch between category and script lists
-	selector.pages = tview.NewPages()
-
-	// Set up the category page with title - simplified for testing
+	// Set up the category page with title
 	categoryPage := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(tview.NewTextView().
-			SetText(fmt.Sprintf("Select a Script Category (%d categories)", len(selector.categories))).
+			SetText(fmt.Sprintf("Select a Script Category (%d categories)", len(s.categories))).
 			SetTextAlign(tview.AlignCenter), 1, 0, false).
-		AddItem(selector.categoryList, 0, 1, true)
+		AddItem(s.categoryList, 0, 1, true)
 
 	// Set up the script page with title and back button
-	// Create a flex container for the back button to make it focusable
 	backButtonContainer := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(nil, 0, 1, false).
-		AddItem(selector.backButton, 10, 0, true).
+		AddItem(s.backButton, 10, 0, true).
 		AddItem(nil, 0, 1, false)
 
 	scriptPage := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(tview.NewTextView().
-								SetText("Select a Script to Install (Backspace: Back)").
-								SetTextAlign(tview.AlignCenter), 1, 0, false).
-		AddItem(selector.scriptList, 0, 1, true). // Flexible height
+			SetText("Select a Script to Install (Backspace: Back)").
+			SetTextAlign(tview.AlignCenter), 1, 0, false).
+		AddItem(s.scriptList, 0, 1, true).
 		AddItem(backButtonContainer, 1, 0, false)
 
 	// Create loading page
-	loadingPage := selector.createLoadingPage()
+	loadingPage := s.createLoadingPage()
 
-	// Add pages
-	selector.pages.AddPage("categories", categoryPage, true, true)
-	selector.pages.AddPage("scripts", scriptPage, true, false)
-	selector.pages.AddPage("loading", loadingPage, true, false)
+	// Add pages to internal page container
+	s.pages.AddPage("categories", categoryPage, true, true)
+	s.pages.AddPage("scripts", scriptPage, true, false)
+	s.pages.AddPage("loading", loadingPage, true, false)
 
-	// Set border and title directly on the pages component
-	selector.pages.SetBorder(true).
+	// Set border and title on the pages component
+	s.pages.SetBorder(true).
 		SetTitle(" Script Selection ").
 		SetTitleColor(tcell.ColorYellow)
-		// SetBorderColor(tcell.ColorBlue)
 
-	// Create a responsive layout that adapts to terminal size
-	selector.layout = selector.createResponsiveLayout()
+	// Create the main layout
+	s.layout = s.createResponsiveLayout()
 
-	return selector
+	// Add the main layout to the main pages container
+	s.Pages.AddPage("script-selector", s.layout, true, true)
 }
 
 // startLoadingAnimation starts the loading animation
@@ -357,28 +363,78 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 // createScriptSelectFunc creates a script selection handler for a specific script
 func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
 	return func() {
-		// Create a simple modal using tview.Modal for the script details
-		scriptInfo := s.formatScriptInfo(script)
-
-		modal := tview.NewModal().
-			SetText(scriptInfo).
-			// SetBackgroundColor(tcell.ColorGray).
-			// SetTextColor(tcell.ColorWhite).
-			// SetButtonBackgroundColor(tcell.ColorBlack).
-			// SetButtonTextColor(tcell.ColorWhite).
-			AddButtons([]string{"Install", "Cancel"}).
-			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-				s.app.pages.RemovePage("scriptInfo")
-				if buttonLabel == "Install" {
-					go s.installScript(script)
-				} else {
-					s.app.SetFocus(s.scriptList)
-				}
-			})
-
-		// Show the modal
-		s.app.pages.AddPage("scriptInfo", modal, true, true)
+		s.showScriptInfo(script)
 	}
+}
+
+// showScriptInfo displays the script information in a page (not modal)
+func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
+	// Create a text view for the script information
+	textView := tview.NewTextView()
+	textView.SetDynamicColors(true)
+	textView.SetScrollable(true)
+	textView.SetWrap(true)
+	textView.SetBorder(true)
+	textView.SetTitle(fmt.Sprintf(" %s - Script Details ", script.Name))
+	textView.SetTitleColor(tcell.ColorYellow)
+	textView.SetBorderColor(tcell.ColorYellow)
+	textView.SetText(s.formatScriptInfo(script))
+
+	// Create buttons
+	installButton := tview.NewButton("Install").
+		SetSelectedFunc(func() {
+			s.app.pages.RemovePage("scriptInfo")
+			s.installScript(script)
+		})
+
+	cancelButton := tview.NewButton("Cancel").
+		SetSelectedFunc(func() {
+			s.app.pages.RemovePage("scriptInfo")
+			s.app.SetFocus(s.scriptList)
+		})
+
+	// Create button container
+	buttonContainer := tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(nil, 0, 1, false).
+		AddItem(installButton, 12, 0, true).
+		AddItem(nil, 2, 0, false).
+		AddItem(cancelButton, 12, 0, false).
+		AddItem(nil, 0, 1, false)
+
+	// Create the main layout
+	layout := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(textView, 0, 1, true).
+		AddItem(buttonContainer, 3, 0, false)
+
+	// Set up input capture for navigation
+	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			s.app.pages.RemovePage("scriptInfo")
+			s.app.SetFocus(s.scriptList)
+			return nil
+		} else if event.Key() == tcell.KeyTab {
+			// Tab between buttons
+			if s.app.GetFocus() == installButton {
+				s.app.SetFocus(cancelButton)
+			} else {
+				s.app.SetFocus(installButton)
+			}
+			return nil
+		} else if event.Key() == tcell.KeyEnter {
+			// Enter on textview focuses install button
+			if s.app.GetFocus() == textView {
+				s.app.SetFocus(installButton)
+				return nil
+			}
+		}
+		return event
+	})
+
+	// Show the page
+	s.app.pages.AddPage("scriptInfo", layout, true, true)
+	s.app.SetFocus(textView)
 }
 
 // formatScriptInfo formats the script information for display
@@ -429,71 +485,31 @@ func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 
 // installScript installs the selected script
 func (s *ScriptSelector) installScript(script scripts.Script) {
-	// Close the script selector modal first
-	s.app.QueueUpdateDraw(func() {
-		s.cleanup()
-	})
-
-	// Temporarily suspend the UI for interactive script installation
+	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
 	s.app.Suspend(func() {
-		// Display installation message
-		fmt.Printf("\nInstalling %s on node %s (%s)...\n", script.Name, s.node.Name, s.nodeIP)
-		fmt.Printf("Script: %s\n", script.ScriptPath)
-		fmt.Printf("This script may require interactive input. Please follow the prompts.\n")
-		fmt.Printf("Note: Custom MOTD output is suppressed to prevent script interference.\n\n")
+		// Install the script interactively
+		fmt.Printf("Testing SSH connection to %s...\n", script.Name)
+		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
 
-		// Validate SSH connection before attempting installation
-		fmt.Print("Validating SSH connection...")
-		err := scripts.ValidateConnection(s.user, s.nodeIP)
 		if err != nil {
 			fmt.Printf("\nSSH connection failed: %v\n", err)
-			fmt.Printf("\nTroubleshooting tips:\n")
-			fmt.Printf("• Ensure SSH key authentication is set up\n")
-			fmt.Printf("• Check that the node IP address is correct\n")
-			fmt.Printf("• Verify the SSH user has sudo privileges\n")
-			fmt.Print("\nPress Enter to return to the TUI...")
-			utils.WaitForEnter()
-			return
 		}
-		fmt.Println(" ✓ Connected")
-
-		// Install the script interactively
-		fmt.Printf("Executing installation script...\n")
-		err = scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
-
-		if err != nil {
-			fmt.Printf("\nScript installation failed: %v\n", err)
-			fmt.Printf("\nTroubleshooting tips:\n")
-			fmt.Printf("• If you see repeated 'Please answer yes or no' messages, press Ctrl+C\n")
-			fmt.Printf("• Check that your Proxmox node has internet access\n")
-			fmt.Printf("• Ensure the script is compatible with your Proxmox version\n")
-			fmt.Printf("• Some scripts may conflict with custom MOTD configurations\n")
-			fmt.Printf("• Try running the script manually via SSH if the issue persists\n")
-		} else {
-			fmt.Printf("\n✓ %s installed successfully!\n", script.Name)
-			fmt.Printf("You may need to refresh your node/guest list to see any new resources.\n")
-		}
-
-		// Wait for user to press Enter
-		fmt.Print("\nPress Enter to return to the TUI...")
-		utils.WaitForEnter()
+		// No waiting inside suspend block - let it complete naturally like working shell functions
 	})
+
+	// Fix for tview suspend/resume issue - sync the application after suspend
+	s.app.Sync()
+
+	// Don't do any UI operations immediately after suspend/resume - let it fully restore first
 }
 
-// cleanup handles cleanup when the modal is closed
-func (s *ScriptSelector) cleanup() {
+// Hide closes the script selector page
+func (s *ScriptSelector) Hide() {
 	// Stop loading animation and indicator if running
 	s.stopLoadingAnimation()
 	if s.isLoading {
 		s.isLoading = false
 		s.app.header.StopLoading()
-	}
-
-	// Restore original input capture
-	if s.originalInputCapture != nil {
-		s.app.SetInputCapture(s.originalInputCapture)
-	} else {
-		s.app.SetInputCapture(nil)
 	}
 
 	// Remove the script selector page
@@ -516,36 +532,24 @@ func (s *ScriptSelector) Show() {
 		return
 	}
 
-	// Show the dialog immediately
-	s.app.pages.AddPage("scriptSelector", s.layout, true, true)
+	// Add the script selector page to the main app
+	s.app.pages.AddPage("scriptSelector", s.Pages, true, true)
 	s.app.SetFocus(s.categoryList)
 
-	// Store the original input capture
-	s.originalInputCapture = s.app.GetInputCapture()
-
-	// Set up a minimal app-level input capture that only handles Escape
-	// All other keys will be passed through to allow normal navigation
-	s.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	// Set up input capture for category list
+	s.categoryList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			// Remove any script info modal first
+			// Remove any script info page first
 			if s.app.pages.HasPage("scriptInfo") {
 				s.app.pages.RemovePage("scriptInfo")
 				s.app.SetFocus(s.scriptList)
 				return nil
 			}
 
-			// Cleanup and close modal
-			s.cleanup()
+			// Hide the script selector page
+			s.Hide()
 			return nil
-		}
-		// Pass ALL other events through to the focused component (including backspace)
-		return event
-	})
-
-	// Remove individual input captures - let the lists handle navigation normally
-	// The Enter key selection will be handled by the list's selected functions
-	s.categoryList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEnter {
+		} else if event.Key() == tcell.KeyEnter {
 			// Manually trigger the selection
 			idx := s.categoryList.GetCurrentItem()
 			if idx >= 0 && idx < len(s.categories) {
@@ -554,8 +558,8 @@ func (s *ScriptSelector) Show() {
 			}
 			return nil
 		} else if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
-			// Backspace on category list closes the modal (handle both backspace variants)
-			s.cleanup()
+			// Backspace on category list closes the page (handle both backspace variants)
+			s.Hide()
 			return nil
 		} else if event.Key() == tcell.KeyRune {
 			// Handle VI-like navigation (hjkl)
@@ -564,8 +568,8 @@ func (s *ScriptSelector) Show() {
 				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
 			case 'k': // VI-like up navigation
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-			case 'h': // VI-like left navigation - close modal
-				s.cleanup()
+			case 'h': // VI-like left navigation - close page
+				s.Hide()
 				return nil
 			case 'l': // VI-like right navigation - select category (same as Enter)
 				idx := s.categoryList.GetCurrentItem()
