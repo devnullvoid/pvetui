@@ -629,7 +629,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 		case int:
 			vm.Template = v != 0
 		case string:
-			vm.Template = v == "1" || v == "true"
+			vm.Template = v == "1" || v == StringTrue
 		}
 	}
 

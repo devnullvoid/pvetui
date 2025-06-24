@@ -349,8 +349,8 @@ main() {
     
     # Confirm unless dry run
     if [[ "$DRY_RUN" == "false" ]]; then
-        read -p "Proceed with release? (y/N): " -n 1 -r
-        echo ""
+        echo -n "Proceed with release? (y/N): "
+        read -r REPLY
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Release cancelled by user"
             exit 0
@@ -378,7 +378,7 @@ main() {
     echo "  • 🔨 Build binaries for all platforms"
     echo "  • 📦 Create release archives"
     echo "  • 🔐 Generate checksums"
-    echo "  • 📤 Upload assets to the release"
+    echo "  • 📤 Upload assets to the draft release"
 }
 
 # Run main function

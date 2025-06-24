@@ -373,7 +373,7 @@ func SafeBoolValue(value interface{}) bool {
 	case bool:
 		return v
 	case string:
-		return v == "true" || v == "1"
+		return v == StringTrue || v == "1"
 	case int:
 		return v != 0
 	case float64:

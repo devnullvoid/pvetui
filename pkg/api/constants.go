@@ -24,6 +24,18 @@ const (
 	StringNA   = "N/A"
 )
 
+// HTTP Methods
+const (
+	HTTPMethodPOST   = "POST"
+	HTTPMethodPUT    = "PUT"
+	HTTPMethodDELETE = "DELETE"
+)
+
+// API Endpoints
+const (
+	EndpointAccessTicket = "/access/ticket"
+)
+
 // Network interface names
 const (
 	LoopbackInterface = "lo"

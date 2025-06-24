@@ -16,26 +16,25 @@ import (
 // ScriptSelector represents a page-based script selector for installing community scripts
 type ScriptSelector struct {
 	*tview.Pages
-	app                  *App
-	user                 string
-	nodeIP               string
-	node                 *api.Node
-	vm                   *api.VM
-	categories           []scripts.ScriptCategory
-	scripts              []scripts.Script
-	filteredScripts      []scripts.Script // Filtered scripts based on search
-	categoryList         *tview.List
-	scriptList           *tview.List
-	searchInput          *tview.InputField // Search input field
-	backButton           *tview.Button
-	layout               *tview.Flex
-	pages                *tview.Pages
-	isForNode            bool
-	isLoading            bool // Track loading state
-	originalInputCapture func(*tcell.EventKey) *tcell.EventKey
-	loadingText          *tview.TextView // For animation updates
-	animationTicker      *time.Ticker    // For loading animation
-	searchActive         bool            // Whether search mode is active
+	app             *App
+	user            string
+	nodeIP          string
+	node            *api.Node
+	vm              *api.VM
+	categories      []scripts.ScriptCategory
+	scripts         []scripts.Script
+	filteredScripts []scripts.Script // Filtered scripts based on search
+	categoryList    *tview.List
+	scriptList      *tview.List
+	searchInput     *tview.InputField // Search input field
+	backButton      *tview.Button
+	layout          *tview.Flex
+	pages           *tview.Pages
+	isForNode       bool
+	isLoading       bool            // Track loading state
+	loadingText     *tview.TextView // For animation updates
+	animationTicker *time.Ticker    // For loading animation
+	searchActive    bool            // Whether search mode is active
 }
 
 // NewScriptSelector creates a new script selector

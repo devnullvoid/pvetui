@@ -150,7 +150,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 		req.Header.Set("Cookie", fmt.Sprintf("PVEAuthCookie=%s", token.Ticket))
 
 		// Set CSRF token for write operations
-		if method == "POST" || method == "PUT" || method == "DELETE" {
+		if method == HTTPMethodPOST || method == HTTPMethodPUT || method == HTTPMethodDELETE {
 			if token.CSRFToken != "" {
 				req.Header.Set("CSRFPreventionToken", token.CSRFToken)
 			}
@@ -159,7 +159,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 	}
 
 	// Set content type for write operations
-	if (method == "POST" || method == "PUT" || method == "DELETE") && data != nil {
+	if (method == HTTPMethodPOST || method == HTTPMethodPUT || method == HTTPMethodDELETE) && data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 

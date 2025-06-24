@@ -62,7 +62,7 @@ func TestHTTPClient_Get_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -87,7 +87,7 @@ func TestHTTPClient_Get_WithAPIToken(t *testing.T) {
 
 		response := map[string]interface{}{"success": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -109,7 +109,7 @@ func TestHTTPClient_Get_WithTicketAuth(t *testing.T) {
 
 		response := map[string]interface{}{"success": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -145,7 +145,7 @@ func TestHTTPClient_Post_Success(t *testing.T) {
 
 		response := map[string]interface{}{"created": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -168,7 +168,7 @@ func TestHTTPClient_Post_WithCSRFToken(t *testing.T) {
 
 		response := map[string]interface{}{"success": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -199,7 +199,7 @@ func TestHTTPClient_Put_Success(t *testing.T) {
 
 		response := map[string]interface{}{"updated": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -220,7 +220,7 @@ func TestHTTPClient_Delete_Success(t *testing.T) {
 
 		response := map[string]interface{}{"deleted": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -250,7 +250,7 @@ func TestHTTPClient_PathHandling(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, tt.expectedPath, r.URL.Path)
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 			}))
 			defer server.Close()
 
@@ -278,7 +278,7 @@ func TestHTTPClient_HTTPErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte("Error response"))
+				_, _ = w.Write([]byte("Error response"))
 			}))
 			defer server.Close()
 
@@ -296,7 +296,7 @@ func TestHTTPClient_HTTPErrors(t *testing.T) {
 func TestHTTPClient_UnauthorizedWithAPIToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Unauthorized"))
+		_, _ = w.Write([]byte("Unauthorized"))
 	}))
 	defer server.Close()
 
@@ -313,7 +313,7 @@ func TestHTTPClient_UnauthorizedWithAPIToken(t *testing.T) {
 func TestHTTPClient_UnauthorizedWithTicketAuth(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Unauthorized"))
+		_, _ = w.Write([]byte("Unauthorized"))
 	}))
 	defer server.Close()
 
@@ -341,7 +341,7 @@ func TestHTTPClient_UnauthorizedWithTicketAuth(t *testing.T) {
 func TestHTTPClient_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
@@ -400,7 +400,7 @@ func TestHTTPClient_GetWithRetry_Success(t *testing.T) {
 		// Succeed on third attempt
 		response := map[string]interface{}{"success": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -419,7 +419,7 @@ func TestHTTPClient_GetWithRetry_MaxRetriesExceeded(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attemptCount++
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Server error"))
+		_, _ = w.Write([]byte("Server error"))
 	}))
 	defer server.Close()
 
@@ -491,7 +491,7 @@ func TestHTTPClient_shouldRetry(t *testing.T) {
 func TestHTTPClient_AuthenticationError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 	}))
 	defer server.Close()
 
@@ -535,7 +535,7 @@ func TestHTTPClient_NilResult(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]interface{}{"success": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -567,7 +567,7 @@ func BenchmarkHTTPClient_Get(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]interface{}{"data": "benchmark"}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 

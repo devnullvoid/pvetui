@@ -276,7 +276,7 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 	am.logger.Debug("Authenticating with Proxmox API: %s", am.username)
 
 	// Prepare authentication request
-	authURL := "/access/ticket"
+	authURL := EndpointAccessTicket
 	am.logger.Debug("Authentication URL: %s", authURL)
 
 	// Create form data

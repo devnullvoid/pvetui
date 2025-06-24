@@ -146,7 +146,7 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
             dist/checksums.txt
-          draft: false
+          draft: true
           prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
           body: |
             ## 🚀 Release ${{ steps.version.outputs.VERSION }}

@@ -273,25 +273,23 @@ func (a *App) startVNCSessionMonitoring() {
 		lastSessionCount := -1 // Track last count to only log changes
 
 		for {
-			select {
-			case <-ticker.C:
-				// Get current session count
-				sessionCount := a.vncService.GetActiveSessionCount()
+			<-ticker.C
+			// Get current session count
+			sessionCount := a.vncService.GetActiveSessionCount()
 
-				// Update footer with session count
-				a.QueueUpdateDraw(func() {
-					a.footer.UpdateVNCSessionCount(sessionCount)
-				})
+			// Update footer with session count
+			a.QueueUpdateDraw(func() {
+				a.footer.UpdateVNCSessionCount(sessionCount)
+			})
 
-				// Only log when session count changes
-				if sessionCount != lastSessionCount {
-					uiLogger.Debug("VNC session count changed (polling): %d -> %d", lastSessionCount, sessionCount)
-					lastSessionCount = sessionCount
-				}
-
-				// Clean up inactive sessions (older than 30 minutes) - but don't log every time
-				a.vncService.CleanupInactiveSessions(30 * time.Minute)
+			// Only log when session count changes
+			if sessionCount != lastSessionCount {
+				uiLogger.Debug("VNC session count changed (polling): %d -> %d", lastSessionCount, sessionCount)
+				lastSessionCount = sessionCount
 			}
+
+			// Clean up inactive sessions (older than 30 minutes) - but don't log every time
+			a.vncService.CleanupInactiveSessions(30 * time.Minute)
 		}
 	}()
 }
@@ -450,7 +448,7 @@ func (a *App) autoRefreshData() {
 			vmSearchState := models.GlobalState.GetSearchState("vms")
 
 			// Preserve cluster version from existing data
-			if models.GlobalState.OriginalNodes != nil && len(models.GlobalState.OriginalNodes) > 0 {
+			if len(models.GlobalState.OriginalNodes) > 0 {
 				// Find existing cluster version by checking if we have any node with version info
 				for _, existingNode := range models.GlobalState.OriginalNodes {
 					if existingNode != nil && existingNode.Version != "" {
@@ -583,30 +581,6 @@ func (a *App) autoRefreshData() {
 			}
 
 			uiLogger.Debug("Auto-refresh completed successfully")
-		})
-	}()
-}
-
-// refreshTasks refreshes the tasks list
-func (a *App) refreshTasks() {
-	uiLogger := models.GetUILogger()
-	uiLogger.Debug("Refreshing cluster tasks")
-
-	a.header.ShowLoading("Loading tasks")
-
-	go func() {
-		tasks, err := a.client.GetClusterTasks()
-		a.QueueUpdateDraw(func() {
-			a.header.StopLoading()
-			if err != nil {
-				uiLogger.Error("Failed to refresh tasks: %v", err)
-				a.header.ShowError("Failed to load tasks: " + err.Error())
-				return
-			}
-
-			uiLogger.Debug("Loaded %d cluster tasks", len(tasks))
-			a.tasksList.SetTasks(tasks)
-			a.header.ShowSuccess("Tasks refreshed")
 		})
 	}()
 }

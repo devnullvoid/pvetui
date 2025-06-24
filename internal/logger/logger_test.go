@@ -168,7 +168,11 @@ func TestNewInternalLogger_EmptyCacheDir(t *testing.T) {
 	// Change to temp directory temporarily
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("Failed to change back to original directory: %v", err)
+		}
+	}()
 
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
@@ -188,7 +192,11 @@ func TestNewInternalLogger_InvalidCacheDir(t *testing.T) {
 	// Change to temp directory temporarily
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("Failed to change back to original directory: %v", err)
+		}
+	}()
 
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)

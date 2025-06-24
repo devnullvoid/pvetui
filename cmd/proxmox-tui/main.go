@@ -119,7 +119,10 @@ func main() {
 	}
 
 	// Initialize scripts logger with the same cache directory for unified logging
-	logger.InitGlobalLogger(level, cfg.CacheDir)
+	if err := logger.InitGlobalLogger(level, cfg.CacheDir); err != nil {
+		mainLogger.Error("Failed to initialize global logger: %v", err)
+		// Continue execution as this is not critical
+	}
 
 	// Set up a graceful shutdown to close the BadgerDB
 	setupGracefulShutdown()

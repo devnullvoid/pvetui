@@ -85,7 +85,7 @@ func (itc *IntegrationTestConfig) CreateTestConfig() *config.Config {
 	}
 
 	// Ensure cache directory exists
-	os.MkdirAll(itc.CacheDir, 0755)
+	_ = os.MkdirAll(itc.CacheDir, 0755)
 
 	return cfg
 }
@@ -187,7 +187,7 @@ func (m *MockProxmoxServer) handleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleVersion handles version requests
@@ -200,7 +200,7 @@ func (m *MockProxmoxServer) handleVersion(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleClusterResources handles cluster resources requests
@@ -227,7 +227,7 @@ func (m *MockProxmoxServer) handleClusterResources(w http.ResponseWriter, r *htt
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleNodes handles nodes requests
@@ -244,7 +244,7 @@ func (m *MockProxmoxServer) handleNodes(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleClusterStatus handles cluster status requests
@@ -260,7 +260,7 @@ func (m *MockProxmoxServer) handleClusterStatus(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleGeneric handles generic requests
@@ -274,7 +274,7 @@ func (m *MockProxmoxServer) handleGeneric(w http.ResponseWriter, r *http.Request
 
 	if response, exists := m.responses[path]; exists {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -286,7 +286,7 @@ func (m *MockProxmoxServer) handleGeneric(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // GetURL returns the mock server URL

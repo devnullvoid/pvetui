@@ -168,7 +168,7 @@ func TestAuthManager_GetValidToken_WithExpiredToken(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		http.NotFound(w, r)
@@ -223,7 +223,7 @@ func TestAuthManager_authenticate_Success(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		http.NotFound(w, r)
@@ -255,7 +255,7 @@ func TestAuthManager_authenticate_HTTPError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/access/ticket" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Authentication failed"))
+			_, _ = w.Write([]byte("Authentication failed"))
 			return
 		}
 		http.NotFound(w, r)
@@ -281,7 +281,7 @@ func TestAuthManager_authenticate_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/access/ticket" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte("invalid json"))
+			_, _ = w.Write([]byte("invalid json"))
 			return
 		}
 		http.NotFound(w, r)
@@ -313,7 +313,7 @@ func TestAuthManager_authenticate_NoTicket(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		http.NotFound(w, r)
@@ -383,7 +383,7 @@ func TestAuthManager_ConcurrentAccess(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		http.NotFound(w, r)
@@ -451,7 +451,7 @@ func TestAuthManager_ContextCancellation(t *testing.T) {
 
 	authManager := NewAuthManagerWithPassword(httpClient, "testuser", "testpass", logger)
 
-	// Create a context that will be cancelled
+	// Create a context that will be canceled
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
@@ -473,7 +473,7 @@ func TestAuthManager_EnsureAuthenticated_WithPassword(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		http.NotFound(w, r)

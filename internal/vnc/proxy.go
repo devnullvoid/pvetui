@@ -157,9 +157,11 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 	proxmoxConn, err := p.connectToProxmox()
 	if err != nil {
 		p.logger.Error("Failed to connect to Proxmox VNC websocket for %s: %v", targetName, err)
-		clientConn.WriteMessage(websocket.CloseMessage,
+		if writeErr := clientConn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseInternalServerErr,
-				fmt.Sprintf("Failed to connect to Proxmox: %v", err)))
+				fmt.Sprintf("Failed to connect to Proxmox: %v", err))); writeErr != nil {
+			p.logger.Debug("Failed to send close message to client: %v", writeErr)
+		}
 		return
 	}
 	defer func() {
@@ -238,11 +240,11 @@ func (p *WebSocketProxy) connectToProxmox() (*websocket.Conn, error) {
 	// Build the Proxmox VNC websocket URL
 	// Format: wss://hostname:port/api2/json/nodes/{node}/qemu/{vmid}/vncwebsocket?port={port}&vncticket={ticket}
 	var vncPath string
-	if p.config.VMType == "qemu" {
+	if p.config.VMType == api.VMTypeQemu {
 		vncPath = fmt.Sprintf("/api2/json/nodes/%s/qemu/%d/vncwebsocket",
 			p.config.NodeName, p.config.VMID)
 		p.logger.Debug("Using QEMU VNC path for %s: %s", targetName, vncPath)
-	} else if p.config.VMType == "lxc" {
+	} else if p.config.VMType == api.VMTypeLXC {
 		vncPath = fmt.Sprintf("/api2/json/nodes/%s/lxc/%d/vncwebsocket",
 			p.config.NodeName, p.config.VMID)
 		p.logger.Debug("Using LXC VNC path for %s: %s", targetName, vncPath)
@@ -311,10 +313,14 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 	messageCount := 0
 
 	// Set up ping/pong handlers to keep connection alive
-	src.SetReadDeadline(time.Now().Add(5 * time.Minute))
+	if err := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+		p.logger.Debug("Failed to set initial read deadline (%s) for %s: %v", direction, targetName, err)
+	}
 	src.SetPongHandler(func(string) error {
 		p.logger.Debug("Pong received (%s) for %s", direction, targetName)
-		src.SetReadDeadline(time.Now().Add(5 * time.Minute))
+		if err := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+			p.logger.Debug("Failed to reset read deadline (%s) for %s: %v", direction, targetName, err)
+		}
 		return nil
 	})
 
@@ -330,7 +336,9 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 		}
 
 		// Reset read deadline on each message
-		src.SetReadDeadline(time.Now().Add(5 * time.Minute))
+		if err := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+			p.logger.Debug("Failed to reset read deadline (%s) for %s: %v", direction, targetName, err)
+		}
 
 		messageCount++
 		if messageCount == 1 {
@@ -400,7 +408,7 @@ func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger 
 
 	// For LXC containers, use the ticket as password if no password is generated
 	password := proxy.Password
-	if password == "" && vm.Type == "lxc" {
+	if password == "" && vm.Type == api.VMTypeLXC {
 		password = proxy.Ticket
 		configLogger.Debug("Using ticket as password for LXC container %s", vm.Name)
 	}
