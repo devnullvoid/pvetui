@@ -57,8 +57,9 @@ func (a *App) setupComponentConnections() {
 	a.nodeDetails.SetApp(a)
 
 	// Select first node to populate node details on startup
-	if len(models.GlobalState.OriginalNodes) > 0 {
-		a.nodeDetails.Update(models.GlobalState.OriginalNodes[0], a.client.Cluster.Nodes)
+	// Use the selected node from the node list (which is sorted) instead of raw original nodes
+	if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
+		a.nodeDetails.Update(selectedNode, a.client.Cluster.Nodes)
 	}
 
 	// Set up VM list with all VMs
