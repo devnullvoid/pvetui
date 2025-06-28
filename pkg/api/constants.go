@@ -57,4 +57,5 @@ const (
 const (
 	ActionRefresh   = "Refresh"
 	ActionOpenShell = "Open Shell"
+	ActionMigrate   = "Migrate"
 )

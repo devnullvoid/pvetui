@@ -65,7 +65,7 @@ func NewHelpModal() *HelpModal {
 
 [yellow]Context Menu Actions:[-]
   [white]Nodes:[-]                    Shell, VNC, Scripts, Refresh
-  [white]Guests:[-]                   Shell, VNC, Start/Stop/Restart
+  [white]Guests:[-]                   Shell, VNC, Start/Stop/Restart/Migrate
 
 [yellow]Tips & Usage:[-]
   • Use search ([white]/[-]) to quickly find nodes or guests
@@ -73,6 +73,7 @@ func NewHelpModal() *HelpModal {
   • VNC opens in your browser using embedded noVNC client
   • SSH sessions open in new terminal windows
   • Community scripts are installed interactively via SSH
+  • Migration moves VMs/containers between cluster nodes
   • Use [white]hjkl[-] keys for VI-like navigation throughout
   • All arrow key functionality is preserved alongside hjkl
   • Quitting with active VNC sessions will prompt for confirmation

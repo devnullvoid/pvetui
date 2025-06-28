@@ -179,6 +179,9 @@ func (a *App) ShowVMContextMenu() {
 		menuItems = append(menuItems, "Start")
 	}
 
+	// Add migrate option (always available)
+	menuItems = append(menuItems, "Migrate")
+
 	// Add delete option (always available)
 	menuItems = append(menuItems, "Delete")
 
@@ -214,6 +217,8 @@ func (a *App) ShowVMContextMenu() {
 					a.performVMOperation(vm, a.client.RestartVM, "Restarting")
 				},
 			)
+		case "Migrate":
+			a.showMigrationDialog(vm)
 		case "Delete":
 			// Check if VM is running and provide appropriate options
 			if vm.Status == api.VMStatusRunning {

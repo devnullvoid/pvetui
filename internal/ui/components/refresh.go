@@ -132,6 +132,29 @@ func (a *App) manualRefresh() {
 				a.vmDetails.Update(vm)
 			}
 
+			// Refresh tasks as well
+			go func() {
+				tasks, err := a.client.GetClusterTasks()
+				if err == nil {
+					a.QueueUpdateDraw(func() {
+						// Update tasks in global state
+						models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+						models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
+						copy(models.GlobalState.OriginalTasks, tasks)
+						copy(models.GlobalState.FilteredTasks, tasks)
+
+						// Apply task search filter if active
+						taskSearchState := models.GlobalState.GetSearchState("tasks")
+						if taskSearchState != nil && taskSearchState.Filter != "" {
+							models.FilterTasks(taskSearchState.Filter)
+							a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+						} else {
+							a.tasksList.SetTasks(tasks)
+						}
+					})
+				}
+			}()
+
 			// Show success message
 			a.header.ShowSuccess("Data refreshed successfully")
 		})
@@ -221,9 +244,13 @@ func (a *App) refreshVMData(vm *api.VM) {
 			})
 		})
 		if err != nil {
-			// Update message with error on main thread
+			// If VM refresh fails (e.g., VM was migrated to a different node),
+			// fall back to a full refresh to find the VM on its new node
 			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Error refreshing VM %s: %v", vm.Name, err))
+				a.header.ShowLoading("VM may have been migrated, performing full refresh")
+			})
+			a.QueueUpdateDraw(func() {
+				a.manualRefresh() // This will find the VM on its new node
 			})
 			return
 		}

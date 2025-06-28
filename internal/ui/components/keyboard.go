@@ -22,6 +22,7 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("scriptSelector") ||
 			a.pages.HasPage("message") ||
 			a.pages.HasPage("confirmation") ||
+			a.pages.HasPage("migration") ||
 			a.pages.HasPage("help")
 
 		// If search is active, let the search input handle the keys
