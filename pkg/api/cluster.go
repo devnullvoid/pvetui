@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -120,6 +121,15 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 		}
 		c.logger.Debug("[BACKGROUND] Found %d running VMs to enrich", runningVMCount)
 
+		// Reset guestAgentChecked for all VMs before enrichment
+		for _, node := range cluster.Nodes {
+			if node.Online && node.VMs != nil {
+				for _, vm := range node.VMs {
+					vm.guestAgentChecked = false
+				}
+			}
+		}
+
 		if err := c.EnrichVMs(cluster); err != nil {
 			c.logger.Debug("[BACKGROUND] Error enriching VM data: %v", err)
 		} else {
@@ -145,8 +155,13 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 					c.logger.Debug("[BACKGROUND] Retrying enrichment for QEMU VM %s (%d) - agent running: %v, interfaces: %d",
 						vm.Name, vm.ID, vm.AgentRunning, len(vm.NetInterfaces))
 
-					// Try to enrich this specific VM again
-					if err := c.GetVmStatus(vm); err != nil {
+					// Try to enrich this specific VM again, but only if the last error was not 'guest agent is not running'
+					err := c.GetVmStatus(vm)
+					if err != nil && strings.Contains(err.Error(), "guest agent is not running") {
+						c.logger.Debug("[BACKGROUND] Skipping further retries for VM %s: guest agent is not running", vm.Name)
+						continue
+					}
+					if err != nil {
 						c.logger.Debug("[BACKGROUND] Retry failed for VM %s: %v", vm.Name, err)
 					}
 				}

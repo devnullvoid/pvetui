@@ -83,8 +83,9 @@ type VM struct {
 	OnBoot             bool                `json:"onboot,omitempty"`              // Whether VM starts automatically
 
 	// Internal fields for concurrency and state management
-	mu       sync.RWMutex // Protects concurrent access to VM data
-	Enriched bool         `json:"-"` // Whether VM has been enriched with detailed information
+	mu                sync.RWMutex // Protects concurrent access to VM data
+	Enriched          bool         `json:"-"` // Whether VM has been enriched with detailed information
+	guestAgentChecked bool         // internal: true if guest agent API was already called this cycle
 }
 
 // ConfiguredNetwork represents a network interface configuration from VM config endpoint.
@@ -268,132 +269,135 @@ func (c *Client) GetVmStatus(vm *VM) error {
 
 		// Get network interfaces from guest agent (only if agent is enabled)
 		if vm.AgentEnabled {
-			rawNetInterfaces, err := c.GetGuestAgentInterfaces(vm)
-			if err == nil && len(rawNetInterfaces) > 0 {
-				vm.AgentRunning = true
-				var filteredInterfaces []NetworkInterface
-				for _, iface := range rawNetInterfaces {
-					// Skip loopback and veth interfaces, and check against configured MACs
-					if !iface.IsLoopback && !strings.HasPrefix(iface.Name, "veth") && (vm.ConfiguredMACs == nil || vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]) {
-						// Prioritize IPv4, then first IPv6, then no IP for this interface if none match
-						var bestIP IPAddress
-						foundIP := false
-						for _, ip := range iface.IPAddresses {
-							if ip.Type == IPTypeIPv4 {
-								bestIP = ip
-								foundIP = true
-								break
-							}
-						}
-						if !foundIP && len(iface.IPAddresses) > 0 {
-							// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
+			if !vm.guestAgentChecked {
+				vm.guestAgentChecked = true
+				rawNetInterfaces, err := c.GetGuestAgentInterfaces(vm)
+				if err == nil && len(rawNetInterfaces) > 0 {
+					vm.AgentRunning = true
+					var filteredInterfaces []NetworkInterface
+					for _, iface := range rawNetInterfaces {
+						// Skip loopback and veth interfaces, and check against configured MACs
+						if !iface.IsLoopback && !strings.HasPrefix(iface.Name, "veth") && (vm.ConfiguredMACs == nil || vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]) {
+							// Prioritize IPv4, then first IPv6, then no IP for this interface if none match
+							var bestIP IPAddress
+							foundIP := false
 							for _, ip := range iface.IPAddresses {
-								if ip.Type == IPTypeIPv6 { // Explicitly look for IPv6 first
+								if ip.Type == IPTypeIPv4 {
 									bestIP = ip
 									foundIP = true
 									break
 								}
 							}
-							if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
-								bestIP = iface.IPAddresses[0]
-								foundIP = true
+							if !foundIP && len(iface.IPAddresses) > 0 {
+								// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
+								for _, ip := range iface.IPAddresses {
+									if ip.Type == IPTypeIPv6 { // Explicitly look for IPv6 first
+										bestIP = ip
+										foundIP = true
+										break
+									}
+								}
+								if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
+									bestIP = iface.IPAddresses[0]
+									foundIP = true
+								}
 							}
-						}
 
-						if foundIP {
-							iface.IPAddresses = []IPAddress{bestIP}
-						} else {
-							iface.IPAddresses = nil // No suitable IP found
+							if foundIP {
+								iface.IPAddresses = []IPAddress{bestIP}
+							} else {
+								iface.IPAddresses = nil // No suitable IP found
+							}
+							filteredInterfaces = append(filteredInterfaces, iface)
 						}
-						filteredInterfaces = append(filteredInterfaces, iface)
 					}
-				}
-				vm.NetInterfaces = filteredInterfaces
+					vm.NetInterfaces = filteredInterfaces
 
-				// Update IP address if we don't have one yet and have interfaces
-				if vm.IP == "" && len(vm.NetInterfaces) > 0 {
-					vm.IP = GetFirstNonLoopbackIP(vm.NetInterfaces, true)
-				}
-
-				// If guest agent is running, also get filesystem information
-				filesystems, fsErr := c.GetGuestAgentFilesystems(vm)
-				if fsErr == nil && len(filesystems) > 0 {
-					// Filter filesystems to only include actual hardware disks
-					var filteredFilesystems []Filesystem
-
-					for _, fs := range filesystems {
-						// Skip filesystems we don't care about
-						if strings.HasPrefix(fs.Mountpoint, "/snap") ||
-							strings.HasPrefix(fs.Mountpoint, "/run") ||
-							strings.HasPrefix(fs.Mountpoint, "/sys") ||
-							strings.HasPrefix(fs.Mountpoint, "/proc") ||
-							strings.HasPrefix(fs.Mountpoint, "/dev") ||
-							strings.Contains(fs.Mountpoint, "snap/") {
-							continue
-						}
-
-						// Skip Windows container paths and special Windows paths
-						if strings.Contains(fs.Mountpoint, "\\Containers\\") ||
-							strings.Contains(fs.Mountpoint, "/Containers/") ||
-							strings.Contains(fs.Mountpoint, "\\WindowsApps\\") ||
-							strings.Contains(fs.Mountpoint, "\\WpSystem\\") ||
-							strings.Contains(fs.Mountpoint, "\\Config.Msi") {
-							continue
-						}
-
-						// Skip long GUID paths that are typically system or virtual mounts
-						if strings.Contains(fs.Mountpoint, "{") && strings.Contains(fs.Mountpoint, "}") &&
-							len(fs.Mountpoint) > 50 {
-							continue
-						}
-
-						// Skip if no size information
-						if fs.TotalBytes == 0 {
-							continue
-						}
-
-						// Skip small partitions (less than 50MB) that likely aren't real disks
-						if fs.TotalBytes < 50*1024*1024 {
-							continue
-						}
-
-						// Skip filesystem types that don't represent real disk space
-						if fs.Type == "tmpfs" || fs.Type == "devtmpfs" || fs.Type == "proc" ||
-							fs.Type == "sysfs" || fs.Type == "devpts" || fs.Type == "cgroup" ||
-							fs.Type == "configfs" || fs.Type == "debugfs" || fs.Type == "mqueue" ||
-							fs.Type == "hugetlbfs" || fs.Type == "securityfs" || fs.Type == "pstore" ||
-							fs.Type == "autofs" || fs.Type == "UDF" {
-							continue
-						}
-
-						filteredFilesystems = append(filteredFilesystems, fs)
+					// Update IP address if we don't have one yet and have interfaces
+					if vm.IP == "" && len(vm.NetInterfaces) > 0 {
+						vm.IP = GetFirstNonLoopbackIP(vm.NetInterfaces, true)
 					}
 
-					vm.Filesystems = filteredFilesystems
+					// If guest agent is running, also get filesystem information
+					filesystems, fsErr := c.GetGuestAgentFilesystems(vm)
+					if fsErr == nil && len(filesystems) > 0 {
+						// Filter filesystems to only include actual hardware disks
+						var filteredFilesystems []Filesystem
 
-					// Update disk usage from filesystem information if we have good data
-					// This is more accurate than the API's disk usage values
-					var totalDiskSpace int64
-					var usedDiskSpace int64
+						for _, fs := range filesystems {
+							// Skip filesystems we don't care about
+							if strings.HasPrefix(fs.Mountpoint, "/snap") ||
+								strings.HasPrefix(fs.Mountpoint, "/run") ||
+								strings.HasPrefix(fs.Mountpoint, "/sys") ||
+								strings.HasPrefix(fs.Mountpoint, "/proc") ||
+								strings.HasPrefix(fs.Mountpoint, "/dev") ||
+								strings.Contains(fs.Mountpoint, "snap/") {
+								continue
+							}
 
-					for _, fs := range filteredFilesystems {
-						totalDiskSpace += fs.TotalBytes
-						usedDiskSpace += fs.UsedBytes
+							// Skip Windows container paths and special Windows paths
+							if strings.Contains(fs.Mountpoint, "\\Containers\\") ||
+								strings.Contains(fs.Mountpoint, "/Containers/") ||
+								strings.Contains(fs.Mountpoint, "\\WindowsApps\\") ||
+								strings.Contains(fs.Mountpoint, "\\WpSystem\\") ||
+								strings.Contains(fs.Mountpoint, "\\Config.Msi") {
+								continue
+							}
+
+							// Skip long GUID paths that are typically system or virtual mounts
+							if strings.Contains(fs.Mountpoint, "{") && strings.Contains(fs.Mountpoint, "}") &&
+								len(fs.Mountpoint) > 50 {
+								continue
+							}
+
+							// Skip if no size information
+							if fs.TotalBytes == 0 {
+								continue
+							}
+
+							// Skip small partitions (less than 50MB) that likely aren't real disks
+							if fs.TotalBytes < 50*1024*1024 {
+								continue
+							}
+
+							// Skip filesystem types that don't represent real disk space
+							if fs.Type == "tmpfs" || fs.Type == "devtmpfs" || fs.Type == "proc" ||
+								fs.Type == "sysfs" || fs.Type == "devpts" || fs.Type == "cgroup" ||
+								fs.Type == "configfs" || fs.Type == "debugfs" || fs.Type == "mqueue" ||
+								fs.Type == "hugetlbfs" || fs.Type == "securityfs" || fs.Type == "pstore" ||
+								fs.Type == "autofs" || fs.Type == "UDF" {
+								continue
+							}
+
+							filteredFilesystems = append(filteredFilesystems, fs)
+						}
+
+						vm.Filesystems = filteredFilesystems
+
+						// Update disk usage from filesystem information if we have good data
+						// This is more accurate than the API's disk usage values
+						var totalDiskSpace int64
+						var usedDiskSpace int64
+
+						for _, fs := range filteredFilesystems {
+							totalDiskSpace += fs.TotalBytes
+							usedDiskSpace += fs.UsedBytes
+						}
+
+						// Only update if we got meaningful values
+						if totalDiskSpace > 0 {
+							vm.MaxDisk = totalDiskSpace
+							vm.Disk = usedDiskSpace
+						}
 					}
-
-					// Only update if we got meaningful values
-					if totalDiskSpace > 0 {
-						vm.MaxDisk = totalDiskSpace
-						vm.Disk = usedDiskSpace
+				} else {
+					vm.AgentRunning = false
+					vm.NetInterfaces = nil
+					// Only clear IP if it wasn't already set by config
+					// This check is to preserve IP from config if guest agent fails
+					if len(vm.ConfiguredMACs) == 0 {
+						vm.IP = ""
 					}
-				}
-			} else {
-				vm.AgentRunning = false
-				vm.NetInterfaces = nil
-				// Only clear IP if it wasn't already set by config
-				// This check is to preserve IP from config if guest agent fails
-				if len(vm.ConfiguredMACs) == 0 {
-					vm.IP = ""
 				}
 			}
 		} else {

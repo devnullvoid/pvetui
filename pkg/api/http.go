@@ -163,8 +163,6 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	hc.logger.Debug("API %s: %s", method, path)
-
 	// Execute request
 	resp, err := hc.client.Do(req)
 	if err != nil {

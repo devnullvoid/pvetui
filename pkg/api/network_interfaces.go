@@ -46,8 +46,14 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 	var res map[string]interface{}
 	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/network-get-interfaces", vm.Node, vm.ID)
 
-	if err := c.GetWithCache(endpoint, &res, VMDataTTL); err != nil {
-		return nil, fmt.Errorf("failed to get network interfaces from guest agent: %w", err)
+	// Use GetNoRetry to avoid repeated failed requests if agent is not running
+	err := c.GetNoRetry(endpoint, &res)
+	if err != nil {
+		// Check if the error is due to guest agent not running
+		if strings.Contains(err.Error(), "QEMU guest agent is not running") {
+			return nil, fmt.Errorf("QEMU guest agent is not running")
+		}
+		return nil, fmt.Errorf("failed to get guest agent interfaces: %w", err)
 	}
 
 	data, ok := res["data"].(map[string]interface{})

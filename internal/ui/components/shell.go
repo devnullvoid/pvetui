@@ -195,12 +195,13 @@ func (a *App) openVMShell() {
 					fmt.Printf("\nFailed to SSH to VM: %v\n", err)
 				}
 			} else {
-				// No guest agent, no IP
-				fmt.Println("\nNeither guest agent nor IP address available for this VM.")
-				fmt.Println("To connect to this VM, either:")
-				fmt.Println("1. Install QEMU guest agent in the VM")
-				fmt.Println("2. Configure network to get an IP address")
-				fmt.Println("3. Set up VNC access (not currently supported in TUI)")
+				// No guest agent, no IP -- show a TUI modal with actionable feedback
+				msg := "Cannot open shell: Neither guest agent nor IP address is available for this VM.\n\n" +
+					"To connect to this VM, either:\n" +
+					"1. Install QEMU guest agent in the VM\n" +
+					"2. Configure the VM's network to obtain an IP address\n" +
+					"3. Set up VNC access (not currently supported in TUI)"
+				a.showMessage(msg)
 			}
 		} else {
 			fmt.Printf("\nUnsupported VM type: %s\n", vm.Type)
