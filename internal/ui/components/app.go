@@ -370,6 +370,7 @@ func (a *App) startAutoRefresh() {
 
 	// Start countdown goroutine
 	go func() {
+		uiLogger := models.GetUILogger()
 		for {
 			select {
 			case <-a.autoRefreshCountdownStop:
@@ -386,6 +387,20 @@ func (a *App) startAutoRefresh() {
 				if a.autoRefreshCountdown < 0 {
 					a.autoRefreshCountdown = 0
 				}
+
+				// Trigger refresh when countdown reaches 0
+				if a.autoRefreshCountdown == 0 {
+					// Only refresh if not currently loading something
+					if !a.header.isLoading {
+						uiLogger.Debug("Auto-refresh triggered by countdown")
+						go a.autoRefreshDataWithFooter()
+					} else {
+						uiLogger.Debug("Auto-refresh skipped - operation in progress")
+						// Reset countdown to try again in 10 seconds
+						a.autoRefreshCountdown = 10
+					}
+				}
+
 				a.QueueUpdateDraw(func() {
 					a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 				})
@@ -405,35 +420,6 @@ func (a *App) startAutoRefresh() {
 					a.footer.spinnerIndex++
 					a.footer.updateDisplay()
 				})
-			}
-		}
-	}()
-
-	go func() {
-		uiLogger := models.GetUILogger()
-		uiLogger.Debug("Auto-refresh goroutine started")
-
-		for {
-			select {
-			case <-a.autoRefreshStop:
-				uiLogger.Debug("Auto-refresh stopped")
-				if a.autoRefreshCountdownStop != nil {
-					close(a.autoRefreshCountdownStop)
-					a.autoRefreshCountdownStop = nil
-				}
-				return
-			case <-a.autoRefreshTicker.C:
-				// Only refresh if not currently loading something
-				if !a.header.isLoading {
-					uiLogger.Debug("Auto-refresh triggered")
-					go a.autoRefreshDataWithFooter()
-					a.autoRefreshCountdown = 10
-					a.QueueUpdateDraw(func() {
-						a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
-					})
-				} else {
-					uiLogger.Debug("Auto-refresh skipped - operation in progress")
-				}
 			}
 		}
 	}()
@@ -650,5 +636,9 @@ func (a *App) autoRefreshData() {
 		// Show success message
 		a.header.ShowSuccess("Data refreshed successfully")
 		a.footer.SetLoading(false)
+
+		// Reset countdown after refresh is complete
+		a.autoRefreshCountdown = 10
+		a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 	})
 }
