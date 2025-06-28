@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Search Filter Persistence**: Fixed issue where search/filtered lists would reset to unfiltered state during auto-refresh and after guest agent data loading
+  - Search filters now properly preserved across all refresh operations (manual, auto-refresh, and guest agent enrichment)
+  - Fixed key mismatch between search state storage and retrieval (was using lowercase strings instead of proper page constants)
+  - Initial data loading now respects existing search filters instead of always showing unfiltered data
+  - VM enrichment callback now preserves active search filters when updating with guest agent data
+
 ### Added
 - **VM/Container Migration**: Added comprehensive migration functionality
   - **Context Menu Integration**: Added "Migrate" option to VM context menu (accessible via 'M' key)

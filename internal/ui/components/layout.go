@@ -41,8 +41,16 @@ func (a *App) setupComponentConnections() {
 	// Update cluster status
 	a.clusterStatus.Update(a.client.Cluster)
 
-	// Configure node list
-	a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+	// Configure node list - check for existing search filters
+	nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+	if nodeSearchState != nil && nodeSearchState.Filter != "" {
+		// Apply existing filter
+		models.FilterNodes(nodeSearchState.Filter)
+		a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+	} else {
+		// No filter, use original data
+		a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+	}
 	a.nodeList.SetApp(a)
 	a.nodeList.SetNodeSelectedFunc(func(node *api.Node) {
 		a.nodeDetails.Update(node, a.client.Cluster.Nodes)
@@ -73,8 +81,16 @@ func (a *App) setupComponentConnections() {
 		a.vmDetails.Update(vm)
 	})
 
-	// Now set the VMs - this will trigger the onSelect callback for the first VM
-	a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+	// Now set the VMs - check for existing search filters first
+	vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+	if vmSearchState != nil && vmSearchState.Filter != "" {
+		// Apply existing filter
+		models.FilterVMs(vmSearchState.Filter)
+		a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+	} else {
+		// No filter, use original data
+		a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+	}
 
 	// Configure VM details
 	a.vmDetails.SetApp(a)
@@ -87,7 +103,22 @@ func (a *App) setupComponentConnections() {
 		tasks, err := a.client.GetClusterTasks()
 		if err == nil {
 			a.QueueUpdateDraw(func() {
-				a.tasksList.SetTasks(tasks)
+				// Update global state with tasks
+				models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+				models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
+				copy(models.GlobalState.OriginalTasks, tasks)
+				copy(models.GlobalState.FilteredTasks, tasks)
+
+				// Check for existing search filters
+				taskSearchState := models.GlobalState.GetSearchState(api.PageTasks)
+				if taskSearchState != nil && taskSearchState.Filter != "" {
+					// Apply existing filter
+					models.FilterTasks(taskSearchState.Filter)
+					a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+				} else {
+					// No filter, use original data
+					a.tasksList.SetTasks(tasks)
+				}
 			})
 		}
 	}()

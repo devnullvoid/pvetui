@@ -287,7 +287,7 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 			// Wait a moment for the Proxmox server to fully process the operation
 			// before refreshing the VM data
 			go func() {
-				time.Sleep(2 * time.Second) // Shorter delay for non-delete operations
+				time.Sleep(5 * time.Second) // Shorter delay for non-delete operations
 				a.QueueUpdateDraw(func() {
 					a.refreshVMData(vm) // Use targeted refresh for state changes
 				})
@@ -334,7 +334,7 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 			// Wait a few seconds for the Proxmox server to fully process the deletion
 			// before refreshing the VM list
 			go func() {
-				time.Sleep(3 * time.Second)
+				time.Sleep(5 * time.Second)
 				a.QueueUpdateDraw(func() {
 					a.manualRefresh()
 				})

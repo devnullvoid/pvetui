@@ -2,35 +2,38 @@ package components
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// manualRefresh refreshes data and updates the UI on user request
+// manualRefresh refreshes all data manually
 func (a *App) manualRefresh() {
-	// Show animated loading indicator
-	a.header.ShowLoading("Refreshing data")
+	// Show loading indicator
+	a.header.ShowLoading("Refreshing data...")
+	a.footer.SetLoading(true)
 
-	// Store current selection by VM/Node identity rather than index
+	// Store current selections for restoration
+	var hasSelectedNode, hasSelectedVM bool
+	var selectedNodeName, selectedVMNode string
 	var selectedVMID int
-	var selectedVMNode string
-	var selectedNodeName string
-	var hasSelectedVM bool
-	var hasSelectedNode bool
 
-	if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
-		selectedVMID = selectedVM.ID
-		selectedVMNode = selectedVM.Node
-		hasSelectedVM = true
-	}
-
-	if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
-		selectedNodeName = selectedNode.Name
+	if node := a.nodeList.GetSelectedNode(); node != nil {
 		hasSelectedNode = true
+		selectedNodeName = node.Name
 	}
 
-	// Use goroutine to avoid blocking the UI
+	if vm := a.vmList.GetSelectedVM(); vm != nil {
+		hasSelectedVM = true
+		selectedVMID = vm.ID
+		selectedVMNode = vm.Node
+	}
+
+	// Check if search is currently active
+	searchWasActive := a.mainLayout.GetItemCount() > 4
+
+	// Run data refresh in goroutine to avoid blocking UI
 	go func() {
 		// Fetch fresh data bypassing cache
 		cluster, err := a.client.GetFreshClusterStatus()
@@ -44,8 +47,8 @@ func (a *App) manualRefresh() {
 		// Update UI with new data
 		a.QueueUpdateDraw(func() {
 			// Get current search states
-			nodeSearchState := models.GlobalState.GetSearchState("nodes")
-			vmSearchState := models.GlobalState.GetSearchState("vms")
+			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
 
 			// Update component data
 			a.clusterStatus.Update(cluster)
@@ -144,7 +147,7 @@ func (a *App) manualRefresh() {
 						copy(models.GlobalState.FilteredTasks, tasks)
 
 						// Apply task search filter if active
-						taskSearchState := models.GlobalState.GetSearchState("tasks")
+						taskSearchState := models.GlobalState.GetSearchState(api.PageTasks)
 						if taskSearchState != nil && taskSearchState.Filter != "" {
 							models.FilterTasks(taskSearchState.Filter)
 							a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
@@ -154,6 +157,40 @@ func (a *App) manualRefresh() {
 					})
 				}
 			}()
+
+			// Restore search input UI state if it was active before refresh
+			if searchWasActive {
+				// Give a small delay to ensure all UI updates are complete
+				go func() {
+					time.Sleep(50 * time.Millisecond)
+					a.QueueUpdateDraw(func() {
+						// Check if search input is still in layout but focus was lost
+						if a.mainLayout.GetItemCount() > 4 && a.searchInput != nil {
+							// Restore focus to search input
+							a.SetFocus(a.searchInput)
+						} else if a.searchInput != nil {
+							// Search input was removed, re-add it if there's an active filter
+							currentPage, _ := a.pages.GetFrontPage()
+							var hasActiveFilter bool
+							if currentPage == api.PageNodes && nodeSearchState != nil && nodeSearchState.Filter != "" {
+								hasActiveFilter = true
+							} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.Filter != "" {
+								hasActiveFilter = true
+							} else if currentPage == api.PageTasks {
+								if taskSearchState := models.GlobalState.GetSearchState(api.PageTasks); taskSearchState != nil && taskSearchState.Filter != "" {
+									hasActiveFilter = true
+								}
+							}
+
+							if hasActiveFilter {
+								// Re-add search input and restore focus
+								a.mainLayout.AddItem(a.searchInput, 1, 0, true)
+								a.SetFocus(a.searchInput)
+							}
+						}
+					})
+				}()
+			}
 
 			// Show success message
 			a.header.ShowSuccess("Data refreshed successfully")
@@ -258,7 +295,7 @@ func (a *App) refreshVMData(vm *api.VM) {
 		// Update UI with fresh data on main thread
 		a.QueueUpdateDraw(func() {
 			// Get current search state
-			vmSearchState := models.GlobalState.GetSearchState("vms")
+			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
 
 			// Find the VM in the global state and update it
 			for i, originalVM := range models.GlobalState.OriginalVMs {

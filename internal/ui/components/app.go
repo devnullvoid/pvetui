@@ -131,13 +131,22 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 			// Update global state with enriched VM data
 			if len(enrichedVMs) > 0 {
 				models.GlobalState.OriginalVMs = make([]*api.VM, len(enrichedVMs))
-				models.GlobalState.FilteredVMs = make([]*api.VM, len(enrichedVMs))
 				copy(models.GlobalState.OriginalVMs, enrichedVMs)
-				copy(models.GlobalState.FilteredVMs, enrichedVMs)
 
-				// Update the VM list display
-				app.vmList.SetVMs(models.GlobalState.FilteredVMs)
-				uiLogger.Debug("Updated VM list with enriched data")
+				// Check if there's an active search filter and apply it
+				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+				if vmSearchState != nil && vmSearchState.Filter != "" {
+					// Apply existing filter to the enriched data
+					models.FilterVMs(vmSearchState.Filter)
+					app.vmList.SetVMs(models.GlobalState.FilteredVMs)
+					uiLogger.Debug("Updated VM list with enriched data and preserved filter: %s", vmSearchState.Filter)
+				} else {
+					// No filter, use original enriched data
+					models.GlobalState.FilteredVMs = make([]*api.VM, len(enrichedVMs))
+					copy(models.GlobalState.FilteredVMs, enrichedVMs)
+					app.vmList.SetVMs(models.GlobalState.FilteredVMs)
+					uiLogger.Debug("Updated VM list with enriched data (no filter)")
+				}
 
 				// Restore the user's VM selection if they had one
 				if hasSelectedVM {
@@ -484,6 +493,9 @@ func (a *App) autoRefreshData() {
 		hasSelectedNode = true
 	}
 
+	// Check if search is currently active
+	searchWasActive := a.mainLayout.GetItemCount() > 4
+
 	// Fetch fresh cluster resources data (this includes performance metrics)
 	cluster, err := a.client.GetFreshClusterStatus()
 	if err != nil {
@@ -497,8 +509,8 @@ func (a *App) autoRefreshData() {
 	// Update UI with new data
 	a.QueueUpdateDraw(func() {
 		// Get current search states
-		nodeSearchState := models.GlobalState.GetSearchState("nodes")
-		vmSearchState := models.GlobalState.GetSearchState("vms")
+		nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+		vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
 
 		// Preserve cluster version from existing data
 		if len(models.GlobalState.OriginalNodes) > 0 {
@@ -630,6 +642,40 @@ func (a *App) autoRefreshData() {
 						}
 					})
 				}
+			}()
+		}
+
+		// Restore search input UI state if it was active before refresh
+		if searchWasActive {
+			// Give a small delay to ensure all UI updates are complete
+			go func() {
+				time.Sleep(50 * time.Millisecond)
+				a.QueueUpdateDraw(func() {
+					// Check if search input is still in layout but focus was lost
+					if a.mainLayout.GetItemCount() > 4 && a.searchInput != nil {
+						// Restore focus to search input
+						a.SetFocus(a.searchInput)
+					} else if a.searchInput != nil {
+						// Search input was removed, re-add it if there's an active filter
+						currentPage, _ := a.pages.GetFrontPage()
+						var hasActiveFilter bool
+						if currentPage == api.PageNodes && nodeSearchState != nil && nodeSearchState.Filter != "" {
+							hasActiveFilter = true
+						} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.Filter != "" {
+							hasActiveFilter = true
+						} else if currentPage == api.PageTasks {
+							if taskSearchState := models.GlobalState.GetSearchState(api.PageTasks); taskSearchState != nil && taskSearchState.Filter != "" {
+								hasActiveFilter = true
+							}
+						}
+
+						if hasActiveFilter {
+							// Re-add search input and restore focus
+							a.mainLayout.AddItem(a.searchInput, 1, 0, true)
+							a.SetFocus(a.searchInput)
+						}
+					}
+				})
 			}()
 		}
 
