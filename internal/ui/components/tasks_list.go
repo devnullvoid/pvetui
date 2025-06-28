@@ -225,25 +225,25 @@ func formatTaskType(taskType string) string {
 	case "pctrestore":
 		return "CT Restore"
 	case "vzcreate":
-		return "LXC Create"
+		return "CT Create"
 	case "vzstart":
-		return "LXC Start"
+		return "CT Start"
 	case "vzstop":
-		return "LXC Stop"
+		return "CT Stop"
 	case "vzdestroy":
-		return "LXC Delete"
+		return "CT Delete"
 	case "vzrestart":
-		return "LXC Restart"
+		return "CT Restart"
 	case "vzshutdown":
-		return "LXC Shutdown"
+		return "CT Shutdown"
 	case "vzclone":
-		return "LXC Clone"
+		return "CT Clone"
 	case "vzmigrate":
-		return "LXC Migrate"
+		return "CT Migrate"
 	case "vzrestore":
-		return "LXC Restore"
+		return "CT Restore"
 	case "vztemplate":
-		return "LXC Template"
+		return "CT Template"
 	case "aptupdate":
 		return "APT Update"
 	case "aptupgrade":

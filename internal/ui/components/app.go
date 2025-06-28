@@ -37,9 +37,11 @@ type App struct {
 	lastFocus     tview.Primitive
 
 	// Auto-refresh functionality
-	autoRefreshEnabled bool
-	autoRefreshTicker  *time.Ticker
-	autoRefreshStop    chan bool
+	autoRefreshEnabled       bool
+	autoRefreshTicker        *time.Ticker
+	autoRefreshStop          chan bool
+	autoRefreshCountdown     int
+	autoRefreshCountdownStop chan bool
 }
 
 // NewApp creates a new application instance with all UI components
@@ -362,6 +364,50 @@ func (a *App) startAutoRefresh() {
 	a.autoRefreshEnabled = true
 	a.autoRefreshStop = make(chan bool, 1)
 	a.autoRefreshTicker = time.NewTicker(10 * time.Second) // 10 second interval
+	a.autoRefreshCountdown = 10
+	a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
+	a.autoRefreshCountdownStop = make(chan bool, 1)
+
+	// Start countdown goroutine
+	go func() {
+		for {
+			select {
+			case <-a.autoRefreshCountdownStop:
+				return
+			default:
+				time.Sleep(1 * time.Second)
+				if !a.autoRefreshEnabled {
+					return
+				}
+				if a.footer.isLoading {
+					continue // Pause countdown while loading
+				}
+				a.autoRefreshCountdown--
+				if a.autoRefreshCountdown < 0 {
+					a.autoRefreshCountdown = 0
+				}
+				a.QueueUpdateDraw(func() {
+					a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
+				})
+			}
+		}
+	}()
+
+	// Spinner animation goroutine
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			if !a.autoRefreshEnabled {
+				return
+			}
+			if a.footer.isLoading {
+				a.QueueUpdateDraw(func() {
+					a.footer.spinnerIndex++
+					a.footer.updateDisplay()
+				})
+			}
+		}
+	}()
 
 	go func() {
 		uiLogger := models.GetUILogger()
@@ -371,13 +417,19 @@ func (a *App) startAutoRefresh() {
 			select {
 			case <-a.autoRefreshStop:
 				uiLogger.Debug("Auto-refresh stopped")
+				if a.autoRefreshCountdownStop != nil {
+					close(a.autoRefreshCountdownStop)
+					a.autoRefreshCountdownStop = nil
+				}
 				return
 			case <-a.autoRefreshTicker.C:
 				// Only refresh if not currently loading something
 				if !a.header.isLoading {
 					uiLogger.Debug("Auto-refresh triggered")
+					go a.autoRefreshDataWithFooter()
+					a.autoRefreshCountdown = 10
 					a.QueueUpdateDraw(func() {
-						a.autoRefreshData()
+						a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 					})
 				} else {
 					uiLogger.Debug("Auto-refresh skipped - operation in progress")
@@ -408,6 +460,20 @@ func (a *App) stopAutoRefresh() {
 		close(a.autoRefreshStop)
 		a.autoRefreshStop = nil
 	}
+	if a.autoRefreshCountdownStop != nil {
+		close(a.autoRefreshCountdownStop)
+		a.autoRefreshCountdownStop = nil
+	}
+	a.autoRefreshCountdown = 0
+	a.footer.UpdateAutoRefreshCountdown(0)
+}
+
+// autoRefreshDataWithFooter sets loading state and starts the data fetch in a new goroutine
+func (a *App) autoRefreshDataWithFooter() {
+	a.QueueUpdateDraw(func() {
+		a.footer.SetLoading(true)
+	})
+	go a.autoRefreshData()
 }
 
 // autoRefreshData performs a lightweight refresh of performance data
@@ -432,155 +498,157 @@ func (a *App) autoRefreshData() {
 		hasSelectedNode = true
 	}
 
-	// Use goroutine to avoid blocking the UI
-	go func() {
-		// Fetch fresh cluster resources data (this includes performance metrics)
-		cluster, err := a.client.GetFreshClusterStatus()
-		if err != nil {
-			uiLogger.Debug("Auto-refresh failed: %v", err)
-			return
+	// Fetch fresh cluster resources data (this includes performance metrics)
+	cluster, err := a.client.GetFreshClusterStatus()
+	if err != nil {
+		uiLogger.Debug("Auto-refresh failed: %v", err)
+		a.QueueUpdateDraw(func() {
+			a.footer.SetLoading(false)
+		})
+		return
+	}
+
+	// Update UI with new data
+	a.QueueUpdateDraw(func() {
+		// Get current search states
+		nodeSearchState := models.GlobalState.GetSearchState("nodes")
+		vmSearchState := models.GlobalState.GetSearchState("vms")
+
+		// Preserve cluster version from existing data
+		if len(models.GlobalState.OriginalNodes) > 0 {
+			// Find existing cluster version by checking if we have any node with version info
+			for _, existingNode := range models.GlobalState.OriginalNodes {
+				if existingNode != nil && existingNode.Version != "" {
+					cluster.Version = fmt.Sprintf("Proxmox VE %s", existingNode.Version)
+					break
+				}
+			}
 		}
 
-		// Update UI with new data
-		a.QueueUpdateDraw(func() {
-			// Get current search states
-			nodeSearchState := models.GlobalState.GetSearchState("nodes")
-			vmSearchState := models.GlobalState.GetSearchState("vms")
+		// Update cluster status (this shows updated CPU/memory/storage totals)
+		a.clusterStatus.Update(cluster)
 
-			// Preserve cluster version from existing data
-			if len(models.GlobalState.OriginalNodes) > 0 {
-				// Find existing cluster version by checking if we have any node with version info
+		// Preserve detailed node data while updating performance metrics
+		for _, freshNode := range cluster.Nodes {
+			if freshNode != nil {
+				// Find the corresponding existing node with detailed data
 				for _, existingNode := range models.GlobalState.OriginalNodes {
-					if existingNode != nil && existingNode.Version != "" {
-						cluster.Version = fmt.Sprintf("Proxmox VE %s", existingNode.Version)
+					if existingNode != nil && existingNode.Name == freshNode.Name {
+						// Preserve detailed fields that aren't in cluster resources
+						freshNode.Version = existingNode.Version
+						freshNode.KernelVersion = existingNode.KernelVersion
+						freshNode.CPUInfo = existingNode.CPUInfo
+						freshNode.LoadAvg = existingNode.LoadAvg
+						freshNode.CGroupMode = existingNode.CGroupMode
+						freshNode.Level = existingNode.Level
+						freshNode.Storage = existingNode.Storage
 						break
 					}
 				}
 			}
+		}
 
-			// Update cluster status (this shows updated CPU/memory/storage totals)
-			a.clusterStatus.Update(cluster)
-
-			// Preserve detailed node data while updating performance metrics
-			for _, freshNode := range cluster.Nodes {
-				if freshNode != nil {
-					// Find the corresponding existing node with detailed data
-					for _, existingNode := range models.GlobalState.OriginalNodes {
-						if existingNode != nil && existingNode.Name == freshNode.Name {
-							// Preserve detailed fields that aren't in cluster resources
-							freshNode.Version = existingNode.Version
-							freshNode.KernelVersion = existingNode.KernelVersion
-							freshNode.CPUInfo = existingNode.CPUInfo
-							freshNode.LoadAvg = existingNode.LoadAvg
-							freshNode.CGroupMode = existingNode.CGroupMode
-							freshNode.Level = existingNode.Level
-							freshNode.Storage = existingNode.Storage
-							break
-						}
+		// Rebuild VM list from fresh cluster data
+		var vms []*api.VM
+		for _, node := range cluster.Nodes {
+			if node != nil {
+				for _, vm := range node.VMs {
+					if vm != nil {
+						vms = append(vms, vm)
 					}
 				}
 			}
+		}
 
-			// Rebuild VM list from fresh cluster data
-			var vms []*api.VM
-			for _, node := range cluster.Nodes {
-				if node != nil {
-					for _, vm := range node.VMs {
-						if vm != nil {
-							vms = append(vms, vm)
-						}
+		// Update global state with fresh data
+		models.GlobalState.OriginalNodes = make([]*api.Node, len(cluster.Nodes))
+		models.GlobalState.FilteredNodes = make([]*api.Node, len(cluster.Nodes))
+		models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
+		models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+
+		copy(models.GlobalState.OriginalNodes, cluster.Nodes)
+		copy(models.GlobalState.FilteredNodes, cluster.Nodes)
+		copy(models.GlobalState.OriginalVMs, vms)
+		copy(models.GlobalState.FilteredVMs, vms)
+
+		// Apply filters if active, otherwise use all data
+		if nodeSearchState != nil && nodeSearchState.Filter != "" {
+			models.FilterNodes(nodeSearchState.Filter)
+			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+		} else {
+			a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+		}
+
+		if vmSearchState != nil && vmSearchState.Filter != "" {
+			models.FilterVMs(vmSearchState.Filter)
+			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+		} else {
+			a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+		}
+
+		// Restore VM selection
+		if hasSelectedVM {
+			vmList := a.vmList.GetVMs()
+			for i, vm := range vmList {
+				if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
+					a.vmList.SetCurrentItem(i)
+					if vmSearchState != nil {
+						vmSearchState.SelectedIndex = i
 					}
+					break
 				}
 			}
+		}
 
-			// Update global state with fresh data
-			models.GlobalState.OriginalNodes = make([]*api.Node, len(cluster.Nodes))
-			models.GlobalState.FilteredNodes = make([]*api.Node, len(cluster.Nodes))
-			models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
-			models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-
-			copy(models.GlobalState.OriginalNodes, cluster.Nodes)
-			copy(models.GlobalState.FilteredNodes, cluster.Nodes)
-			copy(models.GlobalState.OriginalVMs, vms)
-			copy(models.GlobalState.FilteredVMs, vms)
-
-			// Apply filters if active, otherwise use all data
-			if nodeSearchState != nil && nodeSearchState.Filter != "" {
-				models.FilterNodes(nodeSearchState.Filter)
-				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
-			} else {
-				a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
-			}
-
-			if vmSearchState != nil && vmSearchState.Filter != "" {
-				models.FilterVMs(vmSearchState.Filter)
-				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
-			} else {
-				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
-			}
-
-			// Restore VM selection
-			if hasSelectedVM {
-				vmList := a.vmList.GetVMs()
-				for i, vm := range vmList {
-					if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
-						a.vmList.SetCurrentItem(i)
-						if vmSearchState != nil {
-							vmSearchState.SelectedIndex = i
-						}
-						break
+		// Restore node selection
+		if hasSelectedNode {
+			nodeList := a.nodeList.GetNodes()
+			for i, node := range nodeList {
+				if node != nil && node.Name == selectedNodeName {
+					a.nodeList.SetCurrentItem(i)
+					if nodeSearchState != nil {
+						nodeSearchState.SelectedIndex = i
 					}
+					break
 				}
 			}
+		}
 
-			// Restore node selection
-			if hasSelectedNode {
-				nodeList := a.nodeList.GetNodes()
-				for i, node := range nodeList {
-					if node != nil && node.Name == selectedNodeName {
-						a.nodeList.SetCurrentItem(i)
-						if nodeSearchState != nil {
-							nodeSearchState.SelectedIndex = i
+		// Update details if items are selected
+		if node := a.nodeList.GetSelectedNode(); node != nil {
+			a.nodeDetails.Update(node, cluster.Nodes)
+		}
+
+		if vm := a.vmList.GetSelectedVM(); vm != nil {
+			a.vmDetails.Update(vm)
+		}
+
+		// Refresh tasks if on tasks page
+		currentPage, _ := a.pages.GetFrontPage()
+		if currentPage == api.PageTasks {
+			// Refresh tasks data without showing loading indicator (background refresh)
+			go func() {
+				tasks, err := a.client.GetClusterTasks()
+				if err == nil {
+					a.QueueUpdateDraw(func() {
+						// Check if there's an active search filter
+						if state := models.GlobalState.GetSearchState(api.PageTasks); state != nil && state.Filter != "" {
+							// Update global state and apply filter
+							models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+							copy(models.GlobalState.OriginalTasks, tasks)
+							models.FilterTasks(state.Filter)
+							a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+						} else {
+							// No filter active, just update normally
+							a.tasksList.SetTasks(tasks)
 						}
-						break
-					}
+					})
 				}
-			}
+			}()
+		}
 
-			// Update details if items are selected
-			if node := a.nodeList.GetSelectedNode(); node != nil {
-				a.nodeDetails.Update(node, cluster.Nodes)
-			}
-
-			if vm := a.vmList.GetSelectedVM(); vm != nil {
-				a.vmDetails.Update(vm)
-			}
-
-			// Refresh tasks if on tasks page
-			currentPage, _ := a.pages.GetFrontPage()
-			if currentPage == api.PageTasks {
-				// Refresh tasks data without showing loading indicator (background refresh)
-				go func() {
-					tasks, err := a.client.GetClusterTasks()
-					if err == nil {
-						a.QueueUpdateDraw(func() {
-							// Check if there's an active search filter
-							if state := models.GlobalState.GetSearchState(api.PageTasks); state != nil && state.Filter != "" {
-								// Update global state and apply filter
-								models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
-								copy(models.GlobalState.OriginalTasks, tasks)
-								models.FilterTasks(state.Filter)
-								a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
-							} else {
-								// No filter active, just update normally
-								a.tasksList.SetTasks(tasks)
-							}
-						})
-					}
-				}()
-			}
-
-			uiLogger.Debug("Auto-refresh completed successfully")
-		})
-	}()
+		// Show success message
+		a.header.ShowSuccess("Data refreshed successfully")
+		a.footer.SetLoading(false)
+	})
 }

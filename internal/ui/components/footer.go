@@ -13,6 +13,9 @@ type Footer struct {
 	vncSessionCount   int
 	autoRefreshActive bool
 	baseText          string
+	refreshCountdown  int // seconds until next auto-refresh
+	isLoading         bool
+	spinnerIndex      int
 }
 
 // NewFooter creates a new application footer with key bindings
@@ -53,6 +56,21 @@ func (f *Footer) UpdateAutoRefreshStatus(active bool) {
 	f.updateDisplay()
 }
 
+// UpdateAutoRefreshCountdown updates the countdown for the next auto-refresh
+func (f *Footer) UpdateAutoRefreshCountdown(seconds int) {
+	f.refreshCountdown = seconds
+	f.updateDisplay()
+}
+
+// SetLoading sets the loading state and resets the spinner
+func (f *Footer) SetLoading(loading bool) {
+	f.isLoading = loading
+	if !loading {
+		f.spinnerIndex = 0
+	}
+	f.updateDisplay()
+}
+
 // updateDisplay refreshes the footer text with current information
 func (f *Footer) updateDisplay() {
 	// Get the terminal width to calculate spacing
@@ -74,7 +92,15 @@ func (f *Footer) updateDisplayWithWidth(width int) {
 		statusParts = append(statusParts, fmt.Sprintf("[green]VNC:[white]%d", f.vncSessionCount))
 	}
 	if f.autoRefreshActive {
-		statusParts = append(statusParts, "[cyan]Auto-Refresh:[white]ON")
+		if f.isLoading {
+			spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			spinner := spinners[f.spinnerIndex%len(spinners)]
+			statusParts = append(statusParts, fmt.Sprintf("[cyan]%s Refreshing...[white]", spinner))
+		} else if f.refreshCountdown > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("[cyan]Auto-Refresh:[white]ON ([yellow]%ds[white])", f.refreshCountdown))
+		} else {
+			statusParts = append(statusParts, "[cyan]Auto-Refresh:[white]ON")
+		}
 	}
 
 	statusText := strings.Join(statusParts, "  ")
