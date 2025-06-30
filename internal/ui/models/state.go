@@ -121,8 +121,8 @@ func FilterNodes(filter string) {
 		}
 	}
 
-	GetUILogger().Debug("Filtered nodes from %d to %d with filter '%s'",
-		len(GlobalState.OriginalNodes), len(GlobalState.FilteredNodes), filter)
+	// GetUILogger().Debug("Filtered nodes from %d to %d with filter '%s'",
+	// 	len(GlobalState.OriginalNodes), len(GlobalState.FilteredNodes), filter)
 }
 
 // FilterVMs filters the VMs based on the given search string
@@ -178,8 +178,8 @@ func FilterVMs(filter string) {
 		}
 	}
 
-	GetUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
-		len(GlobalState.OriginalVMs), len(GlobalState.FilteredVMs), filter)
+	// GetUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
+	// 	len(GlobalState.OriginalVMs), len(GlobalState.FilteredVMs), filter)
 }
 
 // FilterTasks filters the tasks based on the given search string
@@ -240,6 +240,6 @@ func FilterTasks(filter string) {
 		}
 	}
 
-	GetUILogger().Debug("Filtered tasks from %d to %d with filter '%s'",
-		len(GlobalState.OriginalTasks), len(GlobalState.FilteredTasks), filter)
+	// GetUILogger().Debug("Filtered tasks from %d to %d with filter '%s'",
+	// 	len(GlobalState.OriginalTasks), len(GlobalState.FilteredTasks), filter)
 }
