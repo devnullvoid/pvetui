@@ -119,7 +119,7 @@ func main() {
 	}
 
 	// Initialize scripts logger with the same cache directory for unified logging
-	if err := logger.InitGlobalLogger(level, cfg.CacheDir); err != nil {
+	if err = logger.InitGlobalLogger(level, cfg.CacheDir); err != nil {
 		mainLogger.Error("Failed to initialize global logger: %v", err)
 		// Continue execution as this is not critical
 	}

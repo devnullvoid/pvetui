@@ -47,7 +47,7 @@ func NewIntegrationTestConfig(t *testing.T) *IntegrationTestConfig {
 		ConfigFile:     filepath.Join(tempDir, "test-config.yml"),
 		CacheDir:       filepath.Join(tempDir, "cache"),
 		LogFile:        filepath.Join(tempDir, "test.log"),
-		UseRealProxmox: os.Getenv("PROXMOX_INTEGRATION_TEST") == "true",
+		UseRealProxmox: os.Getenv("PROXMOX_INTEGRATION_TEST") == api.StringTrue,
 		ProxmoxAddr:    getEnvOrDefault("PROXMOX_TEST_ADDR", "https://test.example.com:8006"),
 		ProxmoxUser:    getEnvOrDefault("PROXMOX_TEST_USER", "testuser@pam"),
 		ProxmoxPass:    getEnvOrDefault("PROXMOX_TEST_PASS", "testpass"),

@@ -31,7 +31,7 @@ func TestAPIClientIntegration_MockServer(t *testing.T) {
 	itc.ProxmoxAddr = mockServer.GetURL()
 
 	// Set up complete integration test environment
-	cfg, _, testCache, client := itc.SetupIntegrationTest(t)
+	cfg, _, testCache, _ := itc.SetupIntegrationTest(t)
 
 	// Update config to point to mock server
 	cfg.Addr = mockServer.GetURL()
@@ -344,7 +344,7 @@ func TestAPIClientIntegration_ConcurrentAccess(t *testing.T) {
 	// Set up integration test environment
 	itc := testutils.NewIntegrationTestConfig(t)
 	itc.ProxmoxAddr = mockServer.GetURL()
-	cfg, _, testCache, client := itc.SetupIntegrationTest(t)
+	cfg, _, testCache, _ := itc.SetupIntegrationTest(t)
 
 	// Update config for mock server
 	cfg.Addr = mockServer.GetURL()

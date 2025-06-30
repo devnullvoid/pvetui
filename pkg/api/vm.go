@@ -1376,7 +1376,7 @@ func populateConfigDetails(vm *VM, configData map[string]interface{}) {
 		case float64:
 			vm.OnBoot = v != 0
 		case string:
-			vm.OnBoot = v == "1" || strings.ToLower(v) == "true"
+			vm.OnBoot = v == "1" || strings.ToLower(v) == StringTrue
 		}
 	}
 
@@ -1461,7 +1461,7 @@ func parseNetworkConfig(configData map[string]interface{}, vmType string) []Conf
 				case "gw":
 					network.Gateway = val
 				case "firewall":
-					network.Firewall = val == "1" || strings.ToLower(val) == "true"
+					network.Firewall = val == "1" || strings.ToLower(val) == StringTrue
 				default:
 					// For QEMU, check if this is a model=MAC pair
 					if vmType == VMTypeQemu && network.Model == "" {
@@ -1584,7 +1584,7 @@ func parseStorageConfig(configData map[string]interface{}, vmType string) []Stor
 				case "cache":
 					device.Cache = val
 				case "iothread":
-					device.IOThread = val == "1" || strings.ToLower(val) == "true"
+					device.IOThread = val == "1" || strings.ToLower(val) == StringTrue
 				case "ssd":
 					device.SSD = val == "1" || strings.ToLower(val) == "true"
 				case "discard":

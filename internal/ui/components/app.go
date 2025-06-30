@@ -325,24 +325,21 @@ func (a *App) Run() error {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Starting application")
 
-	// We're disabling automatic background refresh to prevent UI issues
-	// The user can manually refresh with a key if needed
+	a.startAutoRefresh()
+	defer a.stopAutoRefresh()
 
-	// Start the app
-	err := a.Application.Run()
-	if err != nil {
+	if err := a.Application.Run(); err != nil {
 		uiLogger.Error("Application run failed: %v", err)
-	} else {
-		uiLogger.Debug("Application stopped normally")
-		// Clean up auto-refresh
-		a.stopAutoRefresh()
-		// Clean up VNC sessions on exit
-		uiLogger.Debug("Cleaning up VNC sessions on application exit")
-		if closeErr := a.vncService.CloseAllSessions(); closeErr != nil {
-			uiLogger.Error("Failed to close VNC sessions on exit: %v", closeErr)
-		}
+		return err
 	}
-	return err
+
+	uiLogger.Debug("Application stopped normally")
+	// Clean up VNC sessions on exit
+	uiLogger.Debug("Cleaning up VNC sessions on application exit")
+	if closeErr := a.vncService.CloseAllSessions(); closeErr != nil {
+		uiLogger.Error("Failed to close VNC sessions on exit: %v", closeErr)
+	}
+	return nil
 }
 
 // toggleAutoRefresh toggles the auto-refresh functionality on/off
@@ -646,38 +643,7 @@ func (a *App) autoRefreshData() {
 		}
 
 		// Restore search input UI state if it was active before refresh
-		if searchWasActive {
-			// Give a small delay to ensure all UI updates are complete
-			go func() {
-				time.Sleep(50 * time.Millisecond)
-				a.QueueUpdateDraw(func() {
-					// Check if search input is still in layout but focus was lost
-					if a.mainLayout.GetItemCount() > 4 && a.searchInput != nil {
-						// Restore focus to search input
-						a.SetFocus(a.searchInput)
-					} else if a.searchInput != nil {
-						// Search input was removed, re-add it if there's an active filter
-						currentPage, _ := a.pages.GetFrontPage()
-						var hasActiveFilter bool
-						if currentPage == api.PageNodes && nodeSearchState != nil && nodeSearchState.Filter != "" {
-							hasActiveFilter = true
-						} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.Filter != "" {
-							hasActiveFilter = true
-						} else if currentPage == api.PageTasks {
-							if taskSearchState := models.GlobalState.GetSearchState(api.PageTasks); taskSearchState != nil && taskSearchState.Filter != "" {
-								hasActiveFilter = true
-							}
-						}
-
-						if hasActiveFilter {
-							// Re-add search input and restore focus
-							a.mainLayout.AddItem(a.searchInput, 1, 0, true)
-							a.SetFocus(a.searchInput)
-						}
-					}
-				})
-			}()
-		}
+		a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 
 		// Show success message
 		a.header.ShowSuccess("Data refreshed successfully")
@@ -687,4 +653,41 @@ func (a *App) autoRefreshData() {
 		a.autoRefreshCountdown = 10
 		a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 	})
+}
+
+// restoreSearchUI restores the search input UI state if it was active before a refresh.
+func (a *App) restoreSearchUI(searchWasActive bool, nodeSearchState, vmSearchState *models.SearchState) {
+	if !searchWasActive {
+		return
+	}
+	// Give a small delay to ensure all UI updates are complete
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		a.QueueUpdateDraw(func() {
+			// Check if search input is still in layout but focus was lost
+			if a.mainLayout.GetItemCount() > 4 && a.searchInput != nil {
+				// Restore focus to search input
+				a.SetFocus(a.searchInput)
+			} else if a.searchInput != nil {
+				// Search input was removed, re-add it if there's an active filter
+				currentPage, _ := a.pages.GetFrontPage()
+				var hasActiveFilter bool
+				if currentPage == api.PageNodes && nodeSearchState != nil && nodeSearchState.Filter != "" {
+					hasActiveFilter = true
+				} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.Filter != "" {
+					hasActiveFilter = true
+				} else if currentPage == api.PageTasks {
+					if taskSearchState := models.GlobalState.GetSearchState(api.PageTasks); taskSearchState != nil && taskSearchState.Filter != "" {
+						hasActiveFilter = true
+					}
+				}
+
+				if hasActiveFilter {
+					// Re-add search input and restore focus
+					a.mainLayout.AddItem(a.searchInput, 1, 0, true)
+					a.SetFocus(a.searchInput)
+				}
+			}
+		})
+	}()
 }

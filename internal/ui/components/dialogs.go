@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
 // showMessage displays a message to the user

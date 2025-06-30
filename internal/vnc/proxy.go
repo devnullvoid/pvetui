@@ -13,9 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/gorilla/websocket"
 )
 
 // ProxyConfig holds configuration for the VNC WebSocket proxy
@@ -309,17 +310,16 @@ func (p *WebSocketProxy) connectToProxmox() (*websocket.Conn, error) {
 
 // proxyMessages handles message forwarding between WebSocket connections
 func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targetName string) error {
-	p.logger.Debug("Starting message proxy %s for %s", direction, targetName)
-	messageCount := 0
+	var messageCount int
 
-	// Set up ping/pong handlers to keep connection alive
-	if err := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-		p.logger.Debug("Failed to set initial read deadline (%s) for %s: %v", direction, targetName, err)
+	// Set initial read deadline
+	if deadlineErr := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); deadlineErr != nil {
+		p.logger.Debug("Failed to set initial read deadline (%s) for %s: %v", direction, targetName, deadlineErr)
 	}
 	src.SetPongHandler(func(string) error {
 		p.logger.Debug("Pong received (%s) for %s", direction, targetName)
-		if err := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-			p.logger.Debug("Failed to reset read deadline (%s) for %s: %v", direction, targetName, err)
+		if deadlineErr := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); deadlineErr != nil {
+			p.logger.Debug("Failed to reset read deadline (%s) for %s: %v", direction, targetName, deadlineErr)
 		}
 		return nil
 	})
@@ -336,8 +336,8 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 		}
 
 		// Reset read deadline on each message
-		if err := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-			p.logger.Debug("Failed to reset read deadline (%s) for %s: %v", direction, targetName, err)
+		if deadlineErr := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); deadlineErr != nil {
+			p.logger.Debug("Failed to reset read deadline (%s) for %s: %v", direction, targetName, deadlineErr)
 		}
 
 		messageCount++

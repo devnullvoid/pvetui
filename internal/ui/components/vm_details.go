@@ -537,7 +537,6 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		autoStartColor = tcell.ColorGreen
 	}
 	vd.SetCell(row, 1, tview.NewTableCell(autoStartText).SetTextColor(autoStartColor))
-	row++
 
 	// Scroll to the top to ensure the most important information (basic details) is visible
 	vd.ScrollToBeginning()
@@ -756,7 +755,7 @@ func formatStorageSize(sizeStr string) string {
 	numStr := sizeStr[:len(sizeStr)-1]
 
 	// Parse the numeric value
-	var multiplier int64 = 1
+	var multiplier int64
 	switch unit {
 	case "K":
 		multiplier = 1024

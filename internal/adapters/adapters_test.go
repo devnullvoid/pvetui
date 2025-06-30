@@ -285,7 +285,7 @@ func TestCacheAdapter_TTL(t *testing.T) {
 
 	// Try to get expired data - behavior depends on cache implementation
 	// Some caches may still return expired data, others may not
-	found, err = adapter.Get(key, &result)
+	_, err = adapter.Get(key, &result)
 	assert.NoError(t, err)
 	// We don't assert on found here because it depends on the cache implementation
 }
