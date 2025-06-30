@@ -59,11 +59,12 @@ func NewApp(client *api.Client, cfg *config.Config) *App {
 	}
 
 	app := &App{
-		Application: tview.NewApplication(),
-		client:      client,
-		config:      *cfg,
-		vncService:  vnc.NewServiceWithLogger(client, vncLogger),
-		pages:       tview.NewPages(),
+		Application:        tview.NewApplication(),
+		client:             client,
+		config:             *cfg,
+		vncService:         vnc.NewServiceWithLogger(client, vncLogger),
+		pages:              tview.NewPages(),
+		autoRefreshEnabled: false,
 	}
 
 	uiLogger.Debug("Initializing UI components")
@@ -354,6 +355,7 @@ func (a *App) toggleAutoRefresh() {
 		uiLogger.Debug("Auto-refresh disabled by user")
 	} else {
 		// Enable auto-refresh
+		a.autoRefreshEnabled = true
 		a.startAutoRefresh()
 		a.footer.UpdateAutoRefreshStatus(true)
 		a.header.ShowSuccess("Auto-refresh enabled (10s interval)")
@@ -363,11 +365,15 @@ func (a *App) toggleAutoRefresh() {
 
 // startAutoRefresh starts the auto-refresh timer
 func (a *App) startAutoRefresh() {
-	if a.autoRefreshEnabled {
+	// Don't start if auto-refresh is not enabled
+	if !a.autoRefreshEnabled {
+		return
+	}
+
+	if a.autoRefreshTicker != nil {
 		return // Already running
 	}
 
-	a.autoRefreshEnabled = true
 	a.autoRefreshStop = make(chan bool, 1)
 	a.autoRefreshTicker = time.NewTicker(10 * time.Second) // 10 second interval
 	a.autoRefreshCountdown = 10
