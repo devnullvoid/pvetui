@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-06-30
+
+### Fixed
+- **Search Filter Persistence**: Fixed issue where search/filtered lists would reset to unfiltered state during auto-refresh and after guest agent data loading
+  - Search filters now properly preserved across all refresh operations (manual, auto-refresh, and guest agent enrichment)
+  - Fixed key mismatch between search state storage and retrieval (was using lowercase strings instead of proper page constants)
+  - Initial data loading now respects existing search filters instead of always showing unfiltered data
+  - VM enrichment callback now preserves active search filters when updating with guest agent data
+
+### Added
+- **VM/Container Migration**: Added comprehensive migration functionality
+  - **Context Menu Integration**: Added "Migrate" option to VM context menu (accessible via 'M' key)
+  - **Simplified Migration Dialog**: Streamlined dialog matching Proxmox UI design
+    - Target node selection (shows only online nodes excluding current host)
+    - Smart migration mode defaults: "restart" for LXC, "online/offline" for QEMU based on VM status
+    - Clean confirmation dialog with migration summary
+    - Removed complex advanced options in favor of sensible defaults
+  - **Enhanced API Implementation**: Full migration API support with improved error handling
+    - POST to `/nodes/{node}/{vmtype}/{vmid}/migrate` with detailed response logging
+    - Support for both QEMU and LXC migration with type-specific parameters
+    - Smart defaults: online migration for running VMs, offline for stopped VMs
+    - LXC containers use "restart" migration parameter (restart=1) instead of online parameter
+    - Fixed LXC migration API compatibility by removing unsupported migration_type parameter
+    - Fixed LXC migration errors by using correct restart parameter for LXC containers
+    - Comprehensive error feedback with detailed API response logging
+    - Automatic validation of target node availability
+  - **Improved User Experience**: Better feedback and error handling
+    - Detailed error messages with migration context (VM name, target, mode)
+    - API response logging for troubleshooting migration issues
+    - Asynchronous operation with progress feedback
+    - Automatic refresh after migration to show updated VM location and tasks
+    - Migration dialog with minimum height for better visibility on smaller terminals
+    - Consistent 2-second refresh delay matching other VM operations
+    - Manual refresh (R key) now properly refreshes tasks in addition to nodes/VMs
+    - Migration status visible in Tasks tab for monitoring progress
+    - Help documentation updated to include migration information
+
+
 ### Fixed
 - **Search Filter Persistence**: Fixed issue where search/filtered lists would reset to unfiltered state during auto-refresh and after guest agent data loading
   - Search filters now properly preserved across all refresh operations (manual, auto-refresh, and guest agent enrichment)
