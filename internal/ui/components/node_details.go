@@ -33,8 +33,8 @@ func NewNodeDetails() *NodeDetails {
 }
 
 // Clear wraps the underlying table's Clear method to satisfy the interface
-func (nd *NodeDetails) Clear() {
-	nd.Table.Clear()
+func (nd *NodeDetails) Clear() *tview.Table {
+	return nd.Table.Clear()
 }
 
 // SetApp sets the parent app reference for focus management

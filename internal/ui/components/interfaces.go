@@ -13,7 +13,7 @@ type NodeListComponent interface {
 	GetNodes() []*api.Node
 	SetNodeSelectedFunc(func(*api.Node))
 	SetNodeChangedFunc(func(*api.Node))
-	SetCurrentItem(int)
+	SetCurrentItem(int) *tview.List
 	GetCurrentItem() int
 }
 
@@ -25,7 +25,7 @@ type VMListComponent interface {
 	GetVMs() []*api.VM
 	SetVMSelectedFunc(func(*api.VM))
 	SetVMChangedFunc(func(*api.VM))
-	SetCurrentItem(int)
+	SetCurrentItem(int) *tview.List
 	GetCurrentItem() int
 }
 
@@ -33,14 +33,14 @@ type NodeDetailsComponent interface {
 	tview.Primitive
 	SetApp(*App)
 	Update(*api.Node, []*api.Node)
-	Clear()
+	Clear() *tview.Table
 }
 
 type VMDetailsComponent interface {
 	tview.Primitive
 	SetApp(*App)
 	Update(*api.VM)
-	Clear()
+	Clear() *tview.Table
 }
 
 type TasksListComponent interface {
@@ -49,7 +49,7 @@ type TasksListComponent interface {
 	SetTasks([]*api.ClusterTask)
 	SetFilteredTasks([]*api.ClusterTask)
 	GetSelectedTask() *api.ClusterTask
-	Select(row, column int)
+	Select(row, column int) *tview.Table
 }
 
 type ClusterStatusComponent interface {

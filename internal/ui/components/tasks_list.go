@@ -53,8 +53,8 @@ func NewTasksList() *TasksList {
 }
 
 // Select wraps the table Select method to match the interface
-func (tl *TasksList) Select(row, column int) {
-	tl.Table.Select(row, column)
+func (tl *TasksList) Select(row, column int) *tview.Table {
+	return tl.Table.Select(row, column)
 }
 
 // SetApp sets the parent app reference

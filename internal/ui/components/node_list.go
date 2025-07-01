@@ -36,8 +36,8 @@ func NewNodeList() *NodeList {
 }
 
 // SetCurrentItem wraps the list method to match the interface
-func (nl *NodeList) SetCurrentItem(index int) {
-	nl.List.SetCurrentItem(index)
+func (nl *NodeList) SetCurrentItem(index int) *tview.List {
+	return nl.List.SetCurrentItem(index)
 }
 
 // SetApp sets the parent app reference for focus management
