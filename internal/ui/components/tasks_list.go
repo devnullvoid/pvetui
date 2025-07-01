@@ -18,6 +18,8 @@ type TasksList struct {
 	app   *App
 }
 
+var _ TasksListComponent = (*TasksList)(nil)
+
 // NewTasksList creates a new tasks list component
 func NewTasksList() *TasksList {
 	table := tview.NewTable()

@@ -20,6 +20,8 @@ type VMDetails struct {
 	app *App
 }
 
+var _ VMDetailsComponent = (*VMDetails)(nil)
+
 // NewVMDetails creates a new VM details panel
 func NewVMDetails() *VMDetails {
 	table := tview.NewTable()

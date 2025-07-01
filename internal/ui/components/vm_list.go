@@ -20,6 +20,8 @@ type VMList struct {
 	app       *App
 }
 
+var _ VMListComponent = (*VMList)(nil)
+
 // NewVMList creates a new VM list component
 func NewVMList() *VMList {
 	list := tview.NewList()

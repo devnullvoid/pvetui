@@ -18,6 +18,8 @@ type ClusterStatus struct {
 	ResourceTable *tview.Table
 }
 
+var _ ClusterStatusComponent = (*ClusterStatus)(nil)
+
 // NewClusterStatus creates a new cluster status panel
 func NewClusterStatus() *ClusterStatus {
 	// Create container panel

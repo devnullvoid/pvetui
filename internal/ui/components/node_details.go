@@ -17,6 +17,8 @@ type NodeDetails struct {
 	app *App
 }
 
+var _ NodeDetailsComponent = (*NodeDetails)(nil)
+
 // NewNodeDetails creates a new node details panel
 func NewNodeDetails() *NodeDetails {
 	table := tview.NewTable()

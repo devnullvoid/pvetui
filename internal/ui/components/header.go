@@ -17,6 +17,8 @@ type Header struct {
 	app         *tview.Application
 }
 
+var _ HeaderComponent = (*Header)(nil)
+
 // NewHeader creates a new application header
 func NewHeader() *Header {
 	header := tview.NewTextView()

@@ -18,6 +18,8 @@ type Footer struct {
 	spinnerIndex      int
 }
 
+var _ FooterComponent = (*Footer)(nil)
+
 // NewFooter creates a new application footer with key bindings
 func NewFooter() *Footer {
 	footer := tview.NewTextView()

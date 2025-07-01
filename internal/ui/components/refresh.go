@@ -95,35 +95,8 @@ func (a *App) manualRefresh() {
 				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
 			}
 
-			// Restore VM selection by finding the VM with matching ID and node
-			if hasSelectedVM {
-				vmList := a.vmList.GetVMs()
-				for i, vm := range vmList {
-					if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
-						a.vmList.SetCurrentItem(i)
-						// Update search state with correct index
-						if vmSearchState != nil {
-							vmSearchState.SelectedIndex = i
-						}
-						break
-					}
-				}
-			}
-
-			// Restore node selection by finding the node with matching name
-			if hasSelectedNode {
-				nodeList := a.nodeList.GetNodes()
-				for i, node := range nodeList {
-					if node != nil && node.Name == selectedNodeName {
-						a.nodeList.SetCurrentItem(i)
-						// Update search state with correct index
-						if nodeSearchState != nil {
-							nodeSearchState.SelectedIndex = i
-						}
-						break
-					}
-				}
-			}
+			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
+				hasSelectedNode, selectedNodeName, nodeSearchState)
 
 			// Update details if items are selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {

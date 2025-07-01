@@ -19,6 +19,9 @@ type NodeList struct {
 	app       *App
 }
 
+// Ensure NodeList implements NodeListComponent
+var _ NodeListComponent = (*NodeList)(nil)
+
 // NewNodeList creates a new node list component
 func NewNodeList() *NodeList {
 	list := tview.NewList()

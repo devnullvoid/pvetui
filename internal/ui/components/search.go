@@ -78,7 +78,7 @@ func (a *App) activateSearch() {
 				}
 				state.SelectedIndex = idx
 			}
-			a.nodeList.List.SetCurrentItem(idx)
+			a.nodeList.SetCurrentItem(idx)
 			a.nodeDetails.Update(models.GlobalState.FilteredNodes[idx], a.client.Cluster.Nodes)
 		} else {
 			a.nodeDetails.Clear()
@@ -103,7 +103,7 @@ func (a *App) activateSearch() {
 				}
 				state.SelectedIndex = idx
 			}
-			a.vmList.List.SetCurrentItem(idx)
+			a.vmList.SetCurrentItem(idx)
 			a.vmDetails.Update(models.GlobalState.FilteredVMs[idx])
 		} else {
 			a.vmDetails.Clear()
