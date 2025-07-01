@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Added unit tests for the file-based cache implementation
 - Refactored UI app into smaller files and introduced thin main
+- Fixed interface implementations for UI components to compile with new wrappers
 
 ## [0.7.0] - 2025-06-30
 

@@ -36,6 +36,11 @@ func NewVMDetails() *VMDetails {
 	}
 }
 
+// Clear wraps the table Clear method to satisfy the interface
+func (vd *VMDetails) Clear() {
+	vd.Table.Clear()
+}
+
 // SetApp sets the parent app reference for focus management
 func (vd *VMDetails) SetApp(app *App) {
 	vd.app = app

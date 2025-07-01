@@ -35,6 +35,11 @@ func NewVMList() *VMList {
 	}
 }
 
+// SetCurrentItem wraps the list method to match the interface
+func (vl *VMList) SetCurrentItem(index int) {
+	vl.List.SetCurrentItem(index)
+}
+
 // SetApp sets the parent app reference for focus management
 func (vl *VMList) SetApp(app *App) {
 	vl.app = app

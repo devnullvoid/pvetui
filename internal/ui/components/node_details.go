@@ -32,6 +32,11 @@ func NewNodeDetails() *NodeDetails {
 	}
 }
 
+// Clear wraps the underlying table's Clear method to satisfy the interface
+func (nd *NodeDetails) Clear() {
+	nd.Table.Clear()
+}
+
 // SetApp sets the parent app reference for focus management
 func (nd *NodeDetails) SetApp(app *App) {
 	nd.app = app
