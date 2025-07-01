@@ -98,14 +98,18 @@ func openBrowser(url string) error {
 
 	switch runtime.GOOS {
 	case "windows":
-		cmd = "cmd"
-		args = []string{"/c", "start"}
+		// Use rundll32 with shell32.dll,ShellExec_RunDLL to avoid cmd length limitations
+		// This method is more reliable for long URLs with query parameters
+		cmd = "rundll32"
+		args = []string{"url.dll,FileProtocolHandler", url}
 	case "darwin":
 		cmd = "open"
+		args = []string{url}
 	default: // "linux", "freebsd", "openbsd", "netbsd"
 		cmd = "xdg-open"
+		args = []string{url}
 	}
-	args = append(args, url)
+
 	return exec.Command(cmd, args...).Start()
 }
 

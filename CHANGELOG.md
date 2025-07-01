@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **noVNC Files Embedding**: Fixed noVNC files to be properly embedded in compiled binary using Go's `//go:embed` directive instead of runtime filesystem access
+- **Windows URL Truncation**: Fixed VNC URLs being truncated in Windows browser address bar by replacing `cmd /c start` with `rundll32 url.dll,FileProtocolHandler` to avoid command line length limitations
+
 ## [0.7.0] - 2025-06-30
 
 ### Added

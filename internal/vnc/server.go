@@ -3,17 +3,21 @@ package vnc
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
+
+//go:embed novnc
+var novncFiles embed.FS
 
 // Server represents an embedded HTTP server for serving noVNC client
 type Server struct {
@@ -154,10 +158,14 @@ func (s *Server) startHTTPServer() error {
 	// Create HTTP server
 	mux := http.NewServeMux()
 
-	// Serve all noVNC client files from submodule directory
-	s.logger.Debug("Setting up noVNC file server")
-	novncPath := filepath.Join("internal", "vnc", "novnc")
-	mux.Handle("/", http.FileServer(http.Dir(novncPath)))
+	// Serve all noVNC client files from embedded filesystem
+	s.logger.Debug("Setting up embedded noVNC file server")
+	novncFS, err := fs.Sub(novncFiles, "novnc")
+	if err != nil {
+		s.logger.Error("Failed to create noVNC filesystem: %v", err)
+		return fmt.Errorf("failed to create noVNC filesystem: %w", err)
+	}
+	mux.Handle("/", http.FileServer(http.FS(novncFS)))
 
 	// WebSocket proxy endpoint
 	s.logger.Debug("Setting up WebSocket proxy endpoint")
