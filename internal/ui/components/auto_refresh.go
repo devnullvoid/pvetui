@@ -1,7 +1,7 @@
 package components
 
 import (
-	"context"
+	"fmt"
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
@@ -59,7 +59,7 @@ func (a *App) startAutoRefresh() {
 				if !a.autoRefreshEnabled {
 					return
 				}
-				if a.footer.isLoading {
+				if a.footer.IsLoading() {
 					continue // Pause countdown while loading
 				}
 				a.autoRefreshCountdown--
@@ -70,7 +70,7 @@ func (a *App) startAutoRefresh() {
 				// Trigger refresh when countdown reaches 0
 				if a.autoRefreshCountdown == 0 {
 					// Only refresh if not currently loading something
-					if !a.header.isLoading {
+					if !a.header.IsLoading() {
 						uiLogger.Debug("Auto-refresh triggered by countdown")
 						go a.autoRefreshDataWithFooter()
 					} else {
@@ -98,10 +98,9 @@ func (a *App) startAutoRefresh() {
 				if !a.autoRefreshEnabled {
 					return
 				}
-				if a.footer.isLoading {
+				if a.footer.IsLoading() {
 					a.QueueUpdateDraw(func() {
-						a.footer.spinnerIndex++
-						a.footer.updateDisplay()
+						a.footer.TickSpinner()
 					})
 				}
 			}

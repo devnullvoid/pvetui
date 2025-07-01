@@ -62,6 +62,7 @@ type HeaderComponent interface {
 	SetApp(*tview.Application)
 	ShowLoading(string)
 	StopLoading()
+	IsLoading() bool
 	ShowSuccess(string)
 	ShowError(string)
 	SetTitle(string)
@@ -74,4 +75,6 @@ type FooterComponent interface {
 	UpdateAutoRefreshStatus(bool)
 	UpdateAutoRefreshCountdown(int)
 	SetLoading(bool)
+	IsLoading() bool
+	TickSpinner()
 }

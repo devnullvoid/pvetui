@@ -2,7 +2,6 @@ package components
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/rivo/tview"

@@ -1,7 +1,6 @@
 package components
 
 import (
-	"context"
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"

@@ -73,6 +73,17 @@ func (f *Footer) SetLoading(loading bool) {
 	f.updateDisplay()
 }
 
+// IsLoading returns true if the footer is currently showing a loading spinner.
+func (f *Footer) IsLoading() bool {
+	return f.isLoading
+}
+
+// TickSpinner advances the loading spinner animation once.
+func (f *Footer) TickSpinner() {
+	f.spinnerIndex++
+	f.updateDisplay()
+}
+
 // updateDisplay refreshes the footer text with current information
 func (f *Footer) updateDisplay() {
 	// Get the terminal width to calculate spacing

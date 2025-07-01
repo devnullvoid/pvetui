@@ -69,6 +69,11 @@ func (h *Header) StopLoading() {
 	}
 }
 
+// IsLoading reports whether the header is currently showing a loading state.
+func (h *Header) IsLoading() bool {
+	return h.isLoading
+}
+
 // ShowSuccess displays a success message temporarily
 func (h *Header) ShowSuccess(message string) {
 	h.StopLoading()
