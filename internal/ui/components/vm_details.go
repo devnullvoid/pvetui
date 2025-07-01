@@ -426,8 +426,8 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	}
 
 	// Show storage devices configuration
+	vd.SetCell(row, 0, tview.NewTableCell("💽 Storage Devices").SetTextColor(tcell.ColorYellow))
 	if len(vm.StorageDevices) > 0 {
-		vd.SetCell(row, 0, tview.NewTableCell("💽 Storage Devices").SetTextColor(tcell.ColorYellow))
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d device(s)", len(vm.StorageDevices))).SetTextColor(tcell.ColorWhite))
 		row++
 

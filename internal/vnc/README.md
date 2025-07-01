@@ -4,13 +4,14 @@ This directory contains the VNC integration for Proxmox TUI, including an embedd
 
 ## noVNC Submodule
 
-The noVNC client is included as a git submodule from the official [noVNC repository](https://github.com/novnc/noVNC).
+The noVNC client is included as a git submodule from the official [noVNC repository](https://github.com/novnc/noVNC) and is embedded directly into the compiled binary using Go's `embed` directive.
 
 ### Current Version
 
 - **noVNC Version**: v1.6.0 (latest stable release)
 - **Location**: `internal/vnc/novnc/`
 - **Repository**: https://github.com/novnc/noVNC.git
+- **Embedding**: Files are embedded at compile time using `//go:embed novnc`
 
 ### Working with the Submodule
 
@@ -64,16 +65,27 @@ git describe --tags
 
 ### Integration Details
 
-The noVNC client is served directly from the filesystem (not embedded) to allow for easy updates via the submodule. The VNC server (`internal/vnc/server.go`) serves files from the `internal/vnc/novnc` directory.
+The noVNC client files are embedded directly into the compiled binary using Go's `embed` directive (`//go:embed novnc`). This means:
 
-### Benefits of Using Submodules
+- **Self-Contained**: The binary includes all noVNC files and can run without external dependencies
+- **No Runtime Filesystem Access**: Files are served from memory, not from disk
+- **Deployment Simplicity**: Only the binary needs to be distributed
+
+The VNC server (`internal/vnc/server.go`) serves the embedded files using Go's `http.FS` with the embedded filesystem.
+
+### Benefits of Using Embedded Submodules
 
 1. **Easy Updates**: Update to new noVNC versions with simple git commands
 2. **Version Control**: Track exactly which version of noVNC is being used
 3. **Upstream Tracking**: Stay connected to the official noVNC repository
-4. **No Manual Copying**: No need to manually download and copy files
+4. **Self-Contained Binary**: All files embedded at compile time
 5. **Reproducible Builds**: Anyone cloning the repository gets the exact same noVNC version
+6. **No Manual File Management**: Files are automatically included in the binary
 
-### Migration from Manual Copy
+### Testing
 
-This setup replaces the previous manual copy approach where noVNC files were manually downloaded and copied into the repository. The submodule approach provides better maintainability and version tracking. 
+Run tests to verify the embedding works correctly:
+
+```bash
+go test -v ./internal/vnc -run TestNoVNC
+``` 
