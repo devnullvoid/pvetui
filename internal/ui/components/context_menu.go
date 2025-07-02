@@ -225,7 +225,7 @@ func (a *App) ShowVMContextMenu() {
 				a.showDeleteRunningVMDialog(vm)
 			} else {
 				a.showConfirmationDialog(
-					fmt.Sprintf("⚠️  DANGER: Are you sure you want to permanently DELETE VM '%s' (ID: %d)?\\n\\nThis action is IRREVERSIBLE and will destroy all VM data including disks!", vm.Name, vm.ID),
+					fmt.Sprintf("⚠️  DANGER: Are you sure you want to permanently DELETE VM '%s' (ID: %d)?\n\nThis action is IRREVERSIBLE and will destroy all VM data including disks!", vm.Name, vm.ID),
 					func() {
 						a.performVMDeleteOperation(vm, false) // false = not forced
 					},
@@ -345,7 +345,7 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 
 // showDeleteRunningVMDialog shows a dialog with options for deleting a running VM
 func (a *App) showDeleteRunningVMDialog(vm *api.VM) {
-	message := fmt.Sprintf("⚠️  VM '%s' (ID: %d) is currently RUNNING\\n\\nProxmox can force delete running VMs.\\n\\nAre you sure you want to FORCE DELETE this running VM?\\n\\nThis will IMMEDIATELY DESTROY the VM and ALL its data!", vm.Name, vm.ID)
+	message := fmt.Sprintf("⚠️  VM '%s' (ID: %d) is currently RUNNING\n\nProxmox can force delete running VMs.\n\nAre you sure you want to FORCE DELETE this running VM?\n\nThis will IMMEDIATELY DESTROY the VM and ALL its data!", vm.Name, vm.ID)
 
 	a.showConfirmationDialog(message, func() {
 		// User chose to force delete the running VM
