@@ -19,6 +19,9 @@ type NodeList struct {
 	app       *App
 }
 
+// Ensure NodeList implements NodeListComponent
+var _ NodeListComponent = (*NodeList)(nil)
+
 // NewNodeList creates a new node list component
 func NewNodeList() *NodeList {
 	list := tview.NewList()
@@ -30,6 +33,11 @@ func NewNodeList() *NodeList {
 		List:  list,
 		nodes: nil,
 	}
+}
+
+// SetCurrentItem wraps the list method to match the interface
+func (nl *NodeList) SetCurrentItem(index int) *tview.List {
+	return nl.List.SetCurrentItem(index)
 }
 
 // SetApp sets the parent app reference for focus management

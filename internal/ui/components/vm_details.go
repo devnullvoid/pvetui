@@ -20,6 +20,8 @@ type VMDetails struct {
 	app *App
 }
 
+var _ VMDetailsComponent = (*VMDetails)(nil)
+
 // NewVMDetails creates a new VM details panel
 func NewVMDetails() *VMDetails {
 	table := tview.NewTable()
@@ -32,6 +34,11 @@ func NewVMDetails() *VMDetails {
 	return &VMDetails{
 		Table: table,
 	}
+}
+
+// Clear wraps the table Clear method to satisfy the interface
+func (vd *VMDetails) Clear() *tview.Table {
+	return vd.Table.Clear()
 }
 
 // SetApp sets the parent app reference for focus management

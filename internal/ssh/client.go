@@ -10,14 +10,27 @@ import (
 
 // SSHClient wraps an SSH connection context
 // TODO: implement methods to connect and execute commands
+// SSHClient wraps SSH connection parameters
 type SSHClient struct {
-	// client field removed as it's unused
+	Host     string
+	User     string
+	Password string
 }
 
 // NewSSHClient establishes an SSH connection to host.
+// NewSSHClient returns a new SSHClient instance. Authentication is handled by
+// the underlying "ssh" command which may use keys or passwords.
 func NewSSHClient(host, user, password string) (*SSHClient, error) {
-	// TODO: implement actual SSH dialing
-	return &SSHClient{}, nil
+	return &SSHClient{Host: host, User: user, Password: password}, nil
+}
+
+// Shell opens an interactive shell on the configured host using the local ssh
+// command. It inherits the current process stdio streams.
+func (c *SSHClient) Shell() error {
+	if c == nil {
+		return fmt.Errorf("ssh client is nil")
+	}
+	return ExecuteNodeShell(c.User, c.Host)
 }
 
 // ExecuteNodeShell opens an interactive SSH session to a node

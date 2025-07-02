@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Added unit tests for the file-based cache implementation
+- Refactored UI app into smaller files and introduced thin main
+- Fixed interface implementations for UI components to compile with new wrappers
+- Updated UI component interfaces to mirror underlying tview return types, fixing build errors
 
 ## [0.7.1] - 2025-07-01
 

@@ -18,6 +18,8 @@ type Footer struct {
 	spinnerIndex      int
 }
 
+var _ FooterComponent = (*Footer)(nil)
+
 // NewFooter creates a new application footer with key bindings
 func NewFooter() *Footer {
 	footer := tview.NewTextView()
@@ -68,6 +70,17 @@ func (f *Footer) SetLoading(loading bool) {
 	if !loading {
 		f.spinnerIndex = 0
 	}
+	f.updateDisplay()
+}
+
+// IsLoading returns true if the footer is currently showing a loading spinner.
+func (f *Footer) IsLoading() bool {
+	return f.isLoading
+}
+
+// TickSpinner advances the loading spinner animation once.
+func (f *Footer) TickSpinner() {
+	f.spinnerIndex++
 	f.updateDisplay()
 }
 

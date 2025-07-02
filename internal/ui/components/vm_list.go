@@ -20,6 +20,8 @@ type VMList struct {
 	app       *App
 }
 
+var _ VMListComponent = (*VMList)(nil)
+
 // NewVMList creates a new VM list component
 func NewVMList() *VMList {
 	list := tview.NewList()
@@ -31,6 +33,11 @@ func NewVMList() *VMList {
 		List: list,
 		vms:  nil,
 	}
+}
+
+// SetCurrentItem wraps the list method to match the interface
+func (vl *VMList) SetCurrentItem(index int) *tview.List {
+	return vl.List.SetCurrentItem(index)
 }
 
 // SetApp sets the parent app reference for focus management

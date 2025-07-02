@@ -17,6 +17,8 @@ type Header struct {
 	app         *tview.Application
 }
 
+var _ HeaderComponent = (*Header)(nil)
+
 // NewHeader creates a new application header
 func NewHeader() *Header {
 	header := tview.NewTextView()
@@ -65,6 +67,11 @@ func (h *Header) StopLoading() {
 		default:
 		}
 	}
+}
+
+// IsLoading reports whether the header is currently showing a loading state.
+func (h *Header) IsLoading() bool {
+	return h.isLoading
 }
 
 // ShowSuccess displays a success message temporarily
