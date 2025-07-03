@@ -151,7 +151,8 @@ debug: false
 #### Custom Key Bindings
 
 Add a `key_bindings` section to redefine most shortcuts. Keys may include
-modifiers like `Ctrl`, `Alt`, `Shift`, or `Win` (e.g. `Ctrl+S`):
+modifiers like `Ctrl`, `Alt`, `Shift`, or `Win` (e.g. `Ctrl+S`).
+Combinations such as `Ctrl+Q` or `Shift+W` are supported:
 
 ```yaml
 key_bindings:

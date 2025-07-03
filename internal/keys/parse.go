@@ -131,3 +131,127 @@ func IsReserved(key tcell.Key, r rune, mod tcell.ModMask) bool {
 	}
 	return false
 }
+
+// CtrlKeyForRune maps a letter rune to its corresponding tcell KeyCtrlX value.
+// For runes outside a-z, tcell.KeyRune is returned.
+func CtrlKeyForRune(r rune) tcell.Key {
+	switch unicode.ToLower(r) {
+	case 'a':
+		return tcell.KeyCtrlA
+	case 'b':
+		return tcell.KeyCtrlB
+	case 'c':
+		return tcell.KeyCtrlC
+	case 'd':
+		return tcell.KeyCtrlD
+	case 'e':
+		return tcell.KeyCtrlE
+	case 'f':
+		return tcell.KeyCtrlF
+	case 'g':
+		return tcell.KeyCtrlG
+	case 'h':
+		return tcell.KeyCtrlH
+	case 'i':
+		return tcell.KeyCtrlI
+	case 'j':
+		return tcell.KeyCtrlJ
+	case 'k':
+		return tcell.KeyCtrlK
+	case 'l':
+		return tcell.KeyCtrlL
+	case 'm':
+		return tcell.KeyCtrlM
+	case 'n':
+		return tcell.KeyCtrlN
+	case 'o':
+		return tcell.KeyCtrlO
+	case 'p':
+		return tcell.KeyCtrlP
+	case 'q':
+		return tcell.KeyCtrlQ
+	case 'r':
+		return tcell.KeyCtrlR
+	case 's':
+		return tcell.KeyCtrlS
+	case 't':
+		return tcell.KeyCtrlT
+	case 'u':
+		return tcell.KeyCtrlU
+	case 'v':
+		return tcell.KeyCtrlV
+	case 'w':
+		return tcell.KeyCtrlW
+	case 'x':
+		return tcell.KeyCtrlX
+	case 'y':
+		return tcell.KeyCtrlY
+	case 'z':
+		return tcell.KeyCtrlZ
+	}
+	return tcell.KeyRune
+}
+
+// NormalizeEvent converts an EventKey into a canonical (key,rune,mod) triple.
+// Ctrl+A style events are normalized to KeyRune with the corresponding rune.
+func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
+	key := ev.Key()
+	r := ev.Rune()
+	mod := ev.Modifiers()
+
+	switch key {
+	case tcell.KeyCtrlA:
+		key, r = tcell.KeyRune, 'a'
+	case tcell.KeyCtrlB:
+		key, r = tcell.KeyRune, 'b'
+	case tcell.KeyCtrlC:
+		key, r = tcell.KeyRune, 'c'
+	case tcell.KeyCtrlD:
+		key, r = tcell.KeyRune, 'd'
+	case tcell.KeyCtrlE:
+		key, r = tcell.KeyRune, 'e'
+	case tcell.KeyCtrlF:
+		key, r = tcell.KeyRune, 'f'
+	case tcell.KeyCtrlG:
+		key, r = tcell.KeyRune, 'g'
+	case tcell.KeyCtrlH:
+		key, r = tcell.KeyRune, 'h'
+	case tcell.KeyCtrlI:
+		key, r = tcell.KeyRune, 'i'
+	case tcell.KeyCtrlJ:
+		key, r = tcell.KeyRune, 'j'
+	case tcell.KeyCtrlK:
+		key, r = tcell.KeyRune, 'k'
+	case tcell.KeyCtrlL:
+		key, r = tcell.KeyRune, 'l'
+	case tcell.KeyCtrlM:
+		key, r = tcell.KeyRune, 'm'
+	case tcell.KeyCtrlN:
+		key, r = tcell.KeyRune, 'n'
+	case tcell.KeyCtrlO:
+		key, r = tcell.KeyRune, 'o'
+	case tcell.KeyCtrlP:
+		key, r = tcell.KeyRune, 'p'
+	case tcell.KeyCtrlQ:
+		key, r = tcell.KeyRune, 'q'
+	case tcell.KeyCtrlR:
+		key, r = tcell.KeyRune, 'r'
+	case tcell.KeyCtrlS:
+		key, r = tcell.KeyRune, 's'
+	case tcell.KeyCtrlT:
+		key, r = tcell.KeyRune, 't'
+	case tcell.KeyCtrlU:
+		key, r = tcell.KeyRune, 'u'
+	case tcell.KeyCtrlV:
+		key, r = tcell.KeyRune, 'v'
+	case tcell.KeyCtrlW:
+		key, r = tcell.KeyRune, 'w'
+	case tcell.KeyCtrlX:
+		key, r = tcell.KeyRune, 'x'
+	case tcell.KeyCtrlY:
+		key, r = tcell.KeyRune, 'y'
+	case tcell.KeyCtrlZ:
+		key, r = tcell.KeyRune, 'z'
+	}
+	return key, r, mod
+}
