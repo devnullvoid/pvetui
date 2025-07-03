@@ -16,13 +16,14 @@ func keyMatch(ev *tcell.EventKey, spec string) bool {
 	if err != nil {
 		return false
 	}
-	if ev.Modifiers() != mod {
+	evKey, evRune, evMod := keys.NormalizeEvent(ev)
+	if evMod != mod {
 		return false
 	}
 	if key == tcell.KeyRune {
-		return ev.Key() == tcell.KeyRune && r != 0 && strings.ToLower(string(ev.Rune())) == strings.ToLower(string(r))
+		return evKey == tcell.KeyRune && r != 0 && strings.EqualFold(string(evRune), string(r))
 	}
-	return ev.Key() == key
+	return evKey == key
 }
 
 // setupKeyboardHandlers configures global keyboard shortcuts

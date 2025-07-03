@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Key bindings now support modifiers (e.g. `Ctrl+A`) and are validated on load
 - Validation now prevents duplicate or reserved key bindings
 - Validation also blocks system reserved combinations such as `Ctrl+C`
+- Fixed detection of `Ctrl` letter shortcuts so combinations like `Ctrl+Q` work
 
 ## [0.7.1] - 2025-07-01
 
