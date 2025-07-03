@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Fixed
+- **Shell Connection Issues**: Fixed VM shell connections that were failing due to broken QEMU guest agent approach
+  - **Removed QEMU Guest Agent Shell**: Eliminated `qm guest exec` approach which cannot create interactive shells (only executes single commands)
+  - **Simplified QEMU VM Connections**: Now uses direct SSH to VM IP address only, removing unreliable guest agent dependency
+  - **Enhanced LXC Container Support**: Updated to use `pct enter` instead of `pct exec` for better compatibility with containers that don't have bash installed
+  - **Improved Error Messages**: Added clear, actionable feedback when VM connections fail (suggests VNC, network configuration checks)
+  - **GitHub Workflow Fixes**: Added `submodules: recursive` to all GitHub Actions checkout steps to properly handle noVNC submodule during builds
+  - **Windows ARM64 Support**: Added Windows ARM64 build target to both Makefile and GitHub release workflow
+
+### Added
 - Added unit tests for the file-based cache implementation
 - Refactored UI app into smaller files and introduced thin main
 - Fixed interface implementations for UI components to compile with new wrappers
