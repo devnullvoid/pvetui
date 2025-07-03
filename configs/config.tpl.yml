@@ -9,6 +9,7 @@ insecure: true
 ssh_user: root
 debug: false
 # cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+# Set debug to true to log all key events. This helps diagnose custom key bindings.
 
 key_bindings:
   switch_view: Tab
