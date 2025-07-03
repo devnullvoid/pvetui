@@ -9,6 +9,20 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+// shiftedDigits maps shifted number runes to their unshifted counterparts.
+var shiftedDigits = map[rune]rune{
+	'!': '1',
+	'@': '2',
+	'#': '3',
+	'$': '4',
+	'%': '5',
+	'^': '6',
+	'&': '7',
+	'*': '8',
+	'(': '9',
+	')': '0',
+}
+
 // Parse converts a key specification like "Ctrl+A" or "F5" to tcell values.
 // It returns the key, optional rune, and modifier mask.
 func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
@@ -321,6 +335,14 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 		if mod&tcell.ModCtrl != 0 {
 			key, r = tcell.KeyRune, 'z'
 		}
+	}
+	if key == tcell.KeyRune {
+		if u, ok := shiftedDigits[r]; ok {
+			r = u
+		} else {
+			r = unicode.ToLower(r)
+		}
+		mod &^= tcell.ModShift
 	}
 	return key, r, mod
 }
