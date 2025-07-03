@@ -4,8 +4,25 @@ user: root
 # password: "1234567890"
 token_id: "tui"
 token_secret: "1234567890"
-realm: "pam"
+realm: pam
 insecure: true
 ssh_user: root
 debug: false
 # cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+
+key_bindings:
+  switch_view: Ctrl+Tab
+  nodes_page: F1
+  guests_page: F2
+  tasks_page: F3
+  menu: M
+  shell: S
+  vnc: V
+  scripts: C
+  refresh: F5
+  auto_refresh: A
+  search: "/"
+  help: "?"
+  quit: Q
+# Reserved keys (h, j, k, l, arrows, Tab, Enter, Esc, Backspace, q) cannot be reassigned.
+# System combos like Ctrl+C, Ctrl+D and Ctrl+Z are also blocked.

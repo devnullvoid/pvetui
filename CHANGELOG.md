@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed trailing newline in lint configuration
 - Restored additional linters in `.golangci.yml` while keeping `make lint` passing
 - Fixed lint configuration error by specifying `colored-line-number` output format
+- Added support for customizing key bindings via `key_bindings` config section
+- Key bindings now support modifiers (e.g. `Ctrl+A`) and are validated on load
+- Validation now prevents duplicate or reserved key bindings
+- Validation also blocks system reserved combinations such as `Ctrl+C`
 
 ## [0.7.1] - 2025-07-01
 

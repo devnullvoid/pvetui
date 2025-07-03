@@ -78,13 +78,14 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 	// Initialize components
 	app.header = NewHeader()
 	app.footer = NewFooter()
+	app.footer.UpdateKeybindings(FormatFooterText(cfg.KeyBindings))
 	app.nodeList = NewNodeList()
 	app.vmList = NewVMList()
 	app.nodeDetails = NewNodeDetails()
 	app.vmDetails = NewVMDetails()
 	app.tasksList = NewTasksList()
 	app.clusterStatus = NewClusterStatus()
-	app.helpModal = NewHelpModal()
+	app.helpModal = NewHelpModal(cfg.KeyBindings)
 
 	// Set app reference for components that need it
 	app.header.SetApp(app.Application)

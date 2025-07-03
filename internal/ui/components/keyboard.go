@@ -6,8 +6,24 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"github.com/devnullvoid/proxmox-tui/internal/keys"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
+
+// keyMatch checks if an event matches a key specification string.
+func keyMatch(ev *tcell.EventKey, spec string) bool {
+	key, r, mod, err := keys.Parse(spec)
+	if err != nil {
+		return false
+	}
+	if ev.Modifiers() != mod {
+		return false
+	}
+	if key == tcell.KeyRune {
+		return ev.Key() == tcell.KeyRune && r != 0 && strings.ToLower(string(ev.Rune())) == strings.ToLower(string(r))
+	}
+	return ev.Key() == key
+}
 
 // setupKeyboardHandlers configures global keyboard shortcuts
 func (a *App) setupKeyboardHandlers() {
@@ -41,9 +57,8 @@ func (a *App) setupKeyboardHandlers() {
 			return event
 		}
 
-		// Handle tab for page switching when search is not active
-		switch event.Key() {
-		case tcell.KeyTab:
+		// Handle configured switch view shortcut
+		if keyMatch(event, a.config.KeyBindings.SwitchView) {
 			currentPage, _ := a.pages.GetFrontPage()
 			switch currentPage {
 			case api.PageNodes:
@@ -57,24 +72,29 @@ func (a *App) setupKeyboardHandlers() {
 				a.SetFocus(a.nodeList)
 			}
 			return nil
-		case tcell.KeyF1:
+		}
+
+		if keyMatch(event, a.config.KeyBindings.NodesPage) {
 			a.pages.SwitchToPage(api.PageNodes)
 			a.SetFocus(a.nodeList)
 			return nil
-		case tcell.KeyF2:
+		}
+		if keyMatch(event, a.config.KeyBindings.GuestsPage) {
 			a.pages.SwitchToPage(api.PageGuests)
 			a.SetFocus(a.vmList)
 			return nil
-		case tcell.KeyF3:
+		}
+		if keyMatch(event, a.config.KeyBindings.TasksPage) {
 			a.pages.SwitchToPage(api.PageTasks)
 			a.SetFocus(a.tasksList)
 			return nil
-		case tcell.KeyF5:
-			// Manual refresh
+		}
+		if keyMatch(event, a.config.KeyBindings.Refresh) {
 			a.manualRefresh()
 			return nil
-		case tcell.KeyRune:
-			if event.Rune() == 'q' {
+		}
+		if event.Key() == tcell.KeyRune {
+			if keyMatch(event, a.config.KeyBindings.Quit) {
 				// Check if there are active VNC sessions
 				sessionCount := a.vncService.GetActiveSessionCount()
 				if sessionCount > 0 {
@@ -94,11 +114,11 @@ func (a *App) setupKeyboardHandlers() {
 					a.Stop()
 				}
 				return nil
-			} else if event.Rune() == '/' {
+			} else if keyMatch(event, a.config.KeyBindings.Search) {
 				// Activate search
 				a.activateSearch()
 				return nil
-			} else if event.Rune() == 's' || event.Rune() == 'S' {
+			} else if keyMatch(event, a.config.KeyBindings.Shell) {
 				// Open shell session based on current page
 				currentPage, _ := a.pages.GetFrontPage()
 				if currentPage == api.PageNodes {
@@ -109,7 +129,7 @@ func (a *App) setupKeyboardHandlers() {
 					a.openVMShell()
 				}
 				return nil
-			} else if event.Rune() == 'm' {
+			} else if keyMatch(event, a.config.KeyBindings.Menu) {
 				// Open context menu based on current page
 				currentPage, _ := a.pages.GetFrontPage()
 				if currentPage == api.PageNodes {
@@ -118,7 +138,7 @@ func (a *App) setupKeyboardHandlers() {
 					a.ShowVMContextMenu()
 				}
 				return nil
-			} else if event.Rune() == 'c' || event.Rune() == 'C' {
+			} else if keyMatch(event, a.config.KeyBindings.Scripts) {
 				// Open community scripts installer - only available for nodes
 				currentPage, _ := a.pages.GetFrontPage()
 				if currentPage == api.PageNodes {
@@ -131,15 +151,11 @@ func (a *App) setupKeyboardHandlers() {
 					a.showMessage("Community scripts can only be installed on nodes. Switch to the Nodes tab to install scripts.")
 				}
 				return nil
-			} else if event.Rune() == 'r' || event.Rune() == 'R' {
-				// Manual refresh
-				a.manualRefresh()
-				return nil
-			} else if event.Rune() == 'a' || event.Rune() == 'A' {
+			} else if keyMatch(event, a.config.KeyBindings.AutoRefresh) {
 				// Toggle auto-refresh
 				a.toggleAutoRefresh()
 				return nil
-			} else if event.Rune() == 'v' || event.Rune() == 'V' {
+			} else if keyMatch(event, a.config.KeyBindings.VNC) {
 				// Open VNC connection based on current page
 				currentPage, _ := a.pages.GetFrontPage()
 				if currentPage == api.PageNodes {
@@ -150,7 +166,7 @@ func (a *App) setupKeyboardHandlers() {
 					a.openVMVNC()
 				}
 				return nil
-			} else if event.Rune() == '?' {
+			} else if keyMatch(event, a.config.KeyBindings.Help) {
 				// Toggle help modal
 				if a.pages.HasPage("help") {
 					a.helpModal.Hide()
