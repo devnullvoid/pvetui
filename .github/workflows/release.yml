@@ -59,6 +59,7 @@ jobs:
             "darwin/amd64" 
             "darwin/arm64"
             "windows/amd64"
+            "windows/arm64"
           )
           
           for platform in "${platforms[@]}"; do
@@ -161,7 +162,8 @@ jobs:
             - **Linux ARM64**: `proxmox-tui-linux-arm64.tar.gz`
             - **macOS Intel**: `proxmox-tui-darwin-amd64.tar.gz`
             - **macOS Apple Silicon**: `proxmox-tui-darwin-arm64.tar.gz`
-            - **Windows**: `proxmox-tui-windows-amd64.zip`
+            - **Windows AMD64**: `proxmox-tui-windows-amd64.zip`
+            - **Windows ARM64**: `proxmox-tui-windows-arm64.zip`
             
             ## 🔐 Verification
             
