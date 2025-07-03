@@ -171,6 +171,7 @@ key_bindings:
   quit: Q
 ```
 If a binding is omitted, the default for that action is used. Each shortcut must be unique, and the following keys are reserved for navigation and cannot be reassigned: `h`, `j`, `k`, `l`, arrow keys, `Tab`, `Enter`, `Esc`, `Backspace`, and `q`.  Additionally, system shortcuts such as `Ctrl+C` (interrupt), `Ctrl+D` (EOF), and `Ctrl+Z` (suspend) are not allowed.
+The `Win`/`Cmd`/`Super` modifier is parsed as `Meta` but many terminals do not report it, so such bindings may not work everywhere.
 
 ## 🔐 Authentication
 

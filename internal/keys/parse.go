@@ -213,57 +213,114 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 
 	switch key {
 	case tcell.KeyCtrlA:
-		key, r = tcell.KeyRune, 'a'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'a'
+		}
 	case tcell.KeyCtrlB:
-		key, r = tcell.KeyRune, 'b'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'b'
+		}
 	case tcell.KeyCtrlC:
-		key, r = tcell.KeyRune, 'c'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'c'
+		}
 	case tcell.KeyCtrlD:
-		key, r = tcell.KeyRune, 'd'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'd'
+		}
 	case tcell.KeyCtrlE:
-		key, r = tcell.KeyRune, 'e'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'e'
+		}
 	case tcell.KeyCtrlF:
-		key, r = tcell.KeyRune, 'f'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'f'
+		}
 	case tcell.KeyCtrlG:
-		key, r = tcell.KeyRune, 'g'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'g'
+		}
 	case tcell.KeyCtrlH:
-		key, r = tcell.KeyRune, 'h'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'h'
+		}
 	case tcell.KeyCtrlI:
-		key, r = tcell.KeyRune, 'i'
-	case tcell.KeyCtrlJ:
-		key, r = tcell.KeyRune, 'j'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'i'
+		} else {
+			key = tcell.KeyTab
+		}
+	case tcell.KeyCtrlJ, tcell.KeyCtrlM:
+		if mod&tcell.ModCtrl != 0 {
+			key = tcell.KeyRune
+			if ev.Key() == tcell.KeyCtrlM {
+				r = 'm'
+			} else {
+				r = 'j'
+			}
+		} else {
+			key = tcell.KeyEnter
+		}
 	case tcell.KeyCtrlK:
-		key, r = tcell.KeyRune, 'k'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'k'
+		}
 	case tcell.KeyCtrlL:
-		key, r = tcell.KeyRune, 'l'
-	case tcell.KeyCtrlM:
-		key, r = tcell.KeyRune, 'm'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'l'
+		}
 	case tcell.KeyCtrlN:
-		key, r = tcell.KeyRune, 'n'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'n'
+		}
 	case tcell.KeyCtrlO:
-		key, r = tcell.KeyRune, 'o'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'o'
+		}
 	case tcell.KeyCtrlP:
-		key, r = tcell.KeyRune, 'p'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'p'
+		}
 	case tcell.KeyCtrlQ:
-		key, r = tcell.KeyRune, 'q'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'q'
+		}
 	case tcell.KeyCtrlR:
-		key, r = tcell.KeyRune, 'r'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'r'
+		}
 	case tcell.KeyCtrlS:
-		key, r = tcell.KeyRune, 's'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 's'
+		}
 	case tcell.KeyCtrlT:
-		key, r = tcell.KeyRune, 't'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 't'
+		}
 	case tcell.KeyCtrlU:
-		key, r = tcell.KeyRune, 'u'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'u'
+		}
 	case tcell.KeyCtrlV:
-		key, r = tcell.KeyRune, 'v'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'v'
+		}
 	case tcell.KeyCtrlW:
-		key, r = tcell.KeyRune, 'w'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'w'
+		}
 	case tcell.KeyCtrlX:
-		key, r = tcell.KeyRune, 'x'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'x'
+		}
 	case tcell.KeyCtrlY:
-		key, r = tcell.KeyRune, 'y'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'y'
+		}
 	case tcell.KeyCtrlZ:
-		key, r = tcell.KeyRune, 'z'
+		if mod&tcell.ModCtrl != 0 {
+			key, r = tcell.KeyRune, 'z'
+		}
 	}
 	return key, r, mod
 }
