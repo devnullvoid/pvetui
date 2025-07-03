@@ -21,6 +21,7 @@ func TestParse(t *testing.T) {
 		{"Alt+1", tcell.KeyRune, '1', tcell.ModAlt},
 		{"Win+A", tcell.KeyRune, 'a', tcell.ModMeta},
 		{"Shift+F1", tcell.KeyF1, 0, tcell.ModShift},
+		{"Shift+3", tcell.KeyRune, '3', 0},
 	}
 
 	for _, tc := range cases {
@@ -50,4 +51,12 @@ func TestNormalizeEvent_Tab(t *testing.T) {
 	assert.Equal(t, tcell.KeyRune, key)
 	assert.Equal(t, 'i', r)
 	assert.Equal(t, tcell.ModCtrl, mod)
+}
+
+func TestNormalizeEvent_ShiftDigit(t *testing.T) {
+	ev := tcell.NewEventKey(tcell.KeyRune, '#', tcell.ModShift)
+	key, r, mod := NormalizeEvent(ev)
+	assert.Equal(t, tcell.KeyRune, key)
+	assert.Equal(t, '3', r)
+	assert.Zero(t, mod)
 }
