@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved key binding parser to support Shift combinations and synonyms for the
   Windows key. The default Tab shortcut works again.
 - Normalized Tab events correctly so the switch view shortcut works
+- Added debug logging of key events to troubleshoot custom bindings
 
 ## [0.7.1] - 2025-07-01
 

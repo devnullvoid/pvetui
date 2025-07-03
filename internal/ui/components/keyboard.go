@@ -6,7 +6,9 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/keys"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -14,21 +16,39 @@ import (
 func keyMatch(ev *tcell.EventKey, spec string) bool {
 	key, r, mod, err := keys.Parse(spec)
 	if err != nil {
+		if config.DebugEnabled {
+			models.GetUILogger().Debug("invalid key spec %s: %v", spec, err)
+		}
 		return false
 	}
 	evKey, evRune, evMod := keys.NormalizeEvent(ev)
 	if evMod != mod {
+		if config.DebugEnabled {
+			models.GetUILogger().Debug("mod mismatch spec=%s want=%d got=%d", spec, mod, evMod)
+		}
 		return false
 	}
 	if key == tcell.KeyRune {
-		return evKey == tcell.KeyRune && r != 0 && strings.EqualFold(string(evRune), string(r))
+		match := evKey == tcell.KeyRune && r != 0 && strings.EqualFold(string(evRune), string(r))
+		if config.DebugEnabled {
+			models.GetUILogger().Debug("keyMatch spec=%s rune=%q event=%q mod=%d match=%t", spec, r, evRune, mod, match)
+		}
+		return match
 	}
-	return evKey == key
+	match := evKey == key
+	if config.DebugEnabled {
+		models.GetUILogger().Debug("keyMatch spec=%s key=%d event=%d mod=%d match=%t", spec, key, evKey, mod, match)
+	}
+	return match
 }
 
 // setupKeyboardHandlers configures global keyboard shortcuts
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if config.DebugEnabled {
+			key, r, mod := keys.NormalizeEvent(event)
+			models.GetUILogger().Debug("input key=%d rune=%q mod=%d", key, r, mod)
+		}
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
 
