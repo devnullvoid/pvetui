@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated GolangCI-Lint configuration to support v2
 - Fixed trailing newline in lint configuration
 - Restored additional linters in `.golangci.yml` while keeping `make lint` passing
+- Fixed lint configuration error by specifying `colored-line-number` output format
 
 ## [0.7.1] - 2025-07-01
 
