@@ -6,10 +6,9 @@ run:
   tests: true
 
 output:
-  formats:
-    text:
-      print-issued-lines: true
-      print-linter-name: true
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
 
 linters-settings:
   govet:
