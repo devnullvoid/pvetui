@@ -11,7 +11,7 @@ debug: false
 # cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
 
 key_bindings:
-  switch_view: Ctrl+Tab
+  switch_view: Tab
   nodes_page: F1
   guests_page: F2
   tasks_page: F3

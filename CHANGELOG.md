@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Validation now prevents duplicate or reserved key bindings
 - Validation also blocks system reserved combinations such as `Ctrl+C`
 - Fixed detection of `Ctrl` letter shortcuts so combinations like `Ctrl+Q` work
+- Improved key binding parser to support Shift combinations and synonyms for the
+  Windows key. The default Tab shortcut works again.
 
 ## [0.7.1] - 2025-07-01
 

@@ -19,6 +19,7 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 	parts := strings.Split(spec, "+")
 	base := strings.TrimSpace(parts[len(parts)-1])
 	var mods tcell.ModMask
+	shiftUsed := false
 	for _, p := range parts[:len(parts)-1] {
 		switch strings.ToLower(strings.TrimSpace(p)) {
 		case "ctrl", "control":
@@ -27,7 +28,8 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 			mods |= tcell.ModAlt
 		case "shift":
 			mods |= tcell.ModShift
-		case "meta", "win", "windows":
+			shiftUsed = true
+		case "meta", "win", "windows", "cmd", "super":
 			mods |= tcell.ModMeta
 		case "":
 			// ignore empty segment like "Ctrl+"
@@ -86,7 +88,14 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 	}
 
 	if len([]rune(base)) == 1 {
-		r := []rune(strings.ToLower(base))[0]
+		r := []rune(base)[0]
+		r = unicode.ToLower(r)
+		if shiftUsed {
+			// Shift cannot be reliably detected for letters in
+			// terminals. Normalize by removing the Shift modifier
+			// and matching case-insensitively.
+			mods &^= tcell.ModShift
+		}
 		return tcell.KeyRune, r, mods, nil
 	}
 
@@ -101,6 +110,9 @@ func Validate(spec string) error {
 
 // CanonicalID returns a unique identifier for a parsed key combination.
 func CanonicalID(key tcell.Key, r rune, mod tcell.ModMask) string {
+	if key == tcell.KeyRune {
+		r = unicode.ToLower(r)
+	}
 	return fmt.Sprintf("%d:%d:%d", key, r, mod)
 }
 
