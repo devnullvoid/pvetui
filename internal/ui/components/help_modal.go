@@ -1,9 +1,12 @@
 package components
 
 import (
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"strings"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -15,7 +18,7 @@ type HelpModal struct {
 }
 
 // NewHelpModal creates a new help modal
-func NewHelpModal() *HelpModal {
+func NewHelpModal(keys config.KeyBindings) *HelpModal {
 	// Create a scrollable text view for the help content
 	textView := tview.NewTextView()
 	textView.SetDynamicColors(true)
@@ -26,22 +29,22 @@ func NewHelpModal() *HelpModal {
 	textView.SetTitleColor(tcell.ColorYellow)
 	textView.SetBorderColor(tcell.ColorYellow)
 
-	helpText := `[yellow]Navigation:[-]
+	helpText := fmt.Sprintf(`[yellow]Navigation:[-]
   [white]Arrow Keys / hjkl[-]         Navigate lists and panels
-  [white]Tab[-]                       Switch between Nodes and Guests
-  [white]F1[-]                        Switch to Nodes tab
-  [white]F2[-]                        Switch to Guests tab
-  [white]F3[-]                        Switch to Tasks tab
+  [white]%s[-]                       Switch between Nodes and Guests
+  [white]%s[-]                        Switch to Nodes tab
+  [white]%s[-]                        Switch to Guests tab
+  [white]%s[-]                        Switch to Tasks tab
 
 [yellow]Actions:[-]
-  [white]/[-]                         Search/Filter current list
-  [white]S[-]                         Open SSH shell (node/guest)
-  [white]V[-]                         Open VNC console (node/guest)
-  [white]M[-]                         Open context menu
-  [white]C[-]                         Install community scripts (nodes)
-  [white]R[-]                         Manual refresh
-  [white]A[-]                         Toggle auto-refresh (10s interval)
-  [white]Q[-]                         Quit application (confirms if VNC sessions active)
+  [white]%s[-]                         Search/Filter current list
+  [white]%s[-]                         Open SSH shell (node/guest)
+  [white]%s[-]                         Open VNC console (node/guest)
+  [white]%s[-]                         Open context menu
+  [white]%s[-]                         Install community scripts (nodes)
+  [white]%s[-]                         Manual refresh
+  [white]%s[-]                         Toggle auto-refresh (10s interval)
+  [white]%s[-]                         Quit application (confirms if VNC sessions active)
 
 [yellow]VI-like Navigation:[-]
   [white]h[-]                         Move left / Go back
@@ -68,8 +71,8 @@ func NewHelpModal() *HelpModal {
   [white]Guests:[-]                   Shell, VNC, Start/Stop/Restart/Migrate
 
 [yellow]Tips & Usage:[-]
-  • Use search ([white]/[-]) to quickly find nodes or guests
-  • Context menu ([white]M[-]) provides quick access to actions
+  • Use search ([white]%s[-]) to quickly find nodes or guests
+  • Context menu ([white]%s[-]) provides quick access to actions
   • VNC opens in your browser using embedded noVNC client
   • SSH sessions open in new terminal windows
   • Community scripts are installed interactively via SSH
@@ -82,14 +85,17 @@ func NewHelpModal() *HelpModal {
   • If VNC doesn't open, check your default browser settings
   • SSH requires proper key-based authentication or password
   • Community scripts require internet access on the target node
-  • Use [white]R[-] to manually refresh if data seems stale
+  • Use [white]%s[-] to manually refresh if data seems stale
 
 [yellow]Scrolling in Help:[-]
   [white]Arrow Keys / jk[-]           Scroll up/down through help content
   [white]Page Up/Down[-]              Scroll by page
   [white]Home/End[-]                  Go to top/bottom
 
-[gray]Press [white]?[-][gray] again, [white]Escape[-][gray], or [white]q[-][gray] to exit this help[-]`
+[gray]Press [white]%s[-][gray] again, [white]Escape[-][gray], or [white]%s[-][gray] to exit this help[-]`,
+		keys.SwitchView, keys.NodesPage, keys.GuestsPage, keys.TasksPage,
+		keys.Search, keys.Shell, keys.VNC, keys.Menu, keys.Scripts, keys.Refresh, keys.AutoRefresh, keys.Quit,
+		keys.Search, keys.Menu, keys.Refresh, keys.Help, strings.ToLower(keys.Quit))
 
 	textView.SetText(helpText)
 

@@ -452,6 +452,32 @@ func TestGetDefaultConfigPath(t *testing.T) {
 	assert.True(t, filepath.IsAbs(result))
 }
 
+func TestValidateKeyBindings(t *testing.T) {
+	t.Run("duplicate", func(t *testing.T) {
+		kb := KeyBindings{SwitchView: "F1", NodesPage: "F1"}
+		err := ValidateKeyBindings(kb)
+		assert.Error(t, err)
+	})
+
+	t.Run("reserved", func(t *testing.T) {
+		kb := KeyBindings{Menu: "h"}
+		err := ValidateKeyBindings(kb)
+		assert.Error(t, err)
+	})
+
+	t.Run("system reserved", func(t *testing.T) {
+		kb := KeyBindings{Quit: "Ctrl+C"}
+		err := ValidateKeyBindings(kb)
+		assert.Error(t, err)
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		kb := KeyBindings{SwitchView: "Ctrl+A", NodesPage: "F1"}
+		err := ValidateKeyBindings(kb)
+		assert.NoError(t, err)
+	})
+}
+
 // Helper function to clear all Proxmox environment variables
 func clearProxmoxEnvVars() {
 	envVars := []string{

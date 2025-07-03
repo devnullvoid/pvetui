@@ -148,6 +148,29 @@ debug: false
 # cache_dir: "/custom/cache/path"  # Optional: defaults to ~/.cache/proxmox-tui
 ```
 
+#### Custom Key Bindings
+
+Add a `key_bindings` section to redefine most shortcuts. Keys may include
+modifiers like `Ctrl`, `Alt`, `Shift`, or `Win` (e.g. `Ctrl+S`):
+
+```yaml
+key_bindings:
+  switch_view: Ctrl+Tab
+  nodes_page: F1
+  guests_page: F2
+  tasks_page: F3
+  menu: M
+  shell: S
+  vnc: V
+  scripts: C
+  refresh: F5
+  auto_refresh: A
+  search: "/"
+  help: "?"
+  quit: Q
+```
+If a binding is omitted, the default for that action is used. Each shortcut must be unique, and the following keys are reserved for navigation and cannot be reassigned: `h`, `j`, `k`, `l`, arrow keys, `Tab`, `Enter`, `Esc`, `Backspace`, and `q`.  Additionally, system shortcuts such as `Ctrl+C` (interrupt), `Ctrl+D` (EOF), and `Ctrl+Z` (suspend) are not allowed.
+
 ## 🔐 Authentication
 
 Proxmox TUI supports two authentication methods:
