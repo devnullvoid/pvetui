@@ -37,3 +37,17 @@ func TestCanonicalIDCaseInsensitive(t *testing.T) {
 	id2 := CanonicalID(tcell.KeyRune, 'A', 0)
 	assert.Equal(t, id1, id2)
 }
+
+func TestNormalizeEvent_Tab(t *testing.T) {
+	ev := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	key, r, mod := NormalizeEvent(ev)
+	assert.Equal(t, tcell.KeyTab, key)
+	assert.Zero(t, r)
+	assert.Zero(t, mod)
+
+	ctrl := tcell.NewEventKey(tcell.KeyCtrlI, 0, tcell.ModCtrl)
+	key, r, mod = NormalizeEvent(ctrl)
+	assert.Equal(t, tcell.KeyRune, key)
+	assert.Equal(t, 'i', r)
+	assert.Equal(t, tcell.ModCtrl, mod)
+}
