@@ -156,7 +156,7 @@ Combinations such as `Ctrl+Q` or `Shift+W` are supported:
 
 ```yaml
 key_bindings:
-  switch_view: Ctrl+Tab
+  switch_view: Tab
   nodes_page: F1
   guests_page: F2
   tasks_page: F3
