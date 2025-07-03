@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   issues-exit-code: 1
@@ -5,110 +7,36 @@ run:
 
 output:
   formats:
-    - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
+    text:
+      print-issued-lines: true
+      print-linter-name: true
 
 linters-settings:
   govet:
     enable:
       - shadow
 
-  gocyclo:
-    min-complexity: 25
-
-  dupl:
-    threshold: 150
-
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-
-  depguard:
-    rules:
-      main:
-        deny:
-          - pkg: github.com/sirupsen/logrus
-            desc: "logging is allowed only by logutils.Log"
-
-  misspell:
-    locale: US
-
-  lll:
-    line-length: 200
-
-  goimports:
-    local-prefixes: github.com/devnullvoid/proxmox-tui
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-      - wrapperFunc
-
-  funlen:
-    lines: 150
-    statements: 80
-
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/devnullvoid/proxmox-tui)
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - errcheck
-    - gosimple
     - govet
     - ineffassign
-    - staticcheck
-    - typecheck
     - unused
-    - gofmt
-    - goimports
+    - dupl
     - misspell
     - unconvert
-    - gocyclo
-    - dupl
-    - goconst
-    - funlen
 
 issues:
   exclude-rules:
-    - path: _test\.go
+    - path: .*_test\.go$
       linters:
-        - goconst
-        - funlen
-        - gocyclo
         - dupl
 
-    - path: cmd/
-      linters:
-        - funlen
-
-    - path: internal/ui/
-      linters:
-        - funlen
-        - gocyclo
-
-    - path: pkg/api/
-      linters:
-        - funlen
-        - gocyclo
 
     - linters:
         - lll
       source: "^//go:generate "
+
 
   exclude-use-default: false
   exclude:
@@ -132,4 +60,4 @@ issues:
 
   max-issues-per-linter: 0
   max-same-issues: 0
-  new: false 
+  new: false

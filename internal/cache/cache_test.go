@@ -48,10 +48,10 @@ func TestFileCache_TTL(t *testing.T) {
 		t.Fatalf("failed to create cache: %v", err)
 	}
 
-	if err := c.Set("k", "v", time.Millisecond); err != nil {
+	if err := c.Set("k", "v", time.Second); err != nil {
 		t.Fatalf("set: %v", err)
 	}
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(2 * time.Second)
 
 	var s string
 	found, err := c.Get("k", &s)

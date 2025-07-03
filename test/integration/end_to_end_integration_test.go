@@ -293,7 +293,7 @@ password: "testpass"
 			Password: "testpass",
 			Realm:    "pam",
 			Insecure: true,
-			CacheDir: "/invalid/cache/dir", // Invalid cache directory
+			CacheDir: "/dev/null/badcache", // Invalid cache directory
 		}
 
 		require.NoError(t, cfg.Validate())
@@ -304,7 +304,7 @@ password: "testpass"
 		defer testLogger.Close()
 
 		// Step 3: Try to create cache - should fail
-		_, err = cache.NewBadgerCache("/invalid/cache/dir")
+		_, err = cache.NewBadgerCache("/dev/null/badcache")
 		assert.Error(t, err)
 
 		// Step 4: Fall back to in-memory cache
