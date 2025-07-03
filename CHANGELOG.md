@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored UI app into smaller files and introduced thin main
 - Fixed interface implementations for UI components to compile with new wrappers
 - Updated UI component interfaces to mirror underlying tview return types, fixing build errors
+- Introduced `CommandExecutor` and context-aware shell helpers for `ssh` package
+- Reverted cache TTL precision back to seconds for simpler expiration handling
+- Restored comprehensive GolangCI-Lint configuration
+- Updated GolangCI-Lint configuration to support v2
+- Fixed trailing newline in lint configuration
+- Restored additional linters in `.golangci.yml` while keeping `make lint` passing
+- Fixed lint configuration error by specifying `colored-line-number` output format
 
 ## [0.7.1] - 2025-07-01
 

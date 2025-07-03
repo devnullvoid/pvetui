@@ -221,6 +221,7 @@ release-build: ## Build release binaries for multiple platforms
 	GOOS=darwin GOARCH=amd64 go build -o dist/$(APP_NAME)-darwin-amd64 ./cmd/proxmox-tui
 	GOOS=darwin GOARCH=arm64 go build -o dist/$(APP_NAME)-darwin-arm64 ./cmd/proxmox-tui
 	GOOS=windows GOARCH=amd64 go build -o dist/$(APP_NAME)-windows-amd64.exe ./cmd/proxmox-tui
+	GOOS=windows GOARCH=arm64 go build -o dist/$(APP_NAME)-windows-arm64.exe ./cmd/proxmox-tui
 
 # Utility targets
 version: ## Show version information
