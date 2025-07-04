@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Normalized Tab events correctly so the switch view shortcut works
 - Added debug logging of key events to troubleshoot custom bindings
 - Shifted number keys are normalized so combos like Alt+Shift+3 work
+- Shift modifiers are now respected for letters so `Shift+X` no longer matches plain `x`
 
 ## [0.7.1] - 2025-07-01
 
