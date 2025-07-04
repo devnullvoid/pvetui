@@ -33,7 +33,6 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 	parts := strings.Split(spec, "+")
 	base := strings.TrimSpace(parts[len(parts)-1])
 	var mods tcell.ModMask
-	shiftUsed := false
 	for _, p := range parts[:len(parts)-1] {
 		switch strings.ToLower(strings.TrimSpace(p)) {
 		case "ctrl", "control":
@@ -42,7 +41,6 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 			mods |= tcell.ModAlt
 		case "shift":
 			mods |= tcell.ModShift
-			shiftUsed = true
 		case "meta", "win", "windows", "cmd", "super":
 			mods |= tcell.ModMeta
 		case "":
@@ -103,13 +101,11 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 
 	if len([]rune(base)) == 1 {
 		r := []rune(base)[0]
-		r = unicode.ToLower(r)
-		if shiftUsed {
-			// Shift cannot be reliably detected for letters in
-			// terminals. Normalize by removing the Shift modifier
-			// and matching case-insensitively.
-			mods &^= tcell.ModShift
+		if u, ok := shiftedDigits[r]; ok {
+			r = u
+			mods |= tcell.ModShift
 		}
+		r = unicode.ToLower(r)
 		return tcell.KeyRune, r, mods, nil
 	}
 
@@ -339,10 +335,8 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 	if key == tcell.KeyRune {
 		if u, ok := shiftedDigits[r]; ok {
 			r = u
-		} else {
-			r = unicode.ToLower(r)
 		}
-		mod &^= tcell.ModShift
+		r = unicode.ToLower(r)
 	}
 	return key, r, mod
 }

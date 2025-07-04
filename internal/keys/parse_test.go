@@ -15,13 +15,15 @@ func TestParse(t *testing.T) {
 		mod  tcell.ModMask
 	}{
 		{"A", tcell.KeyRune, 'a', 0},
-		{"Shift+A", tcell.KeyRune, 'a', 0},
+		{"Shift+A", tcell.KeyRune, 'a', tcell.ModShift},
 		{"Ctrl+A", tcell.KeyRune, 'a', tcell.ModCtrl},
-		{"Ctrl+Shift+A", tcell.KeyRune, 'a', tcell.ModCtrl},
+		{"Ctrl+Shift+A", tcell.KeyRune, 'a', tcell.ModCtrl | tcell.ModShift},
 		{"Alt+1", tcell.KeyRune, '1', tcell.ModAlt},
+		{"Alt+#", tcell.KeyRune, '3', tcell.ModAlt | tcell.ModShift},
+		{"Alt+Shift+3", tcell.KeyRune, '3', tcell.ModAlt | tcell.ModShift},
 		{"Win+A", tcell.KeyRune, 'a', tcell.ModMeta},
 		{"Shift+F1", tcell.KeyF1, 0, tcell.ModShift},
-		{"Shift+3", tcell.KeyRune, '3', 0},
+		{"Shift+3", tcell.KeyRune, '3', tcell.ModShift},
 	}
 
 	for _, tc := range cases {
@@ -58,5 +60,5 @@ func TestNormalizeEvent_ShiftDigit(t *testing.T) {
 	key, r, mod := NormalizeEvent(ev)
 	assert.Equal(t, tcell.KeyRune, key)
 	assert.Equal(t, '3', r)
-	assert.Zero(t, mod)
+	assert.Equal(t, tcell.ModShift, mod)
 }
