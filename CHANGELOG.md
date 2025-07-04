@@ -7,38 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Shell Connection Issues**: Fixed VM shell connections that were failing due to broken QEMU guest agent approach
-  - **Removed QEMU Guest Agent Shell**: Eliminated `qm guest exec` approach which cannot create interactive shells (only executes single commands)
-  - **Simplified QEMU VM Connections**: Now uses direct SSH to VM IP address only, removing unreliable guest agent dependency
-  - **Enhanced LXC Container Support**: Updated to use `pct enter` instead of `pct exec` for better compatibility with containers that don't have bash installed
-  - **Improved Error Messages**: Added clear, actionable feedback when VM connections fail (suggests VNC, network configuration checks)
-  - **GitHub Workflow Fixes**: Added `submodules: recursive` to all GitHub Actions checkout steps to properly handle noVNC submodule during builds
-  - **Windows ARM64 Support**: Added Windows ARM64 build target to both Makefile and GitHub release workflow
-
 ### Added
-- Added unit tests for the file-based cache implementation
-- Refactored UI app into smaller files and introduced thin main
-- Fixed interface implementations for UI components to compile with new wrappers
-- Updated UI component interfaces to mirror underlying tview return types, fixing build errors
-- Introduced `CommandExecutor` and context-aware shell helpers for `ssh` package
-- Reverted cache TTL precision back to seconds for simpler expiration handling
-- Restored comprehensive GolangCI-Lint configuration
-- Updated GolangCI-Lint configuration to support v2
-- Fixed trailing newline in lint configuration
-- Restored additional linters in `.golangci.yml` while keeping `make lint` passing
-- Fixed lint configuration error by specifying `colored-line-number` output format
-- Added support for customizing key bindings via `key_bindings` config section
-- Key bindings now support modifiers (e.g. `Ctrl+A`) and are validated on load
-- Validation now prevents duplicate or reserved key bindings
-- Validation also blocks system reserved combinations such as `Ctrl+C`
-- Fixed detection of `Ctrl` letter shortcuts so combinations like `Ctrl+Q` work
-- Improved key binding parser to support Shift combinations and synonyms for the
-  Windows key. The default Tab shortcut works again.
-- Normalized Tab events correctly so the switch view shortcut works
-- Added debug logging of key events to troubleshoot custom bindings
-- Shifted number keys are normalized so combos like Alt+Shift+3 work
-- Shift modifiers are now respected for letters so `Shift+X` no longer matches plain `x`
+- **View Switching with Brackets**: Changed default view switching keys to `]` (forward) and `[` (reverse) for better reliability across terminals.
+- **Configurable Key Bindings**: Added support for customizing all major actions via the `key_bindings` section in the config file.
+
+### Fixed
+- **Keybinding Reliability**: Overhauled the keybinding system to correctly handle modifier keys (`Ctrl`, `Alt`, `Shift`), fixing numerous issues with custom shortcuts.
+- **Shell Connection Issues**: Fixed VM shell connections that were failing due to broken QEMU guest agent approach.
+- **GitHub Workflow Fixes**: Added `submodules: recursive` to all GitHub Actions checkout steps to properly handle noVNC submodule during builds.
+- **Windows ARM64 Support**: Added Windows ARM64 build target to both Makefile and GitHub release workflow.
 
 ## [0.7.1] - 2025-07-01
 

@@ -24,22 +24,13 @@ func keyMatch(ev *tcell.EventKey, spec string) bool {
 	evKey, evRune, evMod := keys.NormalizeEvent(ev)
 
 	if evMod != mod {
-		// if config.DebugEnabled {
-		// models.GetUILogger().Debug("mod mismatch spec=%s want=%d got=%d", spec, mod, evMod)
-		// }
 		return false
 	}
 	if key == tcell.KeyRune {
 		match := evKey == tcell.KeyRune && r != 0 && strings.EqualFold(string(evRune), string(r))
-		// if config.DebugEnabled {
-		// models.GetUILogger().Debug("keyMatch spec=%s rune=%q event=%q mod=%d match=%t", spec, r, evRune, mod, match)
-		// }
 		return match
 	}
 	match := evKey == key
-	// if config.DebugEnabled {
-	// 	models.GetUILogger().Debug("keyMatch spec=%s key=%d event=%d mod=%d match=%t", spec, key, evKey, mod, match)
-	// }
 	return match
 }
 
