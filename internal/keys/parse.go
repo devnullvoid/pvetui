@@ -37,7 +37,7 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 		switch strings.ToLower(strings.TrimSpace(p)) {
 		case "ctrl", "control":
 			mods |= tcell.ModCtrl
-		case "alt":
+		case "alt", "opt":
 			mods |= tcell.ModAlt
 		case "shift":
 			mods |= tcell.ModShift

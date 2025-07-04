@@ -278,6 +278,8 @@ Run Proxmox TUI with your configuration file:
 
 A `key_bindings` section can be added to your `config.yml` to override any of these defaults. Set `debug: true` in your config to log every key press. This can help troubleshoot why a custom shortcut isn't recognized.
 
+On macOS, `Opt` can be used as a synonym for `Alt` in your configuration (e.g., `Opt+1`).
+
 ### A Note on Terminal Limitations
 
 Due to the way terminal emulators process keyboard input, certain key combinations are ambiguous and cannot be reliably distinguished. When setting custom keybindings, please avoid the following:
