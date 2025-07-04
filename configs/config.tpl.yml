@@ -9,21 +9,21 @@ insecure: true
 ssh_user: root
 debug: false
 # cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
-# Set debug to true to log all key events. This helps diagnose custom key bindings.
 
 key_bindings:
-  switch_view: Tab
-  nodes_page: F1
-  guests_page: F2
-  tasks_page: F3
-  menu: M
-  shell: S
-  vnc: V
-  scripts: C
-  refresh: F5
-  auto_refresh: A
+  switch_view: "]"
+  switch_view_reverse: "["
+  nodes_page: "Alt+1"
+  guests_page: "Alt+2"
+  tasks_page: "Alt+3"
+  menu: m
+  shell: s
+  vnc: v
+  scripts: c
+  refresh: "Ctrl+r"
+  auto_refresh: a
   search: "/"
   help: "?"
-  quit: Q
-# Reserved keys (h, j, k, l, arrows, Tab, Enter, Esc, Backspace, q) cannot be reassigned.
+  quit: q
+# Reserved keys (h, j, k, l, arrows, Tab, Enter, Esc, Backspace) cannot be reassigned.
 # System combos like Ctrl+C, Ctrl+D and Ctrl+Z are also blocked.

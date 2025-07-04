@@ -89,19 +89,20 @@ var DebugEnabled bool
 // Each field represents a single keyboard key that triggers the action.
 // Only single characters and function keys (e.g. "F1") are supported.
 type KeyBindings struct {
-	SwitchView  string `yaml:"switch_view"`  // Switch between pages
-	NodesPage   string `yaml:"nodes_page"`   // Jump to Nodes page
-	GuestsPage  string `yaml:"guests_page"`  // Jump to Guests page
-	TasksPage   string `yaml:"tasks_page"`   // Jump to Tasks page
-	Menu        string `yaml:"menu"`         // Open context menu
-	Shell       string `yaml:"shell"`        // Open shell session
-	VNC         string `yaml:"vnc"`          // Open VNC console
-	Scripts     string `yaml:"scripts"`      // Install community scripts
-	Refresh     string `yaml:"refresh"`      // Manual refresh
-	AutoRefresh string `yaml:"auto_refresh"` // Toggle auto-refresh
-	Search      string `yaml:"search"`       // Activate search
-	Help        string `yaml:"help"`         // Toggle help modal
-	Quit        string `yaml:"quit"`         // Quit application
+	SwitchView        string `yaml:"switch_view"` // Switch between pages
+	SwitchViewReverse string `yaml:"switch_view_reverse"`
+	NodesPage         string `yaml:"nodes_page"`   // Jump to Nodes page
+	GuestsPage        string `yaml:"guests_page"`  // Jump to Guests page
+	TasksPage         string `yaml:"tasks_page"`   // Jump to Tasks page
+	Menu              string `yaml:"menu"`         // Open context menu
+	Shell             string `yaml:"shell"`        // Open shell session
+	VNC               string `yaml:"vnc"`          // Open VNC console
+	Scripts           string `yaml:"scripts"`      // Install community scripts
+	Refresh           string `yaml:"refresh"`      // Manual refresh
+	AutoRefresh       string `yaml:"auto_refresh"` // Toggle auto-refresh
+	Search            string `yaml:"search"`       // Activate search
+	Help              string `yaml:"help"`         // Toggle help modal
+	Quit              string `yaml:"quit"`         // Quit application
 }
 
 // Config represents the complete application configuration with support for
@@ -143,35 +144,37 @@ type Config struct {
 // ValidateKeyBindings checks if all key specifications are valid.
 func ValidateKeyBindings(kb KeyBindings) error {
 	bindings := map[string]string{
-		"switch_view":  kb.SwitchView,
-		"nodes_page":   kb.NodesPage,
-		"guests_page":  kb.GuestsPage,
-		"tasks_page":   kb.TasksPage,
-		"menu":         kb.Menu,
-		"shell":        kb.Shell,
-		"vnc":          kb.VNC,
-		"scripts":      kb.Scripts,
-		"refresh":      kb.Refresh,
-		"auto_refresh": kb.AutoRefresh,
-		"search":       kb.Search,
-		"help":         kb.Help,
-		"quit":         kb.Quit,
+		"switch_view":         kb.SwitchView,
+		"switch_view_reverse": kb.SwitchViewReverse,
+		"nodes_page":          kb.NodesPage,
+		"guests_page":         kb.GuestsPage,
+		"tasks_page":          kb.TasksPage,
+		"menu":                kb.Menu,
+		"shell":               kb.Shell,
+		"vnc":                 kb.VNC,
+		"scripts":             kb.Scripts,
+		"refresh":             kb.Refresh,
+		"auto_refresh":        kb.AutoRefresh,
+		"search":              kb.Search,
+		"help":                kb.Help,
+		"quit":                kb.Quit,
 	}
 
 	defaults := map[string]string{
-		"switch_view":  "Tab",
-		"nodes_page":   "F1",
-		"guests_page":  "F2",
-		"tasks_page":   "F3",
-		"menu":         "M",
-		"shell":        "S",
-		"vnc":          "V",
-		"scripts":      "C",
-		"refresh":      "F5",
-		"auto_refresh": "A",
-		"search":       "/",
-		"help":         "?",
-		"quit":         "Q",
+		"switch_view":         "]",
+		"switch_view_reverse": "[",
+		"nodes_page":          "F1",
+		"guests_page":         "F2",
+		"tasks_page":          "F3",
+		"menu":                "m",
+		"shell":               "s",
+		"vnc":                 "v",
+		"scripts":             "c",
+		"refresh":             "F5",
+		"auto_refresh":        "a",
+		"search":              "/",
+		"help":                "?",
+		"quit":                "q",
 	}
 
 	seen := make(map[string]string)
@@ -319,19 +322,20 @@ func NewConfig() *Config {
 		Debug:       strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
 		CacheDir:    os.Getenv("PROXMOX_CACHE_DIR"),
 		KeyBindings: KeyBindings{
-			SwitchView:  "Tab",
-			NodesPage:   "F1",
-			GuestsPage:  "F2",
-			TasksPage:   "F3",
-			Menu:        "M",
-			Shell:       "S",
-			VNC:         "V",
-			Scripts:     "C",
-			Refresh:     "F5",
-			AutoRefresh: "A",
-			Search:      "/",
-			Help:        "?",
-			Quit:        "Q",
+			SwitchView:        "]",
+			SwitchViewReverse: "[",
+			NodesPage:         "F1",
+			GuestsPage:        "F2",
+			TasksPage:         "F3",
+			Menu:              "M",
+			Shell:             "S",
+			VNC:               "V",
+			Scripts:           "C",
+			Refresh:           "F5",
+			AutoRefresh:       "A",
+			Search:            "/",
+			Help:              "?",
+			Quit:              "Q",
 		},
 	}
 }
@@ -395,19 +399,20 @@ func (c *Config) MergeWithFile(path string) error {
 		Debug       *bool  `yaml:"debug"`
 		CacheDir    string `yaml:"cache_dir"`
 		KeyBindings struct {
-			SwitchView  string `yaml:"switch_view"`
-			NodesPage   string `yaml:"nodes_page"`
-			GuestsPage  string `yaml:"guests_page"`
-			TasksPage   string `yaml:"tasks_page"`
-			Menu        string `yaml:"menu"`
-			Shell       string `yaml:"shell"`
-			VNC         string `yaml:"vnc"`
-			Scripts     string `yaml:"scripts"`
-			Refresh     string `yaml:"refresh"`
-			AutoRefresh string `yaml:"auto_refresh"`
-			Search      string `yaml:"search"`
-			Help        string `yaml:"help"`
-			Quit        string `yaml:"quit"`
+			SwitchView        string `yaml:"switch_view"`
+			SwitchViewReverse string `yaml:"switch_view_reverse"`
+			NodesPage         string `yaml:"nodes_page"`
+			GuestsPage        string `yaml:"guests_page"`
+			TasksPage         string `yaml:"tasks_page"`
+			Menu              string `yaml:"menu"`
+			Shell             string `yaml:"shell"`
+			VNC               string `yaml:"vnc"`
+			Scripts           string `yaml:"scripts"`
+			Refresh           string `yaml:"refresh"`
+			AutoRefresh       string `yaml:"auto_refresh"`
+			Search            string `yaml:"search"`
+			Help              string `yaml:"help"`
+			Quit              string `yaml:"quit"`
 		} `yaml:"key_bindings"`
 	}
 
@@ -451,22 +456,26 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	// Merge key bindings if provided
 	if kb := fileConfig.KeyBindings; kb != struct {
-		SwitchView  string `yaml:"switch_view"`
-		NodesPage   string `yaml:"nodes_page"`
-		GuestsPage  string `yaml:"guests_page"`
-		TasksPage   string `yaml:"tasks_page"`
-		Menu        string `yaml:"menu"`
-		Shell       string `yaml:"shell"`
-		VNC         string `yaml:"vnc"`
-		Scripts     string `yaml:"scripts"`
-		Refresh     string `yaml:"refresh"`
-		AutoRefresh string `yaml:"auto_refresh"`
-		Search      string `yaml:"search"`
-		Help        string `yaml:"help"`
-		Quit        string `yaml:"quit"`
+		SwitchView        string `yaml:"switch_view"`
+		SwitchViewReverse string `yaml:"switch_view_reverse"`
+		NodesPage         string `yaml:"nodes_page"`
+		GuestsPage        string `yaml:"guests_page"`
+		TasksPage         string `yaml:"tasks_page"`
+		Menu              string `yaml:"menu"`
+		Shell             string `yaml:"shell"`
+		VNC               string `yaml:"vnc"`
+		Scripts           string `yaml:"scripts"`
+		Refresh           string `yaml:"refresh"`
+		AutoRefresh       string `yaml:"auto_refresh"`
+		Search            string `yaml:"search"`
+		Help              string `yaml:"help"`
+		Quit              string `yaml:"quit"`
 	}{} {
 		if kb.SwitchView != "" {
 			c.KeyBindings.SwitchView = kb.SwitchView
+		}
+		if kb.SwitchViewReverse != "" {
+			c.KeyBindings.SwitchViewReverse = kb.SwitchViewReverse
 		}
 		if kb.NodesPage != "" {
 			c.KeyBindings.NodesPage = kb.NodesPage
@@ -574,7 +583,10 @@ func (c *Config) SetDefaults() {
 
 	// Apply default key bindings if not set
 	if c.KeyBindings.SwitchView == "" {
-		c.KeyBindings.SwitchView = "Tab"
+		c.KeyBindings.SwitchView = "]"
+	}
+	if c.KeyBindings.SwitchViewReverse == "" {
+		c.KeyBindings.SwitchViewReverse = "["
 	}
 	if c.KeyBindings.NodesPage == "" {
 		c.KeyBindings.NodesPage = "F1"

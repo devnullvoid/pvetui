@@ -53,6 +53,8 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 	b := strings.ToUpper(base)
 	switch b {
 	case "TAB":
+		// "Ctrl+Tab" is not a standard combination that all terminals support
+		// sending, but we can support the string configuration.
 		return tcell.KeyTab, 0, mods, nil
 	case "ENTER", "RETURN":
 		return tcell.KeyEnter, 0, mods, nil
@@ -105,6 +107,9 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 			r = u
 			mods |= tcell.ModShift
 		}
+		if unicode.IsUpper(r) {
+			mods |= tcell.ModShift
+		}
 		r = unicode.ToLower(r)
 		return tcell.KeyRune, r, mods, nil
 	}
@@ -138,7 +143,7 @@ func IsReserved(key tcell.Key, r rune, mod tcell.ModMask) bool {
 			return true
 		case tcell.KeyRune:
 			switch unicode.ToLower(r) {
-			case 'h', 'j', 'k', 'l', 'q':
+			case 'h', 'j', 'k', 'l':
 				return true
 			}
 		}
@@ -147,71 +152,11 @@ func IsReserved(key tcell.Key, r rune, mod tcell.ModMask) bool {
 	// System-reserved combinations like Ctrl+C should not be reused.
 	if mod == tcell.ModCtrl && key == tcell.KeyRune {
 		switch unicode.ToLower(r) {
-		case 'c', 'd', 'z':
+		case 'c', 'd':
 			return true
 		}
 	}
 	return false
-}
-
-// CtrlKeyForRune maps a letter rune to its corresponding tcell KeyCtrlX value.
-// For runes outside a-z, tcell.KeyRune is returned.
-func CtrlKeyForRune(r rune) tcell.Key {
-	switch unicode.ToLower(r) {
-	case 'a':
-		return tcell.KeyCtrlA
-	case 'b':
-		return tcell.KeyCtrlB
-	case 'c':
-		return tcell.KeyCtrlC
-	case 'd':
-		return tcell.KeyCtrlD
-	case 'e':
-		return tcell.KeyCtrlE
-	case 'f':
-		return tcell.KeyCtrlF
-	case 'g':
-		return tcell.KeyCtrlG
-	case 'h':
-		return tcell.KeyCtrlH
-	case 'i':
-		return tcell.KeyCtrlI
-	case 'j':
-		return tcell.KeyCtrlJ
-	case 'k':
-		return tcell.KeyCtrlK
-	case 'l':
-		return tcell.KeyCtrlL
-	case 'm':
-		return tcell.KeyCtrlM
-	case 'n':
-		return tcell.KeyCtrlN
-	case 'o':
-		return tcell.KeyCtrlO
-	case 'p':
-		return tcell.KeyCtrlP
-	case 'q':
-		return tcell.KeyCtrlQ
-	case 'r':
-		return tcell.KeyCtrlR
-	case 's':
-		return tcell.KeyCtrlS
-	case 't':
-		return tcell.KeyCtrlT
-	case 'u':
-		return tcell.KeyCtrlU
-	case 'v':
-		return tcell.KeyCtrlV
-	case 'w':
-		return tcell.KeyCtrlW
-	case 'x':
-		return tcell.KeyCtrlX
-	case 'y':
-		return tcell.KeyCtrlY
-	case 'z':
-		return tcell.KeyCtrlZ
-	}
-	return tcell.KeyRune
 }
 
 // NormalizeEvent converts an EventKey into a canonical (key,rune,mod) triple.
@@ -221,6 +166,11 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 	r := ev.Rune()
 	mod := ev.Modifiers()
 
+	if key == tcell.KeyCtrlI {
+		key = tcell.KeyTab
+	}
+
+	// If a rune is uppercase, the shift modifier should be active.
 	isRuneKey := key == tcell.KeyRune
 	if isRuneKey {
 		if unicode.IsUpper(r) {
@@ -231,117 +181,16 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 		}
 	}
 
-	switch key {
-	case tcell.KeyCtrlA:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'a'
-		}
-	case tcell.KeyCtrlB:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'b'
-		}
-	case tcell.KeyCtrlC:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'c'
-		}
-	case tcell.KeyCtrlD:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'd'
-		}
-	case tcell.KeyCtrlE:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'e'
-		}
-	case tcell.KeyCtrlF:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'f'
-		}
-	case tcell.KeyCtrlG:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'g'
-		}
-	case tcell.KeyCtrlH:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'h'
-		}
-	case tcell.KeyCtrlI:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'i'
-		} else {
-			key = tcell.KeyTab
-		}
-	case tcell.KeyCtrlJ, tcell.KeyCtrlM:
-		if mod&tcell.ModCtrl != 0 {
-			key = tcell.KeyRune
-			if ev.Key() == tcell.KeyCtrlM {
-				r = 'm'
-			} else {
-				r = 'j'
-			}
-		} else {
-			key = tcell.KeyEnter
-		}
-	case tcell.KeyCtrlK:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'k'
-		}
-	case tcell.KeyCtrlL:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'l'
-		}
-	case tcell.KeyCtrlN:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'n'
-		}
-	case tcell.KeyCtrlO:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'o'
-		}
-	case tcell.KeyCtrlP:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'p'
-		}
-	case tcell.KeyCtrlQ:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'q'
-		}
-	case tcell.KeyCtrlR:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'r'
-		}
-	case tcell.KeyCtrlS:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 's'
-		}
-	case tcell.KeyCtrlT:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 't'
-		}
-	case tcell.KeyCtrlU:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'u'
-		}
-	case tcell.KeyCtrlV:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'v'
-		}
-	case tcell.KeyCtrlW:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'w'
-		}
-	case tcell.KeyCtrlX:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'x'
-		}
-	case tcell.KeyCtrlY:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'y'
-		}
-	case tcell.KeyCtrlZ:
-		if mod&tcell.ModCtrl != 0 {
-			key, r = tcell.KeyRune, 'z'
-		}
+	// Normalize Ctrl+<char> keys to a rune and ModCtrl. This makes bindings
+	// more consistent, as some terminals send KeyCtrlX and others send a rune
+	// with a Ctrl modifier. We must preserve existing modifiers.
+	ctrlRune, isCtrlKey := ToChar(key)
+	if isCtrlKey {
+		key = tcell.KeyRune
+		r = ctrlRune
+		mod |= tcell.ModCtrl
 	}
+
 	if key == tcell.KeyRune {
 		if u, ok := shiftedDigits[r]; ok {
 			r = u
@@ -349,4 +198,34 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 		r = unicode.ToLower(r)
 	}
 	return key, r, mod
+}
+
+// ToChar converts a tcell.Key to its rune representation if it's a Ctrl+<char> key.
+func ToChar(k tcell.Key) (rune, bool) {
+	switch k {
+	// These have special key codes and should not be treated as runes.
+	case tcell.KeyCtrlH: // Backspace
+		return 0, false
+	case tcell.KeyCtrlI: // Tab
+		return 0, false
+	case tcell.KeyCtrlM: // Enter
+		return 0, false
+	}
+	if k >= tcell.KeyCtrlA && k <= tcell.KeyCtrlZ {
+		return 'a' + rune(k-tcell.KeyCtrlA), true
+	}
+	// Handle other special Ctrl keys if necessary
+	switch k {
+	case tcell.KeyCtrlSpace:
+		return ' ', true
+	case tcell.KeyCtrlUnderscore:
+		return '_', true
+	case tcell.KeyCtrlRightSq:
+		return ']', true
+	case tcell.KeyCtrlBackslash:
+		return '\\', true
+	case tcell.KeyCtrlCarat:
+		return '^', true
+	}
+	return 0, false
 }
