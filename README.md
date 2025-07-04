@@ -145,45 +145,24 @@ token_secret: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 # Additional settings
 ssh_user: "your-ssh-user"
 debug: false
-# cache_dir: "/custom/cache/path"  # Optional: defaults to ~/.cache/proxmox-tui
-```
+# cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
 
-#### Custom Key Bindings
-
-Add a `key_bindings` section to redefine most shortcuts. Keys may include
-modifiers like `Ctrl`, `Alt`, `Shift`, or `Win` (e.g. `Ctrl+S`).
-Combinations such as `Ctrl+Q` or `Shift+W` are supported:
-
-```yaml
 key_bindings:
-  switch_view: Tab
-  nodes_page: F1
-  guests_page: F2
-  tasks_page: F3
-  menu: M
-  shell: S
-  vnc: V
-  scripts: C
-  refresh: F5
-  auto_refresh: A
+  switch_view: "]"
+  switch_view_reverse: "["
+  nodes_page: "Alt+1"
+  guests_page: "Alt+2"
+  tasks_page: "Alt+3"
+  menu: m
+  shell: s
+  vnc: v
+  scripts: c
+  refresh: "Ctrl+r"
+  auto_refresh: a
   search: "/"
   help: "?"
-  quit: Q
+  quit: q
 ```
-If a binding is omitted, the default for that action is used. Each shortcut must be unique, and the following keys are reserved for navigation and cannot be reassigned: `h`, `j`, `k`, `l`, arrow keys, `Tab`, `Enter`, `Esc`, `Backspace`, and `q`.  Additionally, system shortcuts such as `Ctrl+C` (interrupt), `Ctrl+D` (EOF), and `Ctrl+Z` (suspend) are not allowed.
-The `Win`/`Cmd`/`Super` modifier is parsed as `Meta` but many terminals do not report it, so such bindings may not work everywhere. Shift modifiers are now respected, though some terminals may still fail to report Shift for letters.
-
-Set `debug: true` in your config to log every key press. This can help troubleshoot why a custom shortcut isn't recognized.
-
-### Known Keybinding Issues
-
-Due to the way terminal emulators process keyboard input, certain key combinations are ambiguous and cannot be reliably distinguished. When setting custom keybindings, please avoid the following:
-- `Ctrl+H` (interpreted as `Backspace`)
-- `Ctrl+I` (interpreted as `Tab`)
-- `Ctrl+M` (interpreted as `Enter`)
-- `Ctrl+Tab` (behavior is inconsistent across terminals)
-
-Using simple, direct keys or combinations with `Alt` and `Shift` is recommended for custom bindings.
 
 ## 🔐 Authentication
 
@@ -226,7 +205,7 @@ Proxmox TUI includes an embedded noVNC client that provides seamless VNC console
 
 ### How It Works
 
-1. **Press `V`** while selecting a VM, container, or node
+1. **Press `v`** while selecting a VM, container, or node
 2. **Embedded Server Starts**: A local HTTP server launches automatically on an available port
 3. **VNC Proxy Created**: Application creates a VNC proxy session with Proxmox using the API
 4. **Browser Opens**: Your default browser opens to the embedded noVNC client
