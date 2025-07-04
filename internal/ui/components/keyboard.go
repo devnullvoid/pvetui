@@ -22,12 +22,26 @@ func keyMatch(ev *tcell.EventKey, spec string) bool {
 		return false
 	}
 	evKey, evRune, evMod := keys.NormalizeEvent(ev)
-	if evMod != mod {
-		if config.DebugEnabled {
-			models.GetUILogger().Debug("mod mismatch spec=%s want=%d got=%d", spec, mod, evMod)
+
+	// For rune keys, we want to match if the event has at least the modifiers
+	// from the spec. This allows "a" to match "Shift+a". For non-rune keys
+	// we require an exact modifier match.
+	if key == tcell.KeyRune {
+		if evMod&mod != mod {
+			if config.DebugEnabled {
+				models.GetUILogger().Debug("mod mismatch (rune) spec=%s want=%d got=%d", spec, mod, evMod)
+			}
+			return false
 		}
-		return false
+	} else {
+		if evMod != mod {
+			if config.DebugEnabled {
+				models.GetUILogger().Debug("mod mismatch (non-rune) spec=%s want=%d got=%d", spec, mod, evMod)
+			}
+			return false
+		}
 	}
+
 	if key == tcell.KeyRune {
 		match := evKey == tcell.KeyRune && r != 0 && strings.EqualFold(string(evRune), string(r))
 		if config.DebugEnabled {

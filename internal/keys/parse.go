@@ -221,6 +221,16 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 	r := ev.Rune()
 	mod := ev.Modifiers()
 
+	isRuneKey := key == tcell.KeyRune
+	if isRuneKey {
+		if unicode.IsUpper(r) {
+			mod |= tcell.ModShift
+		}
+		if _, ok := shiftedDigits[r]; ok {
+			mod |= tcell.ModShift
+		}
+	}
+
 	switch key {
 	case tcell.KeyCtrlA:
 		if mod&tcell.ModCtrl != 0 {
