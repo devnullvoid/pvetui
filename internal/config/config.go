@@ -141,9 +141,29 @@ type Config struct {
 	KeyBindings KeyBindings `yaml:"key_bindings"` // Customizable key bindings
 }
 
-// ValidateKeyBindings checks if all key specifications are valid.
-func ValidateKeyBindings(kb KeyBindings) error {
-	bindings := map[string]string{
+// DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
+func DefaultKeyBindings() KeyBindings {
+	return KeyBindings{
+		SwitchView:        "]",
+		SwitchViewReverse: "[",
+		NodesPage:         "F1",
+		GuestsPage:        "F2",
+		TasksPage:         "F3",
+		Menu:              "x",
+		Shell:             "s",
+		VNC:               "v",
+		Scripts:           "c",
+		Refresh:           "F5",
+		AutoRefresh:       "a",
+		Search:            "/",
+		Help:              "?",
+		Quit:              "q",
+	}
+}
+
+// keyBindingsToMap converts a KeyBindings struct to a map for validation.
+func keyBindingsToMap(kb KeyBindings) map[string]string {
+	return map[string]string{
 		"switch_view":         kb.SwitchView,
 		"switch_view_reverse": kb.SwitchViewReverse,
 		"nodes_page":          kb.NodesPage,
@@ -159,23 +179,12 @@ func ValidateKeyBindings(kb KeyBindings) error {
 		"help":                kb.Help,
 		"quit":                kb.Quit,
 	}
+}
 
-	defaults := map[string]string{
-		"switch_view":         "]",
-		"switch_view_reverse": "[",
-		"nodes_page":          "F1",
-		"guests_page":         "F2",
-		"tasks_page":          "F3",
-		"menu":                "m",
-		"shell":               "s",
-		"vnc":                 "v",
-		"scripts":             "c",
-		"refresh":             "F5",
-		"auto_refresh":        "a",
-		"search":              "/",
-		"help":                "?",
-		"quit":                "q",
-	}
+// ValidateKeyBindings checks if all key specifications are valid.
+func ValidateKeyBindings(kb KeyBindings) error {
+	bindings := keyBindingsToMap(kb)
+	defaultMap := keyBindingsToMap(DefaultKeyBindings())
 
 	seen := make(map[string]string)
 
@@ -188,7 +197,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 			return fmt.Errorf("invalid key binding %s: %w", name, err)
 		}
 
-		if keys.IsReserved(key, r, mod) && spec != defaults[name] {
+		if keys.IsReserved(key, r, mod) && spec != defaultMap[name] {
 			return fmt.Errorf("key binding %s uses reserved key %s", name, spec)
 		}
 
@@ -321,22 +330,7 @@ func NewConfig() *Config {
 		SSHUser:     os.Getenv("PROXMOX_SSH_USER"),
 		Debug:       strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
 		CacheDir:    os.Getenv("PROXMOX_CACHE_DIR"),
-		KeyBindings: KeyBindings{
-			SwitchView:        "]",
-			SwitchViewReverse: "[",
-			NodesPage:         "F1",
-			GuestsPage:        "F2",
-			TasksPage:         "F3",
-			Menu:              "M",
-			Shell:             "S",
-			VNC:               "V",
-			Scripts:           "C",
-			Refresh:           "F5",
-			AutoRefresh:       "A",
-			Search:            "/",
-			Help:              "?",
-			Quit:              "Q",
-		},
+		KeyBindings: DefaultKeyBindings(),
 	}
 }
 
@@ -582,46 +576,47 @@ func (c *Config) SetDefaults() {
 	}
 
 	// Apply default key bindings if not set
+	defaults := DefaultKeyBindings()
 	if c.KeyBindings.SwitchView == "" {
-		c.KeyBindings.SwitchView = "]"
+		c.KeyBindings.SwitchView = defaults.SwitchView
 	}
 	if c.KeyBindings.SwitchViewReverse == "" {
-		c.KeyBindings.SwitchViewReverse = "["
+		c.KeyBindings.SwitchViewReverse = defaults.SwitchViewReverse
 	}
 	if c.KeyBindings.NodesPage == "" {
-		c.KeyBindings.NodesPage = "F1"
+		c.KeyBindings.NodesPage = defaults.NodesPage
 	}
 	if c.KeyBindings.GuestsPage == "" {
-		c.KeyBindings.GuestsPage = "F2"
+		c.KeyBindings.GuestsPage = defaults.GuestsPage
 	}
 	if c.KeyBindings.TasksPage == "" {
-		c.KeyBindings.TasksPage = "F3"
+		c.KeyBindings.TasksPage = defaults.TasksPage
 	}
 	if c.KeyBindings.Menu == "" {
-		c.KeyBindings.Menu = "M"
+		c.KeyBindings.Menu = defaults.Menu
 	}
 	if c.KeyBindings.Shell == "" {
-		c.KeyBindings.Shell = "S"
+		c.KeyBindings.Shell = defaults.Shell
 	}
 	if c.KeyBindings.VNC == "" {
-		c.KeyBindings.VNC = "V"
+		c.KeyBindings.VNC = defaults.VNC
 	}
 	if c.KeyBindings.Scripts == "" {
-		c.KeyBindings.Scripts = "C"
+		c.KeyBindings.Scripts = defaults.Scripts
 	}
 	if c.KeyBindings.Refresh == "" {
-		c.KeyBindings.Refresh = "F5"
+		c.KeyBindings.Refresh = defaults.Refresh
 	}
 	if c.KeyBindings.AutoRefresh == "" {
-		c.KeyBindings.AutoRefresh = "A"
+		c.KeyBindings.AutoRefresh = defaults.AutoRefresh
 	}
 	if c.KeyBindings.Search == "" {
-		c.KeyBindings.Search = "/"
+		c.KeyBindings.Search = defaults.Search
 	}
 	if c.KeyBindings.Help == "" {
-		c.KeyBindings.Help = "?"
+		c.KeyBindings.Help = defaults.Help
 	}
 	if c.KeyBindings.Quit == "" {
-		c.KeyBindings.Quit = "Q"
+		c.KeyBindings.Quit = defaults.Quit
 	}
 }
