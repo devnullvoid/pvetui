@@ -75,6 +75,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/devnullvoid/proxmox-tui/internal/keys"
 	"gopkg.in/yaml.v3"
 )
 
@@ -83,6 +84,26 @@ import (
 // This variable is set during configuration parsing and used by various
 // components to determine whether to emit debug-level log messages.
 var DebugEnabled bool
+
+// KeyBindings defines customizable key mappings for common actions.
+// Each field represents a single keyboard key that triggers the action.
+// Only single characters and function keys (e.g. "F1") are supported.
+type KeyBindings struct {
+	SwitchView        string `yaml:"switch_view"` // Switch between pages
+	SwitchViewReverse string `yaml:"switch_view_reverse"`
+	NodesPage         string `yaml:"nodes_page"`   // Jump to Nodes page
+	GuestsPage        string `yaml:"guests_page"`  // Jump to Guests page
+	TasksPage         string `yaml:"tasks_page"`   // Jump to Tasks page
+	Menu              string `yaml:"menu"`         // Open context menu
+	Shell             string `yaml:"shell"`        // Open shell session
+	VNC               string `yaml:"vnc"`          // Open VNC console
+	Scripts           string `yaml:"scripts"`      // Install community scripts
+	Refresh           string `yaml:"refresh"`      // Manual refresh
+	AutoRefresh       string `yaml:"auto_refresh"` // Toggle auto-refresh
+	Search            string `yaml:"search"`       // Activate search
+	Help              string `yaml:"help"`         // Toggle help modal
+	Quit              string `yaml:"quit"`         // Quit application
+}
 
 // Config represents the complete application configuration with support for
 // multiple authentication methods and XDG-compliant directory handling.
@@ -106,17 +127,88 @@ var DebugEnabled bool
 //		Debug:    true,
 //	}
 type Config struct {
-	Addr        string `yaml:"addr"`         // Proxmox server URL (e.g., "https://pve.example.com:8006")
-	User        string `yaml:"user"`         // Username for authentication (without realm)
-	Password    string `yaml:"password"`     // Password for password-based authentication
-	TokenID     string `yaml:"token_id"`     // API token ID for token-based authentication
-	TokenSecret string `yaml:"token_secret"` // API token secret for token-based authentication
-	Realm       string `yaml:"realm"`        // Authentication realm (e.g., "pam", "pve")
-	ApiPath     string `yaml:"api_path"`     // API base path (default: "/api2/json")
-	Insecure    bool   `yaml:"insecure"`     // Skip TLS certificate verification
-	SSHUser     string `yaml:"ssh_user"`     // SSH username for shell connections
-	Debug       bool   `yaml:"debug"`        // Enable debug logging
-	CacheDir    string `yaml:"cache_dir"`    // Custom cache directory path
+	Addr        string      `yaml:"addr"`         // Proxmox server URL (e.g., "https://pve.example.com:8006")
+	User        string      `yaml:"user"`         // Username for authentication (without realm)
+	Password    string      `yaml:"password"`     // Password for password-based authentication
+	TokenID     string      `yaml:"token_id"`     // API token ID for token-based authentication
+	TokenSecret string      `yaml:"token_secret"` // API token secret for token-based authentication
+	Realm       string      `yaml:"realm"`        // Authentication realm (e.g., "pam", "pve")
+	ApiPath     string      `yaml:"api_path"`     // API base path (default: "/api2/json")
+	Insecure    bool        `yaml:"insecure"`     // Skip TLS certificate verification
+	SSHUser     string      `yaml:"ssh_user"`     // SSH username for shell connections
+	Debug       bool        `yaml:"debug"`        // Enable debug logging
+	CacheDir    string      `yaml:"cache_dir"`    // Custom cache directory path
+	KeyBindings KeyBindings `yaml:"key_bindings"` // Customizable key bindings
+}
+
+// DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
+func DefaultKeyBindings() KeyBindings {
+	return KeyBindings{
+		SwitchView:        "]",
+		SwitchViewReverse: "[",
+		NodesPage:         "F1",
+		GuestsPage:        "F2",
+		TasksPage:         "F3",
+		Menu:              "m",
+		Shell:             "s",
+		VNC:               "v",
+		Scripts:           "c",
+		Refresh:           "F5",
+		AutoRefresh:       "a",
+		Search:            "/",
+		Help:              "?",
+		Quit:              "q",
+	}
+}
+
+// keyBindingsToMap converts a KeyBindings struct to a map for validation.
+func keyBindingsToMap(kb KeyBindings) map[string]string {
+	return map[string]string{
+		"switch_view":         kb.SwitchView,
+		"switch_view_reverse": kb.SwitchViewReverse,
+		"nodes_page":          kb.NodesPage,
+		"guests_page":         kb.GuestsPage,
+		"tasks_page":          kb.TasksPage,
+		"menu":                kb.Menu,
+		"shell":               kb.Shell,
+		"vnc":                 kb.VNC,
+		"scripts":             kb.Scripts,
+		"refresh":             kb.Refresh,
+		"auto_refresh":        kb.AutoRefresh,
+		"search":              kb.Search,
+		"help":                kb.Help,
+		"quit":                kb.Quit,
+	}
+}
+
+// ValidateKeyBindings checks if all key specifications are valid.
+func ValidateKeyBindings(kb KeyBindings) error {
+	bindings := keyBindingsToMap(kb)
+	defaultMap := keyBindingsToMap(DefaultKeyBindings())
+
+	seen := make(map[string]string)
+
+	for name, spec := range bindings {
+		if spec == "" {
+			continue
+		}
+		key, r, mod, err := keys.Parse(spec)
+		if err != nil {
+			return fmt.Errorf("invalid key binding %s: %w", name, err)
+		}
+
+		if keys.IsReserved(key, r, mod) && spec != defaultMap[name] {
+			return fmt.Errorf("key binding %s uses reserved key %s", name, spec)
+		}
+
+		id := keys.CanonicalID(key, r, mod)
+		if other, ok := seen[id]; ok {
+			return fmt.Errorf("key binding %s duplicates %s", name, other)
+		}
+		seen[id] = name
+	}
+
+	return nil
 }
 
 // getXDGCacheDir returns the XDG-compliant cache directory for the application.
@@ -238,6 +330,7 @@ func NewConfig() *Config {
 		SSHUser:     os.Getenv("PROXMOX_SSH_USER"),
 		Debug:       strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
 		CacheDir:    os.Getenv("PROXMOX_CACHE_DIR"),
+		KeyBindings: DefaultKeyBindings(),
 	}
 }
 
@@ -299,6 +392,22 @@ func (c *Config) MergeWithFile(path string) error {
 		SSHUser     string `yaml:"ssh_user"`
 		Debug       *bool  `yaml:"debug"`
 		CacheDir    string `yaml:"cache_dir"`
+		KeyBindings struct {
+			SwitchView        string `yaml:"switch_view"`
+			SwitchViewReverse string `yaml:"switch_view_reverse"`
+			NodesPage         string `yaml:"nodes_page"`
+			GuestsPage        string `yaml:"guests_page"`
+			TasksPage         string `yaml:"tasks_page"`
+			Menu              string `yaml:"menu"`
+			Shell             string `yaml:"shell"`
+			VNC               string `yaml:"vnc"`
+			Scripts           string `yaml:"scripts"`
+			Refresh           string `yaml:"refresh"`
+			AutoRefresh       string `yaml:"auto_refresh"`
+			Search            string `yaml:"search"`
+			Help              string `yaml:"help"`
+			Quit              string `yaml:"quit"`
+		} `yaml:"key_bindings"`
 	}
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
@@ -339,6 +448,66 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.CacheDir != "" {
 		c.CacheDir = fileConfig.CacheDir
 	}
+	// Merge key bindings if provided
+	if kb := fileConfig.KeyBindings; kb != struct {
+		SwitchView        string `yaml:"switch_view"`
+		SwitchViewReverse string `yaml:"switch_view_reverse"`
+		NodesPage         string `yaml:"nodes_page"`
+		GuestsPage        string `yaml:"guests_page"`
+		TasksPage         string `yaml:"tasks_page"`
+		Menu              string `yaml:"menu"`
+		Shell             string `yaml:"shell"`
+		VNC               string `yaml:"vnc"`
+		Scripts           string `yaml:"scripts"`
+		Refresh           string `yaml:"refresh"`
+		AutoRefresh       string `yaml:"auto_refresh"`
+		Search            string `yaml:"search"`
+		Help              string `yaml:"help"`
+		Quit              string `yaml:"quit"`
+	}{} {
+		if kb.SwitchView != "" {
+			c.KeyBindings.SwitchView = kb.SwitchView
+		}
+		if kb.SwitchViewReverse != "" {
+			c.KeyBindings.SwitchViewReverse = kb.SwitchViewReverse
+		}
+		if kb.NodesPage != "" {
+			c.KeyBindings.NodesPage = kb.NodesPage
+		}
+		if kb.GuestsPage != "" {
+			c.KeyBindings.GuestsPage = kb.GuestsPage
+		}
+		if kb.TasksPage != "" {
+			c.KeyBindings.TasksPage = kb.TasksPage
+		}
+		if kb.Menu != "" {
+			c.KeyBindings.Menu = kb.Menu
+		}
+		if kb.Shell != "" {
+			c.KeyBindings.Shell = kb.Shell
+		}
+		if kb.VNC != "" {
+			c.KeyBindings.VNC = kb.VNC
+		}
+		if kb.Scripts != "" {
+			c.KeyBindings.Scripts = kb.Scripts
+		}
+		if kb.Refresh != "" {
+			c.KeyBindings.Refresh = kb.Refresh
+		}
+		if kb.AutoRefresh != "" {
+			c.KeyBindings.AutoRefresh = kb.AutoRefresh
+		}
+		if kb.Search != "" {
+			c.KeyBindings.Search = kb.Search
+		}
+		if kb.Help != "" {
+			c.KeyBindings.Help = kb.Help
+		}
+		if kb.Quit != "" {
+			c.KeyBindings.Quit = kb.Quit
+		}
+	}
 
 	return nil
 }
@@ -361,6 +530,10 @@ func (c *Config) Validate() error {
 
 	if hasPassword && hasToken {
 		return errors.New("conflicting authentication methods: provide either password or API token, not both")
+	}
+
+	if err := ValidateKeyBindings(c.KeyBindings); err != nil {
+		return err
 	}
 
 	return nil
@@ -400,5 +573,50 @@ func (c *Config) SetDefaults() {
 	if c.CacheDir == "" {
 		// Use XDG_CACHE_HOME for cache directory
 		c.CacheDir = getXDGCacheDir()
+	}
+
+	// Apply default key bindings if not set
+	defaults := DefaultKeyBindings()
+	if c.KeyBindings.SwitchView == "" {
+		c.KeyBindings.SwitchView = defaults.SwitchView
+	}
+	if c.KeyBindings.SwitchViewReverse == "" {
+		c.KeyBindings.SwitchViewReverse = defaults.SwitchViewReverse
+	}
+	if c.KeyBindings.NodesPage == "" {
+		c.KeyBindings.NodesPage = defaults.NodesPage
+	}
+	if c.KeyBindings.GuestsPage == "" {
+		c.KeyBindings.GuestsPage = defaults.GuestsPage
+	}
+	if c.KeyBindings.TasksPage == "" {
+		c.KeyBindings.TasksPage = defaults.TasksPage
+	}
+	if c.KeyBindings.Menu == "" {
+		c.KeyBindings.Menu = defaults.Menu
+	}
+	if c.KeyBindings.Shell == "" {
+		c.KeyBindings.Shell = defaults.Shell
+	}
+	if c.KeyBindings.VNC == "" {
+		c.KeyBindings.VNC = defaults.VNC
+	}
+	if c.KeyBindings.Scripts == "" {
+		c.KeyBindings.Scripts = defaults.Scripts
+	}
+	if c.KeyBindings.Refresh == "" {
+		c.KeyBindings.Refresh = defaults.Refresh
+	}
+	if c.KeyBindings.AutoRefresh == "" {
+		c.KeyBindings.AutoRefresh = defaults.AutoRefresh
+	}
+	if c.KeyBindings.Search == "" {
+		c.KeyBindings.Search = defaults.Search
+	}
+	if c.KeyBindings.Help == "" {
+		c.KeyBindings.Help = defaults.Help
+	}
+	if c.KeyBindings.Quit == "" {
+		c.KeyBindings.Quit = defaults.Quit
 	}
 }

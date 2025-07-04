@@ -1,9 +1,13 @@
 package components
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -15,96 +19,31 @@ type HelpModal struct {
 }
 
 // NewHelpModal creates a new help modal
-func NewHelpModal() *HelpModal {
-	// Create a scrollable text view for the help content
-	textView := tview.NewTextView()
-	textView.SetDynamicColors(true)
-	textView.SetScrollable(true)
-	textView.SetWrap(false) // Disable wrapping to prevent awkward line breaks
-	textView.SetBorder(true)
-	textView.SetTitle(" Proxmox TUI - Help & Keybindings ")
-	textView.SetTitleColor(tcell.ColorYellow)
-	textView.SetBorderColor(tcell.ColorYellow)
+func NewHelpModal(keys config.KeyBindings) *HelpModal {
+	textView := tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(true).
+		SetWrap(false)
 
-	helpText := `[yellow]Navigation:[-]
-  [white]Arrow Keys / hjkl[-]         Navigate lists and panels
-  [white]Tab[-]                       Switch between Nodes and Guests
-  [white]F1[-]                        Switch to Nodes tab
-  [white]F2[-]                        Switch to Guests tab
-  [white]F3[-]                        Switch to Tasks tab
+	textView.SetBorder(true).
+		SetTitle(" Proxmox TUI - Help & Keybindings ").
+		SetTitleColor(tcell.ColorYellow).
+		SetBorderColor(tcell.ColorYellow)
 
-[yellow]Actions:[-]
-  [white]/[-]                         Search/Filter current list
-  [white]S[-]                         Open SSH shell (node/guest)
-  [white]V[-]                         Open VNC console (node/guest)
-  [white]M[-]                         Open context menu
-  [white]C[-]                         Install community scripts (nodes)
-  [white]R[-]                         Manual refresh
-  [white]A[-]                         Toggle auto-refresh (10s interval)
-  [white]Q[-]                         Quit application (confirms if VNC sessions active)
-
-[yellow]VI-like Navigation:[-]
-  [white]h[-]                         Move left / Go back
-  [white]j[-]                         Move down
-  [white]k[-]                         Move up
-  [white]l[-]                         Move right / Select/Enter
-
-[yellow]In Lists:[-]
-  [white]Enter[-]                     Select item
-  [white]Escape[-]                    Close modal/search
-
-[yellow]In Modals:[-]
-  [white]Escape[-]                    Close modal
-  [white]Tab[-]                       Navigate between buttons
-  [white]Enter[-]                     Activate button
-
-[yellow]Search Functionality:[-]
-  [white]Type to filter[-]            Filter by name, ID, or node
-  [white]Enter/Escape[-]              Exit search mode
-  [white]Arrow keys/jk[-]             Navigate filtered results
-
-[yellow]Context Menu Actions:[-]
-  [white]Nodes:[-]                    Shell, VNC, Scripts, Refresh
-  [white]Guests:[-]                   Shell, VNC, Start/Stop/Restart/Migrate
-
-[yellow]Tips & Usage:[-]
-  • Use search ([white]/[-]) to quickly find nodes or guests
-  • Context menu ([white]M[-]) provides quick access to actions
-  • VNC opens in your browser using embedded noVNC client
-  • SSH sessions open in new terminal windows
-  • Community scripts are installed interactively via SSH
-  • Migration moves VMs/containers between cluster nodes
-  • Use [white]hjkl[-] keys for VI-like navigation throughout
-  • All arrow key functionality is preserved alongside hjkl
-  • Quitting with active VNC sessions will prompt for confirmation
-
-[yellow]Troubleshooting:[-]
-  • If VNC doesn't open, check your default browser settings
-  • SSH requires proper key-based authentication or password
-  • Community scripts require internet access on the target node
-  • Use [white]R[-] to manually refresh if data seems stale
-
-[yellow]Scrolling in Help:[-]
-  [white]Arrow Keys / jk[-]           Scroll up/down through help content
-  [white]Page Up/Down[-]              Scroll by page
-  [white]Home/End[-]                  Go to top/bottom
-
-[gray]Press [white]?[-][gray] again, [white]Escape[-][gray], or [white]q[-][gray] to exit this help[-]`
-
+	helpText := buildHelpText(keys)
 	textView.SetText(helpText)
 
 	// Create a flex container to center the text view with better proportions
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
-		AddItem(nil, 0, 1, false). // Left padding (smaller)
+		AddItem(nil, 0, 1, false). // Left padding
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).      // Top padding
-			AddItem(textView, 0, 10, true). // Main content (takes most space)
+			AddItem(textView, 0, 10, true). // Main content
 			AddItem(nil, 0, 1, false),      // Bottom padding
-						0, 8, true). // Main column (much wider)
-		AddItem(nil, 0, 1, false) // Right padding (smaller)
+						0, 8, true). // Main column
+		AddItem(nil, 0, 1, false) // Right padding
 
-	// Create pages container
 	pages := tview.NewPages()
 	pages.AddPage("help-content", flex, true, true)
 
@@ -112,6 +51,68 @@ func NewHelpModal() *HelpModal {
 		Pages:    pages,
 		textView: textView,
 	}
+}
+
+// buildHelpText constructs the formatted and aligned help text.
+func buildHelpText(keys config.KeyBindings) string {
+	// Define all help items in sections for clarity
+	items := []struct {
+		Cat, Key, Desc string
+	}{
+		{Cat: "[yellow]Navigation[-]"},
+		{Key: "Arrow Keys / hjkl", Desc: "Navigate lists and panels"},
+		{Key: fmt.Sprintf("%s / %s", keys.SwitchView, keys.SwitchViewReverse), Desc: "Switch between views (forward/reverse)"},
+		{Key: keys.NodesPage, Desc: "Switch to Nodes tab"},
+		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
+		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
+		{Cat: ""}, // Spacer
+		{Cat: "[yellow]Actions[-]"},
+		{Key: keys.Search, Desc: "Search/Filter current list"},
+		{Key: keys.Shell, Desc: "Open SSH shell (node/guest)"},
+		{Key: keys.VNC, Desc: "Open VNC console (node/guest)"},
+		{Key: keys.Menu, Desc: "Open context menu"},
+		{Key: keys.Scripts, Desc: "Install community scripts (nodes)"},
+		{Key: keys.Refresh, Desc: "Manual refresh"},
+		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},
+		{Key: keys.Quit, Desc: "Quit application"},
+		{Cat: ""},
+		{Cat: "[yellow]Tips & Usage[-]"},
+		{Desc: fmt.Sprintf("• Use search ([white]%s[-]) to quickly find nodes or guests.", keys.Search)},
+		{Desc: fmt.Sprintf("• The context menu ([white]%s[-]) provides quick access to actions.", keys.Menu)},
+		{Desc: "• VNC opens in your default web browser."},
+		{Desc: "• SSH sessions suspend the UI until the session is closed."},
+	}
+
+	// Calculate the maximum width of the key column to align descriptions
+	maxKeyWidth := 0
+	for _, item := range items {
+		if item.Key != "" {
+			width := tview.TaggedStringWidth(item.Key)
+			if width > maxKeyWidth {
+				maxKeyWidth = width
+			}
+		}
+	}
+
+	var builder strings.Builder
+	for _, item := range items {
+		if item.Cat != "" {
+			builder.WriteString(fmt.Sprintf("%s\n", item.Cat))
+		} else if item.Key != "" {
+			padding := maxKeyWidth - tview.TaggedStringWidth(item.Key)
+			builder.WriteString(fmt.Sprintf("  [white]%-s%s[-]  %s\n", item.Key, strings.Repeat(" ", padding), item.Desc))
+		} else if item.Desc != "" {
+			builder.WriteString(fmt.Sprintf("  %s\n", item.Desc))
+		} else {
+			builder.WriteString("\n")
+		}
+	}
+
+	// Add the final footer text
+	builder.WriteString("\n")
+	builder.WriteString(fmt.Sprintf("[gray]Press [white]%s[-][gray] again, [white]Escape[-][gray], or [white]%s[-][gray] to exit this help[-]", keys.Help, strings.ToLower(keys.Quit)))
+
+	return builder.String()
 }
 
 // SetApp sets the parent app reference
@@ -122,7 +123,7 @@ func (hm *HelpModal) SetApp(app *App) {
 // Show displays the help modal
 func (hm *HelpModal) Show() {
 	if hm.app != nil {
-		// Set up input capture to handle ?, Escape, and q keys, plus scrolling
+		// Set up input capture to handle closing and scrolling
 		hm.textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch {
 			case event.Key() == tcell.KeyEscape ||
@@ -130,11 +131,9 @@ func (hm *HelpModal) Show() {
 				hm.Hide()
 				return nil
 			case event.Key() == tcell.KeyRune && event.Rune() == 'j':
-				// VI-like down scrolling
-				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone) // Map 'j' to Down
 			case event.Key() == tcell.KeyRune && event.Rune() == 'k':
-				// VI-like up scrolling
-				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone) // Map 'k' to Up
 			}
 			return event
 		})
@@ -148,12 +147,15 @@ func (hm *HelpModal) Show() {
 func (hm *HelpModal) Hide() {
 	if hm.app != nil {
 		hm.app.pages.RemovePage("help")
-		// Restore focus to the appropriate component based on current page
+		// Restore focus to the appropriate component based on the current page
 		pageName, _ := hm.app.pages.GetFrontPage()
-		if pageName == api.PageNodes {
+		switch pageName {
+		case api.PageNodes:
 			hm.app.SetFocus(hm.app.nodeList)
-		} else if pageName == api.PageGuests {
+		case api.PageGuests:
 			hm.app.SetFocus(hm.app.vmList)
+		case api.PageTasks:
+			hm.app.SetFocus(hm.app.tasksList)
 		}
 	}
 }

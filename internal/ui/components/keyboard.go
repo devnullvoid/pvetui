@@ -6,12 +6,41 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/keys"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
+
+// keyMatch checks if an event matches a key specification string.
+func keyMatch(ev *tcell.EventKey, spec string) bool {
+	key, r, mod, err := keys.Parse(spec)
+	if err != nil {
+		if config.DebugEnabled {
+			models.GetUILogger().Debug("invalid key spec %s: %v", spec, err)
+		}
+		return false
+	}
+	evKey, evRune, evMod := keys.NormalizeEvent(ev)
+
+	if evMod != mod {
+		return false
+	}
+	if key == tcell.KeyRune {
+		match := evKey == tcell.KeyRune && r != 0 && strings.EqualFold(string(evRune), string(r))
+		return match
+	}
+	match := evKey == key
+	return match
+}
 
 // setupKeyboardHandlers configures global keyboard shortcuts
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if config.DebugEnabled {
+			key, r, mod := keys.NormalizeEvent(event)
+			models.GetUILogger().Debug("input key=%d rune=%q mod=%d", key, r, mod)
+		}
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
 
@@ -41,9 +70,8 @@ func (a *App) setupKeyboardHandlers() {
 			return event
 		}
 
-		// Handle tab for page switching when search is not active
-		switch event.Key() {
-		case tcell.KeyTab:
+		// Handle configured switch view shortcut
+		if keyMatch(event, a.config.KeyBindings.SwitchView) {
 			currentPage, _ := a.pages.GetFrontPage()
 			switch currentPage {
 			case api.PageNodes:
@@ -57,108 +85,130 @@ func (a *App) setupKeyboardHandlers() {
 				a.SetFocus(a.nodeList)
 			}
 			return nil
-		case tcell.KeyF1:
+		}
+
+		if keyMatch(event, a.config.KeyBindings.SwitchViewReverse) {
+			currentPage, _ := a.pages.GetFrontPage()
+			switch currentPage {
+			case api.PageTasks:
+				a.pages.SwitchToPage(api.PageGuests)
+				a.SetFocus(a.vmList)
+			case api.PageGuests:
+				a.pages.SwitchToPage(api.PageNodes)
+				a.SetFocus(a.nodeList)
+			default: // PageNodes
+				a.pages.SwitchToPage(api.PageTasks)
+				a.SetFocus(a.tasksList)
+			}
+			return nil
+		}
+
+		if keyMatch(event, a.config.KeyBindings.NodesPage) {
 			a.pages.SwitchToPage(api.PageNodes)
 			a.SetFocus(a.nodeList)
 			return nil
-		case tcell.KeyF2:
+		}
+		if keyMatch(event, a.config.KeyBindings.GuestsPage) {
 			a.pages.SwitchToPage(api.PageGuests)
 			a.SetFocus(a.vmList)
 			return nil
-		case tcell.KeyF3:
+		}
+		if keyMatch(event, a.config.KeyBindings.TasksPage) {
 			a.pages.SwitchToPage(api.PageTasks)
 			a.SetFocus(a.tasksList)
 			return nil
-		case tcell.KeyF5:
-			// Manual refresh
+		}
+		if keyMatch(event, a.config.KeyBindings.Refresh) {
 			a.manualRefresh()
 			return nil
-		case tcell.KeyRune:
-			if event.Rune() == 'q' {
-				// Check if there are active VNC sessions
-				sessionCount := a.vncService.GetActiveSessionCount()
-				if sessionCount > 0 {
-					// Show confirmation dialog with session count
-					var message string
-					if sessionCount == 1 {
-						message = "There is 1 active VNC session that will be disconnected.\n\nAre you sure you want to quit?"
-					} else {
-						message = fmt.Sprintf("There are %d active VNC sessions that will be disconnected.\n\nAre you sure you want to quit?", sessionCount)
-					}
+		}
+		if keyMatch(event, a.config.KeyBindings.Quit) {
+			// Check if there are active VNC sessions
+			sessionCount := a.vncService.GetActiveSessionCount()
+			if sessionCount > 0 {
+				// Show confirmation dialog with session count
+				var message string
+				if sessionCount == 1 {
+					message = "There is 1 active VNC session that will be disconnected.\n\nAre you sure you want to quit?"
+				} else {
+					message = fmt.Sprintf("There are %d active VNC sessions that will be disconnected.\n\nAre you sure you want to quit?", sessionCount)
+				}
 
-					a.showConfirmationDialog(message, func() {
-						a.Stop()
-					})
-				} else {
-					// No active sessions, quit immediately
+				a.showConfirmationDialog(message, func() {
 					a.Stop()
-				}
-				return nil
-			} else if event.Rune() == '/' {
-				// Activate search
-				a.activateSearch()
-				return nil
-			} else if event.Rune() == 's' || event.Rune() == 'S' {
-				// Open shell session based on current page
-				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == api.PageNodes {
-					// Handle node shell session
-					a.openNodeShell()
-				} else if currentPage == api.PageGuests {
-					// Handle VM shell session
-					a.openVMShell()
-				}
-				return nil
-			} else if event.Rune() == 'm' {
-				// Open context menu based on current page
-				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == api.PageNodes {
-					a.ShowNodeContextMenu()
-				} else if currentPage == api.PageGuests {
-					a.ShowVMContextMenu()
-				}
-				return nil
-			} else if event.Rune() == 'c' || event.Rune() == 'C' {
-				// Open community scripts installer - only available for nodes
-				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == api.PageNodes {
-					node := a.nodeList.GetSelectedNode()
-					if node != nil {
-						a.openScriptSelector(node, nil)
-					}
-				} else if currentPage == api.PageGuests {
-					// Community scripts are not available for individual VMs
-					a.showMessage("Community scripts can only be installed on nodes. Switch to the Nodes tab to install scripts.")
-				}
-				return nil
-			} else if event.Rune() == 'r' || event.Rune() == 'R' {
-				// Manual refresh
-				a.manualRefresh()
-				return nil
-			} else if event.Rune() == 'a' || event.Rune() == 'A' {
-				// Toggle auto-refresh
-				a.toggleAutoRefresh()
-				return nil
-			} else if event.Rune() == 'v' || event.Rune() == 'V' {
-				// Open VNC connection based on current page
-				currentPage, _ := a.pages.GetFrontPage()
-				if currentPage == api.PageNodes {
-					// Handle node VNC shell session
-					a.openNodeVNC()
-				} else if currentPage == api.PageGuests {
-					// Handle VM VNC console session
-					a.openVMVNC()
-				}
-				return nil
-			} else if event.Rune() == '?' {
-				// Toggle help modal
-				if a.pages.HasPage("help") {
-					a.helpModal.Hide()
-				} else {
-					a.helpModal.Show()
-				}
-				return nil
+				})
+			} else {
+				// No active sessions, quit immediately
+				a.Stop()
 			}
+			return nil
+		}
+		if keyMatch(event, a.config.KeyBindings.Search) {
+			// Activate search
+			a.activateSearch()
+			return nil
+		}
+		if keyMatch(event, a.config.KeyBindings.Shell) {
+			// Open shell session based on current page
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageNodes {
+				// Handle node shell session
+				a.openNodeShell()
+			} else if currentPage == api.PageGuests {
+				// Handle VM shell session
+				a.openVMShell()
+			}
+			return nil
+		}
+		if keyMatch(event, a.config.KeyBindings.Menu) {
+			// Open context menu based on current page
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageNodes {
+				a.ShowNodeContextMenu()
+			} else if currentPage == api.PageGuests {
+				a.ShowVMContextMenu()
+			}
+			return nil
+		}
+		if keyMatch(event, a.config.KeyBindings.Scripts) {
+			// Open community scripts installer - only available for nodes
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageNodes {
+				node := a.nodeList.GetSelectedNode()
+				if node != nil {
+					a.openScriptSelector(node, nil)
+				}
+			} else if currentPage == api.PageGuests {
+				// Community scripts are not available for individual VMs
+				a.showMessage("Community scripts can only be installed on nodes. Switch to the Nodes tab to install scripts.")
+			}
+			return nil
+		}
+		if keyMatch(event, a.config.KeyBindings.AutoRefresh) {
+			// Toggle auto-refresh
+			a.toggleAutoRefresh()
+			return nil
+		}
+		if keyMatch(event, a.config.KeyBindings.VNC) {
+			// Open VNC connection based on current page
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageNodes {
+				// Handle node VNC shell session
+				a.openNodeVNC()
+			} else if currentPage == api.PageGuests {
+				// Handle VM VNC console session
+				a.openVMVNC()
+			}
+			return nil
+		}
+		if keyMatch(event, a.config.KeyBindings.Help) {
+			// Toggle help modal
+			if a.pages.HasPage("help") {
+				a.helpModal.Hide()
+			} else {
+				a.helpModal.Show()
+			}
+			return nil
 		}
 		return event
 	})

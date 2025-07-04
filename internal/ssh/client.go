@@ -76,7 +76,7 @@ func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nod
 }
 
 // ExecuteLXCShell opens an interactive SSH session to a node and then
-// uses 'pct exec' to enter the container
+// uses 'pct enter' to enter the container
 func ExecuteLXCShell(user, nodeIP string, vmID int) error {
 	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vmID)
 }
@@ -86,7 +86,7 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 	sshArgs := []string{
 		fmt.Sprintf("%s@%s", user, nodeIP),
 		"-t",
-		fmt.Sprintf("sudo pct exec %d -- /bin/bash -l", vmID),
+		fmt.Sprintf("sudo pct enter %d", vmID),
 	}
 
 	sshCmd := execer.CommandContext(ctx, "ssh", sshArgs...)
@@ -111,13 +111,12 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 	return nil
 }
 
-// ExecuteQemuShell attempts to connect to a Qemu VM using SSH directly
-// This is a fallback option when we don't have a more direct method
+// ExecuteQemuShell attempts to connect to a QEMU VM using SSH directly
 func ExecuteQemuShell(user, vmIP string) error {
 	return ExecuteQemuShellWith(context.Background(), NewDefaultExecutor(), user, vmIP)
 }
 
-// ExecuteQemuShellWith attempts to connect to a Qemu VM using a custom executor.
+// ExecuteQemuShellWith attempts to connect to a QEMU VM using a custom executor.
 func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmIP string) error {
 	if vmIP == "" {
 		return fmt.Errorf("no IP address available for VM")
@@ -141,46 +140,6 @@ func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmI
 
 	if err != nil {
 		return fmt.Errorf("failed to connect to VM via SSH: %w", err)
-	}
-	return nil
-}
-
-// ExecuteQemuGuestAgentShell connects to a QEMU VM using the guest agent via host node
-func ExecuteQemuGuestAgentShell(user, nodeIP string, vmID int) error {
-	return ExecuteQemuGuestAgentShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vmID)
-}
-
-// ExecuteQemuGuestAgentShellWith connects to a QEMU VM using a custom executor via host node.
-func ExecuteQemuGuestAgentShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int) error {
-	// For QEMU VMs with guest agent, we can SSH to node, then run guest agent commands
-	fmt.Println("\nNOTE: This connects to the VM through the QEMU guest agent")
-	fmt.Println("You will need root permissions on the Proxmox host for this to work")
-	fmt.Println("Commands will execute inside the VM with the privileges of the guest agent")
-
-	sshArgs := []string{
-		fmt.Sprintf("%s@%s", user, nodeIP),
-		"-t", // Force pseudo-terminal allocation
-		fmt.Sprintf("sudo qm guest exec %d bash -- -l", vmID),
-	}
-
-	sshCmd := execer.CommandContext(ctx, "ssh", sshArgs...)
-	sshCmd.Stdin = os.Stdin
-	sshCmd.Stdout = os.Stdout
-	sshCmd.Stderr = os.Stderr
-
-	// Set environment variables for better terminal compatibility
-	// Override TERM to xterm-256color for better compatibility with remote systems
-	// This fixes issues with terminals like Kitty (xterm-kitty) that aren't recognized on all systems
-	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
-
-	// Execute command using the current process environment and stdin/stdout
-	err := sshCmd.Run()
-
-	// Show completion status and wait for user input before returning
-	utils.WaitForEnterToReturn(err, "QEMU guest agent session completed successfully", "QEMU guest agent session ended with error")
-
-	if err != nil {
-		return fmt.Errorf("failed to execute QEMU guest shell command: %w", err)
 	}
 	return nil
 }

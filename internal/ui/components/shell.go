@@ -160,33 +160,14 @@ func (a *App) openVMShell() {
 			fmt.Printf("\nConnecting to LXC container %s (ID: %d) on node %s (%s)...\n",
 				vm.Name, vm.ID, vm.Node, nodeIP)
 
-			// Execute LXC shell command
+			// Execute LXC shell command using 'pct enter'
 			err := ssh.ExecuteLXCShell(a.config.SSHUser, nodeIP, vm.ID)
 			if err != nil {
 				fmt.Printf("\nError connecting to LXC container: %v\n", err)
 			}
 		} else if vm.Type == "qemu" {
-			// For QEMU VMs, check if guest agent is running
-			if vm.AgentRunning {
-				fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via guest agent on node %s...\n",
-					vm.Name, vm.ID, vm.Node)
-
-				// Try using the guest agent
-				err := ssh.ExecuteQemuGuestAgentShell(a.config.SSHUser, nodeIP, vm.ID)
-				if err != nil {
-					fmt.Printf("\nError connecting via guest agent: %v\n", err)
-
-					// If guest agent fails and we have an IP, try direct SSH
-					if vm.IP != "" {
-						fmt.Printf("\nFalling back to direct SSH connection to %s...\n", vm.IP)
-						err = ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
-						if err != nil {
-							fmt.Printf("\nFailed to SSH to VM: %v\n", err)
-						}
-					}
-				}
-			} else if vm.IP != "" {
-				// No guest agent, but we have an IP
+			// For QEMU VMs, use direct SSH connection
+			if vm.IP != "" {
 				fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH at %s...\n",
 					vm.Name, vm.ID, vm.IP)
 
@@ -195,21 +176,16 @@ func (a *App) openVMShell() {
 					fmt.Printf("\nFailed to SSH to VM: %v\n", err)
 				}
 			} else {
-				// No guest agent, no IP -- show a TUI modal with actionable feedback
-				msg := "Cannot open shell: Neither guest agent nor IP address is available for this VM.\n\n" +
-					"To connect to this VM, either:\n" +
-					"1. Install QEMU guest agent in the VM\n" +
-					"2. Configure the VM's network to obtain an IP address\n" +
-					"3. Set up VNC access (not currently supported in TUI)"
-				a.showMessage(msg)
+				// No IP address available
+				fmt.Printf("\nCannot open shell: No IP address available for VM %s (ID: %d)\n\n", vm.Name, vm.ID)
+				fmt.Printf("To connect to this VM:\n")
+				fmt.Printf("1. Configure the VM's network to obtain an IP address\n")
+				fmt.Printf("2. Use VNC console instead (if available)\n")
+				fmt.Printf("3. Check VM network configuration and ensure it's properly started\n")
 			}
 		} else {
 			fmt.Printf("\nUnsupported VM type: %s\n", vm.Type)
 		}
-
-		// Wait for user to press Enter
-		// fmt.Print("\nPress Enter to return to the TUI...")
-		// utils.WaitForEnter()
 	})
 
 	// Fix for tview suspend/resume issue - comprehensive terminal state restoration

@@ -6,17 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- Added unit tests for the file-based cache implementation
-- Refactored UI app into smaller files and introduced thin main
-- Fixed interface implementations for UI components to compile with new wrappers
-- Updated UI component interfaces to mirror underlying tview return types, fixing build errors
-- Introduced `CommandExecutor` and context-aware shell helpers for `ssh` package
-- Reverted cache TTL precision back to seconds for simpler expiration handling
-- Restored comprehensive GolangCI-Lint configuration
-- Updated GolangCI-Lint configuration to support v2
-- Fixed trailing newline in lint configuration
-- Restored additional linters in `.golangci.yml` while keeping `make lint` passing
-- Fixed lint configuration error by specifying `colored-line-number` output format
+
+### Added
+- **View Switching with Brackets**: Changed default view switching keys to `]` (forward) and `[` (reverse) for better reliability across terminals.
+- **Configurable Key Bindings**: Added support for customizing all major actions via the `key_bindings` section in the config file.
+
+### Fixed
+- **Keybinding Reliability**: Overhauled the keybinding system to correctly handle modifier keys (`Ctrl`, `Alt`, `Shift`), fixing numerous issues with custom shortcuts.
+- **Shell Connection Issues**: Fixed VM shell connections that were failing due to broken QEMU guest agent approach.
+- **GitHub Workflow Fixes**: Added `submodules: recursive` to all GitHub Actions checkout steps to properly handle noVNC submodule during builds.
+- **Windows ARM64 Support**: Added Windows ARM64 build target to both Makefile and GitHub release workflow.
 
 ## [0.7.1] - 2025-07-01
 

@@ -145,7 +145,23 @@ token_secret: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 # Additional settings
 ssh_user: "your-ssh-user"
 debug: false
-# cache_dir: "/custom/cache/path"  # Optional: defaults to ~/.cache/proxmox-tui
+# cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+
+key_bindings:
+  switch_view: "]"
+  switch_view_reverse: "["
+  nodes_page: "Alt+1"
+  guests_page: "Alt+2"
+  tasks_page: "Alt+3"
+  menu: m
+  shell: s
+  vnc: v
+  scripts: c
+  refresh: "Ctrl+r"
+  auto_refresh: a
+  search: "/"
+  help: "?"
+  quit: q
 ```
 
 ## 🔐 Authentication
@@ -189,7 +205,7 @@ Proxmox TUI includes an embedded noVNC client that provides seamless VNC console
 
 ### How It Works
 
-1. **Press `V`** while selecting a VM, container, or node
+1. **Press `v`** while selecting a VM, container, or node
 2. **Embedded Server Starts**: A local HTTP server launches automatically on an available port
 3. **VNC Proxy Created**: Application creates a VNC proxy session with Proxmox using the API
 4. **Browser Opens**: Your default browser opens to the embedded noVNC client
@@ -221,20 +237,53 @@ Run Proxmox TUI with your configuration file:
 
 ### Keyboard Navigation
 
-- **F1**: View Nodes
-- **F2**: View Guests
-- **/**: Search/Filter
-- **S**: Open Shell
-- **V**: Open VNC Console
-- **C**: View Community Scripts
-- **M**: Open Menu
-- **Tab/Next Tab**: Switch between tabs
-- **Q**: Quit
+| Key(s)            | Action                                                          |
+|-------------------|-----------------------------------------------------------------|
+| `h` `j` `k` `l`   | Vim-style navigation (left, down, up, right)                    |
+| `Enter`           | Select item                                                     |
+| `[` / `]`         | Switch between Nodes, Guests, and Tasks views (forward/reverse) |
+| `Alt+1`           | Jump to Nodes view                                              |
+| `Alt+2`           | Jump to Guests view                                             |
+| `Alt+3`           | Jump to Tasks view                                              |
+| `s`               | Open shell to selected Node or Guest                            |
+| `v`               | Open VNC console for selected Node or Guest                     |
+| `c`               | Open community scripts installer for selected Node              |
+| `m`               | Open context menu for selected item                             |
+| `F5`              | Manual refresh                                                  |
+| `a`               | Toggle auto-refresh                                             |
+| `/`               | Activate search                                                 |
+| `?`               | Toggle help modal                                               |
+| `q`               | Quit application                                                |
+
+A `key_bindings` section can be added to your `config.yml` to override any of these defaults. Set `debug: true` in your config to log every key press. This can help troubleshoot why a custom shortcut isn't recognized.
+
+On macOS, `Opt` can be used as a synonym for `Alt` in your configuration (e.g., `Opt+1`).
+
+### A Note on Terminal Limitations
+
+Due to the way terminal emulators process keyboard input, certain key combinations are ambiguous and cannot be reliably distinguished. When setting custom keybindings, please avoid the following:
+- `Ctrl+H` (interpreted as `Backspace`)
+- `Ctrl+I` (interpreted as `Tab`)
+- `Ctrl+M` (interpreted as `Enter`)
+- `Ctrl+Tab` (behavior is inconsistent across terminals)
+
+Using simple, direct keys or combinations with `Alt` and `Shift` is recommended for custom bindings.
+
+## 🔐 Authentication
+The application supports both password and API token authentication. You will be prompted for your password if it's not provided via environment variables or the config file.
+For enhanced security, API token authentication is recommended.
+
+## 🐳 Docker Usage
+For users who prefer running applications in containers, `proxmox-tui` provides both Docker and Podman support.
+A `docker-compose.yml` file is included for easy setup.
+Refer to the [Docker documentation](./DOCKER.md) for detailed instructions.
 
 ## 🤝 Contributing
+Contributions, issues, and feature requests are welcome!
+Feel free to check the [issues page](https://github.com/devnull-cr/proxmox-tui/issues).
 
-Contributions are welcome! Feel free to submit issues or pull requests.
+## ⭐️ Show your support
+Give a ⭐️ if this project helped you!
 
-## 📄 License
-
+## 📝 License
 This project is licensed under the MIT License - see the LICENSE file for details.

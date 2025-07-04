@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/rivo/tview"
 )
 
@@ -26,7 +27,7 @@ func NewFooter() *Footer {
 	footer.SetTextAlign(tview.AlignLeft)
 	footer.SetDynamicColors(true)
 
-	baseText := "[yellow]Tab:[white]Switch  [yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]F3:[white]Tasks  [yellow]/:[white]Search  [yellow]M:[white]Menu  [yellow]A:[white]Auto-Refresh  [yellow]?:[white]Help  [yellow]Q:[white]Quit"
+	baseText := "[yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]F3:[white]Tasks  [yellow]/:[white]Search  [yellow]M:[white]Menu  [yellow]A:[white]Auto-Refresh  [yellow]?:[white]Help  [yellow]Q:[white]Quit"
 
 	f := &Footer{
 		TextView:        footer,
@@ -38,6 +39,21 @@ func NewFooter() *Footer {
 	f.updateDisplay()
 
 	return f
+}
+
+// FormatFooterText builds the footer key binding text from config.
+func FormatFooterText(keys config.KeyBindings) string {
+	return fmt.Sprintf(
+		"[yellow]%s:[white]Nodes  [yellow]%s:[white]Guests  [yellow]%s:[white]Tasks  [yellow]%s:[white]Search  [yellow]%s:[white]Menu  [yellow]%s:[white]Auto-Refresh  [yellow]%s:[white]Help  [yellow]%s:[white]Quit",
+		keys.NodesPage,
+		keys.GuestsPage,
+		keys.TasksPage,
+		keys.Search,
+		keys.Menu,
+		keys.AutoRefresh,
+		keys.Help,
+		keys.Quit,
+	)
 }
 
 // UpdateKeybindings updates the footer text with custom key bindings
