@@ -27,7 +27,7 @@ func NewFooter() *Footer {
 	footer.SetTextAlign(tview.AlignLeft)
 	footer.SetDynamicColors(true)
 
-	baseText := "[yellow]Tab:[white]Switch  [yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]F3:[white]Tasks  [yellow]/:[white]Search  [yellow]M:[white]Menu  [yellow]A:[white]Auto-Refresh  [yellow]?:[white]Help  [yellow]Q:[white]Quit"
+	baseText := "[yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]F3:[white]Tasks  [yellow]/:[white]Search  [yellow]M:[white]Menu  [yellow]A:[white]Auto-Refresh  [yellow]?:[white]Help  [yellow]Q:[white]Quit"
 
 	f := &Footer{
 		TextView:        footer,
@@ -44,8 +44,7 @@ func NewFooter() *Footer {
 // FormatFooterText builds the footer key binding text from config.
 func FormatFooterText(keys config.KeyBindings) string {
 	return fmt.Sprintf(
-		"[yellow]%s:[white]Switch  [yellow]%s:[white]Nodes  [yellow]%s:[white]Guests  [yellow]%s:[white]Tasks  [yellow]%s:[white]Search  [yellow]%s:[white]Menu  [yellow]%s:[white]Auto-Refresh  [yellow]%s:[white]Help  [yellow]%s:[white]Quit",
-		keys.SwitchView,
+		"[yellow]%s:[white]Nodes  [yellow]%s:[white]Guests  [yellow]%s:[white]Tasks  [yellow]%s:[white]Search  [yellow]%s:[white]Menu  [yellow]%s:[white]Auto-Refresh  [yellow]%s:[white]Help  [yellow]%s:[white]Quit",
 		keys.NodesPage,
 		keys.GuestsPage,
 		keys.TasksPage,

@@ -248,7 +248,7 @@ Run Proxmox TUI with your configuration file:
 | `s`               | Open shell to selected Node or Guest                            |
 | `v`               | Open VNC console for selected Node or Guest                     |
 | `c`               | Open community scripts installer for selected Node              |
-| `x`               | Open context menu for selected item                             |
+| `m`               | Open context menu for selected item                             |
 | `F5`              | Manual refresh                                                  |
 | `a`               | Toggle auto-refresh                                             |
 | `/`               | Activate search                                                 |

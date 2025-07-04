@@ -149,7 +149,7 @@ func DefaultKeyBindings() KeyBindings {
 		NodesPage:         "F1",
 		GuestsPage:        "F2",
 		TasksPage:         "F3",
-		Menu:              "x",
+		Menu:              "m",
 		Shell:             "s",
 		VNC:               "v",
 		Scripts:           "c",
