@@ -14,14 +14,14 @@ func TestParse(t *testing.T) {
 		r    rune
 		mod  tcell.ModMask
 	}{
-		{"A", tcell.KeyRune, 'a', 0},
+		{"A", tcell.KeyRune, 'a', tcell.ModShift},
 		{"Shift+A", tcell.KeyRune, 'a', tcell.ModShift},
-		{"Ctrl+A", tcell.KeyRune, 'a', tcell.ModCtrl},
+		{"Ctrl+A", tcell.KeyRune, 'a', tcell.ModCtrl | tcell.ModShift},
 		{"Ctrl+Shift+A", tcell.KeyRune, 'a', tcell.ModCtrl | tcell.ModShift},
 		{"Alt+1", tcell.KeyRune, '1', tcell.ModAlt},
 		{"Alt+#", tcell.KeyRune, '3', tcell.ModAlt | tcell.ModShift},
 		{"Alt+Shift+3", tcell.KeyRune, '3', tcell.ModAlt | tcell.ModShift},
-		{"Win+A", tcell.KeyRune, 'a', tcell.ModMeta},
+		{"Win+A", tcell.KeyRune, 'a', tcell.ModMeta | tcell.ModShift},
 		{"Shift+F1", tcell.KeyF1, 0, tcell.ModShift},
 		{"Shift+3", tcell.KeyRune, '3', tcell.ModShift},
 	}
@@ -50,8 +50,8 @@ func TestNormalizeEvent_Tab(t *testing.T) {
 
 	ctrl := tcell.NewEventKey(tcell.KeyCtrlI, 0, tcell.ModCtrl)
 	key, r, mod = NormalizeEvent(ctrl)
-	assert.Equal(t, tcell.KeyRune, key)
-	assert.Equal(t, 'i', r)
+	assert.Equal(t, tcell.KeyTab, key)
+	assert.Zero(t, r)
 	assert.Equal(t, tcell.ModCtrl, mod)
 }
 

@@ -2,9 +2,11 @@ package config
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
+	"filippo.io/age"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -354,6 +356,36 @@ invalid: yaml: content:
 			}
 		})
 	}
+}
+
+func TestConfig_MergeWithEncryptedFile(t *testing.T) {
+	if _, err := exec.LookPath("sops"); err != nil {
+		t.Skip("sops binary not available")
+	}
+
+	tempDir := t.TempDir()
+
+	id, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+
+	keyPath := filepath.Join(tempDir, "key.txt")
+	require.NoError(t, os.WriteFile(keyPath, []byte(id.String()), 0o600))
+
+	plainPath := filepath.Join(tempDir, "plain.yaml")
+	require.NoError(t, os.WriteFile(plainPath, []byte("addr: https://enc.example.com\nuser: encuser\n"), 0o600))
+
+	cmd := exec.Command("sops", "--encrypt", "--input-type", "yaml", "--output-type", "yaml", "--age", id.Recipient().String(), plainPath)
+	out, err := cmd.Output()
+	require.NoError(t, err)
+
+	encPath := filepath.Join(tempDir, "config.enc.yaml")
+	require.NoError(t, os.WriteFile(encPath, out, 0o600))
+
+	cfg := &Config{}
+	err = cfg.MergeWithFile(encPath)
+	require.NoError(t, err)
+	assert.Equal(t, "https://enc.example.com", cfg.Addr)
+	assert.Equal(t, "encuser", cfg.User)
 }
 
 func TestConfig_SetDefaults(t *testing.T) {

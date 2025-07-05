@@ -1,0 +1,4 @@
+creation_rules:
+  - path_regex: config\.ya?ml$
+    encrypted_regex: ^(addr|api_path|user|password|token_id|token_secret|realm|insecure|ssh_user|ssh_key)$
+    age: age10y5cemq4xxt6tdkullzrjt4r0q048w3dpt50zsxsqs906xknnf4qes2s87

@@ -76,6 +76,7 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/keys"
+	"github.com/getsops/sops/v3/decrypt"
 	"gopkg.in/yaml.v3"
 )
 
@@ -209,6 +210,21 @@ func ValidateKeyBindings(kb KeyBindings) error {
 	}
 
 	return nil
+}
+
+// isSOPSEncrypted checks if a config file appears to be SOPS encrypted.
+func isSOPSEncrypted(path string, data []byte) bool {
+	if strings.HasSuffix(path, ".enc.yaml") || strings.HasSuffix(path, ".enc.yml") ||
+		strings.HasSuffix(path, ".sops.yaml") || strings.HasSuffix(path, ".sops.yml") {
+		return true
+	}
+	var m map[string]any
+	if err := yaml.Unmarshal(data, &m); err == nil {
+		if _, ok := m["sops"]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // getXDGCacheDir returns the XDG-compliant cache directory for the application.
@@ -377,6 +393,14 @@ func (c *Config) MergeWithFile(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
+	}
+
+	if isSOPSEncrypted(path, data) {
+		decrypted, derr := decrypt.File(path, "yaml")
+		if derr != nil {
+			return derr
+		}
+		data = decrypted
 	}
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values

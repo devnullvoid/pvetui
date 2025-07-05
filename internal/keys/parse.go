@@ -150,10 +150,13 @@ func IsReserved(key tcell.Key, r rune, mod tcell.ModMask) bool {
 	}
 
 	// System-reserved combinations like Ctrl+C should not be reused.
-	if mod == tcell.ModCtrl && key == tcell.KeyRune {
-		switch unicode.ToLower(r) {
-		case 'c', 'd':
-			return true
+	if key == tcell.KeyRune && (mod&tcell.ModCtrl) != 0 {
+		other := mod &^ (tcell.ModCtrl | tcell.ModShift)
+		if other == 0 {
+			switch unicode.ToLower(r) {
+			case 'c', 'd':
+				return true
+			}
 		}
 	}
 	return false
