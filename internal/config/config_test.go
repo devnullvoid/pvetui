@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"filippo.io/age"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -266,6 +267,7 @@ func TestConfig_GetAPIToken(t *testing.T) {
 }
 
 func TestConfig_MergeWithFile(t *testing.T) {
+	SetLogger(&interfaces.NoOpLogger{})
 	// Create a temporary directory for test files
 	tempDir := t.TempDir()
 
@@ -359,6 +361,7 @@ invalid: yaml: content:
 }
 
 func TestConfig_MergeWithEncryptedFile(t *testing.T) {
+	SetLogger(&interfaces.NoOpLogger{})
 	if _, err := exec.LookPath("sops"); err != nil {
 		t.Skip("sops binary not available")
 	}

@@ -98,7 +98,12 @@ func SetLogger(l interfaces.Logger) {
 	cfgLoggerOnce.Do(func() { cfgLogger = l })
 }
 
-func getConfigLogger() interfaces.Logger { return cfgLogger }
+func getConfigLogger() interfaces.Logger {
+	if cfgLogger == nil {
+		return &interfaces.NoOpLogger{}
+	}
+	return cfgLogger
+}
 
 // KeyBindings defines customizable key mappings for common actions.
 // Each field represents a single keyboard key that triggers the action.
@@ -230,11 +235,13 @@ func ValidateKeyBindings(kb KeyBindings) error {
 func isSOPSEncrypted(path string, data []byte) bool {
 	if strings.HasSuffix(path, ".enc.yaml") || strings.HasSuffix(path, ".enc.yml") ||
 		strings.HasSuffix(path, ".sops.yaml") || strings.HasSuffix(path, ".sops.yml") {
+		getConfigLogger().Debug("Detected SOPS encryption via filename: %s", path)
 		return true
 	}
 	var m map[string]any
 	if err := yaml.Unmarshal(data, &m); err == nil {
 		if _, ok := m["sops"]; ok {
+			getConfigLogger().Debug("Detected SOPS encryption via metadata: %s", path)
 			return true
 		}
 	}
