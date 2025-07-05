@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support for SOPS/age encrypted configuration files with automatic key lookup
 - `.sops.yaml` for convenient encryption of config files with SOPS
+- Log message when encrypted config is decrypted
 
 ## [0.8.0-rc1] - 2025-07-04
 

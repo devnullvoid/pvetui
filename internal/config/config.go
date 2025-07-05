@@ -71,6 +71,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -401,6 +402,7 @@ func (c *Config) MergeWithFile(path string) error {
 			return derr
 		}
 		data = decrypted
+		log.Printf("Decrypted SOPS config file: %s", path)
 	}
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values
