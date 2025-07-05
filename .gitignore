@@ -2,6 +2,7 @@
 .vscode/
 .cursor/
 config.yml
+config.yaml
 /proxmox-tui
 /proxmox-tui.log
 # Ignore log files anywhere in the project (including test-generated ones)
