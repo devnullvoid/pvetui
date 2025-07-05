@@ -71,12 +71,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/devnullvoid/proxmox-tui/internal/keys"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 	"github.com/getsops/sops/v3/decrypt"
 	"gopkg.in/yaml.v3"
 )
@@ -86,6 +87,18 @@ import (
 // This variable is set during configuration parsing and used by various
 // components to determine whether to emit debug-level log messages.
 var DebugEnabled bool
+
+var (
+	cfgLogger     interfaces.Logger
+	cfgLoggerOnce sync.Once
+)
+
+// SetLogger sets the logger used by the config package.
+func SetLogger(l interfaces.Logger) {
+	cfgLoggerOnce.Do(func() { cfgLogger = l })
+}
+
+func getConfigLogger() interfaces.Logger { return cfgLogger }
 
 // KeyBindings defines customizable key mappings for common actions.
 // Each field represents a single keyboard key that triggers the action.
@@ -402,7 +415,7 @@ func (c *Config) MergeWithFile(path string) error {
 			return derr
 		}
 		data = decrypted
-		log.Printf("Decrypted SOPS config file: %s", path)
+		getConfigLogger().Info("Decrypted SOPS config file: %s", path)
 	}
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values

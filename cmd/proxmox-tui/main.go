@@ -7,6 +7,7 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/internal/app"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/logger"
 )
 
 var (
@@ -39,6 +40,7 @@ func main() {
 
 	cfg.SetDefaults()
 	config.DebugEnabled = cfg.Debug
+	logger.SetDebugEnabled(cfg.Debug)
 
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)
