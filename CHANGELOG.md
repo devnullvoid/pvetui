@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0-rc1] - 2025-07-04
+
 ### Added
 - **View Switching with Brackets**: Changed default view switching keys to `]` (forward) and `[` (reverse) for better reliability across terminals.
 - **Configurable Key Bindings**: Added support for customizing all major actions via the `key_bindings` section in the config file.
