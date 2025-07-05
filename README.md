@@ -164,6 +164,17 @@ key_bindings:
   quit: q
 ```
 
+### Encrypted Config
+
+Proxmox TUI transparently decrypts configuration files encrypted with
+[SOPS](https://github.com/getsops/sops). Simply point the `-config` flag to an
+encrypted YAML file and the application will handle decryption at runtime.
+SOPS searches for your age private key in `$SOPS_AGE_KEY_FILE` or the default
+`~/.config/sops/age/keys.txt` (honoring `$XDG_CONFIG_HOME`).
+
+A sample `.sops.yaml` is provided for convenience; replace the embedded public
+key with your own before encrypting `config.yaml`.
+
 ## 🔐 Authentication
 
 Proxmox TUI supports two authentication methods:
