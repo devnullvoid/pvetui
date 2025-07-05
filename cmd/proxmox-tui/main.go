@@ -7,7 +7,6 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/internal/app"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
 )
 
 var (
@@ -19,12 +18,6 @@ var (
 func main() {
 	cfg := config.NewConfig()
 	cfg.ParseFlags()
-
-	level := logger.LevelInfo
-	if cfg.Debug {
-		level = logger.LevelDebug
-	}
-	config.SetLogger(logger.NewSimpleLogger(level))
 
 	configPath := flag.String("config", "", "Path to YAML config file")
 	noCacheFlag := flag.Bool("no-cache", false, "Disable caching")
@@ -46,7 +39,6 @@ func main() {
 
 	cfg.SetDefaults()
 	config.DebugEnabled = cfg.Debug
-	logger.SetDebugEnabled(cfg.Debug)
 
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)

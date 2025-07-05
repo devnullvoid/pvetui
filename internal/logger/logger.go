@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
@@ -226,13 +227,7 @@ var (
 	globalLogger     interfaces.Logger
 	globalLoggerOnce sync.Once
 	globalCacheDir   string
-	debugEnabled     bool
 )
-
-// SetDebugEnabled sets whether debug logging is enabled for package loggers.
-func SetDebugEnabled(enabled bool) {
-	debugEnabled = enabled
-}
 
 // InitGlobalLogger initializes the global logger with the specified cache directory
 // This should be called early in application initialization
@@ -263,7 +258,7 @@ func GetGlobalLogger() interfaces.Logger {
 // This ensures all packages log to the same unified log file
 func GetPackageLogger(packageName string) interfaces.Logger {
 	level := LevelInfo
-	if debugEnabled {
+	if config.DebugEnabled {
 		level = LevelDebug
 	}
 
@@ -285,7 +280,7 @@ func GetPackageLogger(packageName string) interfaces.Logger {
 // This ensures all packages log to the same unified log file while maintaining type compatibility
 func GetPackageLoggerConcrete(packageName string) *Logger {
 	level := LevelInfo
-	if debugEnabled {
+	if config.DebugEnabled {
 		level = LevelDebug
 	}
 
