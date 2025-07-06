@@ -52,6 +52,7 @@ type WebSocketProxy struct {
 type SessionNotifier interface {
 	OnClientConnected()
 	OnClientDisconnected()
+	UpdateLastUsed()
 }
 
 // NewWebSocketProxy creates a new WebSocket proxy with the given configuration
@@ -200,6 +201,9 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 					return
 				}
 				p.logger.Debug("Sent keepalive pings for %s", targetName)
+				if p.session != nil {
+					p.session.UpdateLastUsed()
+				}
 			case <-ctx.Done():
 				return
 			}
@@ -354,6 +358,9 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 			p.logger.Error("Write error (%s) for %s after %d messages: %v",
 				direction, targetName, messageCount, err)
 			return fmt.Errorf("write error (%s): %w", direction, err)
+		}
+		if p.session != nil {
+			p.session.UpdateLastUsed()
 		}
 	}
 }
