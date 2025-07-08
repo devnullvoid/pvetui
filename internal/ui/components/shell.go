@@ -157,13 +157,19 @@ func (a *App) openVMShell() {
 	// Temporarily suspend the UI
 	a.Suspend(func() {
 		if vm.Type == "lxc" {
-			fmt.Printf("\nConnecting to LXC container %s (ID: %d) on node %s (%s)...\n",
-				vm.Name, vm.ID, vm.Node, nodeIP)
+			// Determine container type for display
+			containerType := "LXC container"
+			if vm.OSType == "nixos" || vm.OSType == "nix" {
+				containerType = "NixOS LXC container"
+			}
 
-			// Execute LXC shell command using 'pct enter'
-			err := ssh.ExecuteLXCShell(a.config.SSHUser, nodeIP, vm.ID)
+			fmt.Printf("\nConnecting to %s %s (ID: %d) on node %s (%s)...\n",
+				containerType, vm.Name, vm.ID, vm.Node, nodeIP)
+
+			// Execute LXC shell command with NixOS detection
+			err := ssh.ExecuteLXCShellWithVM(a.config.SSHUser, nodeIP, vm)
 			if err != nil {
-				fmt.Printf("\nError connecting to LXC container: %v\n", err)
+				fmt.Printf("\nError connecting to %s: %v\n", containerType, err)
 			}
 		} else if vm.Type == "qemu" {
 			// For QEMU VMs, use direct SSH connection

@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for SOPS/age encrypted configuration files with automatic key lookup
 - `.sops.yaml` for convenient encryption of config files with SOPS
 - Log message when encrypted config is decrypted
+- **NixOS LXC Container Support**: Added automatic detection and proper shell access for NixOS containers
+  - Detects NixOS containers based on `OSType` configuration ("nixos" or "nix")
+  - Uses `pct exec` with environment setup for NixOS containers instead of standard `pct enter`
+  - Automatically sources `/etc/set-environment` if present for proper NixOS environment initialization
+  - Maintains backward compatibility with standard LXC containers
+  - Enhanced user feedback showing "NixOS LXC container" vs "LXC container" during connection
+  - Comprehensive test coverage for all container types
 ### Fixed
 - Refresh VNC session `LastUsed` timestamp on all WebSocket proxy traffic to prevent unexpected timeouts
 
