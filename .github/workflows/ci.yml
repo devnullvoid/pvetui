@@ -43,7 +43,7 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --timeout=5m
@@ -79,7 +79,7 @@ jobs:
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
           go tool cover -func=coverage.out
-        
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
