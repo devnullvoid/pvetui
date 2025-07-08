@@ -158,9 +158,15 @@ dev-setup: ## Set up development environment
 	fi
 	@mkdir -p cache logs
 
+vet: ## Run go vet
+	@printf "$(GREEN)Running go vet...$(NC)\n"
+	go vet ./...
+
 lint: ## Run linters
 	@printf "$(GREEN)Running linters...$(NC)\n"
 	golangci-lint run
+
+code-quality: vet lint ## Run all code quality checks (go vet + linters)
 
 format: ## Format code
 	@printf "$(GREEN)Formatting code...$(NC)\n"

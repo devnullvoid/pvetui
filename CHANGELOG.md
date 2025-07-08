@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Code Quality**: Fixed variable shadowing issues in app initialization and cache tests
 - Refresh VNC session `LastUsed` timestamp on all WebSocket proxy traffic to prevent unexpected timeouts
 
+### Improved
+- **Code Quality Workflow**: Added `go vet` to CI pipeline and development workflow for enhanced static analysis
+  - New `make vet` target for running Go's built-in static analyzer
+  - New `make code-quality` target combining `go vet` and `golangci-lint` for comprehensive checks
+  - CI now runs `go vet` before `golangci-lint` to catch additional issues early
+
 ## [0.8.0-rc1] - 2025-07-04
 
 ### Added
