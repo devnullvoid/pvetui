@@ -36,19 +36,19 @@ func Run(cfg *config.Config, opts Options) error {
 	models.SetUILogger(loggerAdapter)
 
 	if cfg.CacheDir != "" {
-		if err := os.MkdirAll(cfg.CacheDir, 0755); err != nil {
-			return fmt.Errorf("create cache dir: %w", err)
+		if mkdirErr := os.MkdirAll(cfg.CacheDir, 0755); mkdirErr != nil {
+			return fmt.Errorf("create cache dir: %w", mkdirErr)
 		}
 	}
 
 	if !opts.NoCache {
-		if err := cache.InitGlobalCache(cfg.CacheDir); err != nil {
-			mainLogger.Error("failed to initialize cache: %v", err)
+		if cacheErr := cache.InitGlobalCache(cfg.CacheDir); cacheErr != nil {
+			mainLogger.Error("failed to initialize cache: %v", cacheErr)
 		}
 	}
 
-	if err := logger.InitGlobalLogger(level, cfg.CacheDir); err != nil {
-		mainLogger.Error("failed to init global logger: %v", err)
+	if loggerErr := logger.InitGlobalLogger(level, cfg.CacheDir); loggerErr != nil {
+		mainLogger.Error("failed to init global logger: %v", loggerErr)
 	}
 
 	cfg.Addr = strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.ApiPath, "/")

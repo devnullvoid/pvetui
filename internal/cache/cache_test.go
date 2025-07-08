@@ -19,8 +19,8 @@ func TestFileCache_SetGet(t *testing.T) {
 	key := "test-key"
 	expected := data{Name: "value"}
 
-	if err := c.Set(key, expected, time.Minute); err != nil {
-		t.Fatalf("set error: %v", err)
+	if setErr := c.Set(key, expected, time.Minute); setErr != nil {
+		t.Fatalf("set error: %v", setErr)
 	}
 
 	var got data
@@ -48,8 +48,8 @@ func TestFileCache_TTL(t *testing.T) {
 		t.Fatalf("failed to create cache: %v", err)
 	}
 
-	if err := c.Set("k", "v", time.Second); err != nil {
-		t.Fatalf("set: %v", err)
+	if setErr := c.Set("k", "v", time.Second); setErr != nil {
+		t.Fatalf("set: %v", setErr)
 	}
 	time.Sleep(2 * time.Second)
 
