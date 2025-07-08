@@ -806,8 +806,17 @@ func (c *Client) StopVM(vm *VM) error {
 }
 
 // RestartVM restarts a VM or container
+//
+// Both QEMU VMs and LXC containers use the `/status/reboot` endpoint
+// according to the official Proxmox VE API documentation.
+//
+// Parameters:
+//   - vm: The VM or container to restart
+//
+// Returns an error if the restart operation fails.
 func (c *Client) RestartVM(vm *VM) error {
-	path := fmt.Sprintf("/nodes/%s/%s/%d/status/restart", vm.Node, vm.Type, vm.ID)
+	path := fmt.Sprintf("/nodes/%s/%s/%d/status/reboot", vm.Node, vm.Type, vm.ID)
+	c.logger.Info("Rebooting %s %s (ID: %d) using /status/reboot endpoint", vm.Type, vm.Name, vm.ID)
 	return c.Post(path, nil)
 }
 

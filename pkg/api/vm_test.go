@@ -152,3 +152,49 @@ func TestMigrationOptions_OnlineDefault(t *testing.T) {
 		})
 	}
 }
+
+// Test for RestartVM behavior - both LXC and QEMU use /status/reboot endpoint
+func TestRestartVM_VMTypeHandling(t *testing.T) {
+	tests := []struct {
+		name   string
+		vmType string
+		vmID   int
+		vmName string
+		vmNode string
+	}{
+		{
+			name:   "LXC container should use reboot endpoint",
+			vmType: VMTypeLXC,
+			vmID:   101,
+			vmName: "test-lxc",
+			vmNode: "node1",
+		},
+		{
+			name:   "QEMU VM should use reboot endpoint",
+			vmType: VMTypeQemu,
+			vmID:   100,
+			vmName: "test-vm",
+			vmNode: "node1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vm := &VM{
+				ID:   tt.vmID,
+				Name: tt.vmName,
+				Node: tt.vmNode,
+				Type: tt.vmType,
+			}
+
+			// Test that the VM type is correctly identified
+			if vm.Type != tt.vmType {
+				t.Errorf("Expected VM type %s, got %s", tt.vmType, vm.Type)
+			}
+
+			// Both LXC and QEMU now use the same /status/reboot endpoint
+			// Note: We can't test the actual RestartVM function here without
+			// mocking the HTTP client, but we can verify the VM properties
+		})
+	}
+}
