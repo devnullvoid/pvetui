@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive test coverage for all container types
 ### Fixed
 - **VM/Container Restart**: Fixed 500 error when restarting VMs and containers by using correct `/status/reboot` endpoint (both QEMU and LXC use this endpoint, not `/status/restart`)
+- **CI Linting**: Fixed golangci-lint configuration compatibility issues by migrating to v2 format
 - Refresh VNC session `LastUsed` timestamp on all WebSocket proxy traffic to prevent unexpected timeouts
 
 ## [0.8.0-rc1] - 2025-07-04

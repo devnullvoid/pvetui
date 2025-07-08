@@ -1,62 +1,52 @@
 version: "2"
-
 run:
-  timeout: 5m
   issues-exit-code: 1
   tests: true
-
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-
-linters-settings:
-  govet:
-    enable:
-      - shadow
-
 linters:
   default: none
   enable:
+    - dupl
     - govet
     - ineffassign
-    - unused
-    - dupl
     - misspell
     - unconvert
-
+    - unused
+  settings:
+    govet:
+      enable:
+        - shadow
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - dupl
+        path: .*_test\.go$
+      - linters:
+          - lll
+        source: '^//go:generate '
+      - path: (.+)\.go$
+        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
+      - path: (.+)\.go$
+        text: Error return value of `fmt\.Scanln` is not checked
+      - path: (.+)\.go$
+        text: (possible misuse of unsafe.Pointer|should have signature)
+      - path: (.+)\.go$
+        text: ineffective break statement. Did you mean to break out of the outer loop
+      - path: (.+)\.go$
+        text: (G103|G104|G204|G301|G302|G304|G401|G501|G502)
+      - path: (.+)\.go$
+        text: (G201|G202)
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    - path: .*_test\.go$
-      linters:
-        - dupl
-
-
-    - linters:
-        - lll
-      source: "^//go:generate "
-
-
-  exclude-use-default: false
-  exclude:
-    # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
-    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
-
-    # errcheck: Ignore fmt.Scanln in interactive components
-    - Error return value of `fmt\.Scanln` is not checked
-
-    # govet: Common false positives
-    - (possible misuse of unsafe.Pointer|should have signature)
-
-    # staticcheck: Developers tend to write in C-style with an explicit 'break' in a 'switch', so it's ok to ignore
-    - ineffective break statement. Did you mean to break out of the outer loop
-
-    # gosec: Too many false-positives on 'unsafe' usage
-    - (G103|G104|G204|G301|G302|G304|G401|G501|G502)
-
-    # gosec: These only make sense when scoped to a specific package, and they would be annoying to fix
-    - (G201|G202)
-
   max-issues-per-linter: 0
   max-same-issues: 0
-  new: false
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
