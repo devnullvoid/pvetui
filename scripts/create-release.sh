@@ -197,7 +197,7 @@ update_changelog() {
         echo ""
 
         # Extract content from Unreleased section
-        sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '/^## \[/d' | tail -n +2
+        sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '/^## \[/d'
 
         # Add everything after the [Unreleased] section (i.e., all previous versions)
         sed -n '/## \[Unreleased\]/,/^## \[/d' CHANGELOG.md
