@@ -157,6 +157,18 @@ dev-setup: ## Set up development environment
 		printf "$(RED)Please edit .env with your Proxmox configuration$(NC)\n"; \
 	fi
 	@mkdir -p cache logs
+	@printf "$(GREEN)Checking development tools...$(NC)\n"
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+		printf "$(YELLOW)Installing golangci-lint...$(NC)\n"; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin; \
+	}
+	@command -v act >/dev/null 2>&1 || { \
+		printf "$(YELLOW)act not found. Install with: curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | bash$(NC)\n"; \
+	}
+	@printf "$(GREEN)Development environment ready!$(NC)\n"
+	@printf "$(YELLOW)Optional enhancements:$(NC)\n"
+	@printf "  • direnv: cp .envrc.example .envrc && direnv allow\n"
+	@printf "  • pre-commit: pip install pre-commit && pre-commit install\n"
 
 vet: ## Run go vet
 	@printf "$(GREEN)Running go vet...$(NC)\n"

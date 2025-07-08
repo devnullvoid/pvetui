@@ -1,0 +1,20 @@
+# direnv configuration
+# Copy to .envrc and run 'direnv allow' to activate
+
+# Load Go version from .go-version if available
+if has use_go; then
+  use go
+fi
+
+# Load .env file if it exists
+if [ -f .env ]; then
+  dotenv .env
+fi
+
+# Add project bin to PATH
+PATH_add ./bin
+
+# Set project-specific environment
+export PROJECT_ROOT=$(pwd)
+export CACHE_DIR="$PROJECT_ROOT/cache"
+export LOG_LEVEL="${LOG_LEVEL:-info}" 
