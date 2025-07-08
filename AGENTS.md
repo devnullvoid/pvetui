@@ -2,18 +2,65 @@
 
 The following conventions must be followed for any changes in this repository.
 
-## Workflow
+## Initial Setup
 1. Ensure git submodules are initialized: `git submodule update --init --recursive`.
-2. Confirm the application builds with `make build`.
-3. Run linters using `make lint`. Capture and report any failures.
-4. Run `go vet ./...` followed by `make test` to execute all tests.
+2. Run development setup: `make dev-setup` (installs required tools and validates environment).
+3. For enhanced development experience (optional):
+   - Install direnv: `sudo pacman -S direnv` or equivalent
+   - Copy `.envrc.example` to `.envrc` and configure as needed
+   - Install pre-commit hooks: `pre-commit install`
+
+## Development Workflow
+1. Confirm the application builds with `make build`.
+2. Run comprehensive code quality checks with `make code-quality` (includes `go vet` and `golangci-lint`).
+3. Execute all tests with `make test`.
+4. For integration tests: `make test-integration` (requires Proxmox environment).
 5. Keep the working tree clean before finishing.
 
-## Style
-- Follow idiomatic Go and clean architecture practices.
-- Prefer small interfaces and dependency injection via constructors or options.
-- Document exported identifiers with GoDoc comments.
-- Update `CHANGELOG.md` under **[Unreleased]** with a short bullet for user visible changes.
-- Format code using `go fmt` and `goimports`.
-- Write concise commit messages (imperative mood, present tense).
+## Code Quality Standards
+- All code must pass `make code-quality` without errors (includes go vet and golangci-lint).
+- Maintain test coverage; add tests for new functionality.
+- Use table-driven tests where appropriate.
+- Mock external dependencies in unit tests.
 
+## Style Guidelines
+- Follow idiomatic Go and clean architecture practices.
+- Apply Clean Architecture: handlers → services → repositories → domain models.
+- Prefer small, focused interfaces and dependency injection via constructors.
+- Use interface-driven development; public functions should accept interfaces, not concrete types.
+- Document all exported identifiers with comprehensive GoDoc comments including:
+  - Package-level documentation explaining purpose and usage patterns
+  - Function documentation with parameter descriptions and examples
+  - Type documentation with use cases and thread safety considerations
+- Handle errors explicitly; wrap errors with context using `fmt.Errorf("context: %w", err)`.
+- Use context propagation for request-scoped values, deadlines, and cancellations.
+
+## Documentation Requirements
+- Update `CHANGELOG.md` under **[Unreleased]** section with user-visible changes.
+- Add GoDoc examples for complex public APIs.
+- Update relevant documentation files when changing behavior.
+
+## Commit Standards
+- Write concise commit messages (imperative mood, present tense).
+- Use simple, descriptive messages stating what was done.
+- Include relevant emojis when appropriate.
+- Ask about committing after successfully implementing features.
+
+## Security and Performance
+- Validate and sanitize all external inputs.
+- Implement proper error handling and timeouts for external calls.
+- Use secure defaults for authentication and configuration.
+- Profile and benchmark performance-critical code paths.
+
+## Tools and Environment
+- Go version is pinned in `.go-version` file for consistency.
+- Use `golangci-lint` for comprehensive linting (config auto-migrated to v2 format).
+- Environment variables can be configured via `.env` file (see `.env.example`).
+- Consider using direnv for automatic environment loading (`.envrc.example` provided).
+- Pre-commit hooks available for automated code quality checks.
+
+## Testing Strategy
+- Unit tests: Fast, isolated, mocked dependencies
+- Integration tests: Real system interactions (separate from unit tests)
+- Use `make test-quick` for fast feedback during development
+- Ensure tests are deterministic and can run in parallel
