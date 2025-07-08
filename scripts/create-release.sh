@@ -199,8 +199,8 @@ update_changelog() {
         # Extract content from Unreleased section
         sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '/^## \[/d' | tail -n +2
 
-        # Add everything after the first version section
-        sed -n '/^## \[/,$p' CHANGELOG.md | tail -n +2
+        # Add everything after the [Unreleased] section (i.e., all previous versions)
+        sed -n '/## \[Unreleased\]/,/^## \[/d' CHANGELOG.md
 
     } > "$temp_file"
 
