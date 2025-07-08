@@ -105,12 +105,12 @@ log_error() {
 run_command() {
     local cmd="$1"
     local description="$2"
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}[DRY RUN] Would run: $cmd${NC}"
         return 0
     fi
-    
+
     log_info "$description"
     if eval "$cmd"; then
         log_success "$description completed"
@@ -142,11 +142,11 @@ check_unreleased_content() {
         log_error "No [Unreleased] section found in CHANGELOG.md"
         exit 1
     fi
-    
+
     # Check if there's actual content in Unreleased section
     local unreleased_content
     unreleased_content=$(sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '/^## \[/d' | grep -v '^[[:space:]]*$' | wc -l)
-    
+
     if [[ $unreleased_content -eq 0 ]]; then
         log_error "No content found in [Unreleased] section of CHANGELOG.md"
         exit 1
@@ -158,7 +158,7 @@ check_version_not_exists() {
         log_error "Version $VERSION_NO_V already exists in CHANGELOG.md"
         exit 1
     fi
-    
+
     if git tag | grep -q "^$VERSION$"; then
         log_error "Tag $VERSION already exists"
         exit 1
@@ -177,41 +177,41 @@ check_github_cli() {
 # Main functions
 update_changelog() {
     log_info "Updating CHANGELOG.md..."
-    
+
     # Create temporary file
     local temp_file
     temp_file=$(mktemp)
     trap 'rm -f "$temp_file"' EXIT
-    
+
     # Process changelog
     {
         # Keep everything before [Unreleased]
         sed -n '1,/## \[Unreleased\]/p' CHANGELOG.md | head -n -1
-        
+
         # Add new Unreleased section
         echo "## [Unreleased]"
         echo ""
-        
+
         # Add new version section with content from old Unreleased
         echo "## [$VERSION_NO_V] - $RELEASE_DATE"
         echo ""
-        
+
         # Extract content from Unreleased section
         sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '/^## \[/d' | tail -n +2
-        
+
         # Add everything after the first version section
         sed -n '/^## \[/,$p' CHANGELOG.md | tail -n +2
-        
+
     } > "$temp_file"
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_warning "[DRY RUN] Would update CHANGELOG.md with version $VERSION_NO_V"
         echo "New changelog structure:"
-        head -20 "$temp_file"
+        head -100 "$temp_file"
         echo "..."
         return 0
     fi
-    
+
     # Replace original file
     mv "$temp_file" CHANGELOG.md
     log_success "CHANGELOG.md updated with version $VERSION_NO_V"
@@ -237,7 +237,7 @@ create_and_push_tag() {
 🚀 Release $VERSION
 
 See CHANGELOG.md for full details of changes and improvements."
-    
+
     run_command "git tag -a $VERSION -m '$tag_message'" "Creating release tag $VERSION"
     run_command "git push origin master" "Pushing master branch"
     run_command "git push origin $VERSION" "Pushing release tag"
@@ -248,17 +248,17 @@ create_github_release() {
         log_info "Skipping GitHub release creation (--no-github flag)"
         return 0
     fi
-    
+
     log_info "Creating GitHub release..."
-    
+
     # Create temporary file with release notes
     local temp_file
     temp_file=$(mktemp)
     trap 'rm -f "$temp_file"' EXIT
-    
+
     # Extract changelog content for this version
     sed -n "/## \[$VERSION_NO_V\]/,/^## \[/p" CHANGELOG.md | sed '/^## \[/d' | tail -n +2 > "$temp_file"
-    
+
     # Add installation instructions
     cat >> "$temp_file" << 'EOF'
 
@@ -294,13 +294,13 @@ EOF
         echo "..."
         return 0
     fi
-    
+
     # Create the release
     gh release create "$VERSION" \
         --title "Release $VERSION" \
         --notes-file "$temp_file" \
         --draft
-    
+
     log_success "GitHub release created successfully!"
     local repo_url
     repo_url=$(gh repo view --json url -q '.url')
@@ -317,12 +317,12 @@ cleanup_and_return() {
 main() {
     echo -e "${BLUE}🚀 Starting automated release process for $VERSION${NC}"
     echo ""
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_warning "DRY RUN MODE - No changes will be made"
         echo ""
     fi
-    
+
     # Pre-flight checks
     log_info "Running pre-flight checks..."
     check_git_status
@@ -332,21 +332,21 @@ main() {
     check_github_cli
     log_success "All pre-flight checks passed"
     echo ""
-    
+
     # Show what will be released
     log_info "Release summary:"
     echo "  📋 Version: $VERSION"
     echo "  📅 Date: $RELEASE_DATE"
     echo "  🌿 Current branch: $CURRENT_BRANCH"
     echo "  🎯 Target: master"
-    
+
     if [[ "$NO_GITHUB" == "true" ]]; then
         echo "  🚫 GitHub release: Skipped"
     else
         echo "  🐙 GitHub release: Yes (draft)"
     fi
     echo ""
-    
+
     # Confirm unless dry run
     if [[ "$DRY_RUN" == "false" ]]; then
         echo -n "Proceed with release? (y/N): "
@@ -357,7 +357,7 @@ main() {
         fi
         echo ""
     fi
-    
+
     # Execute release steps
     update_changelog
     commit_changelog
@@ -365,7 +365,7 @@ main() {
     create_and_push_tag
     create_github_release
     cleanup_and_return
-    
+
     echo ""
     log_success "🎉 Release $VERSION completed successfully!"
     echo ""
@@ -382,4 +382,4 @@ main() {
 }
 
 # Run main function
-main "$@" 
+main "$@"
