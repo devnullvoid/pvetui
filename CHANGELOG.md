@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- **Configurable Key Bindings**: Added support for customizing all major actions via the `key_bindings` section in the config file.
+- **View Switching with Brackets**: Changed default view switching keys to `]` (forward) and `[` (reverse) for better reliability across terminals.
 - Support for SOPS/age encrypted configuration files with automatic key lookup
 - `.sops.yaml` for convenient encryption of config files with SOPS
 - Log message when encrypted config is decrypted
@@ -18,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced user feedback showing "NixOS LXC container" vs "LXC container" during connection
   - Comprehensive test coverage for all container types
 ### Fixed
+- **Keybinding Reliability**: Overhauled the keybinding system to correctly handle modifier keys (`Ctrl`, `Alt`, `Shift`), fixing numerous issues with custom shortcuts.
+- **Shell Connection Issues**: Fixed VM shell connections that were failing due to broken QEMU guest agent approach.
+- **GitHub Workflow Fixes**: Added `submodules: recursive` to all GitHub Actions checkout steps to properly handle noVNC submodule during builds.
+- **Windows ARM64 Support**: Added Windows ARM64 build target to both Makefile and GitHub release workflow.
 - **VM/Container Restart**: Fixed 500 error when restarting VMs and containers by using correct `/status/reboot` endpoint (both QEMU and LXC use this endpoint, not `/status/restart`)
 - **CI Linting**: Fixed golangci-lint configuration compatibility issues by migrating to v2 format
 - **Code Quality**: Fixed variable shadowing issues in app initialization and cache tests
@@ -28,18 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `make vet` target for running Go's built-in static analyzer
   - New `make code-quality` target combining `go vet` and `golangci-lint` for comprehensive checks
   - CI now runs `go vet` before `golangci-lint` to catch additional issues early
-
-## [0.8.0-rc1] - 2025-07-04
-
-### Added
-- **View Switching with Brackets**: Changed default view switching keys to `]` (forward) and `[` (reverse) for better reliability across terminals.
-- **Configurable Key Bindings**: Added support for customizing all major actions via the `key_bindings` section in the config file.
-
-### Fixed
-- **Keybinding Reliability**: Overhauled the keybinding system to correctly handle modifier keys (`Ctrl`, `Alt`, `Shift`), fixing numerous issues with custom shortcuts.
-- **Shell Connection Issues**: Fixed VM shell connections that were failing due to broken QEMU guest agent approach.
-- **GitHub Workflow Fixes**: Added `submodules: recursive` to all GitHub Actions checkout steps to properly handle noVNC submodule during builds.
-- **Windows ARM64 Support**: Added Windows ARM64 build target to both Makefile and GitHub release workflow.
 
 ## [0.7.1] - 2025-07-01
 
