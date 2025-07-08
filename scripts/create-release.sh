@@ -200,7 +200,7 @@ update_changelog() {
         sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '/^## \[/d'
 
         # Add everything after the [Unreleased] section (i.e., all previous versions)
-        sed -n '/## \[Unreleased\]/,/^## \[/d' CHANGELOG.md
+        sed '/## \[Unreleased\]/,/^## \[/d' CHANGELOG.md
 
     } > "$temp_file"
 
