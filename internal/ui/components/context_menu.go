@@ -428,10 +428,35 @@ func (a *App) refreshVMList() {
 	}
 }
 
+// restoreNodeSelection restores node selection by name after SetNodes
+func (a *App) restoreNodeSelection(nodeName string) {
+	nodeList := a.nodeList.GetNodes()
+	for i, node := range nodeList {
+		if node != nil && node.Name == nodeName {
+			a.nodeList.SetCurrentItem(i)
+			// Optionally update search state
+			if state := models.GlobalState.GetSearchState(api.PageNodes); state != nil {
+				state.SelectedIndex = i
+			}
+			break
+		}
+	}
+}
+
 // refreshNodeList refreshes the node list display without fetching new data
 func (a *App) refreshNodeList() {
 	// Get current search state to maintain filtering
 	nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+
+	// Record the currently selected node's name
+	selectedNodeName := ""
+	if selected := a.nodeList.GetSelectedNode(); selected != nil {
+		selectedNodeName = selected.Name
+		if nodeSearchState != nil {
+			// nodeSearchState.Filter = nodeSearchState.Filter // not needed
+			nodeSearchState.SelectedIndex = 0 // not used for node selection anymore
+		}
+	}
 
 	if nodeSearchState != nil && nodeSearchState.Filter != "" {
 		// Apply existing filter
@@ -440,6 +465,11 @@ func (a *App) refreshNodeList() {
 	} else {
 		// No filter, use original data
 		a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+	}
+
+	// Restore selection by name if possible
+	if selectedNodeName != "" {
+		a.restoreNodeSelection(selectedNodeName)
 	}
 }
 
@@ -458,9 +488,6 @@ func (a *App) refreshNodeData(node *api.Node) {
 
 	// Show loading indicator
 	a.header.ShowLoading(fmt.Sprintf("Refreshing node %s", node.Name))
-
-	// Get current search state for nodes
-	nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
 
 	// Run refresh in goroutine to avoid blocking UI
 	go func() {
@@ -508,17 +535,8 @@ func (a *App) refreshNodeData(node *api.Node) {
 			// Update the node list display
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 
-			// Find and select the refreshed node by name in the widget's list
-			nodeList := a.nodeList.GetNodes()
-			for i, refreshedNode := range nodeList {
-				if refreshedNode != nil && refreshedNode.Name == node.Name {
-					a.nodeList.SetCurrentItem(i)
-					if nodeSearchState != nil {
-						nodeSearchState.SelectedIndex = i
-					}
-					break
-				}
-			}
+			// Restore selection by name
+			a.restoreNodeSelection(node.Name)
 
 			// Update node details if this node is currently selected
 			selectedNode := a.nodeList.GetSelectedNode()

@@ -292,4 +292,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
-  - `h` = left/go back, `j` = down, `k` = up, `
+  - `h` = left/go back, `j` = down, `k` = up, `l` = right
+
+- Robust selection restoration for both VM and Node lists after per-item and global refreshes. Selection is now always restored by name, not index, fixing issues with selection jumping to the top after refreshes.
