@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/rivo/tview"
 
@@ -34,17 +35,24 @@ type State struct {
 	OriginalNodes []*api.Node
 	OriginalVMs   []*api.VM
 	OriginalTasks []*api.ClusterTask
+
+	// Pending operations tracking
+	PendingVMOperations   map[string]string // Key: "node:vmid", Value: operation description
+	PendingNodeOperations map[string]string // Key: "nodename", Value: operation description
+	pendingMutex          sync.RWMutex      // Thread-safe access to pending maps
 }
 
 // GlobalState is the singleton instance for UI state
 var GlobalState = State{
-	SearchStates:  make(map[string]*SearchState),
-	FilteredNodes: make([]*api.Node, 0),
-	FilteredVMs:   make([]*api.VM, 0),
-	FilteredTasks: make([]*api.ClusterTask, 0),
-	OriginalNodes: make([]*api.Node, 0),
-	OriginalVMs:   make([]*api.VM, 0),
-	OriginalTasks: make([]*api.ClusterTask, 0),
+	SearchStates:          make(map[string]*SearchState),
+	FilteredNodes:         make([]*api.Node, 0),
+	FilteredVMs:           make([]*api.VM, 0),
+	FilteredTasks:         make([]*api.ClusterTask, 0),
+	OriginalNodes:         make([]*api.Node, 0),
+	OriginalVMs:           make([]*api.VM, 0),
+	OriginalTasks:         make([]*api.ClusterTask, 0),
+	PendingVMOperations:   make(map[string]string),
+	PendingNodeOperations: make(map[string]string),
 }
 
 // UI logger instance - will be set by the main application
@@ -242,4 +250,58 @@ func FilterTasks(filter string) {
 
 	// GetUILogger().Debug("Filtered tasks from %d to %d with filter '%s'",
 	// 	len(GlobalState.OriginalTasks), len(GlobalState.FilteredTasks), filter)
+}
+
+// SetVMPending marks a VM as having a pending operation
+func (s *State) SetVMPending(vm *api.VM, operation string) {
+	s.pendingMutex.Lock()
+	defer s.pendingMutex.Unlock()
+	key := fmt.Sprintf("%s:%d", vm.Node, vm.ID)
+	s.PendingVMOperations[key] = operation
+}
+
+// ClearVMPending removes the pending operation status for a VM
+func (s *State) ClearVMPending(vm *api.VM) {
+	s.pendingMutex.Lock()
+	defer s.pendingMutex.Unlock()
+	key := fmt.Sprintf("%s:%d", vm.Node, vm.ID)
+	delete(s.PendingVMOperations, key)
+}
+
+// IsVMPending checks if a VM has a pending operation
+func (s *State) IsVMPending(vm *api.VM) (bool, string) {
+	s.pendingMutex.RLock()
+	defer s.pendingMutex.RUnlock()
+	key := fmt.Sprintf("%s:%d", vm.Node, vm.ID)
+	operation, exists := s.PendingVMOperations[key]
+	return exists, operation
+}
+
+// SetNodePending marks a node as having a pending operation
+func (s *State) SetNodePending(node *api.Node, operation string) {
+	s.pendingMutex.Lock()
+	defer s.pendingMutex.Unlock()
+	s.PendingNodeOperations[node.Name] = operation
+}
+
+// ClearNodePending removes the pending operation status for a node
+func (s *State) ClearNodePending(node *api.Node) {
+	s.pendingMutex.Lock()
+	defer s.pendingMutex.Unlock()
+	delete(s.PendingNodeOperations, node.Name)
+}
+
+// IsNodePending checks if a node has a pending operation
+func (s *State) IsNodePending(node *api.Node) (bool, string) {
+	s.pendingMutex.RLock()
+	defer s.pendingMutex.RUnlock()
+	operation, exists := s.PendingNodeOperations[node.Name]
+	return exists, operation
+}
+
+// HasPendingOperations checks if there are any pending VM or node operations
+func (s *State) HasPendingOperations() bool {
+	s.pendingMutex.RLock()
+	defer s.pendingMutex.RUnlock()
+	return len(s.PendingVMOperations) > 0 || len(s.PendingNodeOperations) > 0
 }

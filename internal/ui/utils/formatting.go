@@ -82,6 +82,25 @@ func FormatStatusIndicator(status string) string {
 	}
 }
 
+// FormatPendingStatusIndicator returns a status indicator with pending state visual feedback.
+// Shows a dimmed indicator with a pulsing effect for pending operations.
+func FormatPendingStatusIndicator(status string, isPending bool, operation string) string {
+	if !isPending {
+		return FormatStatusIndicator(status)
+	}
+
+	// For pending operations, use a dimmed/pulsing indicator
+	status = strings.ToLower(status)
+	switch status {
+	case "running", "online":
+		return "[darkgreen]◐[-] " // Dimmed green with different symbol
+	case "stopped", "offline":
+		return "[darkred]◑[-] " // Dimmed red with different symbol
+	default:
+		return "[darkorange]◒[-] " // Dimmed yellow/orange with different symbol
+	}
+}
+
 // CalculatePercentage safely calculates percentage from used and total values
 // Returns 0.0 if total is 0 to avoid division by zero
 func CalculatePercentage(used, total float64) float64 {

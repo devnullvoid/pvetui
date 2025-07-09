@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
@@ -100,15 +101,21 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 
 	for _, vm := range sortedVMs {
 		if vm != nil {
-			// Get the status indicator
-			statusIndicator := utils.FormatStatusIndicator(vm.Status)
+			// Check if this VM has a pending operation
+			isPending, operation := models.GlobalState.IsVMPending(vm)
+
+			// Get the status indicator with pending state awareness
+			statusIndicator := utils.FormatPendingStatusIndicator(vm.Status, isPending, operation)
 
 			// Format the VM name with ID
 			vmText := fmt.Sprintf("%d - %s", vm.ID, vm.Name)
 
-			// Apply color formatting for stopped VMs
+			// Apply color formatting and pending state
 			var mainText string
-			if vm.Status != api.VMStatusRunning {
+			if isPending {
+				// For pending VMs, apply a dimmed effect to the entire item
+				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", vmText)
+			} else if vm.Status != api.VMStatusRunning {
 				// For stopped VMs, use gray color for the VM text part only
 				// Keep the red status indicator but make the text gray
 				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", vmText)
@@ -121,14 +128,6 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			secondaryText := fmt.Sprintf("Node: %s Type: %s", vm.Node, vm.Type)
 
 			vl.AddItem(mainText, secondaryText, 0, nil)
-		}
-	}
-
-	// If there are VMs, select the first one by default
-	if len(sortedVMs) > 0 {
-		vl.SetCurrentItem(0)
-		if vl.onSelect != nil {
-			vl.onSelect(sortedVMs[0])
 		}
 	}
 }

@@ -7,8 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.8.0] - 2025-07-08
-
+## [v0.8.0]
 
 ### Added
 - **Configurable Key Bindings**: Added support for customizing all major actions via the `key_bindings` section in the config file.
@@ -39,13 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `make code-quality` target combining `go vet` and `golangci-lint` for comprehensive checks
   - CI now runs `go vet` before `golangci-lint` to catch additional issues early
 
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
+## [0.7.1] - 2025-07-01
 
 ### Fixed
 - **noVNC Files Embedding**: Fixed noVNC files to be properly embedded in compiled binary using Go's `//go:embed` directive instead of runtime filesystem access

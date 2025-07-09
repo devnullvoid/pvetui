@@ -178,37 +178,54 @@ check_github_cli() {
 update_changelog() {
     log_info "Updating CHANGELOG.md..."
 
-    # Create temporary file
     local temp_file
     temp_file=$(mktemp)
     trap 'rm -f "$temp_file"' EXIT
 
-    # Process changelog
-    {
-        # Keep everything before [Unreleased]
-        sed -n '1,/## \[Unreleased\]/p' CHANGELOG.md | head -n -1
+    # Use awk for robust parsing
+    awk -v version="$VERSION_NO_V" -v date="$RELEASE_DATE" '
+    BEGIN { unreleased = 0; }
+    /## \[Unreleased\]/ {
+        print;
+        print "";
+        print "## [" version "] - " date;
+        unreleased = 1;
+        next;
+    }
+    /^## \[/ { unreleased = 0; }
+    unreleased { content[NR] = $0; }
+    !unreleased { print; }
+    END {
+        for (i in content) {
+            print content[i];
+        }
+    }
+    ' CHANGELOG.md > "$temp_file"
 
-        # Add new Unreleased section
-        echo "## [Unreleased]"
-        echo ""
+    # The awk script needs to be adjusted slightly to handle the file structure correctly.
+    # Let's rebuild the file in a more controlled way.
 
-        # Add new version section with content from old Unreleased
-        echo "## [$VERSION_NO_V] - $RELEASE_DATE"
-        echo ""
+    # 1. Capture the header
+    sed -n '1,/## \[Unreleased\]/p' CHANGELOG.md | head -n -1 > "$temp_file"
 
-        # Extract content from Unreleased section
-        sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '/^## \[/d'
+    # 2. Add the new [Unreleased] section
+    echo "## [Unreleased]" >> "$temp_file"
+    echo "" >> "$temp_file"
 
-        # Add everything after the [Unreleased] section (i.e., all previous versions)
-        sed '/## \[Unreleased\]/,/^## \[/d' CHANGELOG.md
+    # 3. Add the new version header
+    echo "## [$VERSION_NO_V] - $RELEASE_DATE" >> "$temp_file"
 
-    } > "$temp_file"
+    # 4. Extract and append the content from the old [Unreleased] section
+    sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '1d;$d' >> "$temp_file"
+
+    # 5. Append the rest of the file (old versions)
+    sed '1,/^## \[/d' CHANGELOG.md >> "$temp_file"
+
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_warning "[DRY RUN] Would update CHANGELOG.md with version $VERSION_NO_V"
         echo "New changelog structure:"
-        head -100 "$temp_file"
-        echo "..."
+        cat "$temp_file"
         return 0
     fi
 

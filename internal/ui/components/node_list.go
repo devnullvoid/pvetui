@@ -1,11 +1,13 @@
 package components
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
@@ -93,23 +95,30 @@ func (nl *NodeList) SetNodes(nodes []*api.Node) {
 
 	for _, node := range nl.nodes {
 		if node != nil {
+			// Determine node status string
 			var statusString string
 			if node.Online {
 				statusString = "online"
 			} else {
 				statusString = "offline"
 			}
-			// Format the node name with status indicator
-			mainText := utils.FormatStatusIndicator(statusString) + node.Name
-			nl.AddItem(mainText, "", 0, nil)
-		}
-	}
 
-	// If there are nodes, select the first one by default
-	if len(nl.nodes) > 0 {
-		nl.SetCurrentItem(0)
-		if nl.onSelect != nil {
-			nl.onSelect(nl.nodes[0])
+			// Check if this node has a pending operation
+			isPending, operation := models.GlobalState.IsNodePending(node)
+
+			// Format the node name with status indicator (including pending state)
+			statusIndicator := utils.FormatPendingStatusIndicator(statusString, isPending, operation)
+
+			var mainText string
+			if isPending {
+				// For pending nodes, apply a dimmed effect to the entire item
+				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", node.Name)
+			} else {
+				// Normal formatting
+				mainText = statusIndicator + node.Name
+			}
+
+			nl.AddItem(mainText, "", 0, nil)
 		}
 	}
 }

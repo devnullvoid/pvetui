@@ -69,12 +69,16 @@ func (a *App) startAutoRefresh() {
 
 				// Trigger refresh when countdown reaches 0
 				if a.autoRefreshCountdown == 0 {
-					// Only refresh if not currently loading something
-					if !a.header.IsLoading() {
+					// Only refresh if not currently loading something and no pending operations
+					if !a.header.IsLoading() && !models.GlobalState.HasPendingOperations() {
 						uiLogger.Debug("Auto-refresh triggered by countdown")
 						go a.autoRefreshDataWithFooter()
 					} else {
-						uiLogger.Debug("Auto-refresh skipped - operation in progress")
+						if a.header.IsLoading() {
+							uiLogger.Debug("Auto-refresh skipped - header loading operation in progress")
+						} else {
+							uiLogger.Debug("Auto-refresh skipped - pending VM/node operations in progress")
+						}
 						// Reset countdown to try again in 10 seconds
 						a.autoRefreshCountdown = 10
 					}

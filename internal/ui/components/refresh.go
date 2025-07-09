@@ -139,67 +139,6 @@ func (a *App) manualRefresh() {
 	}()
 }
 
-// refreshNodeData refreshes data for the selected node
-func (a *App) refreshNodeData(node *api.Node) {
-	// Show loading indicator
-	a.header.ShowLoading(fmt.Sprintf("Refreshing node %s", node.Name))
-
-	// Store current selection index
-	currentIndex := a.nodeList.GetCurrentItem()
-
-	// Run refresh in goroutine to avoid blocking UI
-	go func() {
-		// Fetch fresh node data
-		freshNode, err := a.client.RefreshNodeData(node.Name)
-		if err != nil {
-			// Update message with error on main thread
-			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Error refreshing node %s: %v", node.Name, err))
-			})
-			return
-		}
-
-		// Update UI with fresh data on main thread
-		a.QueueUpdateDraw(func() {
-			// Find the node in the global state and update it
-			for i, originalNode := range models.GlobalState.OriginalNodes {
-				if originalNode != nil && originalNode.Name == node.Name {
-					// Update the node data while preserving VMs
-					freshNode.VMs = originalNode.VMs
-					models.GlobalState.OriginalNodes[i] = freshNode
-					break
-				}
-			}
-
-			// Update filtered nodes if they exist
-			for i, filteredNode := range models.GlobalState.FilteredNodes {
-				if filteredNode != nil && filteredNode.Name == node.Name {
-					// Update the node data while preserving VMs
-					freshNode.VMs = filteredNode.VMs
-					models.GlobalState.FilteredNodes[i] = freshNode
-					break
-				}
-			}
-
-			// Update the node list display
-			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
-
-			// Restore the selection index
-			if currentIndex >= 0 && currentIndex < len(models.GlobalState.FilteredNodes) {
-				a.nodeList.SetCurrentItem(currentIndex)
-			}
-
-			// Update node details if this node is currently selected
-			if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil && selectedNode.Name == node.Name {
-				a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
-			}
-
-			// Show success message
-			a.header.ShowSuccess(fmt.Sprintf("Node %s refreshed successfully", node.Name))
-		})
-	}()
-}
-
 // refreshVMData refreshes data for the selected VM
 func (a *App) refreshVMData(vm *api.VM) {
 	// Show loading indicator

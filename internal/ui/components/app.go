@@ -232,11 +232,15 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 	uiLogger.Debug("Found %d VMs across all nodes", len(vms))
 
 	models.GlobalState = models.State{
-		SearchStates:  make(map[string]*models.SearchState),
-		OriginalNodes: make([]*api.Node, 0),
-		FilteredNodes: make([]*api.Node, 0),
-		OriginalVMs:   make([]*api.VM, len(vms)),
-		FilteredVMs:   make([]*api.VM, len(vms)),
+		SearchStates:          make(map[string]*models.SearchState),
+		OriginalNodes:         make([]*api.Node, 0),
+		FilteredNodes:         make([]*api.Node, 0),
+		OriginalVMs:           make([]*api.VM, len(vms)),
+		FilteredVMs:           make([]*api.VM, len(vms)),
+		OriginalTasks:         make([]*api.ClusterTask, 0),
+		FilteredTasks:         make([]*api.ClusterTask, 0),
+		PendingVMOperations:   make(map[string]string),
+		PendingNodeOperations: make(map[string]string),
 	}
 
 	if client.Cluster != nil {
