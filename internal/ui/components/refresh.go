@@ -209,12 +209,11 @@ func (a *App) refreshVMData(vm *api.VM) {
 			// Update the VM list display
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 
-			// Find and select the refreshed VM by ID and node
-			vmList := models.GlobalState.FilteredVMs
+			// Find and select the refreshed VM by ID and node in the widget's list
+			vmList := a.vmList.GetVMs()
 			for i, refreshedVM := range vmList {
 				if refreshedVM != nil && refreshedVM.ID == vmID && refreshedVM.Node == vmNode {
 					a.vmList.SetCurrentItem(i)
-					// Update search state with correct index
 					if vmSearchState != nil {
 						vmSearchState.SelectedIndex = i
 					}
@@ -223,7 +222,8 @@ func (a *App) refreshVMData(vm *api.VM) {
 			}
 
 			// Update VM details if this VM is currently selected
-			if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil && selectedVM.ID == vmID && selectedVM.Node == vmNode {
+			selectedVM := a.vmList.GetSelectedVM()
+			if selectedVM != nil && selectedVM.ID == vmID && selectedVM.Node == vmNode {
 				a.vmDetails.Update(freshVM)
 			}
 

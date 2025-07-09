@@ -459,8 +459,8 @@ func (a *App) refreshNodeData(node *api.Node) {
 	// Show loading indicator
 	a.header.ShowLoading(fmt.Sprintf("Refreshing node %s", node.Name))
 
-	// Store current selection index
-	currentIndex := a.nodeList.GetCurrentItem()
+	// Get current search state for nodes
+	nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
 
 	// Run refresh in goroutine to avoid blocking UI
 	go func() {
@@ -508,13 +508,21 @@ func (a *App) refreshNodeData(node *api.Node) {
 			// Update the node list display
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 
-			// Restore the selection index
-			if currentIndex >= 0 && currentIndex < len(models.GlobalState.FilteredNodes) {
-				a.nodeList.SetCurrentItem(currentIndex)
+			// Find and select the refreshed node by name in the widget's list
+			nodeList := a.nodeList.GetNodes()
+			for i, refreshedNode := range nodeList {
+				if refreshedNode != nil && refreshedNode.Name == node.Name {
+					a.nodeList.SetCurrentItem(i)
+					if nodeSearchState != nil {
+						nodeSearchState.SelectedIndex = i
+					}
+					break
+				}
 			}
 
 			// Update node details if this node is currently selected
-			if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil && selectedNode.Name == node.Name {
+			selectedNode := a.nodeList.GetSelectedNode()
+			if selectedNode != nil && selectedNode.Name == node.Name {
 				a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
 			}
 
