@@ -5,38 +5,35 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
     image: proxmox-tui:latest
     container_name: proxmox-tui
     restart: "no"  # Don't restart for interactive TUI apps
-    
-    # Environment variables (matching config.go)
+
+    # Pass command-line flags to the entrypoint
+    command: ["--config", "/app/config.yml"]
+
+    # Remove environment variables for connection, use config file instead
     environment:
-      - PROXMOX_ADDR=${PROXMOX_ADDR:-https://your-proxmox-server:8006}
-      - PROXMOX_USER=${PROXMOX_USER:-root@pam}
-      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
-      - PROXMOX_REALM=${PROXMOX_REALM:-pam}
-      - PROXMOX_TOKEN_ID=${PROXMOX_TOKEN_ID}
-      - PROXMOX_TOKEN_SECRET=${PROXMOX_TOKEN_SECRET}
-      - PROXMOX_API_PATH=${PROXMOX_API_PATH:-/api2/json}
-      - PROXMOX_INSECURE=${PROXMOX_INSECURE:-false}
       - PROXMOX_DEBUG=${PROXMOX_DEBUG:-false}
       - PROXMOX_CACHE_DIR=${PROXMOX_CACHE_DIR:-/app/cache}
-      - PROXMOX_SSH_USER=${PROXMOX_SSH_USER}
-    
+
     # Volumes for persistence
-    # Note: logs are now stored in cache directory (XDG-compliant)
+    # Mount the root config.yml and the cache directory
     volumes:
+      - ./config.yml:/app/config.yml:ro
       - ./cache:/app/cache
-      - ./configs:/app/configs:ro
-    
+
     # TTY and interactive for TUI applications
     tty: true
     stdin_open: true
-    
+
     # Security options
     security_opt:
       - no-new-privileges:true
-    
+
     # Resource limits
     deploy:
       resources:
@@ -60,4 +57,4 @@ services:
 #   command: redis-server --appendonly yes
 
 # volumes:
-#   redis_data: 
+#   redis_data:

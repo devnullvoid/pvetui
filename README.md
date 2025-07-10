@@ -54,7 +54,7 @@ Proxmox TUI brings lightning-fast cluster management directly to your terminal. 
 ### From Source
 
 ```bash
-# Clone the repository with submodules
+# Clone the repository with submodules (required for VNC and Docker)
 git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
 cd proxmox-tui
 
@@ -65,13 +65,13 @@ cd proxmox-tui
 go build -o proxmox-tui ./cmd/proxmox-tui
 
 # Copy example config
-cp configs/config.yml.example config.yml
+cp configs/config.tpl.yml config.yml
 
 # Edit with your Proxmox details
 $EDITOR config.yml
 
 # Run the application
-./proxmox-tui -config config.yml
+./proxmox-tui
 ```
 
 ### Pre-compiled Binaries
@@ -91,7 +91,7 @@ Pre-compiled binaries for various platforms are available on the [Releases page]
    ```bash
    # For Linux/macOS
    tar -xzf proxmox-tui-*.tar.gz
-   
+
    # For Windows
    # Extract using your preferred zip tool
    ```
@@ -285,9 +285,41 @@ The application supports both password and API token authentication. You will be
 For enhanced security, API token authentication is recommended.
 
 ## 🐳 Docker Usage
-For users who prefer running applications in containers, `proxmox-tui` provides both Docker and Podman support.
-A `docker-compose.yml` file is included for easy setup.
-Refer to the [Docker documentation](./DOCKER.md) for detailed instructions.
+
+For users who prefer running applications in containers, `proxmox-tui` provides easy-to-use Docker support via Docker Compose.
+
+### Prerequisites
+- Docker and Docker Compose
+- `git` for cloning the repository
+
+### Quick Start with Docker Compose
+
+1.  **Clone the repository with submodules:**
+    The noVNC client used for the VNC feature is included as a git submodule. It's essential to clone it for the Docker build to succeed.
+
+    ```bash
+    git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
+    cd proxmox-tui
+    ```
+
+2.  **Create your configuration file:**
+    Copy the example config and edit it with your Proxmox server details. The application inside the container will use this file.
+
+    ```bash
+    cp configs/config.tpl.yml config.yml
+    $EDITOR config.yml
+    ```
+
+3.  **Run with Docker Compose:**
+    This command builds the image and starts the TUI interactively.
+
+    ```bash
+    docker-compose up
+    ```
+
+    To stop, press `Ctrl+C` in the terminal, then run `docker-compose down` to remove the container.
+
+For more advanced use cases, including Podman support and manual build/run scripts, see the detailed [Docker documentation](./DOCKER.md).
 
 ## 🤝 Contributing
 Contributions, issues, and feature requests are welcome!
