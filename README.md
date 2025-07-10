@@ -38,7 +38,7 @@ Proxmox TUI brings lightning-fast cluster management directly to your terminal. 
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-nodes" alt="Proxmox TUI Node View" width="800"><br>
+  <img src="assets/screenshot-nodes.png" alt="Proxmox TUI Node View" width="800"><br>
   <em>Node Management View - Detailed node information and status</em>
 </p>
 
