@@ -29,3 +29,8 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# VHS demo output
+/demo/*.gif
+/demo/*.png
+/demo/*.svg

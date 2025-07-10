@@ -3,7 +3,7 @@
 # Configuration
 APP_NAME := proxmox-tui
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-REGISTRY ?= 
+REGISTRY ?=
 IMAGE_NAME := $(APP_NAME)
 FULL_IMAGE_NAME := $(if $(REGISTRY),$(REGISTRY)/$(IMAGE_NAME),$(IMAGE_NAME))
 
@@ -18,7 +18,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo
 
 # Default target
 help: ## Show this help message
@@ -248,4 +248,8 @@ version: ## Show version information
 	@printf "Go Version: $(GO_VERSION)\n"
 	@printf "Image: $(FULL_IMAGE_NAME):$(VERSION)\n"
 
-.DEFAULT_GOAL := help 
+demo: ## Run the VHS demo tape
+	@printf "$(GREEN)Running VHS demo...$(NC)\n"
+	vhs ./demo/demo.tape
+
+.DEFAULT_GOAL := help
