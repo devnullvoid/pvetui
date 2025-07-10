@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o proxmox-tui ./cmd/proxmox-tui
 FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata openssh-client
 
 # Build arguments for user ID (defaults to 1000 if not provided)
 ARG USER_ID=1000
@@ -60,4 +60,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD pgrep proxmox-tui || exit 1
 
 # Run the application
-ENTRYPOINT ["./proxmox-tui"] 
+ENTRYPOINT ["./proxmox-tui"]
