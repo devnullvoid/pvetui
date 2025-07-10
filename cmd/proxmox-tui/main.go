@@ -31,6 +31,13 @@ func main() {
 		return
 	}
 
+	// If no config path is provided via flag, try to find it in the default location
+	if *configPath == "" {
+		if path, found := config.FindDefaultConfigPath(); found {
+			*configPath = path
+		}
+	}
+
 	if *configPath != "" {
 		if err := cfg.MergeWithFile(*configPath); err != nil {
 			log.Fatalf("error loading config file %s: %v", *configPath, err)

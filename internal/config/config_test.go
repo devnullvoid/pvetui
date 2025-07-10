@@ -477,13 +477,6 @@ func TestGetXDGConfigDir(t *testing.T) {
 	}
 }
 
-func TestGetDefaultConfigPath(t *testing.T) {
-	result := GetDefaultConfigPath()
-	assert.Contains(t, result, "proxmox-tui")
-	assert.Contains(t, result, "config.yml")
-	assert.True(t, filepath.IsAbs(result))
-}
-
 func TestValidateKeyBindings(t *testing.T) {
 	t.Run("duplicate", func(t *testing.T) {
 		kb := KeyBindings{SwitchView: "F1", NodesPage: "F1"}

@@ -286,26 +286,31 @@ func getXDGConfigDir() string {
 	return "."
 }
 
-// GetDefaultConfigPath returns the default path for the application configuration file.
+// FindDefaultConfigPath searches for the default configuration file in the XDG
+// config directory, checking for "config.yml" and "config.yaml".
 //
-// This function combines the XDG-compliant configuration directory with the
-// standard configuration filename "config.yml". The path follows XDG Base
-// Directory Specification conventions.
+// It follows the XDG Base Directory Specification to locate the configuration
+// directory. If a configuration file is found, its path and `true` are returned.
+// Otherwise, an empty string and `false` are returned.
 //
-// The returned path may not exist - callers should check for file existence
-// before attempting to read from it.
-//
-// Returns the absolute path to the default configuration file.
-//
-// Example usage:
-//
-//	configPath := GetDefaultConfigPath()
-//	if _, err := os.Stat(configPath); err == nil {
-//		// Config file exists, load it
-//		err := config.MergeWithFile(configPath)
-//	}
-func GetDefaultConfigPath() string {
-	return filepath.Join(getXDGConfigDir(), "config.yml")
+// Returns the path to the found configuration file and a boolean indicating
+// whether it was found.
+func FindDefaultConfigPath() (string, bool) {
+	configDir := getXDGConfigDir()
+
+	// Check for config.yml first
+	ymlPath := filepath.Join(configDir, "config.yml")
+	if _, err := os.Stat(ymlPath); err == nil {
+		return ymlPath, true
+	}
+
+	// Then check for config.yaml
+	yamlPath := filepath.Join(configDir, "config.yaml")
+	if _, err := os.Stat(yamlPath); err == nil {
+		return yamlPath, true
+	}
+
+	return "", false
 }
 
 // NewConfig creates a new Config instance populated with values from environment variables.
