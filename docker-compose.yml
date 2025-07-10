@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   proxmox-tui:
     build:
@@ -12,18 +10,22 @@ services:
     container_name: proxmox-tui
     restart: "no"  # Don't restart for interactive TUI apps
 
-    # Pass command-line flags to the entrypoint
-    command: ["--config", "/app/config.yml"]
-
-    # Remove environment variables for connection, use config file instead
+    # Environment variables are loaded from the .env file
     environment:
+      - PROXMOX_ADDR=${PROXMOX_ADDR}
+      - PROXMOX_USER=${PROXMOX_USER}
+      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+      - PROXMOX_REALM=${PROXMOX_REALM}
+      - PROXMOX_TOKEN_ID=${PROXMOX_TOKEN_ID}
+      - PROXMOX_TOKEN_SECRET=${PROXMOX_TOKEN_SECRET}
+      - PROXMOX_API_PATH=${PROXMOX_API_PATH:-/api2/json}
+      - PROXMOX_INSECURE=${PROXMOX_INSECURE:-false}
       - PROXMOX_DEBUG=${PROXMOX_DEBUG:-false}
       - PROXMOX_CACHE_DIR=${PROXMOX_CACHE_DIR:-/app/cache}
+      - PROXMOX_SSH_USER=${PROXMOX_SSH_USER}
 
     # Volumes for persistence
-    # Mount the root config.yml and the cache directory
     volumes:
-      - ./config.yml:/app/config.yml:ro
       - ./cache:/app/cache
 
     # TTY and interactive for TUI applications
@@ -44,17 +46,4 @@ services:
           memory: 64M
           cpus: '0.1'
 
-# Note: For TUI applications, use 'docker-compose up' (not 'docker-compose up -d')
-# The -d flag runs in detached mode which doesn't work for interactive applications
-
-# Optional: Redis for distributed caching (if needed in the future)
-# redis:
-#   image: redis:7-alpine
-#   container_name: proxmox-tui-redis
-#   restart: unless-stopped
-#   volumes:
-#     - redis_data:/data
-#   command: redis-server --appendonly yes
-
-# volumes:
-#   redis_data:
+# Note: For TUI applications, use 'docker-compose run' (not 'docker-compose up')

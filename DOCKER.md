@@ -40,12 +40,12 @@ This document describes how to build and run the Proxmox TUI application using D
    # Edit .env with your Proxmox configuration
    ```
 
-2. **Start application (interactive):**
-   ```bash
-   docker-compose up
-   ```
+2. **Start application:**
+   The `docker compose run` command is the recommended way to start the TUI application. It handles interactive sessions correctly and cleans up the container on exit when used with `--rm`.
 
-   **Note:** For TUI applications, do NOT use `docker-compose up -d` as it runs in detached mode which doesn't work with interactive terminal applications.
+   ```bash
+   docker compose run --rm proxmox-tui
+   ```
 
 ## Configuration
 
@@ -74,11 +74,9 @@ PROXMOX_SSH_USER=root
 
 ### Volume Mounts
 
-The container uses the following volume mounts for persistence:
+The container uses the following volume mount for persistence:
 
-- `./cache:/app/cache` - Application cache data
-- `./logs:/app/logs` - Application logs
-- `./configs:/app/configs:ro` - Configuration files (read-only)
+- `./cache:/app/cache` - Application cache data (including logs)
 
 ### User Permissions
 
@@ -143,20 +141,19 @@ make podman-run
 ### Docker Compose
 
 ```bash
-# Start interactively (recommended for TUI apps)
-docker-compose up
+# Run the service interactively (recommended)
+docker compose run --rm proxmox-tui
 
-# Build and start
-make compose-build
+# If you need to run in the background (not typical for a TUI):
+# docker-compose up -d
+# docker-compose attach proxmox-tui
 
-# Stop services
+# Stop and remove background containers and networks
 docker-compose down
 
 # View logs (if running detached)
 docker-compose logs -f
 ```
-
-**Important:** Since this is a TUI application, always run `docker-compose up` without the `-d` flag to maintain interactivity.
 
 ## TUI Application Considerations
 
@@ -164,11 +161,7 @@ Since this is a Terminal User Interface (TUI) application, special consideration
 
 ### TTY and Interactive Mode
 
-The container must be run with:
-- `-t` (TTY): Allocates a pseudo-TTY
-- `-i` (Interactive): Keeps STDIN open
-
-This is automatically handled by the provided scripts.
+The container must be run with settings that allocate a pseudo-TTY and keep standard input open. `docker compose run` handles this automatically for interactive sessions.
 
 ### Terminal Size
 
@@ -265,7 +258,7 @@ make release-build
 
 # This creates binaries in dist/ for:
 # - Linux (amd64, arm64)
-# - macOS (amd64, arm64)  
+# - macOS (amd64, arm64)
 # - Windows (amd64)
 ```
 
@@ -330,24 +323,13 @@ deploy:
 
 Adjust these based on your needs.
 
-### Persistent Storage
-
-Ensure cache and logs directories are properly backed up if needed:
-
-```bash
-# Create backup
-tar -czf proxmox-tui-data-$(date +%Y%m%d).tar.gz cache logs
-
-# Restore backup
-tar -xzf proxmox-tui-data-YYYYMMDD.tar.gz
-```
 
 ## Interactive vs Detached Mode
 
 **Important for TUI Applications:**
 
-- ✅ **Use:** `docker-compose up` (interactive)
+- ✅ **Use:** `docker compose run --rm proxmox-tui`
 - ✅ **Use:** `make docker-run` or `make podman-run`
-- ❌ **Don't use:** `docker-compose up -d` (detached mode breaks TUI)
+- ❌ **Avoid:** `docker-compose up` directly, as it can have TTY attachment issues and doesn't clean up the container automatically.
 
-The application requires an interactive terminal to function properly. Detached mode will cause the application to exit immediately or become unresponsive. 
+The `run` command is designed for interactive sessions and is the most reliable way to use the TUI with Docker Compose.

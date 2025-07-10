@@ -302,24 +302,22 @@ For users who prefer running applications in containers, `proxmox-tui` provides 
     cd proxmox-tui
     ```
 
-2.  **Create your configuration file:**
-    Copy the example config and edit it with your Proxmox server details. The application inside the container will use this file.
+2.  **Create your environment file:**
+    Copy the example environment file and edit it with your Proxmox server details. Docker Compose will automatically load these variables.
 
     ```bash
-    cp configs/config.tpl.yml config.yml
-    $EDITOR config.yml
+    cp .env.example .env
+    $EDITOR .env
     ```
 
 3.  **Run with Docker Compose:**
-    This command builds the image and starts the TUI interactively.
+    The `docker compose run` command is ideal for interactive TUI applications. It starts the service, attaches your terminal, and automatically removes the container when you quit.
 
     ```bash
-    docker-compose up
+    docker compose run --rm proxmox-tui
     ```
 
-    To stop, press `Ctrl+C` in the terminal, then run `docker-compose down` to remove the container.
-
-For more advanced use cases, including Podman support and manual build/run scripts, see the detailed [Docker documentation](./DOCKER.md).
+For more advanced use cases, including **using `docker run` with a config file**, see the detailed [Docker documentation](./DOCKER.md).
 
 ## 🤝 Contributing
 Contributions, issues, and feature requests are welcome!
