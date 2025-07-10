@@ -18,7 +18,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots
 
 # Default target
 help: ## Show this help message
@@ -251,5 +251,9 @@ version: ## Show version information
 demo: ## Run the VHS demo tape
 	@printf "$(GREEN)Running VHS demo...$(NC)\n"
 	vhs ./demo/demo.tape
+
+screenshots: ## Run the VHS screenshots tape
+	@printf "$(GREEN)Running VHS screenshots...$(NC)\n"
+	vhs ./demo/screenshots.tape
 
 .DEFAULT_GOAL := help
