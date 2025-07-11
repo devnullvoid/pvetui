@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provides clear, friendly messaging with proper spacing and visual indicators
   - Supports both `.yml` and `.yaml` file extensions for configuration discovery
   - Eliminates the need for users to manually create configuration files or read documentation first
+- **Startup Connectivity Verification**: Added comprehensive startup sequence with real-time feedback
+  - Tests network connectivity and authentication before loading the main interface
+  - Clear console progress messages showing each startup step (config loading, client initialization, connection testing, authentication verification)
+  - Intelligent error categorization with specific suggestions for different failure types
+  - Prevents users from waiting at "Loading..." screens when configuration issues exist
+  - Helpful error messages pointing users to the exact config file and suggesting fixes for connection or authentication problems
 
 ## [0.8.1] - 2025-07-10
 

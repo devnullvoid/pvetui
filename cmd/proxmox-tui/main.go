@@ -78,7 +78,30 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := app.Run(cfg, app.Options{NoCache: *noCacheFlag}); err != nil {
-		log.Fatalf("error running app: %v", err)
+	// Start the application with startup verification
+	fmt.Println("🚀 Starting Proxmox TUI...")
+
+	// Show config source
+	if *configPath != "" {
+		fmt.Printf("✅ Configuration loaded from %s\n", *configPath)
+	} else {
+		fmt.Println("✅ Configuration loaded from environment variables")
+	}
+
+	if err := app.RunWithStartupVerification(cfg, app.Options{NoCache: *noCacheFlag}); err != nil {
+		fmt.Printf("❌ %v\n", err)
+		fmt.Println()
+		if strings.Contains(err.Error(), "authentication failed") {
+			fmt.Println("💡 Please check your credentials in the config file:")
+			if *configPath != "" {
+				fmt.Printf("   %s\n", *configPath)
+			} else {
+				fmt.Printf("   %s\n", config.GetDefaultConfigPath())
+			}
+		} else if strings.Contains(err.Error(), "connection") || strings.Contains(err.Error(), "timeout") {
+			fmt.Println("💡 Please check your Proxmox server address and network connectivity:")
+			fmt.Printf("   Current address: %s\n", cfg.Addr)
+		}
+		os.Exit(1)
 	}
 }
