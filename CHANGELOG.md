@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Interactive First-Run Setup**: Added user-friendly configuration wizard for new users
+  - Automatically detects when configuration is missing or incomplete
+  - Prompts users to create a default configuration file in the XDG config directory
+  - Embeds the configuration template directly in the binary for offline setup
+  - Provides clear, friendly messaging with proper spacing and visual indicators
+  - Supports both `.yml` and `.yaml` file extensions for configuration discovery
+  - Eliminates the need for users to manually create configuration files or read documentation first
+
 ## [0.8.1] - 2025-07-10
 
 ### Added
