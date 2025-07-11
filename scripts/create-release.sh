@@ -236,7 +236,7 @@ update_changelog() {
 
 commit_changelog() {
     run_command \
-        "git add CHANGELOG.md && git commit -m '📝 Prepare $VERSION release
+        "git add CHANGELOG.md && git commit --no-verify -m '📝 Prepare $VERSION release
 
 - Update changelog with $VERSION release notes
 - Ready for release tagging and merge to master'" \
