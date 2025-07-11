@@ -144,8 +144,8 @@ func (s *Server) startHTTPServer() error {
 
 	s.logger.Debug("Finding available port for HTTP server")
 
-	// Find an available port
-	listener, err := net.Listen("tcp", "localhost:0")
+	// Find an available port on all interfaces
+	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		s.logger.Error("Failed to find available port: %v", err)
 		return fmt.Errorf("failed to find available port: %w", err)
@@ -172,7 +172,7 @@ func (s *Server) startHTTPServer() error {
 	mux.HandleFunc("/vnc-proxy", s.proxy.HandleWebSocketProxy)
 
 	s.httpServer = &http.Server{
-		Addr:         fmt.Sprintf("localhost:%d", s.port),
+		Addr:         fmt.Sprintf(":%d", s.port),
 		Handler:      mux,
 		ReadTimeout:  0,                // No timeout for WebSocket connections
 		WriteTimeout: 0,                // No timeout for WebSocket connections
