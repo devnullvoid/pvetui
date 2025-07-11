@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents users from waiting at "Loading..." screens when configuration issues exist
   - Helpful error messages pointing users to the exact config file and suggesting fixes for connection or authentication problems
 
+### Fixed
+- **VNC Connectivity**: Fixed issue where VNC failed to connect when using SSH port forwarding (e.g., in VS Code). The noVNC client now uses a relative URL, allowing it to connect correctly through forwarded ports.
+
 ## [0.8.1] - 2025-07-10
 
 ### Added

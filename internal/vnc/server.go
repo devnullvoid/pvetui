@@ -82,9 +82,10 @@ func (s *Server) StartVMVNCServerWithSession(client *api.Client, vm *api.VM, ses
 		return "", fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
-	// Generate noVNC URL with autoconnect and reconnect options
-	vncURL := fmt.Sprintf("http://localhost:%d/vnc.html?autoconnect=true&reconnect=true&host=localhost&port=%d&password=%s&path=vnc-proxy&resize=scale",
-		s.port, s.port, url.QueryEscape(config.Password))
+	// Generate noVNC URL with relative WebSocket connection for VS Code port forwarding compatibility
+	// By not specifying host and port, noVNC will use the current page's host and port (which includes VS Code forwarding)
+	vncURL := fmt.Sprintf("http://localhost:%d/vnc.html?autoconnect=true&reconnect=true&password=%s&path=vnc-proxy&resize=scale",
+		s.port, url.QueryEscape(config.Password))
 
 	s.logger.Info("VM VNC server started successfully for %s on port %d", vm.Name, s.port)
 	s.logger.Debug("VM VNC URL generated: %s", vncURL)
@@ -122,9 +123,10 @@ func (s *Server) StartNodeVNCServerWithSession(client *api.Client, nodeName stri
 		return "", fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
-	// Generate noVNC URL with autoconnect and reconnect options
-	vncURL := fmt.Sprintf("http://localhost:%d/vnc.html?autoconnect=true&reconnect=true&host=localhost&port=%d&password=%s&path=vnc-proxy&resize=scale",
-		s.port, s.port, url.QueryEscape(config.Password))
+	// Generate noVNC URL with relative WebSocket connection for VS Code port forwarding compatibility
+	// By not specifying host and port, noVNC will use the current page's host and port (which includes VS Code forwarding)
+	vncURL := fmt.Sprintf("http://localhost:%d/vnc.html?autoconnect=true&reconnect=true&password=%s&path=vnc-proxy&resize=scale",
+		s.port, url.QueryEscape(config.Password))
 
 	s.logger.Info("Node VNC server started successfully for %s on port %d", nodeName, s.port)
 	s.logger.Debug("Node VNC URL generated: %s", vncURL)
