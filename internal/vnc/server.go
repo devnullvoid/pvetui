@@ -82,8 +82,8 @@ func (s *Server) StartVMVNCServerWithSession(client *api.Client, vm *api.VM, ses
 		return "", fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
-	// Generate noVNC URL with parameters expected by vnc_lite.html
-	vncURL := fmt.Sprintf("http://localhost:%d/vnc_lite.html?host=localhost&port=%d&password=%s&path=vnc-proxy",
+	// Generate noVNC URL with autoconnect and reconnect options
+	vncURL := fmt.Sprintf("http://localhost:%d/vnc.html?autoconnect=true&reconnect=true&host=localhost&port=%d&password=%s&path=vnc-proxy&resize=scale",
 		s.port, s.port, url.QueryEscape(config.Password))
 
 	s.logger.Info("VM VNC server started successfully for %s on port %d", vm.Name, s.port)
@@ -122,8 +122,8 @@ func (s *Server) StartNodeVNCServerWithSession(client *api.Client, nodeName stri
 		return "", fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
-	// Generate noVNC URL with parameters expected by vnc_lite.html
-	vncURL := fmt.Sprintf("http://localhost:%d/vnc_lite.html?host=localhost&port=%d&password=%s&path=vnc-proxy",
+	// Generate noVNC URL with autoconnect and reconnect options
+	vncURL := fmt.Sprintf("http://localhost:%d/vnc.html?autoconnect=true&reconnect=true&host=localhost&port=%d&password=%s&path=vnc-proxy&resize=scale",
 		s.port, s.port, url.QueryEscape(config.Password))
 
 	s.logger.Info("Node VNC server started successfully for %s on port %d", nodeName, s.port)
