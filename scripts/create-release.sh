@@ -182,29 +182,6 @@ update_changelog() {
     temp_file=$(mktemp)
     trap 'rm -f "$temp_file"' EXIT
 
-    # Use awk for robust parsing
-    awk -v version="$VERSION_NO_V" -v date="$RELEASE_DATE" '
-    BEGIN { unreleased = 0; }
-    /## \[Unreleased\]/ {
-        print;
-        print "";
-        print "## [" version "] - " date;
-        unreleased = 1;
-        next;
-    }
-    /^## \[/ { unreleased = 0; }
-    unreleased { content[NR] = $0; }
-    !unreleased { print; }
-    END {
-        for (i in content) {
-            print content[i];
-        }
-    }
-    ' CHANGELOG.md > "$temp_file"
-
-    # The awk script needs to be adjusted slightly to handle the file structure correctly.
-    # Let's rebuild the file in a more controlled way.
-
     # 1. Capture the header
     sed -n '1,/## \[Unreleased\]/p' CHANGELOG.md | head -n -1 > "$temp_file"
 
@@ -219,8 +196,13 @@ update_changelog() {
     sed -n '/## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '1d;$d' >> "$temp_file"
 
     # 5. Append the rest of the file (old versions)
-    sed '1,/^## \[/d' CHANGELOG.md >> "$temp_file"
+    # Find the line number of the second `## [` tag (the start of the previous version)
+    local next_version_line
+    next_version_line=$(grep -n -m 2 '^## \[' CHANGELOG.md | tail -n 1 | cut -d: -f1)
 
+    if [[ -n "$next_version_line" ]]; then
+        tail -n +"$next_version_line" CHANGELOG.md >> "$temp_file"
+    fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_warning "[DRY RUN] Would update CHANGELOG.md with version $VERSION_NO_V"

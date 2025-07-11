@@ -20,18 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker**: The Docker instructions have been completely revamped for clarity and correctness, now recommending `docker compose run --rm proxmox-tui` for an improved user experience.
 - Robust selection restoration for both VM and Node lists after per-item and global refreshes. Selection is now always restored by name, not index, fixing issues with selection jumping to the top after refreshes.
 
-
-### Added
-- **Docker Image**: Added `openssh-client` to support the shell feature.
-
-### Fixed
-- **Configuration**: The application now automatically discovers and loads the default configuration file (`config.yml` or `config.yaml`) from the XDG config directory (`~/.config/proxmox-tui/`) without requiring the `--config` flag.
-- **Search**: Pressing `ESC` in the search bar now clears the filter text in addition to closing the bar, providing a more intuitive, VIM-like experience.
-
-### Improved
-- **Docker**: The Docker instructions have been completely revamped for clarity and correctness, now recommending `docker compose run --rm proxmox-tui` for an improved user experience.
-- Robust selection restoration for both VM and Node lists after per-item and global refreshes. Selection is now always restored by name, not index, fixing issues with selection jumping to the top after refreshes.
-
 ## [v0.8.0]
 
 ### Added
