@@ -68,6 +68,7 @@
 package config
 
 import (
+	"embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -80,6 +81,9 @@ import (
 	"github.com/getsops/sops/v3/decrypt"
 	"gopkg.in/yaml.v3"
 )
+
+//go:embed config.tpl.yml
+var templateFS embed.FS
 
 // DebugEnabled is a global flag to enable debug logging throughout the application.
 //
@@ -284,6 +288,37 @@ func getXDGConfigDir() string {
 
 	// Final fallback to current directory
 	return "."
+}
+
+// GetDefaultConfigPath returns the full, absolute path for the default
+// configuration file (config.yml). This is the target location for the generated
+// config file on first run.
+//
+// It follows the XDG Base Directory Specification.
+func GetDefaultConfigPath() string {
+	return filepath.Join(getXDGConfigDir(), "config.yml")
+}
+
+// CreateDefaultConfigFile creates the XDG config directory and populates it with
+// the default config.tpl.yml template.
+func CreateDefaultConfigFile() (string, error) {
+	configDir := getXDGConfigDir()
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create config directory %s: %w", configDir, err)
+	}
+
+	// Read the template file from embedded filesystem
+	templateData, err := templateFS.ReadFile("config.tpl.yml")
+	if err != nil {
+		return "", fmt.Errorf("failed to read embedded template: %w", err)
+	}
+
+	configPath := GetDefaultConfigPath()
+	if err := os.WriteFile(configPath, templateData, 0644); err != nil {
+		return "", fmt.Errorf("failed to write config file to %s: %w", configPath, err)
+	}
+
+	return configPath, nil
 }
 
 // FindDefaultConfigPath searches for the default configuration file in the XDG
