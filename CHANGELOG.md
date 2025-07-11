@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+- **Docker Image**: Added `openssh-client` to support the shell feature.
+
+### Fixed
+- **Configuration**: The application now automatically discovers and loads the default configuration file (`config.yml` or `config.yaml`) from the XDG config directory (`~/.config/proxmox-tui/`) without requiring the `--config` flag.
+
+### Improved
+- **Docker**: The Docker instructions have been completely revamped for clarity and correctness, now recommending `docker compose run --rm proxmox-tui` for an improved user experience.
 - Robust selection restoration for both VM and Node lists after per-item and global refreshes. Selection is now always restored by name, not index, fixing issues with selection jumping to the top after refreshes.
 
 ## [v0.8.0]
@@ -135,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminated multiple log files being created in current directory (scripts, VNC components)
   - Proper cache directory initialization ensures consistent logging location across all packages
 
-### Enhanced
+### Improved
 - **Press Enter to Return**: Re-implemented "Press Enter to return to TUI" functionality for both script installation and SSH sessions
   - Users can now see complete script output and error messages before returning to the application
   - Status messages show success (✅) or failure (❌) with clear feedback
@@ -154,8 +163,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Press `Enter` or `Tab` to move from search field back to script list
   - Maintains all existing navigation (hjkl, arrows, backspace to go back)
   - Filtered results update instantly and preserve selection behavior
-
-### Improved
 - Release process now fully automated from changelog to GitHub release
 
 ## [0.5.0] - 2025-06-22
@@ -284,6 +291,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2025-06-11
 
+### Added
+- **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
+  - `h` = left/go back, `j` = down, `k` = up, `l` = right
+
 ### Fixed
 - **Node Storage Display**: Fixed node details showing "0.00 GB" for storage values
   - Resolved inconsistent storage units between cluster and individual node data
@@ -291,6 +302,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Storage percentages now display with correct used/total GB values
   - Maintains consistency with cluster resource processing
 
-### Added
-- **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
-  - `h` = left/go back, `j` = down, `k` = up, `l` = right
+## [0.1.0] - Unreleased
+
+- Internal alpha version with basic functionality.
