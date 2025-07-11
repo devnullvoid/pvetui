@@ -164,6 +164,8 @@ func (a *App) activateSearch() {
 	a.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
+			// Per user request, Escape should clear the search filter
+			a.searchInput.SetText("")
 			removeSearchInput()
 			return nil
 		case tcell.KeyEnter:
