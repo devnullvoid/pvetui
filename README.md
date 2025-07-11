@@ -75,7 +75,7 @@ cp configs/config.tpl.yml config.yml
 $EDITOR config.yml
 
 # Run the application
-./proxmox-tui
+./proxmox-tui -config ./config.yml
 ```
 
 ### Pre-compiled Binaries

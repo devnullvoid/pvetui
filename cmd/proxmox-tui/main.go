@@ -51,7 +51,11 @@ func main() {
 	config.DebugEnabled = cfg.Debug
 
 	if err := cfg.Validate(); err != nil {
-		fmt.Printf("Configuration is missing or invalid: %v\n", err)
+		fmt.Println("🔧 Configuration Setup Required")
+		fmt.Println()
+		fmt.Printf("It looks like this is your first time running proxmox-tui, or your configuration needs attention.\n")
+		fmt.Printf("Missing: %v\n", err)
+		fmt.Println()
 		fmt.Printf("Would you like to create a default configuration file at '%s'? [Y/n] ", config.GetDefaultConfigPath())
 
 		reader := bufio.NewReader(os.Stdin)
@@ -59,13 +63,16 @@ func main() {
 		input = strings.TrimSpace(strings.ToLower(input))
 
 		if input == "y" || input == "" {
+			fmt.Println()
 			path, createErr := config.CreateDefaultConfigFile()
 			if createErr != nil {
 				log.Fatalf("Error creating config file: %v", createErr)
 			}
-			fmt.Printf("✅ Success! Configuration file created at %s.\n", path)
+			fmt.Printf("✅ Success! Configuration file created at %s\n", path)
+			fmt.Println()
 			fmt.Println("Please edit it with your Proxmox details and run the application again.")
 		} else {
+			fmt.Println()
 			fmt.Println("Configuration setup canceled. You can configure via flags or environment variables instead.")
 		}
 		os.Exit(0)
