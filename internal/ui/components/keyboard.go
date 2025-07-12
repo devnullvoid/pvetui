@@ -52,7 +52,9 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("message") ||
 			a.pages.HasPage("confirmation") ||
 			a.pages.HasPage("migration") ||
-			a.pages.HasPage("help")
+			a.pages.HasPage("help") ||
+			a.pages.HasPage("vmConfig") ||
+			a.pages.HasPage("resizeStorage")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {

@@ -87,6 +87,14 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	}
 	title := fmt.Sprintf("Edit Configuration: %s %d - %s", guestType, vm.ID, vm.Name)
 	form.SetBorder(true).SetTitle(title).SetTitleColor(tcell.ColorYellow)
+	// Set ESC key to cancel
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			app.pages.RemovePage("vmConfig")
+			return nil
+		}
+		return event
+	})
 	return page
 }
 
@@ -161,6 +169,14 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 		app.pages.RemovePage("resizeStorage")
 	})
 	modal.SetBorder(true).SetTitle("Resize Storage Volume").SetTitleColor(tcell.ColorYellow)
+	// Set ESC key to cancel for resize modal
+	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			app.pages.RemovePage("resizeStorage")
+			return nil
+		}
+		return event
+	})
 	app.pages.AddPage("resizeStorage", modal, true, true)
 	app.SetFocus(modal)
 }
