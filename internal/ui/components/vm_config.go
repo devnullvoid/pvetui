@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -21,7 +22,7 @@ type VMConfigPage struct {
 
 // NewVMConfigPage creates a new config editor for the given VM.
 func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*api.VMConfig) error) *VMConfigPage {
-	form := tview.NewForm().SetHorizontal(true)
+	form := tview.NewForm().SetHorizontal(false)
 	page := &VMConfigPage{
 		Form:   form,
 		app:    app,
@@ -30,13 +31,13 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		saveFn: saveFn,
 	}
 
-	// CPU cores
+	// Restore to simple vertical layout for Cores, Sockets, Memory (MB)
+	form.SetHorizontal(false)
 	form.AddInputField("Cores", strconv.Itoa(config.Cores), 4, nil, func(text string) {
 		if v, err := strconv.Atoi(text); err == nil {
 			page.config.Cores = v
 		}
 	})
-	// Sockets (QEMU only)
 	if vm.Type == api.VMTypeQemu {
 		form.AddInputField("Sockets", strconv.Itoa(config.Sockets), 4, nil, func(text string) {
 			if v, err := strconv.Atoi(text); err == nil {
@@ -44,12 +45,12 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 			}
 		})
 	}
-	// Memory (MB)
 	form.AddInputField("Memory (MB)", strconv.FormatInt(config.Memory/1024/1024, 10), 8, nil, func(text string) {
 		if v, err := strconv.ParseInt(text, 10, 64); err == nil {
 			page.config.Memory = v * 1024 * 1024
 		}
 	})
+
 	// Description
 	form.AddInputField("Description", config.Description, 32, nil, func(text string) {
 		page.config.Description = text
@@ -91,12 +92,21 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 
 // showResizeStorageModal displays a modal for resizing a storage volume.
 func showResizeStorageModal(app *App, vm *api.VM) {
-	modal := tview.NewForm().SetHorizontal(true)
+	modal := tview.NewForm().SetHorizontal(false)
 
-	// Build list of storage devices
+	// Build list of storage devices (filter to only resizable volumes)
 	var deviceNames []string
 	var deviceMap = make(map[string]*api.StorageDevice)
 	for _, dev := range vm.StorageDevices {
+		if dev.Size == "" {
+			continue // must have a size
+		}
+		if dev.Media == "cdrom" {
+			continue // skip CD-ROM/ISO
+		}
+		if strings.HasPrefix(dev.Device, "efidisk") || strings.HasPrefix(dev.Device, "scsihw") {
+			continue // skip EFI/controller
+		}
 		label := fmt.Sprintf("%s (%s, %s)", dev.Device, dev.Storage, dev.Size)
 		deviceNames = append(deviceNames, label)
 		deviceMap[label] = &dev

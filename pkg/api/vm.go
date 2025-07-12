@@ -135,6 +135,7 @@ type StorageDevice struct {
 	Serial    string `json:"serial,omitempty"`    // Custom serial number
 	Backup    bool   `json:"backup"`              // Whether device is included in backups (default: true)
 	Replicate bool   `json:"replicate,omitempty"` // Whether device participates in replication
+	Media     string `json:"media,omitempty"`     // Media type (e.g., "cdrom")
 }
 
 // Filesystem represents filesystem information from QEMU guest agent
@@ -1604,6 +1605,10 @@ func parseStorageConfig(configData map[string]interface{}, vmType string) []Stor
 					device.Backup = val != "0" && strings.ToLower(val) != "false"
 				case "replicate":
 					device.Replicate = val == "1" || strings.ToLower(val) == "true"
+				case "media":
+					if val == "cdrom" {
+						device.Media = "cdrom"
+					}
 				}
 			} else {
 				// Handle boolean flags without values
