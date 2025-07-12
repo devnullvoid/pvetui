@@ -59,11 +59,11 @@ func (c *Client) UpdateVMConfig(vm *VM, config *VMConfig) error {
 }
 
 // ResizeVMStorage resizes a disk for a VM or container.
-func (c *Client) ResizeVMStorage(vm *VM, disk string, size int64) error {
+func (c *Client) ResizeVMStorage(vm *VM, disk string, size string) error {
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%d/resize", vm.Node, vm.Type, vm.ID)
 	data := map[string]interface{}{
 		"disk": disk,
-		"size": fmt.Sprintf("%d", size), // Proxmox expects size as string (e.g., "+10G")
+		"size": size, // Proxmox expects size as string (e.g., "+10G")
 	}
 	return c.httpClient.Put(context.Background(), endpoint, data, nil)
 }
