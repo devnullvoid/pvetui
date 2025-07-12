@@ -250,10 +250,10 @@ version: ## Show version information
 
 demo: ## Run the VHS demo tape
 	@printf "$(GREEN)Running VHS demo...$(NC)\n"
-	vhs ./demo/demo.tape
+	vhs ./docs/demo.tape
 
 screenshots: ## Run the VHS screenshots tape
 	@printf "$(GREEN)Running VHS screenshots...$(NC)\n"
-	vhs ./demo/screenshots.tape
+	vhs ./docs/screenshots.tape
 
 .DEFAULT_GOAL := help
