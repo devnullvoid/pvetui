@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Guest configuration editor:** Edit CPU, memory, and description for both QEMU and LXC guests.
+- **Storage volume resize:** Resize disks from the config editor, with robust filtering for resizable volumes only.
 - **Interactive First-Run Setup**: Added user-friendly configuration wizard for new users
   - Automatically detects when configuration is missing or incomplete
   - Prompts users to create a default configuration file in the XDG config directory

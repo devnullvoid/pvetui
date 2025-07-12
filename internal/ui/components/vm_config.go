@@ -74,6 +74,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 			app.showMessage(fmt.Sprintf("Failed to save config: %v", err))
 		} else {
 			app.showMessage("Configuration updated successfully.")
+			app.manualRefresh()
 			app.pages.RemovePage("vmConfig")
 		}
 	})
@@ -160,6 +161,7 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 					app.showMessage(fmt.Sprintf("Resize failed: %v", err))
 				} else {
 					app.showMessage("Resize operation started successfully.")
+					app.manualRefresh()
 					app.pages.RemovePage("resizeStorage")
 				}
 			})
