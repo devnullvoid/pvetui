@@ -165,6 +165,7 @@ func (a *App) ShowVMContextMenu() {
 	// Create menu items based on VM state
 	menuItems := []string{
 		"Open Shell",
+		"Edit Configuration",
 		"Refresh",
 	}
 
@@ -195,6 +196,22 @@ func (a *App) ShowVMContextMenu() {
 			a.openVMVNC()
 		case "Open Shell":
 			a.openVMShell()
+		case "Edit Configuration":
+			// Load config and show config page
+			go func() {
+				cfg, err := a.client.GetVMConfig(vm)
+				a.QueueUpdateDraw(func() {
+					if err != nil {
+						a.showMessage(fmt.Sprintf("Failed to load config: %v", err))
+						return
+					}
+					page := NewVMConfigPage(a, vm, cfg, func(newCfg *api.VMConfig) error {
+						return a.client.UpdateVMConfig(vm, newCfg)
+					})
+					a.pages.AddPage("vmConfig", page, true, true)
+					a.SetFocus(page)
+				})
+			}()
 		case "Refresh":
 			a.refreshVMData(vm)
 		case "Start":
