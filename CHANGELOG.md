@@ -186,6 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Press `Enter` or `Tab` to move from search field back to script list
   - Maintains all existing navigation (hjkl, arrows, backspace to go back)
   - Filtered results update instantly and preserve selection behavior
+- Backspace now closes the script details page in the script selector (same as Escape) for faster navigation.
 - Release process now fully automated from changelog to GitHub release
 
 ## [0.5.0] - 2025-06-22

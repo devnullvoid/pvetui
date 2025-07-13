@@ -478,7 +478,7 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 
 	// Set up input capture for navigation
 	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEscape {
+		if event.Key() == tcell.KeyEscape || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
 			s.app.pages.RemovePage("scriptInfo")
 			s.app.SetFocus(s.scriptList)
 			return nil
