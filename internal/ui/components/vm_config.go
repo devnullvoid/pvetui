@@ -90,7 +90,23 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	form.SetBorder(true).SetTitle(title).SetTitleColor(tcell.ColorYellow)
 	// Set ESC key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
+		formItemIdx, _ := form.GetFocusedItemIndex()
+		// Description field is at index 3 (after Cores, Sockets (if QEMU), Memory)
+		isDescriptionField := false
+		if vm.Type == api.VMTypeQemu {
+			if formItemIdx == 3 {
+				isDescriptionField = true
+			}
+		} else {
+			if formItemIdx == 2 {
+				isDescriptionField = true
+			}
+		}
+		if (event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2) && isDescriptionField {
+			// Let Backspace work for editing Description
+			return event
+		}
+		if event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
 			app.pages.RemovePage("vmConfig")
 			return nil
 		}
@@ -173,7 +189,7 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 	modal.SetBorder(true).SetTitle("Resize Storage Volume").SetTitleColor(tcell.ColorYellow)
 	// Set ESC key to cancel for resize modal
 	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
+		if event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
 			app.pages.RemovePage("resizeStorage")
 			return nil
 		}

@@ -31,6 +31,7 @@ Thumbs.db
 *~
 
 # VHS demo output
-/demo/*.gif
-/demo/*.png
-/demo/*.svg
+/docs/*.gif
+/docs/*.png
+/docs/*.svg
+/docs/*.webm
