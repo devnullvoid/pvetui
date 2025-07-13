@@ -6,7 +6,7 @@ Enter
 Sleep 1s
 Type "htop"
 Enter
-Sleep 2s
+Sleep 3s
 Type "q"
 Sleep 500ms
 Type "exit"
@@ -18,7 +18,7 @@ Type@200ms "jjl"
 Sleep 1s
 Type "l"
 Sleep 1s
-Type@300ms "/ubun"
+Type@300ms "jjj/ubun"
 Enter
 Sleep 500ms
 Enter
@@ -26,6 +26,7 @@ Sleep 2s
 Backspace
 Sleep 100ms
 Backspace@200ms 2
+Sleep 100ms
 Type "]"
 Sleep 1s
 Type@300ms "/nix"
@@ -43,6 +44,8 @@ Type "jj"
 Enter
 Sleep 1s
 Tab@300ms 4
+Enter
+Sleep 1s
 Escape@300ms 2
 Sleep 500ms
 Type "]"
@@ -50,4 +53,5 @@ Sleep 2s
 Type@200ms "jjjj"
 Type "q"
 Sleep 200ms
-Output docs/demo_full.webm
+Output docs/demo.webm
+Output docs/demo.gif
