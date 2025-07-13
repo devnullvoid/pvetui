@@ -113,7 +113,7 @@ func (a *App) ShowNodeContextMenu() {
 	// Create menu items based on node state
 	menuItems := []string{
 		"Open Shell",
-		"Open VNC Shell",
+		"Open VNC Console",
 		// "View Logs",
 		"Install Community Script",
 		"Refresh",
@@ -124,7 +124,7 @@ func (a *App) ShowNodeContextMenu() {
 		switch action {
 		case "Open Shell":
 			a.openNodeShell()
-		case "Open VNC Shell":
+		case "Open VNC Console":
 			a.openNodeVNC()
 		// case "View Logs":
 		// 	a.showMessage("Viewing logs for node: " + node.Name)
@@ -171,7 +171,8 @@ func (a *App) ShowVMContextMenu() {
 
 	// Add VNC option for QEMU VMs and LXC containers that are running
 	if (vm.Type == api.VMTypeQemu || vm.Type == api.VMTypeLXC) && vm.Status == api.VMStatusRunning {
-		menuItems = append([]string{"Open VNC Console"}, menuItems...)
+		// Insert 'Open VNC Console' as the second item (index 1)
+		menuItems = append(menuItems[:1], append([]string{"Open VNC Console"}, menuItems[1:]...)...)
 	}
 
 	// Add state-dependent actions
@@ -192,10 +193,10 @@ func (a *App) ShowVMContextMenu() {
 	// Create and show context menu
 	menu := NewContextMenu(" Guest Actions ", menuItems, func(index int, action string) {
 		switch action {
-		case "Open VNC Console":
-			a.openVMVNC()
 		case "Open Shell":
 			a.openVMShell()
+		case "Open VNC Console":
+			a.openVMVNC()
 		case "Edit Configuration":
 			// Load config and show config page
 			go func() {
