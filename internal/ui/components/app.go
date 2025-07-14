@@ -340,3 +340,15 @@ func (a *App) restoreSearchUI(searchWasActive bool, nodeSearchState, vmSearchSta
 		})
 	}()
 }
+
+// CloseContextMenu closes the context menu and restores the previous focus
+func (a *App) CloseContextMenu() {
+	if a.isMenuOpen {
+		a.pages.RemovePage("contextMenu")
+		a.isMenuOpen = false
+		a.contextMenu = nil
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
+}

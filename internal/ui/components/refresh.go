@@ -232,3 +232,51 @@ func (a *App) refreshVMData(vm *api.VM) {
 		})
 	}()
 }
+
+// refreshNodeData refreshes data for a specific node and updates the UI
+func (a *App) refreshNodeData(node *api.Node) {
+	a.header.ShowLoading(fmt.Sprintf("Refreshing node %s", node.Name))
+	// Record the currently selected node's name
+	selectedNodeName := ""
+	if selected := a.nodeList.GetSelectedNode(); selected != nil {
+		selectedNodeName = selected.Name
+	}
+	go func() {
+		freshNode, err := a.client.RefreshNodeData(node.Name)
+		a.QueueUpdateDraw(func() {
+			if err != nil {
+				a.header.ShowError(fmt.Sprintf("Error refreshing node %s: %v", node.Name, err))
+				return
+			}
+			// Update node in global state
+			for i, n := range models.GlobalState.OriginalNodes {
+				if n != nil && n.Name == node.Name {
+					models.GlobalState.OriginalNodes[i] = freshNode
+					break
+				}
+			}
+			for i, n := range models.GlobalState.FilteredNodes {
+				if n != nil && n.Name == node.Name {
+					models.GlobalState.FilteredNodes[i] = freshNode
+					break
+				}
+			}
+			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
+			// Restore selection by previously selected node name using the tview list data
+			restored := false
+			nodeList := a.nodeList.GetNodes()
+			for i, n := range nodeList {
+				if n != nil && n.Name == selectedNodeName {
+					a.nodeList.SetCurrentItem(i)
+					restored = true
+					break
+				}
+			}
+			if !restored && len(nodeList) > 0 {
+				a.nodeList.SetCurrentItem(0)
+			}
+			a.header.ShowSuccess(fmt.Sprintf("Node %s refreshed successfully", node.Name))
+		})
+	}()
+}
