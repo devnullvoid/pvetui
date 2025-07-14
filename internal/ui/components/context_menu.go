@@ -331,14 +331,11 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 			a.header.ShowLoading(fmt.Sprintf("Waiting for %s %s to complete...", strings.ToLower(operationName), vm.Name))
 		})
 
-		// Clear API cache to ensure fresh data
-		a.client.ClearAPICache()
-
-		// Wait for the actual operation to complete by monitoring VM state
+		// Wait for the actual operation to complete by monitoring VM state, using RefreshVMData for fresh, enriched data
 		if strings.ToLower(operationName) == "restarting" {
-			a.waitForVMRestartCompletion(vm, originalUptime)
+			a.waitForVMRestartCompletionWithRefresh(vm, originalUptime)
 		} else {
-			a.waitForVMOperationCompletion(vm, operationName)
+			a.waitForVMOperationCompletionWithRefresh(vm, operationName)
 		}
 
 		// Show final success message
@@ -568,90 +565,36 @@ func (a *App) refreshNodeData(node *api.Node) {
 	}()
 }
 
-// waitForVMOperationCompletion waits for a VM operation to actually complete by monitoring status
-func (a *App) waitForVMOperationCompletion(vm *api.VM, operationName string) {
-	// Define expected final states for each operation
-	var targetStatus string
-	var intermediateCheck func(*api.VM) bool
-
-	switch strings.ToLower(operationName) {
-	case "starting":
-		targetStatus = api.VMStatusRunning
-	case "shutting down":
-		targetStatus = api.VMStatusStopped
-	case "restarting":
-		// For restart, we need to see it go to stopped then back to running
-		targetStatus = api.VMStatusRunning
-		intermediateCheck = func(currentVM *api.VM) bool {
-			// We've seen it stop, now wait for it to start
-			return currentVM.Status == api.VMStatusStopped
-		}
-	default:
-		// For unknown operations, just wait a bit
-		time.Sleep(10 * time.Second)
-		return
-	}
-
-	maxWaitTime := 5 * time.Minute   // Maximum time to wait
-	checkInterval := 3 * time.Second // How often to check
-	startTime := time.Now()
-	hasSeenIntermediate := false
-
-	for time.Since(startTime) < maxWaitTime {
-		// Get fresh VM data
+// waitForVMRestartCompletionWithRefresh waits for a VM to complete a restart by polling with RefreshVMData.
+func (a *App) waitForVMRestartCompletionWithRefresh(vm *api.VM, originalUptime int64) {
+	const maxWait = 2 * time.Minute
+	const pollInterval = 2 * time.Second
+	start := time.Now()
+	for time.Since(start) < maxWait {
 		freshVM, err := a.client.RefreshVMData(vm, nil)
-		if err != nil {
-			// If we can't get VM data, wait a bit longer
-			time.Sleep(checkInterval)
-			continue
+		if err == nil && freshVM != nil && freshVM.Uptime > 0 && freshVM.Uptime < originalUptime-10 {
+			break
 		}
-
-		// For restart operations, check intermediate state first
-		if intermediateCheck != nil && !hasSeenIntermediate {
-			if intermediateCheck(freshVM) {
-				hasSeenIntermediate = true
-				// Update UI to show we've seen the intermediate state
-				a.QueueUpdateDraw(func() {
-					a.header.ShowLoading(fmt.Sprintf("VM %s stopped, waiting for startup...", vm.Name))
-				})
-			}
-		}
-
-		// Check if we've reached the target state
-		if freshVM.Status == targetStatus {
-			// For restart, make sure we've seen the intermediate state
-			if intermediateCheck == nil || hasSeenIntermediate {
-				return // Operation completed!
-			}
-		}
-
-		// Wait before next check
-		time.Sleep(checkInterval)
+		time.Sleep(pollInterval)
 	}
-
-	// If we reach here, operation timed out - but that's okay, just proceed
 }
 
-// waitForVMRestartCompletion waits for a VM restart by monitoring uptime reset
-func (a *App) waitForVMRestartCompletion(vm *api.VM, originalUptime int64) {
-	const fudgeSeconds int64 = 10
-	maxWaitTime := 2 * time.Minute
-	checkInterval := 3 * time.Second
-	startTime := time.Now()
-
-	for time.Since(startTime) < maxWaitTime {
+// waitForVMOperationCompletionWithRefresh waits for a VM operation (start, stop, etc.) to complete by polling with RefreshVMData.
+func (a *App) waitForVMOperationCompletionWithRefresh(vm *api.VM, operationName string) {
+	const maxWait = 2 * time.Minute
+	const pollInterval = 2 * time.Second
+	start := time.Now()
+	for time.Since(start) < maxWait {
 		freshVM, err := a.client.RefreshVMData(vm, nil)
-		if err != nil {
-			time.Sleep(checkInterval)
-			continue
-		}
-		if freshVM.Status == api.VMStatusRunning {
-			if originalUptime > 0 && freshVM.Uptime > 0 && freshVM.Uptime < (originalUptime-fudgeSeconds) {
-				// Uptime has reset, restart complete
-				return
+		if err == nil && freshVM != nil {
+			// For "stopping", wait until not running. For "starting", wait until running.
+			if strings.ToLower(operationName) == "stopping" && freshVM.Status != api.VMStatusRunning {
+				break
+			}
+			if strings.ToLower(operationName) == "starting" && freshVM.Status == api.VMStatusRunning {
+				break
 			}
 		}
-		time.Sleep(checkInterval)
+		time.Sleep(pollInterval)
 	}
-	// If we reach here, just proceed (timeout)
 }

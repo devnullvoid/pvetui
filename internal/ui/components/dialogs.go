@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -167,18 +168,40 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 
 // performMigrationOperation performs an asynchronous VM migration operation
 func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOptions) {
-	// Show loading indicator
+	// Set pending state immediately for visual feedback
 	migrationTypeStr := "offline"
 	if vm.Type == api.VMTypeLXC {
 		migrationTypeStr = "restart"
 	} else if options.Online != nil && *options.Online {
 		migrationTypeStr = "online"
 	}
+	models.GlobalState.SetVMPending(vm, "Migrating")
 
+	// Show loading indicator
 	a.header.ShowLoading(fmt.Sprintf("Migrating %s to %s (%s)", vm.Name, options.Target, migrationTypeStr))
+
+	// Show visual feedback with small delay to avoid UI deadlock
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		a.QueueUpdateDraw(func() {
+			a.refreshVMList()
+		})
+	}()
+
+	// originalUptime no longer needed
 
 	// Run operation in goroutine to avoid blocking UI
 	go func() {
+		defer func() {
+			// Always clear pending state when operation completes
+			models.GlobalState.ClearVMPending(vm)
+			// Refresh UI once at the end
+			a.QueueUpdateDraw(func() {
+				a.refreshVMList()
+				a.refreshVMData(vm)
+			})
+		}()
+
 		if err := a.client.MigrateVM(vm, options); err != nil {
 			// Update message with detailed error on main thread
 			a.QueueUpdateDraw(func() {
@@ -187,25 +210,56 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 				a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
 					strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, err))
 			})
-		} else {
-			// Update message with success on main thread
-			a.QueueUpdateDraw(func() {
-				a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s started successfully", vm.Name, options.Target))
-			})
-
-			// Clear API cache to ensure fresh data is loaded
-			a.client.ClearAPICache()
-
-			// Migration is an async operation, so we refresh after a delay to show task progress
-			// The actual migration status can be monitored in the Tasks tab
-			go func() {
-				// Wait longer for migration to be reflected in the task list and VM location
-				// Migrations can take time to complete, especially for larger VMs
-				time.Sleep(5 * time.Second)
-				a.QueueUpdateDraw(func() {
-					a.manualRefresh() // Refresh all data to show updated VM location and tasks
-				})
-			}()
+			return
 		}
+
+		// Migration started successfully
+		// Now poll for migration completion
+		maxWaitTime := 5 * time.Minute
+		checkInterval := 3 * time.Second
+		startTime := time.Now()
+		migrationComplete := false
+
+		for time.Since(startTime) < maxWaitTime {
+			migratedVM := &api.VM{ID: vm.ID, Node: options.Target, Type: vm.Type}
+			freshVM, err := a.client.RefreshVMData(migratedVM, nil)
+			if err == nil && freshVM != nil {
+				migratedVM = freshVM
+			}
+			if migratedVM != nil {
+				if vm.Type == api.VMTypeLXC || (vm.Type == api.VMTypeQemu && (options.Online == nil || !*options.Online)) {
+					// LXC or offline QEMU: consider migration complete as soon as uptime is > 0
+					if migratedVM.Uptime > 0 {
+						migrationComplete = true
+						break
+					}
+				} else if vm.Type == api.VMTypeQemu && options.Online != nil && *options.Online {
+					// Online QEMU: wait for status to be running
+					if migratedVM.Status == api.VMStatusRunning {
+						migrationComplete = true
+						break
+					}
+				}
+			}
+			time.Sleep(checkInterval)
+		}
+
+		if migrationComplete {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s completed successfully", vm.Name, options.Target))
+			})
+		} else {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Migration of %s to %s timed out", vm.Name, options.Target))
+			})
+		}
+
+		// Clear API cache to ensure fresh data is loaded
+		a.client.ClearAPICache()
+
+		// Final refresh after migration
+		a.QueueUpdateDraw(func() {
+			a.manualRefresh() // Refresh all data to show updated VM location and tasks
+		})
 	}()
 }

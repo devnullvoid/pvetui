@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"net"
 	"net/url"
 	"strings"
 	"sync"
@@ -521,7 +520,7 @@ func populateConfiguredMACs(vm *VM, configData map[string]interface{}) {
 	}
 }
 
-// GetDetailedVmInfo retrieves complete information about a VM by combining status and config data
+// GetDetailedVmInfo retrieves complete information about a VM by combining status and config data (cached).
 func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 	vm := &VM{
 		ID:   vmid,
@@ -529,19 +528,73 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 		Type: vmType,
 	}
 
-	// Get status information
+	// Get status information (cached)
 	var statusRes map[string]interface{}
 	statusEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", node, vmType, vmid)
 	if err := c.GetWithCache(statusEndpoint, &statusRes, VMDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get VM status: %w", err)
 	}
 
-	statusData, ok := statusRes["data"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected format for VM status")
+	statusDataRaw := statusRes["data"]
+	statusData, okStatusData := statusDataRaw.(map[string]interface{})
+	if !okStatusData {
+		return nil, fmt.Errorf("invalid VM status response format")
 	}
 
-	// Get config information
+	// Inline status parsing logic (as in GetVmStatus)
+	if name, okName := statusData["name"].(string); okName {
+		vm.Name = name
+	}
+	if status, okStatus := statusData["status"].(string); okStatus {
+		vm.Status = status
+	}
+	if cpu, okCPU := statusData["cpu"].(float64); okCPU {
+		vm.CPU = cpu
+	}
+	if mem, okMem := statusData["mem"].(float64); okMem {
+		vm.Mem = int64(mem)
+	}
+	if maxmem, okMaxMem := statusData["maxmem"].(float64); okMaxMem {
+		vm.MaxMem = int64(maxmem)
+	}
+	if disk, okDisk := statusData["disk"].(float64); okDisk {
+		vm.Disk = int64(disk)
+	}
+	if maxdisk, okMaxDisk := statusData["maxdisk"].(float64); okMaxDisk {
+		vm.MaxDisk = int64(maxdisk)
+	}
+	if uptime, okUptime := statusData["uptime"].(float64); okUptime {
+		vm.Uptime = int64(uptime)
+	}
+	if diskread, okDiskRead := statusData["diskread"].(float64); okDiskRead {
+		vm.DiskRead = int64(diskread)
+	}
+	if diskwrite, okDiskWrite := statusData["diskwrite"].(float64); okDiskWrite {
+		vm.DiskWrite = int64(diskwrite)
+	}
+	if netin, okNetIn := statusData["netin"].(float64); okNetIn {
+		vm.NetIn = int64(netin)
+	}
+	if netout, okNetOut := statusData["netout"].(float64); okNetOut {
+		vm.NetOut = int64(netout)
+	}
+	if hastate, okHAState := statusData["hastate"].(string); okHAState {
+		vm.HAState = hastate
+	}
+	if lock, okLock := statusData["lock"].(string); okLock {
+		vm.Lock = lock
+	}
+	if tags, okTags := statusData["tags"].(string); okTags {
+		vm.Tags = tags
+	}
+	if template, okTemplate := statusData["template"].(bool); okTemplate {
+		vm.Template = template
+	}
+	if pool, okPool := statusData["pool"].(string); okPool {
+		vm.Pool = pool
+	}
+
+	// Get config information (cached)
 	var configRes map[string]interface{}
 	configEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", node, vmType, vmid)
 	if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err != nil {
@@ -550,160 +603,12 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 
 	configData, ok := configRes["data"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("unexpected format for VM config")
+		return nil, fmt.Errorf("invalid VM config response format")
 	}
 
-	// Directly update the VM fields from the data maps
-	if nameVal, ok := statusData["name"]; ok {
-		if name, ok := nameVal.(string); ok {
-			vm.Name = name
-		}
-	}
-
-	if statusVal, ok := statusData["status"]; ok {
-		if status, ok := statusVal.(string); ok {
-			vm.Status = status
-		}
-	}
-
-	if cpuVal, ok := statusData["cpu"]; ok {
-		if cpu, ok := cpuVal.(float64); ok {
-			vm.CPU = cpu
-		}
-	}
-
-	if memVal, ok := statusData["mem"]; ok {
-		if mem, ok := memVal.(float64); ok {
-			vm.Mem = int64(mem)
-		}
-	}
-
-	if maxMemVal, ok := statusData["maxmem"]; ok {
-		if maxMem, ok := maxMemVal.(float64); ok {
-			vm.MaxMem = int64(maxMem)
-		}
-	}
-
-	if diskVal, ok := statusData["disk"]; ok {
-		if disk, ok := diskVal.(float64); ok {
-			vm.Disk = int64(disk)
-		}
-	}
-
-	if maxDiskVal, ok := statusData["maxdisk"]; ok {
-		if maxDisk, ok := maxDiskVal.(float64); ok {
-			vm.MaxDisk = int64(maxDisk)
-		}
-	}
-
-	if uptimeVal, ok := statusData["uptime"]; ok {
-		if uptime, ok := uptimeVal.(float64); ok {
-			vm.Uptime = int64(uptime)
-		}
-	}
-
-	if diskReadVal, ok := statusData["diskread"]; ok {
-		if diskRead, ok := diskReadVal.(float64); ok {
-			vm.DiskRead = int64(diskRead)
-		}
-	}
-
-	if diskWriteVal, ok := statusData["diskwrite"]; ok {
-		if diskWrite, ok := diskWriteVal.(float64); ok {
-			vm.DiskWrite = int64(diskWrite)
-		}
-	}
-
-	if netInVal, ok := statusData["netin"]; ok {
-		if netIn, ok := netInVal.(float64); ok {
-			vm.NetIn = int64(netIn)
-		}
-	}
-
-	if netOutVal, ok := statusData["netout"]; ok {
-		if netOut, ok := netOutVal.(float64); ok {
-			vm.NetOut = int64(netOut)
-		}
-	}
-
-	// Add additional information from config
-	if templateVal, ok := configData["template"]; ok {
-		switch v := templateVal.(type) {
-		case bool:
-			vm.Template = v
-		case int:
-			vm.Template = v != 0
-		case string:
-			vm.Template = v == "1" || v == StringTrue
-		}
-	}
-
-	if tagsVal, ok := configData["tags"]; ok {
-		if tags, ok := tagsVal.(string); ok {
-			vm.Tags = tags
-		}
-	}
-
-	// Check for agent configuration in config data
-	if agentVal, ok := configData["agent"]; ok {
-		switch v := agentVal.(type) {
-		case bool:
-			vm.AgentEnabled = v
-		case int:
-			vm.AgentEnabled = v != 0
-		case string:
-			vm.AgentEnabled = v == "1" || v == StringTrue
-		}
-	}
-
-	// Look for IPs in config (net0, net1, etc.)
-	var foundIP bool
-	for k, v := range configData {
-		if len(k) >= 3 && k[:3] == "net" {
-			netStr, ok := v.(string)
-			if !ok {
-				continue
-			}
-
-			parts := strings.Split(netStr, ",")
-			for _, part := range parts {
-				if len(part) >= 3 && part[:3] == "ip=" {
-					ip := part[3:] // Skip "ip="
-					// Remove subnet mask if present
-					if idx := strings.Index(ip, "/"); idx > 0 {
-						ip = ip[:idx]
-					}
-					// Only set IP if it's a valid IP address (skip "dhcp", "manual", etc.)
-					if isValidIP(ip) {
-						vm.IP = ip
-						foundIP = true
-						break
-					}
-				}
-			}
-
-			if foundIP {
-				break // Found an IP, no need to check other interfaces
-			}
-		}
-	}
-
-	populateConfiguredMACs(vm, configData)
 	populateConfigDetails(vm, configData)
 
-	vm.Enriched = true
 	return vm, nil
-}
-
-// isValidIP checks if a string is a valid IP address
-func isValidIP(ip string) bool {
-	// Skip common non-IP values
-	if ip == "" || ip == "dhcp" || ip == "manual" || ip == "static" {
-		return false
-	}
-
-	// Parse as IP address
-	return net.ParseIP(ip) != nil
 }
 
 // EnrichVMs enriches all VMs in the cluster with detailed status information

@@ -89,15 +89,15 @@ func FormatPendingStatusIndicator(status string, isPending bool, operation strin
 		return FormatStatusIndicator(status)
 	}
 
-	// For pending operations, use a dimmed/pulsing indicator
+	// For pending operations, use a dimmed indicator
 	status = strings.ToLower(status)
 	switch status {
 	case "running", "online":
-		return "[darkgreen]◐[-] " // Dimmed green with different symbol
+		return "[green::d]◐[-::id] " // Dimmed green with different symbol
 	case "stopped", "offline":
-		return "[darkred]◑[-] " // Dimmed red with different symbol
+		return "[red::d]◑[-::id] " // Dimmed red with different symbol
 	default:
-		return "[darkorange]◒[-] " // Dimmed yellow/orange with different symbol
+		return "[yellow::d]◒[-::id] " // Dimmed yellow/orange with different symbol
 	}
 }
 
