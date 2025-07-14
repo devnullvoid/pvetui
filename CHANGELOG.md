@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Major Refactor:** Split context menu, VM operations, and refresh logic into separate files for improved maintainability and DRYness.
+- Improved form and modal UX, including better keyboard navigation and consistent input handling.
+- Async feedback and pending state for all VM operations, including migration, with robust UI refresh and error handling.
+- Robust selection restoration for both node and VM lists after refresh (fixes selection jump issues).
+- Fixed linter/code-quality issues and removed duplicate or unused code.
+- Updated and consolidated helpers for refresh and selection logic.
+- All changes maintain code quality and pass all tests.
+
 ### Added
 - **Guest configuration editor:** Edit CPU, memory, and description for both QEMU and LXC guests.
 - **Storage volume resize:** Resize disks from the config editor, with robust filtering for resizable volumes only.
