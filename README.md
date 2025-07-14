@@ -129,6 +129,20 @@ Built-in noVNC client provides seamless console access:
 
 **Note**: Node VNC shells require password authentication (Proxmox limitation).
 
+## 🔧 Requirements
+
+- Access to Proxmox VE cluster
+- SSH access for shell functionality
+- Go 1.20+ (for building from source)
+
+## 💡 Tips
+
+- **Use SSH keys for authentication**: For best security and convenience, set up SSH key-based authentication with your Proxmox hosts. Avoid password-based SSH logins.
+- **Passwordless pct access**: Add a sudoers rule on your Proxmox hosts to allow your user to run `pct enter` and `pct exec` without being prompted for a password. Example sudoers line:
+  ```
+  youruser ALL=(ALL) NOPASSWD: /usr/sbin/pct enter *, /usr/sbin/pct exec *
+  ```
+
 ## 🐳 Docker Usage
 
 ```bash
@@ -139,12 +153,6 @@ docker compose run --rm proxmox-tui
 ```
 
 See [DOCKER.md](./DOCKER.md) for advanced usage.
-
-## 🔧 Requirements
-
-- Access to Proxmox VE cluster
-- SSH access for shell functionality
-- Go 1.20+ (for building from source)
 
 ## 🤝 Contributing
 
