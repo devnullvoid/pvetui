@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Intelligent error categorization with specific suggestions for different failure types
   - Prevents users from waiting at "Loading..." screens when configuration issues exist
   - Helpful error messages pointing users to the exact config file and suggesting fixes for connection or authentication problems
+- Added a reusable custom FormItem (FormButton) for use in forms.
 
 ### Fixed
 - **VNC Connectivity**: Fixed issue where VNC failed to connect when using SSH port forwarding (e.g., in VS Code). The noVNC client now uses a relative URL, allowing it to connect correctly through forwarded ports.
@@ -329,3 +330,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - Unreleased
 
 - Internal alpha version with basic functionality.
+
+### Improved
+- Only Escape now closes the guest config and resize storage modals, matching standard tview behavior. Custom form buttons now support native navigation and feel consistent with built-in form elements.

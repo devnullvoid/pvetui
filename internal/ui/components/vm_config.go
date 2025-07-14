@@ -31,21 +31,32 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		saveFn: saveFn,
 	}
 
+	// Add Resize Storage Volume button as a FormButton at the top
+	resizeBtn := NewFormButton("Resize Storage Volume", func() {
+		showResizeStorageModal(app, vm)
+	})
+	form.AddFormItem(resizeBtn)
 	// Restore to simple vertical layout for Cores, Sockets, Memory (MB)
 	form.SetHorizontal(false)
-	form.AddInputField("Cores", strconv.Itoa(config.Cores), 4, nil, func(text string) {
+	form.AddInputField("Cores", strconv.Itoa(config.Cores), 4, func(textToCheck string, lastChar rune) bool {
+		return lastChar >= '0' && lastChar <= '9'
+	}, func(text string) {
 		if v, err := strconv.Atoi(text); err == nil {
 			page.config.Cores = v
 		}
 	})
 	if vm.Type == api.VMTypeQemu {
-		form.AddInputField("Sockets", strconv.Itoa(config.Sockets), 4, nil, func(text string) {
+		form.AddInputField("Sockets", strconv.Itoa(config.Sockets), 4, func(textToCheck string, lastChar rune) bool {
+			return lastChar >= '0' && lastChar <= '9'
+		}, func(text string) {
 			if v, err := strconv.Atoi(text); err == nil {
 				page.config.Sockets = v
 			}
 		})
 	}
-	form.AddInputField("Memory (MB)", strconv.FormatInt(config.Memory/1024/1024, 10), 8, nil, func(text string) {
+	form.AddInputField("Memory (MB)", strconv.FormatInt(config.Memory/1024/1024, 10), 8, func(textToCheck string, lastChar rune) bool {
+		return lastChar >= '0' && lastChar <= '9'
+	}, func(text string) {
 		if v, err := strconv.ParseInt(text, 10, 64); err == nil {
 			page.config.Memory = v * 1024 * 1024
 		}
@@ -62,10 +73,6 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	}
 	form.AddCheckbox("Start at boot", onboot, func(checked bool) {
 		page.config.OnBoot = &checked
-	})
-	// Add Resize Storage Volume button
-	form.AddButton("Resize Storage Volume", func() {
-		showResizeStorageModal(app, vm)
 	})
 	// Save/Cancel buttons
 	form.AddButton("Save", func() {
@@ -91,27 +98,33 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	// Set ESC key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		formItemIdx, _ := form.GetFocusedItemIndex()
-		// Description field is at index 3 (after Cores, Sockets (if QEMU), Memory)
-		isDescriptionField := false
+		// Allow Backspace for all text input fields (Cores, Sockets, Memory, Description)
+		isTextInput := false
 		if vm.Type == api.VMTypeQemu {
-			if formItemIdx == 3 {
-				isDescriptionField = true
+			if formItemIdx >= 0 && formItemIdx <= 3 { // Cores, Sockets, Memory, Description
+				isTextInput = true
 			}
 		} else {
-			if formItemIdx == 2 {
-				isDescriptionField = true
+			if formItemIdx >= 0 && formItemIdx <= 2 { // Cores, Memory, Description
+				isTextInput = true
 			}
 		}
-		if (event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2) && isDescriptionField {
-			// Let Backspace work for editing Description
+		if (event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2) && isTextInput {
+			// Let Backspace work for editing any text input
 			return event
 		}
-		if event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
+		if event.Key() == tcell.KeyEsc {
 			app.pages.RemovePage("vmConfig")
 			return nil
 		}
 		return event
 	})
+	// Set cancel func to handle Backspace as cancel for FormButton
+	form.SetCancelFunc(func() {
+		app.pages.RemovePage("vmConfig")
+	})
+	// Set initial focus to the first field (Resize Storage Volume)
+	form.SetFocus(0)
 	return page
 }
 
@@ -189,7 +202,7 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 	modal.SetBorder(true).SetTitle("Resize Storage Volume").SetTitleColor(tcell.ColorYellow)
 	// Set ESC key to cancel for resize modal
 	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
+		if event.Key() == tcell.KeyEsc {
 			app.pages.RemovePage("resizeStorage")
 			return nil
 		}
