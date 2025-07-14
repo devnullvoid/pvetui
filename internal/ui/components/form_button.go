@@ -28,19 +28,27 @@ func NewFormButton(label string, selected func()) *FormButton {
 // Draw renders the button.
 func (b *FormButton) Draw(screen tcell.Screen) {
 	b.Box.DrawForSubclass(screen, b)
-	// Draw the label centered
+	// Draw the label centered with tview button style
 	x, y, w, h := b.GetInnerRect()
 	label := b.label
 	style := tcell.StyleDefault
+	bg := tview.Styles.PrimitiveBackgroundColor
+	fg := tview.Styles.PrimaryTextColor
 	if b.focused {
-		style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+		bg = tview.Styles.ContrastBackgroundColor
+		fg = tview.Styles.PrimaryTextColor
+		style = style.Background(bg).Foreground(fg).Bold(true)
+	} else {
+		style = style.Background(bg).Foreground(fg)
 	}
-	// Center label
-	labelX := x + (w-len(label))/2
+	// Add a space padding around the label to match tview button look
+	paddedLabel := " " + label + " "
+	labelWidth := tview.TaggedStringWidth(paddedLabel)
+	labelX := x + (w-labelWidth)/2
 	if labelX < x {
 		labelX = x
 	}
-	for i, r := range label {
+	for i, r := range paddedLabel {
 		screen.SetContent(labelX+i, y+h/2, r, nil, style)
 	}
 }

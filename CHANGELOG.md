@@ -330,6 +330,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - Unreleased
 
 - Internal alpha version with basic functionality.
-
-### Improved
-- Only Escape now closes the guest config and resize storage modals, matching standard tview behavior. Custom form buttons now support native navigation and feel consistent with built-in form elements.

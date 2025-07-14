@@ -118,3 +118,10 @@ func CalculatePercentageInt(used, total int64) float64 {
 	}
 	return (float64(used) / float64(total)) * 100
 }
+
+// TrimTrailingWhitespace removes all trailing whitespace (spaces, tabs, newlines, carriage returns) from the end of the string.
+func TrimTrailingWhitespace(s string) string {
+	return strings.TrimRightFunc(s, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+}

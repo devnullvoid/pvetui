@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -63,8 +64,9 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	})
 
 	// Description
-	form.AddInputField("Description", config.Description, 32, nil, func(text string) {
-		page.config.Description = text
+	initialDesc := utils.TrimTrailingWhitespace(config.Description)
+	form.AddTextArea("Description", initialDesc, 0, 3, 0, func(text string) {
+		page.config.Description = utils.TrimTrailingWhitespace(text)
 	})
 	// OnBoot
 	onboot := false
@@ -97,34 +99,14 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	form.SetBorder(true).SetTitle(title).SetTitleColor(tcell.ColorYellow)
 	// Set ESC key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		formItemIdx, _ := form.GetFocusedItemIndex()
-		// Allow Backspace for all text input fields (Cores, Sockets, Memory, Description)
-		isTextInput := false
-		if vm.Type == api.VMTypeQemu {
-			if formItemIdx >= 0 && formItemIdx <= 3 { // Cores, Sockets, Memory, Description
-				isTextInput = true
-			}
-		} else {
-			if formItemIdx >= 0 && formItemIdx <= 2 { // Cores, Memory, Description
-				isTextInput = true
-			}
-		}
-		if (event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2) && isTextInput {
-			// Let Backspace work for editing any text input
-			return event
-		}
 		if event.Key() == tcell.KeyEsc {
 			app.pages.RemovePage("vmConfig")
 			return nil
 		}
 		return event
 	})
-	// Set cancel func to handle Backspace as cancel for FormButton
-	form.SetCancelFunc(func() {
-		app.pages.RemovePage("vmConfig")
-	})
-	// Set initial focus to the first field (Resize Storage Volume)
-	form.SetFocus(0)
+	// // Set initial focus to the first field (Resize Storage Volume)
+	// form.SetFocus(0)
 	return page
 }
 
