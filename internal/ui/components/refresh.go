@@ -51,8 +51,6 @@ func (a *App) manualRefresh() {
 			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
 
 			// Update component data
-			a.clusterStatus.Update(cluster)
-
 			// Rebuild VM list from fresh cluster data
 			var vms []*api.VM
 			for _, node := range cluster.Nodes {
@@ -130,6 +128,9 @@ func (a *App) manualRefresh() {
 					break
 				}
 			}
+
+			// Now update the cluster status UI with the correct version
+			a.clusterStatus.Update(cluster)
 
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
