@@ -56,6 +56,7 @@ func TestNewLogger_WithCustomOutput(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	logger.Info("test message")
 
@@ -79,6 +80,7 @@ func TestNewLogger_WithFileOutput(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	logger.Info("test file message")
 
@@ -107,6 +109,7 @@ func TestNewLogger_WithDualOutput(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	logger.Info("dual output message")
 
@@ -180,8 +183,6 @@ func TestNewInternalLogger_EmptyCacheDir(t *testing.T) {
 	logger, err := NewInternalLogger(LevelInfo, "")
 	require.NoError(t, err)
 	assert.NotNil(t, logger)
-
-	// Clean up any created log files
 	defer logger.Close()
 }
 
@@ -205,8 +206,6 @@ func TestNewInternalLogger_InvalidCacheDir(t *testing.T) {
 	logger, err := NewInternalLogger(LevelInfo, "/root/nonexistent")
 	require.NoError(t, err) // Should not error, falls back to current directory
 	assert.NotNil(t, logger)
-
-	// Clean up any created log files
 	defer logger.Close()
 }
 
@@ -226,6 +225,7 @@ func TestNewFileLogger(t *testing.T) {
 	logger, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
 	assert.NotNil(t, logger)
+	defer logger.Close()
 }
 
 func TestNewDualLogger(t *testing.T) {
@@ -238,6 +238,7 @@ func TestNewDualLogger(t *testing.T) {
 	logger, err := NewDualLogger(LevelInfo, logFile)
 	require.NoError(t, err)
 	assert.NotNil(t, logger)
+	defer logger.Close()
 }
 
 func TestLogger_LogLevels(t *testing.T) {
@@ -249,6 +250,7 @@ func TestLogger_LogLevels(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	// Test that debug messages are filtered out
 	logger.Debug("debug message")
@@ -279,6 +281,7 @@ func TestLogger_DebugLevel(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	// All levels should be logged
 	logger.Debug("debug message")
@@ -303,6 +306,7 @@ func TestLogger_ErrorLevel(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	// Only error messages should be logged
 	logger.Debug("debug message")
@@ -325,6 +329,7 @@ func TestLogger_FormatMessage(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	logger.Info("test message with %s and %d", "string", 42)
 
@@ -349,6 +354,7 @@ func TestLogger_SetLevel(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	// Initially at Info level, debug should be filtered
 	logger.Debug("debug message 1")
@@ -379,6 +385,7 @@ func TestLogger_Close(t *testing.T) {
 	logFile := filepath.Join(tempDir, "close_test.log")
 	logger, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	// Write something to the log
 	logger.Info("test message before close")
@@ -403,6 +410,7 @@ func TestLogger_Close_WithoutFile(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	// Closing a logger without file should not error
 	err = logger.Close()
@@ -418,6 +426,7 @@ func TestLogger_ConcurrentAccess(t *testing.T) {
 
 	logger, err := NewLogger(config)
 	require.NoError(t, err)
+	defer logger.Close()
 
 	// Test concurrent logging
 	done := make(chan bool, 10)
@@ -468,14 +477,14 @@ func TestLogger_AppendToExistingFile(t *testing.T) {
 	// Create first logger and write a message
 	logger1, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
+	defer logger1.Close()
 	logger1.Info("first message")
-	logger1.Close()
 
 	// Create second logger and write another message
 	logger2, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
+	defer logger2.Close()
 	logger2.Info("second message")
-	logger2.Close()
 
 	// Verify both messages are in the file
 	content, err := os.ReadFile(logFile)

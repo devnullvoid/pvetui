@@ -7,9 +7,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"os"
+
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/testutils"
+	"golang.org/x/term"
 )
+
+func isTerminal(fd uintptr) bool {
+	return term.IsTerminal(int(fd))
+}
 
 // Test data for mock GitHub API responses
 var mockMetadataFiles = []GitHubContent{
@@ -124,6 +131,9 @@ func TestValidateConnection(t *testing.T) {
 }
 
 func TestInstallScript_Validation(t *testing.T) {
+	if os.Getenv("CI") != "" || !isTerminal(os.Stdin.Fd()) {
+		t.Skip("Skipping InstallScript validation in CI or non-interactive environment")
+	}
 	tests := []struct {
 		name        string
 		scriptPath  string
