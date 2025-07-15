@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -74,6 +75,33 @@ func (a *App) manualRefresh() {
 			copy(models.GlobalState.FilteredNodes, cluster.Nodes)
 			copy(models.GlobalState.OriginalVMs, vms)
 			copy(models.GlobalState.FilteredVMs, vms)
+
+			// Enrich each node with detailed status (kernel, version, cpuinfo, loadavg, etc)
+			var wg sync.WaitGroup
+			enrichedNodes := make([]*api.Node, len(cluster.Nodes))
+			for i, node := range cluster.Nodes {
+				if node == nil {
+					enrichedNodes[i] = nil
+					continue
+				}
+				wg.Add(1)
+				go func(idx int, n *api.Node) {
+					defer wg.Done()
+					freshNode, err := a.client.RefreshNodeData(n.Name)
+					if err == nil && freshNode != nil {
+						enrichedNodes[idx] = freshNode
+					} else {
+						enrichedNodes[idx] = n // fallback to basic node if enrichment fails
+					}
+				}(i, node)
+			}
+			wg.Wait()
+
+			// Update global state with enriched nodes
+			models.GlobalState.OriginalNodes = make([]*api.Node, len(enrichedNodes))
+			models.GlobalState.FilteredNodes = make([]*api.Node, len(enrichedNodes))
+			copy(models.GlobalState.OriginalNodes, enrichedNodes)
+			copy(models.GlobalState.FilteredNodes, enrichedNodes)
 
 			// Preserve detailed node data while updating performance metrics
 			for _, freshNode := range cluster.Nodes {
