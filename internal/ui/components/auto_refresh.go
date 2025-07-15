@@ -15,6 +15,7 @@ func (a *App) toggleAutoRefresh() {
 	if a.autoRefreshEnabled {
 		// Disable auto-refresh
 		a.stopAutoRefresh()
+		a.autoRefreshEnabled = false
 		a.footer.UpdateAutoRefreshStatus(false)
 		a.header.ShowSuccess("Auto-refresh disabled")
 		uiLogger.Debug("Auto-refresh disabled by user")
@@ -114,12 +115,7 @@ func (a *App) startAutoRefresh() {
 
 // stopAutoRefresh stops the auto-refresh timer
 func (a *App) stopAutoRefresh() {
-	if !a.autoRefreshEnabled {
-		return // Already stopped
-	}
-
-	a.autoRefreshEnabled = false
-
+	// Always stop and nil out the ticker, close channels, and reset countdown
 	if a.autoRefreshTicker != nil {
 		a.autoRefreshTicker.Stop()
 		a.autoRefreshTicker = nil

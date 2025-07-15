@@ -135,6 +135,7 @@ func (a *App) manualRefresh() {
 
 			// Show success message
 			a.header.ShowSuccess("Data refreshed successfully")
+			a.footer.SetLoading(false)
 		})
 	}()
 }
