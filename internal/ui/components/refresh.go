@@ -123,6 +123,14 @@ func (a *App) manualRefresh() {
 				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
 			}
 
+			// Set cluster.Version from the first node with a version, as in auto-refresh
+			for _, n := range enrichedNodes {
+				if n != nil && n.Version != "" {
+					cluster.Version = fmt.Sprintf("Proxmox VE %s", n.Version)
+					break
+				}
+			}
+
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
