@@ -75,6 +75,26 @@ func (a *App) manualRefresh() {
 			copy(models.GlobalState.OriginalVMs, vms)
 			copy(models.GlobalState.FilteredVMs, vms)
 
+			// Preserve detailed node data while updating performance metrics
+			for _, freshNode := range cluster.Nodes {
+				if freshNode != nil {
+					// Find the corresponding existing node with detailed data
+					for _, existingNode := range models.GlobalState.OriginalNodes {
+						if existingNode != nil && existingNode.Name == freshNode.Name {
+							// Preserve detailed fields that aren't in cluster resources
+							freshNode.Version = existingNode.Version
+							freshNode.KernelVersion = existingNode.KernelVersion
+							freshNode.CPUInfo = existingNode.CPUInfo
+							freshNode.LoadAvg = existingNode.LoadAvg
+							freshNode.CGroupMode = existingNode.CGroupMode
+							freshNode.Level = existingNode.Level
+							freshNode.Storage = existingNode.Storage
+							break
+						}
+					}
+				}
+			}
+
 			// Apply filters if active, otherwise use all data
 			if nodeSearchState != nil && nodeSearchState.Filter != "" {
 				// Re-filter with the current search term
