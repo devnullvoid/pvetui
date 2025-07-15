@@ -2,10 +2,8 @@ package components
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/rivo/tview"
 
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ssh"
@@ -156,14 +154,6 @@ func (a *App) openVMShell() {
 		return
 	}
 
-	// * Prompt for RDP if Windows QEMU VM
-	if vm.Type == "qemu" && strings.HasPrefix(strings.ToLower(vm.OSType), "win") {
-		modal := a.createRdpOrSshPrompt(vm, nodeIP)
-		a.pages.AddPage("rdpPrompt", modal, false, true)
-		a.SetFocus(modal)
-		return
-	}
-
 	// Temporarily suspend the UI
 	a.Suspend(func() {
 		if vm.Type == "lxc" {
@@ -206,46 +196,4 @@ func (a *App) openVMShell() {
 
 	// Fix for tview suspend/resume issue - comprehensive terminal state restoration
 	a.Sync()
-}
-
-// createRdpOrSshPrompt shows a modal dialog to choose between SSH and RDP for Windows VMs
-func (a *App) createRdpOrSshPrompt(vm *api.VM, nodeIP string) *tview.Modal {
-	ip := vm.IP
-	if ip == "" {
-		ip = nodeIP
-	}
-	msg := fmt.Sprintf("This VM appears to be running Windows.\n\nHow would you like to connect?\n\nVM: %s (ID: %d)\nIP: %s", vm.Name, vm.ID, ip)
-	modal := tview.NewModal().
-		SetText(msg).
-		AddButtons([]string{"RDP", "SSH", "Cancel"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			a.pages.RemovePage("rdpPrompt")
-			switch buttonLabel {
-			case "RDP":
-				if ip == "" {
-					a.showMessage("No IP address available for RDP connection.")
-					return
-				}
-				rdpUrl := fmt.Sprintf("rdp://full/address=s:%s", ip)
-				_ = vnc.OpenBrowser(rdpUrl)
-			case "SSH":
-				a.Suspend(func() {
-					if vm.IP != "" {
-						fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH at %s...\n",
-							vm.Name, vm.ID, vm.IP)
-						err := ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
-						if err != nil {
-							fmt.Printf("\nFailed to SSH to VM: %v\n", err)
-						}
-					} else {
-						fmt.Printf("\nCannot open shell: No IP address available for VM %s (ID: %d)\n\n", vm.Name, vm.ID)
-						fmt.Printf("To connect to this VM:\n")
-						fmt.Printf("1. Configure the VM's network to obtain an IP address\n")
-						fmt.Printf("2. Use VNC console instead (if available)\n")
-						fmt.Printf("3. Check VM network configuration and ensure it's properly started\n")
-					}
-				})
-			}
-		})
-	return modal
 }
