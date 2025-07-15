@@ -57,7 +57,7 @@ func (s *Service) ConnectToVM(vm *api.VM) error {
 	s.logger.Debug("Generated VNC URL for VM %s: %s", vm.Name, vncURL)
 
 	// Open the URL in the default browser
-	err = openBrowser(vncURL)
+	err = OpenBrowser(vncURL)
 	if err != nil {
 		s.logger.Error("Failed to open browser for VM %s VNC: %v", vm.Name, err)
 		return err
@@ -81,7 +81,7 @@ func (s *Service) ConnectToNode(nodeName string) error {
 	s.logger.Debug("Generated VNC shell URL for node %s: %s", nodeName, vncURL)
 
 	// Open the URL in the default browser
-	err = openBrowser(vncURL)
+	err = OpenBrowser(vncURL)
 	if err != nil {
 		s.logger.Error("Failed to open browser for node %s VNC shell: %v", nodeName, err)
 		return err
@@ -91,8 +91,8 @@ func (s *Service) ConnectToNode(nodeName string) error {
 	return nil
 }
 
-// openBrowser opens the specified URL in the user's default browser
-func openBrowser(url string) error {
+// OpenBrowser opens the specified URL in the user's default browser
+func OpenBrowser(url string) error {
 	var cmd string
 	var args []string
 
@@ -161,7 +161,7 @@ func (s *Service) ConnectToVMEmbedded(vm *api.VM) error {
 	s.logger.Info("VM VNC session ready: %s (Port: %d, Session: %s)", vm.Name, session.Port, session.ID)
 
 	// Open the embedded VNC client in the default browser
-	err = openBrowser(session.URL)
+	err = OpenBrowser(session.URL)
 	if err != nil {
 		s.logger.Error("Failed to open embedded VNC client for VM %s: %v", vm.Name, err)
 		return err
@@ -186,7 +186,7 @@ func (s *Service) ConnectToNodeEmbedded(nodeName string) error {
 	s.logger.Info("Node VNC session ready: %s (Port: %d, Session: %s)", nodeName, session.Port, session.ID)
 
 	// Open the embedded VNC client in the default browser
-	err = openBrowser(session.URL)
+	err = OpenBrowser(session.URL)
 	if err != nil {
 		s.logger.Error("Failed to open embedded VNC client for node %s: %v", nodeName, err)
 		return err
