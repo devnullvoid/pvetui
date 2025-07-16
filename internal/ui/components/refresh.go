@@ -84,6 +84,11 @@ func (a *App) manualRefresh() {
 					vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
 					a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 						hasSelectedNode, selectedNodeName, nodeSearchState)
+					// Only update node details if the enriched node is the selected node
+					selected := a.nodeList.GetSelectedNode()
+					if selected != nil && enrichedNodes[i] != nil && selected.Name == enrichedNodes[i].Name {
+						a.nodeDetails.Update(enrichedNodes[i], enrichedNodes)
+					}
 				})
 			}
 			// Final UI update and rest of refresh logic
