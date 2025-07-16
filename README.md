@@ -25,11 +25,9 @@
   <img src="https://img.shields.io/github/downloads/devnullvoid/proxmox-tui/total" alt="Total Downloads">
 </p>
 
-<!-- Video Demo -->
+<!-- Demo GIF -->
 <p align="center">
-  <video src="assets/demo.webm" width="600" controls loop autoplay muted>
-    Your browser does not support the video tag.
-  </video>
+  <img src="assets/demo.gif" width="600" alt="Live demo of Proxmox TUI in action">
   <br>
   <em>Live demo of Proxmox TUI in action</em>
 </p>
