@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **VNC Connectivity**: Fixed issue where VNC failed to connect when using SSH port forwarding (e.g., in VS Code). The noVNC client now uses a relative URL, allowing it to connect correctly through forwarded ports.
 - Fixed: Auto-refresh countdown and periodic refresh now work correctly after a manual refresh or config edit. Enabling auto-refresh after a manual refresh no longer leaves the UI stuck in 'Refreshing...' state.
 - Cleaned up auto-refresh logic: startAutoRefresh only starts ticker/goroutines if not already running, and toggleAutoRefresh only calls stopAutoRefresh when disabling.
+- Fixed: Node details (kernel version, CPU model, load average, version) are now preserved after a manual refresh, matching auto-refresh behavior. Previously, these fields would disappear after manual refresh.
 
 ## [0.8.1] - 2025-07-10
 

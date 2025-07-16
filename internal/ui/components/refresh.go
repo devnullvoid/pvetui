@@ -2,7 +2,6 @@ package components
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -44,136 +43,93 @@ func (a *App) manualRefresh() {
 			return
 		}
 
-		// Update UI with new data
-		a.QueueUpdateDraw(func() {
-			// Get current search states
-			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
-			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+		// Immediately update UI with basic cluster data
+		models.GlobalState.OriginalNodes = make([]*api.Node, len(cluster.Nodes))
+		models.GlobalState.FilteredNodes = make([]*api.Node, len(cluster.Nodes))
+		copy(models.GlobalState.OriginalNodes, cluster.Nodes)
+		copy(models.GlobalState.FilteredNodes, cluster.Nodes)
+		a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+		a.clusterStatus.Update(cluster)
 
-			// Update component data
-			// Rebuild VM list from fresh cluster data
-			var vms []*api.VM
-			for _, node := range cluster.Nodes {
-				if node != nil {
-					for _, vm := range node.VMs {
-						if vm != nil {
-							vms = append(vms, vm)
-						}
-					}
-				}
-			}
-
-			// Update global state with fresh data
-			models.GlobalState.OriginalNodes = make([]*api.Node, len(cluster.Nodes))
-			models.GlobalState.FilteredNodes = make([]*api.Node, len(cluster.Nodes))
-			models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
-			models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-
-			copy(models.GlobalState.OriginalNodes, cluster.Nodes)
-			copy(models.GlobalState.FilteredNodes, cluster.Nodes)
-			copy(models.GlobalState.OriginalVMs, vms)
-			copy(models.GlobalState.FilteredVMs, vms)
-
-			// Enrich each node with detailed status (kernel, version, cpuinfo, loadavg, etc)
-			var wg sync.WaitGroup
+		// Start sequential enrichment in a goroutine (one node at a time, UI updated after each)
+		go func() {
 			enrichedNodes := make([]*api.Node, len(cluster.Nodes))
+			copy(enrichedNodes, cluster.Nodes)
 			for i, node := range cluster.Nodes {
 				if node == nil {
 					enrichedNodes[i] = nil
 					continue
 				}
-				wg.Add(1)
-				go func(idx int, n *api.Node) {
-					defer wg.Done()
-					freshNode, err := a.client.RefreshNodeData(n.Name)
-					if err == nil && freshNode != nil {
-						enrichedNodes[idx] = freshNode
-					} else {
-						enrichedNodes[idx] = n // fallback to basic node if enrichment fails
-					}
-				}(i, node)
-			}
-			wg.Wait()
-
-			// Update global state with enriched nodes
-			models.GlobalState.OriginalNodes = make([]*api.Node, len(enrichedNodes))
-			models.GlobalState.FilteredNodes = make([]*api.Node, len(enrichedNodes))
-			copy(models.GlobalState.OriginalNodes, enrichedNodes)
-			copy(models.GlobalState.FilteredNodes, enrichedNodes)
-
-			// Apply filters if active, otherwise use all data
-			if nodeSearchState != nil && nodeSearchState.Filter != "" {
-				// Re-filter with the current search term
-				models.FilterNodes(nodeSearchState.Filter)
-				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
-			} else {
-				// No filter active, use all nodes
-				a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
-			}
-
-			// Same approach for VMs
-			if vmSearchState != nil && vmSearchState.Filter != "" {
-				// Re-filter with the current search term
-				models.FilterVMs(vmSearchState.Filter)
-				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
-			} else {
-				// No filter active, use all VMs
-				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
-			}
-
-			// Set cluster.Version from the first node with a version, as in auto-refresh
-			for _, n := range enrichedNodes {
-				if n != nil && n.Version != "" {
-					cluster.Version = fmt.Sprintf("Proxmox VE %s", n.Version)
-					break
+				freshNode, err := a.client.RefreshNodeData(node.Name)
+				if err == nil && freshNode != nil {
+					enrichedNodes[i] = freshNode
+				} else {
+					enrichedNodes[i] = node
 				}
-			}
-
-			// Now update the cluster status UI with the correct version
-			a.clusterStatus.Update(cluster)
-
-			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
-				hasSelectedNode, selectedNodeName, nodeSearchState)
-
-			// Update details if items are selected
-			if node := a.nodeList.GetSelectedNode(); node != nil {
-				a.nodeDetails.Update(node, cluster.Nodes)
-			}
-
-			if vm := a.vmList.GetSelectedVM(); vm != nil {
-				a.vmDetails.Update(vm)
-			}
-
-			// Refresh tasks as well
-			go func() {
-				tasks, err := a.client.GetClusterTasks()
-				if err == nil {
-					a.QueueUpdateDraw(func() {
-						// Update tasks in global state
-						models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
-						models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
-						copy(models.GlobalState.OriginalTasks, tasks)
-						copy(models.GlobalState.FilteredTasks, tasks)
-
-						// Apply task search filter if active
-						taskSearchState := models.GlobalState.GetSearchState(api.PageTasks)
-						if taskSearchState != nil && taskSearchState.Filter != "" {
-							models.FilterTasks(taskSearchState.Filter)
-							a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
-						} else {
-							a.tasksList.SetTasks(tasks)
+				a.QueueUpdateDraw(func() {
+					models.GlobalState.OriginalNodes = make([]*api.Node, len(enrichedNodes))
+					models.GlobalState.FilteredNodes = make([]*api.Node, len(enrichedNodes))
+					copy(models.GlobalState.OriginalNodes, enrichedNodes)
+					copy(models.GlobalState.FilteredNodes, enrichedNodes)
+					a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+					for _, n := range enrichedNodes {
+						if n != nil && n.Version != "" {
+							cluster.Version = fmt.Sprintf("Proxmox VE %s", n.Version)
+							break
 						}
-					})
+					}
+					a.clusterStatus.Update(cluster)
+				})
+			}
+			// Final UI update and rest of refresh logic
+			a.QueueUpdateDraw(func() {
+				// Apply filters if active, otherwise use all data
+				nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+				if nodeSearchState != nil && nodeSearchState.Filter != "" {
+					models.FilterNodes(nodeSearchState.Filter)
+					a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+				} else {
+					a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
 				}
-			}()
-
-			// Restore search input UI state if it was active before refresh
-			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
-
-			// Show success message
-			a.header.ShowSuccess("Data refreshed successfully")
-			a.footer.SetLoading(false)
-		})
+				if vmSearchState != nil && vmSearchState.Filter != "" {
+					models.FilterVMs(vmSearchState.Filter)
+					a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+				} else {
+					a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+				}
+				a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
+					hasSelectedNode, selectedNodeName, nodeSearchState)
+				if node := a.nodeList.GetSelectedNode(); node != nil {
+					a.nodeDetails.Update(node, enrichedNodes)
+				}
+				if vm := a.vmList.GetSelectedVM(); vm != nil {
+					a.vmDetails.Update(vm)
+				}
+				a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
+				a.header.ShowSuccess("Data refreshed successfully")
+				a.footer.SetLoading(false)
+				// Refresh tasks as well
+				go func() {
+					tasks, err := a.client.GetClusterTasks()
+					if err == nil {
+						a.QueueUpdateDraw(func() {
+							models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+							models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
+							copy(models.GlobalState.OriginalTasks, tasks)
+							copy(models.GlobalState.FilteredTasks, tasks)
+							taskSearchState := models.GlobalState.GetSearchState(api.PageTasks)
+							if taskSearchState != nil && taskSearchState.Filter != "" {
+								models.FilterTasks(taskSearchState.Filter)
+								a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+							} else {
+								a.tasksList.SetTasks(tasks)
+							}
+						})
+					}
+				}()
+			})
+		}()
 	}()
 }
 
