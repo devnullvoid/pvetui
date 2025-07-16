@@ -16,8 +16,23 @@
   <a href="#vnc-console-access">VNC Console</a>
 </p>
 
-![GitHub release](https://img.shields.io/github/v/release/devnullvoid/proxmox-tui)
-![License](https://img.shields.io/github/license/devnullvoid/proxmox-tui)
+<!-- Badges -->
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/devnullvoid/proxmox-tui" alt="GitHub release">
+  <img src="https://img.shields.io/github/license/devnullvoid/proxmox-tui" alt="License">
+  <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/proxmox-tui" alt="Go Version">
+  <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/proxmox-tui/ci.yml?branch=master" alt="Build Status">
+  <img src="https://img.shields.io/github/downloads/devnullvoid/proxmox-tui/total" alt="Total Downloads">
+</p>
+
+<!-- Video Demo -->
+<p align="center">
+  <video src="assets/demo.webm" width="600" controls loop autoplay muted>
+    Your browser does not support the video tag.
+  </video>
+  <br>
+  <em>Live demo of Proxmox TUI in action</em>
+</p>
 
 ## 🚀 Features
 
