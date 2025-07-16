@@ -79,6 +79,11 @@ func (a *App) manualRefresh() {
 						}
 					}
 					a.clusterStatus.Update(cluster)
+					// Keep selection stable during refresh
+					nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+					vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+					a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
+						hasSelectedNode, selectedNodeName, nodeSearchState)
 				})
 			}
 			// Final UI update and rest of refresh logic
