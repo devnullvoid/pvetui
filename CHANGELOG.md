@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-07-16
+
 ### Changed
 - **Major Refactor:** Split context menu, VM operations, and refresh logic into separate files for improved maintainability and DRYness.
 - Improved form and modal UX, including better keyboard navigation and consistent input handling.
