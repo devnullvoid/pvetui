@@ -10,6 +10,7 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/internal/app"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
 var (
@@ -87,6 +88,9 @@ func main() {
 	} else {
 		fmt.Println("✅ Configuration loaded from environment variables")
 	}
+
+	// Apply theme to tview global styles
+	theme.ApplyToTview()
 
 	if err := app.RunWithStartupVerification(cfg, app.Options{NoCache: *noCacheFlag}); err != nil {
 		fmt.Printf("❌ %v\n", err)

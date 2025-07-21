@@ -39,6 +39,7 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 // Colors defines the semantic color palette for the application.
@@ -167,5 +168,22 @@ func ColorToTag(c tcell.Color) string {
 		return "aqua"
 	default:
 		return fmt.Sprintf("#%06x", c.Hex())
+	}
+}
+
+// ApplyToTview sets the global tview.Styles to match the semantic theme colors.
+func ApplyToTview() {
+	tview.Styles = tview.Theme{
+		PrimitiveBackgroundColor:    Colors.Background,
+		ContrastBackgroundColor:     Colors.Tertiary,
+		MoreContrastBackgroundColor: Colors.Selection,
+		BorderColor:                 Colors.Border,
+		TitleColor:                  Colors.HeaderText,
+		GraphicsColor:               Colors.Info,
+		PrimaryTextColor:            Colors.Primary,
+		SecondaryTextColor:          Colors.Secondary,
+		TertiaryTextColor:           Colors.Tertiary,
+		InverseTextColor:            Colors.HeaderText,
+		ContrastSecondaryTextColor:  Colors.FooterText,
 	}
 }
