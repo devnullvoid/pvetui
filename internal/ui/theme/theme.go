@@ -66,6 +66,11 @@ var Colors = struct {
 	Footer     tcell.Color // Footer background
 	FooterText tcell.Color // Footer text color
 
+	// Additional tview theme colors
+	Contrast     tcell.Color // For tview ContrastBackgroundColor
+	MoreContrast tcell.Color // For tview MoreContrastBackgroundColor
+	Inverse      tcell.Color // For tview InverseTextColor
+
 	// Status-specific colors
 	StatusRunning tcell.Color // Running VM/container status
 	StatusStopped tcell.Color // Stopped VM/container status
@@ -95,6 +100,10 @@ var Colors = struct {
 	HeaderText: tcell.ColorYellow,
 	Footer:     tcell.ColorDefault,
 	FooterText: tcell.ColorWhite,
+
+	Contrast:     tcell.ColorBlue,
+	MoreContrast: tcell.ColorFuchsia,
+	Inverse:      tcell.ColorBlack,
 
 	StatusRunning: tcell.ColorGreen,
 	StatusStopped: tcell.ColorRed,
@@ -175,7 +184,7 @@ func ColorToTag(c tcell.Color) string {
 func ApplyToTview() {
 	tview.Styles = tview.Theme{
 		PrimitiveBackgroundColor:    Colors.Background,
-		ContrastBackgroundColor:     Colors.Tertiary,
+		ContrastBackgroundColor:     Colors.Contrast,
 		MoreContrastBackgroundColor: Colors.Selection,
 		BorderColor:                 Colors.Border,
 		TitleColor:                  Colors.HeaderText,
@@ -183,7 +192,7 @@ func ApplyToTview() {
 		PrimaryTextColor:            Colors.Primary,
 		SecondaryTextColor:          Colors.Secondary,
 		TertiaryTextColor:           Colors.Tertiary,
-		InverseTextColor:            Colors.HeaderText,
-		ContrastSecondaryTextColor:  Colors.FooterText,
+		InverseTextColor:            Colors.Inverse,
+		ContrastSecondaryTextColor:  Colors.Selection,
 	}
 }

@@ -392,6 +392,14 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 			// Append storage to the node's storage pools
 			node.Storage = append(node.Storage, storage)
 
+			// After appending storage to node.Storage, sort so local storage comes before shared
+			sort.SliceStable(node.Storage, func(i, j int) bool {
+				if node.Storage[i].IsShared() == node.Storage[j].IsShared() {
+					return node.Storage[i].Name < node.Storage[j].Name
+				}
+				return !node.Storage[i].IsShared() && node.Storage[j].IsShared()
+			})
+
 			// Add to storage manager for proper deduplication
 			cluster.StorageManager.AddStorage(storage)
 		case VMTypeQemu, VMTypeLXC:

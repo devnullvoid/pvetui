@@ -261,16 +261,27 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 					usedPercent = 0
 				}
 				usageColor := theme.GetUsageColor(usedPercent)
-				nd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", storage.Name)).SetTextColor(theme.Colors.Info))
+				nd.SetCell(row, 0, tview.NewTableCell("  • "+storage.Name).SetTextColor(theme.Colors.Info))
 				nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)",
 					usedPercent,
 					utils.FormatBytes(storage.Disk),
 					utils.FormatBytes(storage.MaxDisk))).SetTextColor(usageColor))
+				row++
 			} else {
-				nd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", storage.Name)).SetTextColor(theme.Colors.Info))
+				nd.SetCell(row, 0, tview.NewTableCell("  • "+storage.Name).SetTextColor(theme.Colors.Info))
 				nd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Primary))
+				row++
 			}
+			// Sub-row: storage type
+			nd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
+			nd.SetCell(row, 1, tview.NewTableCell("Type: "+storage.Plugintype).SetTextColor(theme.Colors.Secondary))
 			row++
+			// Sub-row: shared indicator
+			if storage.IsShared() {
+				nd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
+				nd.SetCell(row, 1, tview.NewTableCell("Shared").SetTextColor(theme.Colors.Secondary))
+				row++
+			}
 		}
 	}
 

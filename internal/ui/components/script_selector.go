@@ -363,10 +363,15 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 						s.app.SetFocus(s.categoryList)
 						return nil
 					} else if event.Key() == tcell.KeyEscape {
-						// Clear search and show all scripts
-						s.searchInput.SetText("")
-						s.searchActive = false
-						s.app.SetFocus(s.scriptList)
+						if len(s.searchInput.GetText()) > 0 {
+							// Clear search and show all scripts
+							s.searchInput.SetText("")
+							s.searchActive = false
+							s.app.SetFocus(s.scriptList)
+						} else {
+							s.pages.SwitchToPage("categories")
+							s.app.SetFocus(s.categoryList)
+						}
 						return nil
 					} else if event.Key() == tcell.KeyEnter {
 						// Manually trigger the script selection using filtered scripts
