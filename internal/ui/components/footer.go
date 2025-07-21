@@ -29,20 +29,13 @@ func NewFooter() *Footer {
 	footer.SetTextAlign(tview.AlignLeft)
 	footer.SetDynamicColors(true)
 
-	baseText := fmt.Sprintf("[%s]F1:[%s]Nodes  [%s]F2:[%s]Guests  [%s]F3:[%s]Tasks  [%s]/:[%s]Search  [%s]M:[%s]Menu  [%s]A:[%s]Auto-Refresh  [%s]?:[%s]Help  [%s]Q:[%s]Quit",
-		theme.Colors.HeaderText, theme.Colors.Primary,
-		theme.Colors.HeaderText, theme.Colors.Primary,
-		theme.Colors.HeaderText, theme.Colors.Primary,
-		theme.Colors.HeaderText, theme.Colors.Primary,
-		theme.Colors.HeaderText, theme.Colors.Primary,
-		theme.Colors.HeaderText, theme.Colors.Primary,
-		theme.Colors.HeaderText, theme.Colors.Primary,
-		theme.Colors.HeaderText, theme.Colors.Primary)
+	// Remove the hardcoded baseText and always use FormatFooterText for the footer text
+	// In the Footer constructor and any other relevant place, set the footer text using FormatFooterText()
 
 	f := &Footer{
 		TextView:        footer,
 		vncSessionCount: 0,
-		baseText:        baseText,
+		baseText:        "", // Initialize baseText to empty
 	}
 
 	// Set initial display with status indicators

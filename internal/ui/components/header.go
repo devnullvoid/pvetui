@@ -81,14 +81,7 @@ func (h *Header) ShowSuccess(message string) {
 	h.SetText(fmt.Sprintf("[%s]✓ %s[-]", theme.Colors.Success, message))
 
 	// Clear the message after 3 seconds
-	go func() {
-		time.Sleep(3 * time.Second)
-		if h.app != nil {
-			h.app.QueueUpdateDraw(func() {
-				h.SetText("Proxmox TUI")
-			})
-		}
-	}()
+	h.clearMessageAfterDelay(3 * time.Second)
 }
 
 // ShowError displays an error message temporarily
@@ -97,8 +90,13 @@ func (h *Header) ShowError(message string) {
 	h.SetText(fmt.Sprintf("[%s]✗ %s[-]", theme.Colors.Error, message))
 
 	// Clear the message after 3 seconds
+	h.clearMessageAfterDelay(3 * time.Second)
+}
+
+// Add a helper to clear the header message after a delay
+func (h *Header) clearMessageAfterDelay(delay time.Duration) {
 	go func() {
-		time.Sleep(3 * time.Second)
+		time.Sleep(delay)
 		if h.app != nil {
 			h.app.QueueUpdateDraw(func() {
 				h.SetText("Proxmox TUI")
@@ -120,7 +118,7 @@ func (h *Header) animateLoading() {
 			if h.app != nil {
 				h.app.QueueUpdateDraw(func() {
 					spinnerChar := spinner[index]
-					h.SetText(fmt.Sprintf("[%s]%s %s[-]", theme.Colors.Warning, spinnerChar, h.loadingText))
+					h.SetText(fmt.Sprintf("[%s]%s %s[-]", theme.Colors.Info, spinnerChar, h.loadingText))
 				})
 			}
 			index = (index + 1) % len(spinner)

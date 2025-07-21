@@ -74,13 +74,16 @@ func (tl *TasksList) Select(row, column int) *tview.Table {
 	return tl.Table.Select(row, column)
 }
 
+func (tl *TasksList) noTasksCell() *tview.TableCell {
+	return tview.NewTableCell("No tasks available").
+		SetTextColor(theme.Colors.Warning).
+		SetAlign(tview.AlignCenter)
+}
+
 // Clear clears the tasks list
 func (tl *TasksList) Clear() *tview.Table {
 	tl.Table.Clear()
-	tl.SetCell(0, 0, tview.NewTableCell("No tasks available").
-		SetTextColor(theme.Colors.Primary).
-		SetTextColor(theme.Colors.Warning).
-		SetAlign(tview.AlignCenter))
+	tl.SetCell(0, 0, tl.noTasksCell())
 	return tl.Table
 }
 
@@ -89,10 +92,7 @@ func (tl *TasksList) updateTable() {
 	tl.Clear()
 
 	if len(tl.tasks) == 0 {
-		tl.SetCell(0, 0, tview.NewTableCell("No tasks available").
-			SetTextColor(theme.Colors.Primary).
-			SetTextColor(theme.Colors.Warning).
-			SetAlign(tview.AlignCenter))
+		tl.SetCell(0, 0, tl.noTasksCell())
 		return
 	}
 
@@ -120,7 +120,7 @@ func (tl *TasksList) updateTable() {
 		// Format start time
 		startTime := "N/A"
 		if task.StartTime > 0 {
-			startTime = time.Unix(task.StartTime, 0).Format("01-02 15:04:05")
+			startTime = time.Unix(task.StartTime, 0).Format("01-02-2006 15:04:05")
 		}
 		tl.SetCell(row, 0, tview.NewTableCell(startTime).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
 
