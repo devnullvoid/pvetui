@@ -8,7 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
 // HelpModal represents a modal dialog showing keybindings and usage information
@@ -27,8 +27,8 @@ func NewHelpModal(keys config.KeyBindings) *HelpModal {
 
 	textView.SetBorder(true).
 		SetTitle(" Proxmox TUI - Help & Keybindings ").
-		SetTitleColor(tcell.ColorYellow).
-		SetBorderColor(tcell.ColorYellow)
+		SetTitleColor(theme.Colors.Primary).
+		SetBorderColor(theme.Colors.Border)
 
 	helpText := buildHelpText(keys)
 	textView.SetText(helpText)
@@ -143,19 +143,9 @@ func (hm *HelpModal) Show() {
 	}
 }
 
-// Hide closes the help modal
+// Hide hides the help modal
 func (hm *HelpModal) Hide() {
-	if hm.app != nil {
+	if hm.app != nil && hm.app.pages != nil {
 		hm.app.pages.RemovePage("help")
-		// Restore focus to the appropriate component based on the current page
-		pageName, _ := hm.app.pages.GetFrontPage()
-		switch pageName {
-		case api.PageNodes:
-			hm.app.SetFocus(hm.app.nodeList)
-		case api.PageGuests:
-			hm.app.SetFocus(hm.app.vmList)
-		case api.PageTasks:
-			hm.app.SetFocus(hm.app.tasksList)
-		}
 	}
 }

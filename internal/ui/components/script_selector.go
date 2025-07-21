@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/scripts"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -167,7 +168,7 @@ func (s *ScriptSelector) createLayout() {
 	// Set border and title on the pages component
 	s.pages.SetBorder(true).
 		SetTitle(" Script Selection ").
-		SetTitleColor(tcell.ColorYellow)
+		SetTitleColor(theme.Colors.Primary)
 
 	// Create the main layout
 	s.layout = s.createResponsiveLayout()
@@ -444,8 +445,8 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 	textView.SetWrap(true)
 	textView.SetBorder(true)
 	textView.SetTitle(fmt.Sprintf(" %s - Script Details ", script.Name))
-	textView.SetTitleColor(tcell.ColorYellow)
-	textView.SetBorderColor(tcell.ColorYellow)
+	textView.SetTitleColor(theme.Colors.Primary)
+	textView.SetBorderColor(theme.Colors.Border)
 	textView.SetText(s.formatScriptInfo(script))
 
 	// Create buttons
