@@ -3,7 +3,6 @@ package components
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -86,43 +85,39 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row := 0
 
 	// Basic Info
-	vd.SetCell(row, 0, tview.NewTableCell("🆔 ID").SetTextColor(theme.Colors.Primary))
-	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 0, tview.NewTableCell("🆔 ID").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)).SetTextColor(theme.Colors.Primary))
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("📛 Name").SetTextColor(theme.Colors.Primary))
-	vd.SetCell(row, 1, tview.NewTableCell(vm.Name).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 0, tview.NewTableCell("📛 Name").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 1, tview.NewTableCell(vm.Name).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Show description if available
 	if vm.Description != "" {
 		cleanDesc := sanitizeDescription(vm.Description)
 		if cleanDesc != "" {
-			vd.SetCell(row, 0, tview.NewTableCell("📝 Description").SetTextColor(theme.Colors.Primary))
+			vd.SetCell(row, 0, tview.NewTableCell("📝 Description").SetTextColor(theme.Colors.HeaderText))
 			vd.SetCell(row, 1, tview.NewTableCell(cleanDesc).SetTextColor(theme.Colors.Info))
 			row++
 		}
 	}
 
-	vd.SetCell(row, 0, tview.NewTableCell("📍 Node").SetTextColor(theme.Colors.Primary))
-	vd.SetCell(row, 1, tview.NewTableCell(vm.Node).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 0, tview.NewTableCell("📍 Node").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 1, tview.NewTableCell(vm.Node).SetTextColor(theme.Colors.Primary))
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("📦 Type").SetTextColor(theme.Colors.Primary))
-	vd.SetCell(row, 1, tview.NewTableCell(strings.ToUpper(vm.Type)).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 0, tview.NewTableCell("📦 Type").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 1, tview.NewTableCell(strings.ToUpper(vm.Type)).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Status Info
-	// Capitalize the first letter of status
 	statusText := vm.Status
 	if len(statusText) > 0 {
 		statusText = strings.ToUpper(statusText[:1]) + statusText[1:]
 	}
-
-	// Determine color for status text
 	var statusColor tcell.Color
-	var statusEmoji string // For original emojis
-
+	var statusEmoji string
 	switch strings.ToLower(vm.Status) {
 	case api.VMStatusRunning:
 		statusEmoji = "🟢"
@@ -131,39 +126,41 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		statusEmoji = "🔴"
 		statusColor = theme.Colors.StatusStopped
 	default:
-		statusEmoji = "🟡" // Default to yellow for other statuses
+		statusEmoji = "🟡"
 		statusColor = theme.Colors.StatusPending
 	}
-
-	vd.SetCell(row, 0, tview.NewTableCell(statusEmoji+" Status").SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 0, tview.NewTableCell(statusEmoji+" Status").SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell(statusText).SetTextColor(statusColor))
 	row++
 
 	// Tags (if set)
+	vd.SetCell(row, 0, tview.NewTableCell("🏷️ Tags").SetTextColor(theme.Colors.HeaderText))
 	if vm.Tags != "" {
-		vd.SetCell(row, 0, tview.NewTableCell("🏷️ Tags").SetTextColor(theme.Colors.Primary))
 		vd.SetCell(row, 1, tview.NewTableCell(vm.Tags).SetTextColor(theme.Colors.Info))
-		row++
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Secondary))
 	}
+	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(theme.Colors.Primary))
+	// IP Address
+	vd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(theme.Colors.HeaderText))
 	ipValue := api.StringNA
 	if vm.IP != "" {
 		ipValue = vm.IP
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(ipValue).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 1, tview.NewTableCell(ipValue).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Resource Usage
-	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.HeaderText))
 	cpuValue := api.StringNA
 	if vm.CPU >= 0 {
 		cpuValue = fmt.Sprintf("%.1f%%", vm.CPU*100)
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(theme.Colors.Primary))
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
 	memValue := api.StringNA
 	if vm.MaxMem > 0 {
 		memUsedFormatted := utils.FormatBytes(vm.Mem)
@@ -171,10 +168,10 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		memoryPercent := utils.CalculatePercentageInt(vm.Mem, vm.MaxMem)
 		memValue = fmt.Sprintf("%.2f%% (%s) / %s", memoryPercent, memUsedFormatted, memTotalFormatted)
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(theme.Colors.Primary))
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(theme.Colors.HeaderText))
 	diskValue := api.StringNA
 	if vm.MaxDisk > 0 {
 		diskUsedFormatted := utils.FormatBytes(vm.Disk)
@@ -182,189 +179,267 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		diskPercent := utils.CalculatePercentageInt(vm.Disk, vm.MaxDisk)
 		diskValue = fmt.Sprintf("%.2f%% (%s) / %s", diskPercent, diskUsedFormatted, diskTotalFormatted)
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(theme.Colors.Primary))
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.HeaderText))
 	uptimeValue := api.StringNA
 	if vm.Uptime > 0 {
 		uptimeValue = utils.FormatUptime(int(vm.Uptime))
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(uptimeValue).SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 1, tview.NewTableCell(uptimeValue).SetTextColor(theme.Colors.Primary))
 	row++
 
-	// Network Interfaces
-	vd.SetCell(row, 0, tview.NewTableCell("🔄 Network").SetTextColor(theme.Colors.Primary))
-
-	// Show network interfaces from guest agent
-	if len(vm.NetInterfaces) > 0 {
-		// Sort networks by name for consistent display
-		sortedInterfaces := make([]api.NetworkInterface, len(vm.NetInterfaces))
-		copy(sortedInterfaces, vm.NetInterfaces)
-		sort.Slice(sortedInterfaces, func(i, j int) bool {
-			return sortedInterfaces[i].Name < sortedInterfaces[j].Name
-		})
-
-		// Show first few networks (up to 3 to avoid cluttering)
-		maxNetworksToShow := 3
-		for i := 0; i < len(sortedInterfaces) && i < maxNetworksToShow; i++ {
-			net := sortedInterfaces[i]
-
-			// Build network display string
-			var netInfo []string
-			if len(net.IPAddresses) > 0 {
-				netInfo = append(netInfo, net.IPAddresses[0].Address)
-			}
-			if net.MACAddress != "" {
-				netInfo = append(netInfo, net.MACAddress)
-			}
-
-			netText := net.Name
-			if len(netInfo) > 0 {
-				netText += fmt.Sprintf(" (%s)", strings.Join(netInfo, ", "))
-			}
-
-			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("  • %s", netText)).SetTextColor(theme.Colors.Info))
-			row++
-		}
-
-		// Show a message if there are more networks
-		if len(sortedInterfaces) > maxNetworksToShow {
-			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("  • ... and %d more", len(sortedInterfaces)-maxNetworksToShow)).SetTextColor(theme.Colors.Secondary))
-			row++
-		}
+	// Network IO summary
+	vd.SetCell(row, 0, tview.NewTableCell("🔄 Network IO").SetTextColor(theme.Colors.HeaderText))
+	if vm.NetIn > 0 || vm.NetOut > 0 {
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("In: %s, Out: %s", utils.FormatBytes(vm.NetIn), utils.FormatBytes(vm.NetOut))).SetTextColor(theme.Colors.Primary))
 	} else {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Secondary))
+	}
+	row++
+
+	// Disk IO summary
+	vd.SetCell(row, 0, tview.NewTableCell("🗄️ Disk IO").SetTextColor(theme.Colors.HeaderText))
+	if vm.DiskRead > 0 || vm.DiskWrite > 0 {
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("Read: %s, Write: %s", utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(theme.Colors.Primary))
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Secondary))
+	}
+	row++
+
+	// Guest Agent (QEMU only)
+	if vm.Type == api.VMTypeQemu {
+		vd.SetCell(row, 0, tview.NewTableCell("👾 Guest Agent").SetTextColor(theme.Colors.HeaderText))
+		agentStatus := "Not enabled"
+		agentColor := theme.Colors.Secondary
+		if vm.AgentEnabled {
+			if vm.AgentRunning {
+				agentStatus = "Running"
+				agentColor = theme.Colors.StatusRunning
+			} else {
+				agentStatus = "Enabled but not running"
+				agentColor = theme.Colors.StatusPending
+			}
+		}
+		vd.SetCell(row, 1, tview.NewTableCell(agentStatus).SetTextColor(agentColor))
 		row++
 	}
 
-	// Filesystems (if available)
+	// Filesystems (detailed storage breakdown)
 	if len(vm.Filesystems) > 0 {
-		vd.SetCell(row, 0, tview.NewTableCell("💾 Filesystems").SetTextColor(theme.Colors.Primary))
+		vd.SetCell(row, 0, tview.NewTableCell("📂 Filesystems").SetTextColor(theme.Colors.HeaderText))
+		vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Primary))
 		row++
-
-		// Sort filesystems by usage percentage (highest first)
-		sortedFilesystems := make([]api.Filesystem, len(vm.Filesystems))
-		copy(sortedFilesystems, vm.Filesystems)
-		sort.Slice(sortedFilesystems, func(i, j int) bool {
-			// Calculate usage percentage for sorting
-			var usageI, usageJ float64
-			if sortedFilesystems[i].TotalBytes > 0 {
-				usageI = float64(sortedFilesystems[i].UsedBytes) / float64(sortedFilesystems[i].TotalBytes) * 100
+		for _, fs := range vm.Filesystems {
+			fsName := fs.Mountpoint
+			if fsName == "" {
+				fsName = getFriendlyFilesystemName(fs)
 			}
-			if sortedFilesystems[j].TotalBytes > 0 {
-				usageJ = float64(sortedFilesystems[j].UsedBytes) / float64(sortedFilesystems[j].TotalBytes) * 100
-			}
-			return usageI > usageJ // Sort by usage (highest first)
-		})
-
-		// Show first few filesystems (up to 3 to avoid cluttering)
-		maxFsToShow := 3
-
-		for i := 0; i < maxFsToShow && i < len(sortedFilesystems); i++ {
-			fs := sortedFilesystems[i]
-
-			// Skip filesystems with no size info (should be filtered out already)
-			if fs.TotalBytes == 0 {
-				continue
-			}
-
-			// Get a suitable display name
-			fsName := getFriendlyFilesystemName(fs)
-
-			// Calculate usage percentage with safety check
 			var usedPercent float64
 			if fs.TotalBytes > 0 {
 				usedPercent = float64(fs.UsedBytes) / float64(fs.TotalBytes) * 100
 			} else {
 				usedPercent = 0
 			}
-
-			// Choose color based on usage percentage
-			usageColor := theme.GetUsageColor(usedPercent)
-
-			vd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", fsName)).SetTextColor(theme.Colors.Info))
-			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)",
+			vd.SetCell(row, 0, tview.NewTableCell("  • "+fsName).SetTextColor(theme.Colors.Info))
+			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)%s",
 				usedPercent,
 				utils.FormatBytes(fs.UsedBytes),
-				utils.FormatBytes(fs.TotalBytes))).SetTextColor(usageColor))
+				utils.FormatBytes(fs.TotalBytes),
+				func() string {
+					if fs.Type != "" {
+						return " [" + fs.Type + "]"
+					} else {
+						return ""
+					}
+				}(),
+			)).SetTextColor(theme.Colors.Secondary))
 			row++
 		}
+	}
 
-		// Show a message if there are more filesystems
-		if len(sortedFilesystems) > maxFsToShow {
-			vd.SetCell(row, 0, tview.NewTableCell("  •").SetTextColor(theme.Colors.Info))
-			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("... and %d more", len(sortedFilesystems)-maxFsToShow)).SetTextColor(theme.Colors.Secondary))
+	// Detailed Network Interfaces (merged config + guest agent)
+	enhancedNetworks := mergeNetworkInterfaces(vm.ConfiguredNetworks, vm.NetInterfaces)
+	vd.SetCell(row, 0, tview.NewTableCell("🌐 Network Interfaces").SetTextColor(theme.Colors.HeaderText))
+	if len(enhancedNetworks) > 0 {
+		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d interface(s)", len(enhancedNetworks))).SetTextColor(theme.Colors.Primary))
+		row++
+		for _, net := range enhancedNetworks {
+			// Interface name with model/type and status
+			interfaceText := ""
+			if net.Interface != "" {
+				interfaceText = net.Interface
+				if net.Model != "" {
+					interfaceText += fmt.Sprintf(" (%s)", net.Model)
+				}
+			} else if net.RuntimeName != "" {
+				interfaceText = net.RuntimeName
+			}
+			// Add status indicator if we have guest agent data
+			if net.HasGuestAgent {
+				if net.IsUp {
+					interfaceText += " 🟢"
+				} else {
+					interfaceText += " 🔴"
+				}
+			}
+			// Mark guest-only interfaces
+			if net.IsGuestOnly {
+				interfaceText += " (guest only)"
+			}
+			vd.SetCell(row, 0, tview.NewTableCell("  • "+interfaceText).SetTextColor(theme.Colors.Info))
+			// MAC address in right column
+			macText := net.MACAddr
+			if macText == "" {
+				macText = "Auto-generated"
+			}
+			vd.SetCell(row, 1, tview.NewTableCell(macText).SetTextColor(theme.Colors.Secondary))
 			row++
+			// IP configuration details in right column (indented)
+			var ipParts []string
+			if net.ConfiguredIP != "" {
+				if net.ConfiguredIP == "dhcp" {
+					ipParts = append(ipParts, "DHCP")
+				} else {
+					ipParts = append(ipParts, net.ConfiguredIP)
+				}
+				if net.Gateway != "" {
+					ipParts = append(ipParts, "GW: "+net.Gateway)
+				}
+			}
+			if len(net.RuntimeIPs) > 0 {
+				if len(ipParts) > 0 {
+					ipParts = append(ipParts, "Runtime: "+strings.Join(net.RuntimeIPs, ", "))
+				} else {
+					ipParts = append(ipParts, "IPs: "+strings.Join(net.RuntimeIPs, ", "))
+				}
+			}
+			if len(ipParts) > 0 {
+				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
+				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(ipParts, " | ")).SetTextColor(theme.Colors.Secondary))
+				row++
+			}
+			// Network configuration details in gray in right column
+			var configParts []string
+			if net.Bridge != "" {
+				configParts = append(configParts, "Bridge: "+net.Bridge)
+			}
+			if net.VLAN != "" {
+				configParts = append(configParts, "VLAN: "+net.VLAN)
+			}
+			if net.Rate != "" {
+				configParts = append(configParts, "Rate: "+net.Rate)
+			}
+			if net.Firewall {
+				configParts = append(configParts, "Firewall: enabled")
+			}
+			if len(configParts) > 0 {
+				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
+				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(configParts, ", ")).SetTextColor(theme.Colors.Secondary))
+				row++
+			}
 		}
 	} else {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Secondary))
 		row++
 	}
 
+	// Storage Devices (from config)
+	if len(vm.StorageDevices) > 0 {
+		vd.SetCell(row, 0, tview.NewTableCell("💽 Storage Devices").SetTextColor(theme.Colors.HeaderText))
+		vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Primary))
+		row++
+		for _, storage := range vm.StorageDevices {
+			deviceText := storage.Device
+			if storage.Size != "" {
+				deviceText += fmt.Sprintf(" (%s)", storage.Size)
+			}
+			vd.SetCell(row, 0, tview.NewTableCell("  • "+deviceText).SetTextColor(theme.Colors.Info))
+			storageText := storage.Storage
+			if storage.Format != "" {
+				storageText += fmt.Sprintf(" [%s]", storage.Format)
+			}
+			vd.SetCell(row, 1, tview.NewTableCell(storageText).SetTextColor(theme.Colors.Secondary))
+			row++
+			var options []string
+			if storage.Cache != "" {
+				options = append(options, fmt.Sprintf("Cache: %s", storage.Cache))
+			}
+			if storage.IOThread {
+				options = append(options, "IOThread")
+			}
+			if storage.SSD {
+				options = append(options, "SSD")
+			}
+			if storage.Discard != "" {
+				options = append(options, fmt.Sprintf("Discard: %s", storage.Discard))
+			}
+			if storage.Serial != "" {
+				options = append(options, fmt.Sprintf("Serial: %s", storage.Serial))
+			}
+			if !storage.Backup {
+				options = append(options, "No Backup")
+			}
+			if storage.Replicate {
+				options = append(options, "Replicate")
+			}
+			if len(options) > 0 {
+				vd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
+				vd.SetCell(row, 1, tview.NewTableCell(strings.Join(options, ", ")).SetTextColor(theme.Colors.Secondary))
+				row++
+			}
+		}
+	}
+
 	// Configuration Section
-	vd.SetCell(row, 0, tview.NewTableCell("⚙️ Configuration").SetTextColor(theme.Colors.Primary))
-	vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Secondary))
+	vd.SetCell(row, 0, tview.NewTableCell("⚙️ Configuration").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Primary))
 	row++
 
-	// CPU Configuration
-	if vm.CPUCores > 0 || vm.CPUSockets > 0 {
-		cpuText := ""
-		if vm.CPUCores > 0 {
-			cpuText = fmt.Sprintf("%d cores", vm.CPUCores)
-		}
-		if vm.CPUSockets > 0 {
-			if cpuText != "" {
-				cpuText += fmt.Sprintf(", %d sockets", vm.CPUSockets)
-			} else {
-				cpuText = fmt.Sprintf("%d sockets", vm.CPUSockets)
-			}
-		}
-		if cpuText != "" {
-			vd.SetCell(row, 0, tview.NewTableCell("  • CPU").SetTextColor(theme.Colors.Info))
-			vd.SetCell(row, 1, tview.NewTableCell(cpuText).SetTextColor(theme.Colors.Secondary))
-			row++
-		}
+	// CPU Configuration (always show)
+	cpuText := api.StringNA
+	if vm.CPUCores > 0 && vm.CPUSockets > 0 {
+		cpuText = fmt.Sprintf("%d cores, %d sockets", vm.CPUCores, vm.CPUSockets)
+	} else if vm.CPUCores > 0 {
+		cpuText = fmt.Sprintf("%d cores", vm.CPUCores)
+	} else if vm.CPUSockets > 0 {
+		cpuText = fmt.Sprintf("%d sockets", vm.CPUSockets)
 	}
+	vd.SetCell(row, 0, tview.NewTableCell("  • CPU").SetTextColor(theme.Colors.Info))
+	vd.SetCell(row, 1, tview.NewTableCell(cpuText).SetTextColor(theme.Colors.Primary))
+	row++
 
-	// Architecture and OS Type
-	if vm.Architecture != "" || vm.OSType != "" {
-		archText := ""
-		if vm.Architecture != "" {
-			archText = vm.Architecture
-		}
-		if vm.OSType != "" {
-			if archText != "" {
-				archText += fmt.Sprintf(" (%s)", vm.OSType)
-			} else {
-				archText = vm.OSType
-			}
-		}
-		if archText != "" {
-			vd.SetCell(row, 0, tview.NewTableCell("  • Architecture").SetTextColor(theme.Colors.Info))
-			vd.SetCell(row, 1, tview.NewTableCell(archText).SetTextColor(theme.Colors.Secondary))
-			row++
-		}
+	// Architecture and OS Type (always show)
+	archText := api.StringNA
+	if vm.Architecture != "" && vm.OSType != "" {
+		archText = fmt.Sprintf("%s (%s)", vm.Architecture, vm.OSType)
+	} else if vm.Architecture != "" {
+		archText = vm.Architecture
+	} else if vm.OSType != "" {
+		archText = vm.OSType
 	}
+	vd.SetCell(row, 0, tview.NewTableCell("  • Architecture").SetTextColor(theme.Colors.Info))
+	vd.SetCell(row, 1, tview.NewTableCell(archText).SetTextColor(theme.Colors.Primary))
+	row++
 
 	// Boot Order
 	if vm.BootOrder != "" {
 		vd.SetCell(row, 0, tview.NewTableCell("  • Boot Order").SetTextColor(theme.Colors.Info))
-		vd.SetCell(row, 1, tview.NewTableCell(vm.BootOrder).SetTextColor(theme.Colors.Secondary))
+		vd.SetCell(row, 1, tview.NewTableCell(vm.BootOrder).SetTextColor(theme.Colors.Primary))
 		row++
 	}
 
 	// Auto-start
-	vd.SetCell(row, 0, tview.NewTableCell("  • Auto-start").SetTextColor(theme.Colors.Info))
 	autoStartText := "Disabled"
 	autoStartColor := theme.Colors.Secondary
 	if vm.OnBoot {
 		autoStartText = "Enabled"
 		autoStartColor = theme.Colors.Success
 	}
+	vd.SetCell(row, 0, tview.NewTableCell("  • Auto-start").SetTextColor(theme.Colors.Info))
 	vd.SetCell(row, 1, tview.NewTableCell(autoStartText).SetTextColor(autoStartColor))
 
-	// Scroll to the top to ensure the most important information (basic details) is visible
 	vd.ScrollToBeginning()
 }
 
@@ -405,4 +480,95 @@ func sanitizeDescription(desc string) string {
 	}
 
 	return desc
+}
+
+// mergeNetworkInterfaces combines configured networks with guest agent interfaces
+// Returns enhanced network information with both config and runtime data
+type EnhancedNetworkInterface struct {
+	// From configuration
+	Interface    string
+	Model        string
+	MACAddr      string
+	Bridge       string
+	VLAN         string
+	Rate         string
+	ConfiguredIP string
+	Gateway      string
+	Firewall     bool
+
+	// From guest agent
+	RuntimeName   string
+	RuntimeIPs    []string
+	IsUp          bool
+	HasGuestAgent bool
+	IsGuestOnly   bool // True if this interface is only visible via guest agent
+}
+
+func mergeNetworkInterfaces(configuredNets []api.ConfiguredNetwork, guestInterfaces []api.NetworkInterface) []EnhancedNetworkInterface {
+	var enhanced []EnhancedNetworkInterface
+
+	// Create a map of guest interfaces by MAC for quick lookup
+	guestByMAC := make(map[string]api.NetworkInterface)
+	for _, iface := range guestInterfaces {
+		if iface.MACAddress != "" {
+			guestByMAC[strings.ToUpper(iface.MACAddress)] = iface
+		}
+	}
+
+	// Process configured networks first (these are authoritative)
+	for _, configured := range configuredNets {
+		enhancedNet := EnhancedNetworkInterface{
+			Interface:    configured.Interface,
+			Model:        configured.Model,
+			MACAddr:      configured.MACAddr,
+			Bridge:       configured.Bridge,
+			VLAN:         configured.VLAN,
+			Rate:         configured.Rate,
+			ConfiguredIP: configured.IP,
+			Gateway:      configured.Gateway,
+			Firewall:     configured.Firewall,
+		}
+
+		// Try to find matching guest interface by MAC
+		if configured.MACAddr != "" {
+			if guest, found := guestByMAC[strings.ToUpper(configured.MACAddr)]; found {
+				enhancedNet.RuntimeName = guest.Name
+				// Convert IPAddress slice to string slice
+				for _, ip := range guest.IPAddresses {
+					enhancedNet.RuntimeIPs = append(enhancedNet.RuntimeIPs, ip.Address)
+				}
+				// Determine if interface is up based on having IP addresses
+				enhancedNet.IsUp = len(guest.IPAddresses) > 0
+				enhancedNet.HasGuestAgent = true
+				// Remove from map so we don't show it again
+				delete(guestByMAC, strings.ToUpper(configured.MACAddr))
+			}
+		}
+
+		enhanced = append(enhanced, enhancedNet)
+	}
+
+	// Add any remaining guest interfaces that didn't match configured ones
+	for _, guest := range guestByMAC {
+		if guest.IsLoopback {
+			continue // Skip loopback interfaces
+		}
+
+		enhancedNet := EnhancedNetworkInterface{
+			RuntimeName:   guest.Name,
+			MACAddr:       guest.MACAddress,
+			HasGuestAgent: true,
+			IsGuestOnly:   true, // Flag to indicate this is guest-agent only
+		}
+
+		// Convert IPAddress slice to string slice
+		for _, ip := range guest.IPAddresses {
+			enhancedNet.RuntimeIPs = append(enhancedNet.RuntimeIPs, ip.Address)
+		}
+		enhancedNet.IsUp = len(guest.IPAddresses) > 0
+
+		enhanced = append(enhanced, enhancedNet)
+	}
+
+	return enhanced
 }
