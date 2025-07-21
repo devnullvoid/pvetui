@@ -151,18 +151,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// Storage Usage
-	nd.SetCell(row, 0, tview.NewTableCell("💾 Rootfs").SetTextColor(theme.Colors.HeaderText))
-	diskValue := api.StringNA
-	var diskUsageColor tcell.Color = theme.Colors.Primary
-	if node.TotalStorage > 0 {
-		diskUsedFormatted := utils.FormatBytes(node.UsedStorage * 1073741824)
-		diskTotalFormatted := utils.FormatBytes(node.TotalStorage * 1073741824)
-		diskPercent := utils.CalculatePercentageInt(node.UsedStorage, node.TotalStorage)
-		diskValue = fmt.Sprintf("%.2f%% (%s) / %s", diskPercent, diskUsedFormatted, diskTotalFormatted)
-		diskUsageColor = theme.GetUsageColor(diskPercent)
-	}
-	nd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(diskUsageColor))
-	row++
+	// Remove the Rootfs row
 
 	// Uptime
 	nd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.HeaderText))
