@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Configuration Options**: Theme settings in config file with `use_terminal_colors` and `color_scheme` options
   - **Documentation**: Comprehensive theming guide with setup instructions for popular terminal emulators
   - **Zero Configuration**: Works out of the box with most terminal emulators while maintaining semantic consistency
+- **Display Node Storage Pools**: Added node storage pools to node details panel
+
+### Fixed
+- Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
 
 ## [0.9.0] - 2025-07-16
 

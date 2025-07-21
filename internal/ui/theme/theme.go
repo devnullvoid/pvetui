@@ -89,7 +89,7 @@ var Colors = struct {
 	Border:     tcell.ColorGray,
 	Selection:  tcell.ColorBlue,
 	Header:     tcell.ColorBlue,
-	HeaderText: tcell.ColorGray,
+	HeaderText: tcell.ColorYellow,
 	Footer:     tcell.ColorDefault,
 	FooterText: tcell.ColorWhite,
 
