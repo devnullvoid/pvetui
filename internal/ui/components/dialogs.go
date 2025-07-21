@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -16,7 +17,8 @@ import (
 func (a *App) showMessage(message string) {
 	modal := tview.NewModal().
 		SetText(message).
-		// SetBackgroundColor(tcell.ColorGray).
+		SetBackgroundColor(theme.Colors.Background).
+		SetTextColor(theme.Colors.Primary).
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("message")
@@ -29,7 +31,8 @@ func (a *App) showMessage(message string) {
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	modal := tview.NewModal().
 		SetText(message).
-		// SetBackgroundColor(tcell.ColorGray).
+		SetBackgroundColor(theme.Colors.Background).
+		SetTextColor(theme.Colors.Primary).
 		AddButtons([]string{"Yes", "No"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("confirmation")
@@ -79,8 +82,8 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	form := tview.NewForm()
 	form.SetBorder(true)
 	form.SetTitle(fmt.Sprintf(" Migrate %s '%s' (ID: %d) ", strings.ToUpper(vm.Type), vm.Name, vm.ID))
-	form.SetTitleColor(tcell.ColorYellow)
-	form.SetBorderColor(tcell.ColorYellow)
+	form.SetTitleColor(theme.Colors.Primary)
+	form.SetBorderColor(theme.Colors.Border)
 
 	// Target node dropdown
 	nodeOptions := make([]string, len(availableNodes))
@@ -262,4 +265,121 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 			a.manualRefresh() // Refresh all data to show updated VM location and tasks
 		})
 	}()
+}
+
+// CreateLoginForm creates a login form dialog
+func CreateLoginForm() *tview.Form {
+	form := tview.NewForm()
+	form.SetBorder(true)
+	form.SetTitle(" Login ")
+	form.SetTitleColor(theme.Colors.Primary)
+	form.SetBorderColor(theme.Colors.Border)
+
+	// Add form fields
+	form.AddInputField("Server URL", "", 30, nil, nil)
+	form.AddInputField("Username", "", 20, nil, nil)
+	form.AddPasswordField("Password", "", 20, '*', nil)
+	form.AddInputField("Realm", "pam", 10, nil, nil)
+
+	// Add buttons
+	form.AddButton("Login", nil)
+	form.AddButton("Cancel", nil)
+
+	return form
+}
+
+// CreateConfirmDialog creates a confirmation dialog
+func CreateConfirmDialog(title, message string, onConfirm, onCancel func()) *tview.Modal {
+	modal := tview.NewModal()
+	modal.SetText(fmt.Sprintf("%s\n\n%s", title, message))
+	modal.SetBackgroundColor(theme.Colors.Background)
+	modal.SetTextColor(theme.Colors.Primary)
+
+	// Add buttons
+	modal.AddButtons([]string{"Yes", "No"})
+	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if buttonIndex == 0 && onConfirm != nil {
+			onConfirm()
+		} else if onCancel != nil {
+			onCancel()
+		}
+	})
+
+	return modal
+}
+
+// CreateInfoDialog creates an information dialog
+func CreateInfoDialog(title, message string, onClose func()) *tview.Modal {
+	modal := tview.NewModal()
+	modal.SetText(fmt.Sprintf("%s\n\n%s", title, message))
+	modal.SetBackgroundColor(theme.Colors.Background)
+	modal.SetTextColor(theme.Colors.Primary)
+
+	// Add close button
+	modal.AddButtons([]string{"OK"})
+	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if onClose != nil {
+			onClose()
+		}
+	})
+
+	return modal
+}
+
+// CreateErrorDialog creates an error dialog
+func CreateErrorDialog(title, message string, onClose func()) *tview.Modal {
+	modal := tview.NewModal()
+	modal.SetText(fmt.Sprintf("%s\n\n%s", title, message))
+	modal.SetBackgroundColor(theme.Colors.Background)
+	modal.SetTextColor(theme.Colors.Error)
+
+	// Add close button
+	modal.AddButtons([]string{"OK"})
+	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if onClose != nil {
+			onClose()
+		}
+	})
+
+	return modal
+}
+
+// CreateFormDialog creates a form dialog with custom fields
+func CreateFormDialog(title string, fields []FormField, onSubmit, onCancel func(map[string]string)) *tview.Form {
+	form := tview.NewForm()
+	form.SetBorder(true)
+	form.SetTitle(fmt.Sprintf(" %s ", title))
+	form.SetTitleColor(theme.Colors.Primary)
+	form.SetBorderColor(theme.Colors.Border)
+
+	// Add form fields
+	fieldValues := make(map[string]string)
+	for _, field := range fields {
+		fieldName := field.Name
+		form.AddInputField(field.Label, field.DefaultValue, field.MaxLength, nil, func(text string) {
+			fieldValues[fieldName] = text
+		})
+	}
+
+	// Add buttons
+	form.AddButton("Submit", func() {
+		if onSubmit != nil {
+			onSubmit(fieldValues)
+		}
+	})
+	form.AddButton("Cancel", func() {
+		if onCancel != nil {
+			onCancel(fieldValues)
+		}
+	})
+
+	return form
+}
+
+// FormField represents a form field
+type FormField struct {
+	Name         string
+	Label        string
+	DefaultValue string
+	MaxLength    int
 }

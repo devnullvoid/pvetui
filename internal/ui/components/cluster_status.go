@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
@@ -16,6 +17,7 @@ type ClusterStatus struct {
 	*tview.Flex
 	SummaryTable  *tview.Table
 	ResourceTable *tview.Table
+	app           *App
 }
 
 var _ ClusterStatusComponent = (*ClusterStatus)(nil)
@@ -43,7 +45,7 @@ func NewClusterStatus() *ClusterStatus {
 	for row, fields := range rows {
 		for col, text := range fields {
 			cell := tview.NewTableCell(text).
-				SetTextColor(tcell.ColorWhite).
+				SetTextColor(theme.Colors.Primary).
 				SetAlign(tview.AlignLeft)
 			summary.SetCell(row, col, cell) // Data starts at row 0
 		}
@@ -58,7 +60,7 @@ func NewClusterStatus() *ClusterStatus {
 	resourceHeaders := []string{"Resource", "Used", "Total"}
 	for col, text := range resourceHeaders {
 		cell := tview.NewTableCell(text).
-			SetTextColor(tcell.ColorYellow).
+			SetTextColor(theme.Colors.Primary).
 			SetAlign(tview.AlignLeft)
 		resourceTable.SetCell(0, col, cell)
 	}
@@ -74,6 +76,11 @@ func NewClusterStatus() *ClusterStatus {
 	}
 }
 
+// SetApp sets the application reference
+func (cs *ClusterStatus) SetApp(app *App) {
+	cs.app = app
+}
+
 // Update populates both tables with current cluster data
 func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	if cluster == nil {
@@ -81,63 +88,70 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	}
 
 	// Update summary table
-	cs.SummaryTable.SetCell(0, 0, tview.NewTableCell("Cluster Name").SetTextColor(tcell.ColorYellow))
-	cs.SummaryTable.SetCell(0, 1, tview.NewTableCell(cluster.Name).SetTextColor(tcell.ColorWhite))
+	cs.SummaryTable.SetCell(0, 0, tview.NewTableCell("Cluster Name").SetTextColor(theme.Colors.Primary))
+	cs.SummaryTable.SetCell(0, 1, tview.NewTableCell(cluster.Name).SetTextColor(theme.Colors.Secondary))
 
 	// Show only the version number (e.g., '8.3.5') in the 'Proxmox VE' row
 	ver := cluster.Version
 	if parts := strings.Split(ver, "/"); len(parts) > 1 {
 		ver = parts[1]
 	}
-	cs.SummaryTable.SetCell(1, 0, tview.NewTableCell("Proxmox VE").SetTextColor(tcell.ColorYellow))
-	cs.SummaryTable.SetCell(1, 1, tview.NewTableCell(ver).SetTextColor(tcell.ColorWhite))
+	cs.SummaryTable.SetCell(1, 0, tview.NewTableCell("Proxmox VE").SetTextColor(theme.Colors.Primary))
+	cs.SummaryTable.SetCell(1, 1, tview.NewTableCell(ver).SetTextColor(theme.Colors.Secondary))
 
-	cs.SummaryTable.SetCell(2, 0, tview.NewTableCell("Nodes Online").SetTextColor(tcell.ColorYellow))
+	cs.SummaryTable.SetCell(2, 0, tview.NewTableCell("Nodes Online").SetTextColor(theme.Colors.Primary))
 
-	// Show different indicators based on node status
+	// Show different indicators based on node status with proper colors
 	var nodeStatusText string
+	var nodeStatusColor tcell.Color
 	if cluster.OnlineNodes == cluster.TotalNodes {
 		// All nodes online
-		nodeStatusText = fmt.Sprintf("[green]%d/%d 🟢[-]", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusColor = theme.Colors.StatusRunning
 	} else if cluster.OnlineNodes > 0 {
 		// Some nodes offline
-		nodeStatusText = fmt.Sprintf("[yellow]%d/%d ⚠️[-]", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("%d/%d ⚠️", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusColor = theme.Colors.Warning
 	} else {
 		// All nodes offline (critical)
-		nodeStatusText = fmt.Sprintf("[red]%d/%d 🔴[-]", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("%d/%d 🔴", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusColor = theme.Colors.StatusStopped
 	}
 
-	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(nodeStatusText).SetTextColor(tcell.ColorWhite))
+	cs.SummaryTable.SetCell(2, 1, tview.NewTableCell(nodeStatusText).SetTextColor(nodeStatusColor))
 
 	// Quorate status
-	cs.SummaryTable.SetCell(3, 0, tview.NewTableCell("Quorate").SetTextColor(tcell.ColorYellow))
+	cs.SummaryTable.SetCell(3, 0, tview.NewTableCell("Quorate").SetTextColor(theme.Colors.Primary))
 	var quorateText string
+	var quorateColor tcell.Color
 	if cluster.Quorate {
-		quorateText = "[green]Yes 🟢[-]"
+		quorateText = "Yes 🟢"
+		quorateColor = theme.Colors.StatusRunning
 	} else {
-		quorateText = "[red]No  🔴[-]"
+		quorateText = "No  🔴"
+		quorateColor = theme.Colors.StatusStopped
 	}
-	cs.SummaryTable.SetCell(3, 1, tview.NewTableCell(quorateText).SetTextColor(tcell.ColorWhite))
+	cs.SummaryTable.SetCell(3, 1, tview.NewTableCell(quorateText).SetTextColor(quorateColor))
 
 	// Update resource table (headers are already set in NewClusterStatus)
 	// CPU row
-	cs.ResourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%.1f%%", cluster.CPUUsage*100)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f", cluster.TotalCPU)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(1, 0, tview.NewTableCell("CPU Cores").SetTextColor(theme.Colors.Primary).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("%.1f%%", cluster.CPUUsage*100)).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(1, 2, tview.NewTableCell(fmt.Sprintf("%.1f", cluster.TotalCPU)).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
 
 	// Memory row
 	memoryUsed := utils.FormatBytesFloat(cluster.MemoryUsed)
 	memoryTotal := utils.FormatBytesFloat(cluster.MemoryTotal)
 	memoryPercent := utils.CalculatePercentage(cluster.MemoryUsed, cluster.MemoryTotal)
-	cs.ResourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s)", memoryPercent, memoryUsed)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(2, 2, tview.NewTableCell(memoryTotal).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(2, 0, tview.NewTableCell("Memory").SetTextColor(theme.Colors.Primary).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s)", memoryPercent, memoryUsed)).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(2, 2, tview.NewTableCell(memoryTotal).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
 
 	// Storage row
 	storageUsed := utils.FormatBytes(cluster.StorageUsed)
 	storageTotal := utils.FormatBytes(cluster.StorageTotal)
 	storagePercent := utils.CalculatePercentageInt(cluster.StorageUsed, cluster.StorageTotal)
-	cs.ResourceTable.SetCell(3, 0, tview.NewTableCell("Storage").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s)", storagePercent, storageUsed)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
-	cs.ResourceTable.SetCell(3, 2, tview.NewTableCell(storageTotal).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(3, 0, tview.NewTableCell("Storage").SetTextColor(theme.Colors.Primary).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s)", storagePercent, storageUsed)).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
+	cs.ResourceTable.SetCell(3, 2, tview.NewTableCell(storageTotal).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
 }
