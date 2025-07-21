@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -111,19 +112,19 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// CPU Usage
-	nd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell("🖥️ CPU").SetTextColor(theme.Colors.HeaderText))
 	cpuValue := api.StringNA
-	if node.CPUUsage >= 0 {
-		if node.CPUInfo != nil && node.CPUInfo.Cores > 0 {
-			cpuValue = fmt.Sprintf("%.1f%% of %d cores", node.CPUUsage*100, node.CPUInfo.Cores)
-		} else {
-			cpuValue = fmt.Sprintf("%.1f%%", node.CPUUsage*100)
-		}
-		if node.CPUInfo != nil && node.CPUInfo.Model != "" {
-			cpuValue += " " + node.CPUInfo.Model
-		}
+	var cpuUsageColor tcell.Color = theme.Colors.Primary
+	if node.CPUUsage >= 0 && node.CPUCount > 0 {
+		cpuPercent := node.CPUUsage * 100
+		cpuValue = fmt.Sprintf("%.1f%% of %.0f cores", cpuPercent, node.CPUCount)
+		cpuUsageColor = theme.GetUsageColor(cpuPercent)
+	} else if node.CPUUsage >= 0 {
+		cpuPercent := node.CPUUsage * 100
+		cpuValue = fmt.Sprintf("%.1f%%", cpuPercent)
+		cpuUsageColor = theme.GetUsageColor(cpuPercent)
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(cpuUsageColor))
 	row++
 
 	// Load Average
@@ -138,25 +139,29 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// Memory Usage
 	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
 	memValue := api.StringNA
+	var memUsageColor tcell.Color = theme.Colors.Primary
 	if node.MemoryTotal > 0 {
 		memUsedFormatted := utils.FormatBytes(int64(node.MemoryUsed * 1073741824))
 		memTotalFormatted := utils.FormatBytes(int64(node.MemoryTotal * 1073741824))
 		memoryPercent := utils.CalculatePercentage(node.MemoryUsed, node.MemoryTotal)
 		memValue = fmt.Sprintf("%.2f%% (%s) / %s", memoryPercent, memUsedFormatted, memTotalFormatted)
+		memUsageColor = theme.GetUsageColor(memoryPercent)
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(memUsageColor))
 	row++
 
 	// Storage Usage
 	nd.SetCell(row, 0, tview.NewTableCell("💾 Rootfs").SetTextColor(theme.Colors.HeaderText))
 	diskValue := api.StringNA
+	var diskUsageColor tcell.Color = theme.Colors.Primary
 	if node.TotalStorage > 0 {
 		diskUsedFormatted := utils.FormatBytes(node.UsedStorage * 1073741824)
 		diskTotalFormatted := utils.FormatBytes(node.TotalStorage * 1073741824)
 		diskPercent := utils.CalculatePercentageInt(node.UsedStorage, node.TotalStorage)
 		diskValue = fmt.Sprintf("%.2f%% (%s) / %s", diskPercent, diskUsedFormatted, diskTotalFormatted)
+		diskUsageColor = theme.GetUsageColor(diskPercent)
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(diskUsageColor))
 	row++
 
 	// Uptime
@@ -174,8 +179,12 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// Kernel
-	nd.SetCell(row, 0, tview.NewTableCell("🐧 Kernel").SetTextColor(theme.Colors.HeaderText))
-	nd.SetCell(row, 1, tview.NewTableCell(node.KernelVersion).SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 0, tview.NewTableCell("🧬 Kernel").SetTextColor(theme.Colors.HeaderText))
+	kernelValue := node.KernelVersion
+	if idx := strings.Index(kernelValue, "#"); idx != -1 {
+		kernelValue = strings.TrimSpace(kernelValue[:idx])
+	}
+	nd.SetCell(row, 1, tview.NewTableCell(kernelValue).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// CGroup Mode (int)
