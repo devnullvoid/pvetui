@@ -83,16 +83,12 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row := 0
 
 	// Basic Info
-	nd.SetCell(row, 0, tview.NewTableCell("📛 Name").SetTextColor(theme.Colors.Primary))
-	nd.SetCell(row, 1, tview.NewTableCell(node.Name).SetTextColor(theme.Colors.Secondary))
-	row++
+	// nd.SetCell(row, 0, tview.NewTableCell("📛 Name").SetTextColor(theme.Colors.HeaderText))
+	// nd.SetCell(row, 1, tview.NewTableCell(node.Name).SetTextColor(theme.Colors.Primary))
+	// row++
 
-	nd.SetCell(row, 0, tview.NewTableCell("🆔 ID").SetTextColor(theme.Colors.Primary))
-	nd.SetCell(row, 1, tview.NewTableCell(node.ID).SetTextColor(theme.Colors.Secondary))
-	row++
-
-	nd.SetCell(row, 0, tview.NewTableCell("📍 IP").SetTextColor(theme.Colors.Primary))
-	nd.SetCell(row, 1, tview.NewTableCell(node.IP).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 0, tview.NewTableCell("🆔 ID").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 1, tview.NewTableCell(node.ID).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Status Info
@@ -106,12 +102,16 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	} else {
 		statusColor = theme.Colors.StatusStopped
 	}
-	nd.SetCell(row, 0, tview.NewTableCell("🟢 Status").SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 0, tview.NewTableCell("🟢 Status").SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(statusText).SetTextColor(statusColor))
 	row++
 
+	nd.SetCell(row, 0, tview.NewTableCell("📍 IP").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 1, tview.NewTableCell(node.IP).SetTextColor(theme.Colors.Primary))
+	row++
+
 	// CPU Usage
-	nd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.HeaderText))
 	cpuValue := api.StringNA
 	if node.CPUUsage >= 0 {
 		if node.CPUInfo != nil && node.CPUInfo.Cores > 0 {
@@ -123,20 +123,20 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 			cpuValue += " " + node.CPUInfo.Model
 		}
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Load Average
-	nd.SetCell(row, 0, tview.NewTableCell("📊 Load Avg").SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 0, tview.NewTableCell("📊 Load Avg").SetTextColor(theme.Colors.HeaderText))
 	loadAvg := api.StringNA
 	if len(node.LoadAvg) >= 3 {
 		loadAvg = fmt.Sprintf("%s, %s, %s", node.LoadAvg[0], node.LoadAvg[1], node.LoadAvg[2])
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(loadAvg).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 1, tview.NewTableCell(loadAvg).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Memory Usage
-	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
 	memValue := api.StringNA
 	if node.MemoryTotal > 0 {
 		memUsedFormatted := utils.FormatBytes(int64(node.MemoryUsed * 1073741824))
@@ -144,11 +144,11 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		memoryPercent := utils.CalculatePercentage(node.MemoryUsed, node.MemoryTotal)
 		memValue = fmt.Sprintf("%.2f%% (%s) / %s", memoryPercent, memUsedFormatted, memTotalFormatted)
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Storage Usage
-	nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 0, tview.NewTableCell("💾 Rootfs").SetTextColor(theme.Colors.HeaderText))
 	diskValue := api.StringNA
 	if node.TotalStorage > 0 {
 		diskUsedFormatted := utils.FormatBytes(node.UsedStorage * 1073741824)
@@ -156,38 +156,38 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		diskPercent := utils.CalculatePercentageInt(node.UsedStorage, node.TotalStorage)
 		diskValue = fmt.Sprintf("%.2f%% (%s) / %s", diskPercent, diskUsedFormatted, diskTotalFormatted)
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Uptime
-	nd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.Primary))
+	nd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.HeaderText))
 	uptimeValue := api.StringNA
 	if node.Uptime > 0 {
 		uptimeValue = utils.FormatUptime(int(node.Uptime))
 	}
-	nd.SetCell(row, 1, tview.NewTableCell(uptimeValue).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 1, tview.NewTableCell(uptimeValue).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Version
-	nd.SetCell(row, 0, tview.NewTableCell("🛠️ Version").SetTextColor(theme.Colors.Primary))
-	nd.SetCell(row, 1, tview.NewTableCell(node.Version).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 0, tview.NewTableCell("🛠️ Version").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 1, tview.NewTableCell(node.Version).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// Kernel
-	nd.SetCell(row, 0, tview.NewTableCell("🐧 Kernel").SetTextColor(theme.Colors.Primary))
-	nd.SetCell(row, 1, tview.NewTableCell(node.KernelVersion).SetTextColor(theme.Colors.Secondary))
+	nd.SetCell(row, 0, tview.NewTableCell("🐧 Kernel").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 1, tview.NewTableCell(node.KernelVersion).SetTextColor(theme.Colors.Primary))
 	row++
 
 	// CGroup Mode (int)
 	if node.CGroupMode != 0 {
-		nd.SetCell(row, 0, tview.NewTableCell("🧩 CGroup Mode").SetTextColor(theme.Colors.Primary))
-		nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", node.CGroupMode)).SetTextColor(theme.Colors.Secondary))
+		nd.SetCell(row, 0, tview.NewTableCell("🧩 CGroup Mode").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", node.CGroupMode)).SetTextColor(theme.Colors.Primary))
 		row++
 	}
 	// Level
 	if node.Level != "" {
-		nd.SetCell(row, 0, tview.NewTableCell("🔒 Level").SetTextColor(theme.Colors.Primary))
-		nd.SetCell(row, 1, tview.NewTableCell(node.Level).SetTextColor(theme.Colors.Secondary))
+		nd.SetCell(row, 0, tview.NewTableCell("🔒 Level").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 1, tview.NewTableCell(node.Level).SetTextColor(theme.Colors.Primary))
 		row++
 	}
 
@@ -209,9 +209,12 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 			break
 		}
 	}
-	vmText := fmt.Sprintf("[green]%d running[-], [red]%d stopped[-], [yellow]%d templates[-]", vmRunning, vmStopped, vmTemplates)
-	nd.SetCell(row, 0, tview.NewTableCell("🖥️ VMs").SetTextColor(theme.Colors.Primary))
-	nd.SetCell(row, 1, tview.NewTableCell("").SetText(fmt.Sprintf("%s", vmText)))
+	greenTag := theme.ColorToTag(theme.Colors.StatusRunning)
+	redTag := theme.ColorToTag(theme.Colors.StatusStopped)
+	yellowTag := theme.ColorToTag(theme.Colors.Warning)
+	vmText := fmt.Sprintf("[%s]%d running[-], [%s]%d stopped[-], [%s]%d templates[-]", greenTag, vmRunning, redTag, vmStopped, yellowTag, vmTemplates)
+	nd.SetCell(row, 0, tview.NewTableCell("🖥️ VMs").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 1, tview.NewTableCell(vmText))
 	row++
 
 	// LXC (running/stopped)
@@ -230,14 +233,14 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 			break
 		}
 	}
-	lxcText := fmt.Sprintf("[green]%d running[-], [red]%d stopped[-]", lxcRunning, lxcStopped)
-	nd.SetCell(row, 0, tview.NewTableCell("📦 LXC").SetTextColor(theme.Colors.Primary))
-	nd.SetCell(row, 1, tview.NewTableCell("").SetText(fmt.Sprintf("%s", lxcText)))
+	lxcText := fmt.Sprintf("[%s]%d running[-], [%s]%d stopped[-]", greenTag, lxcRunning, redTag, lxcStopped)
+	nd.SetCell(row, 0, tview.NewTableCell("📦 LXC").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 1, tview.NewTableCell(lxcText))
 	row++
 
 	// Storage Information (per-pool breakdown)
 	if node.Storage != nil {
-		nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(theme.Colors.Primary))
+		nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(theme.Colors.HeaderText))
 		row++
 		storage := node.Storage
 		if storage.MaxDisk > 0 {
@@ -255,7 +258,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 				utils.FormatBytes(storage.MaxDisk))).SetTextColor(usageColor))
 		} else {
 			nd.SetCell(row, 0, tview.NewTableCell("  • No size data").SetTextColor(theme.Colors.Info))
-			nd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Secondary))
+			nd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Primary))
 		}
 	}
 
