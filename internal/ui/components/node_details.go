@@ -272,16 +272,14 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 				nd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Primary))
 				row++
 			}
-			// Sub-row: storage type
-			nd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
-			nd.SetCell(row, 1, tview.NewTableCell("Type: "+storage.Plugintype).SetTextColor(theme.Colors.Secondary))
-			row++
-			// Sub-row: shared indicator
+			// Sub-row: storage type (with shared status if applicable)
+			typeLabel := storage.Plugintype
 			if storage.IsShared() {
-				nd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
-				nd.SetCell(row, 1, tview.NewTableCell("Shared").SetTextColor(theme.Colors.Secondary))
-				row++
+				typeLabel += " (shared)"
 			}
+			nd.SetCell(row, 0, tview.NewTableCell("").SetTextColor(theme.Colors.Info))
+			nd.SetCell(row, 1, tview.NewTableCell(typeLabel).SetTextColor(theme.Colors.Secondary))
+			row++
 		}
 	}
 
