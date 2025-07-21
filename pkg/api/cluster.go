@@ -383,7 +383,14 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 				Shared:     getInt(resource, "shared"),
 				Type:       getString(resource, "type"),
 			}
-			node.Storage = storage
+
+			// Initialize Storage slice if it doesn't exist
+			if node.Storage == nil {
+				node.Storage = make([]*Storage, 0)
+			}
+
+			// Append storage to the node's storage pools
+			node.Storage = append(node.Storage, storage)
 
 			// Add to storage manager for proper deduplication
 			cluster.StorageManager.AddStorage(storage)

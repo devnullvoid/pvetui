@@ -239,26 +239,29 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// Storage Information (per-pool breakdown)
-	if node.Storage != nil {
+	if len(node.Storage) > 0 {
 		nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(theme.Colors.HeaderText))
 		row++
-		storage := node.Storage
-		if storage.MaxDisk > 0 {
-			var usedPercent float64
+
+		for _, storage := range node.Storage {
 			if storage.MaxDisk > 0 {
-				usedPercent = float64(storage.Disk) / float64(storage.MaxDisk) * 100
+				var usedPercent float64
+				if storage.MaxDisk > 0 {
+					usedPercent = float64(storage.Disk) / float64(storage.MaxDisk) * 100
+				} else {
+					usedPercent = 0
+				}
+				usageColor := theme.GetUsageColor(usedPercent)
+				nd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", storage.Name)).SetTextColor(theme.Colors.Info))
+				nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)",
+					usedPercent,
+					utils.FormatBytes(storage.Disk),
+					utils.FormatBytes(storage.MaxDisk))).SetTextColor(usageColor))
 			} else {
-				usedPercent = 0
+				nd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", storage.Name)).SetTextColor(theme.Colors.Info))
+				nd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Primary))
 			}
-			usageColor := theme.GetUsageColor(usedPercent)
-			nd.SetCell(row, 0, tview.NewTableCell(fmt.Sprintf("  • %s", storage.Name)).SetTextColor(theme.Colors.Info))
-			nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)",
-				usedPercent,
-				utils.FormatBytes(storage.Disk),
-				utils.FormatBytes(storage.MaxDisk))).SetTextColor(usageColor))
-		} else {
-			nd.SetCell(row, 0, tview.NewTableCell("  • No size data").SetTextColor(theme.Colors.Info))
-			nd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Primary))
+			row++
 		}
 	}
 

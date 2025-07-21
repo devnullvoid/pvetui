@@ -20,25 +20,25 @@ type CPUInfo struct {
 
 // Node represents a Proxmox cluster node
 type Node struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	IP            string   `json:"ip"`
-	CPUCount      float64  `json:"cpus"`
-	CPUUsage      float64  `json:"cpu"`
-	MemoryTotal   float64  `json:"memory_total"`
-	MemoryUsed    float64  `json:"memory_used"`
-	TotalStorage  int64    `json:"rootfs_total"`
-	UsedStorage   int64    `json:"rootfs_used"`
-	Uptime        int64    `json:"uptime"`
-	Version       string   `json:"pveversion"`
-	KernelVersion string   `json:"kversion"`
-	Online        bool     `json:"-"`
-	CGroupMode    int      `json:"cgroup_mode,omitempty"`
-	Level         string   `json:"level,omitempty"`
-	Storage       *Storage `json:"storage,omitempty"`
-	VMs           []*VM    `json:"vms,omitempty"`
-	CPUInfo       *CPUInfo `json:"cpuinfo,omitempty"`
-	LoadAvg       []string `json:"loadavg,omitempty"`
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	IP            string     `json:"ip"`
+	CPUCount      float64    `json:"cpus"`
+	CPUUsage      float64    `json:"cpu"`
+	MemoryTotal   float64    `json:"memory_total"`
+	MemoryUsed    float64    `json:"memory_used"`
+	TotalStorage  int64      `json:"rootfs_total"`
+	UsedStorage   int64      `json:"rootfs_used"`
+	Uptime        int64      `json:"uptime"`
+	Version       string     `json:"pveversion"`
+	KernelVersion string     `json:"kversion"`
+	Online        bool       `json:"-"`
+	CGroupMode    int        `json:"cgroup_mode,omitempty"`
+	Level         string     `json:"level,omitempty"`
+	Storage       []*Storage `json:"storage,omitempty"`
+	VMs           []*VM      `json:"vms,omitempty"`
+	CPUInfo       *CPUInfo   `json:"cpuinfo,omitempty"`
+	LoadAvg       []string   `json:"loadavg,omitempty"`
 
 	// For metrics tracking and concurrency
 	// mu                sync.RWMutex `json:"-"`
