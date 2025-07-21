@@ -107,7 +107,7 @@ func (tl *TasksList) updateTable() {
 	headers := []string{"Time", "Node", "Type", "Status", "User", "ID", "Duration"}
 	for i, header := range headers {
 		tc := tview.NewTableCell(header).
-			SetTextColor(theme.Colors.Primary).
+			SetTextColor(theme.Colors.HeaderText).
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false)
 		tl.SetCell(0, i, tc)
@@ -129,7 +129,7 @@ func (tl *TasksList) updateTable() {
 		if len(node) > 16 {
 			node = node[:13] + "..."
 		}
-		tl.SetCell(row, 1, tview.NewTableCell(node).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 1, tview.NewTableCell(node).SetTextColor(theme.Colors.Primary).SetAlign(tview.AlignLeft))
 
 		// Type (friendly name)
 		typeStr := formatTaskType(task.Type)
@@ -147,7 +147,7 @@ func (tl *TasksList) updateTable() {
 		if len(user) > 18 {
 			user = user[:15] + "..."
 		}
-		tl.SetCell(row, 4, tview.NewTableCell(user).SetTextColor(theme.Colors.Info).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 4, tview.NewTableCell(user).SetTextColor(theme.Colors.Tertiary).SetAlign(tview.AlignLeft))
 
 		// ID (truncate if too long)
 		id := task.ID

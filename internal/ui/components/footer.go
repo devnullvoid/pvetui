@@ -30,14 +30,14 @@ func NewFooter() *Footer {
 	footer.SetDynamicColors(true)
 
 	baseText := fmt.Sprintf("[%s]F1:[%s]Nodes  [%s]F2:[%s]Guests  [%s]F3:[%s]Tasks  [%s]/:[%s]Search  [%s]M:[%s]Menu  [%s]A:[%s]Auto-Refresh  [%s]?:[%s]Help  [%s]Q:[%s]Quit",
-		theme.Colors.Primary, theme.Colors.Secondary,
-		theme.Colors.Primary, theme.Colors.Secondary,
-		theme.Colors.Primary, theme.Colors.Secondary,
-		theme.Colors.Primary, theme.Colors.Secondary,
-		theme.Colors.Primary, theme.Colors.Secondary,
-		theme.Colors.Primary, theme.Colors.Secondary,
-		theme.Colors.Primary, theme.Colors.Secondary,
-		theme.Colors.Primary, theme.Colors.Secondary)
+		theme.Colors.HeaderText, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary)
 
 	f := &Footer{
 		TextView:        footer,
@@ -55,14 +55,14 @@ func NewFooter() *Footer {
 func FormatFooterText(keys config.KeyBindings) string {
 	return fmt.Sprintf(
 		"[%s]%s:[%s]Nodes  [%s]%s:[%s]Guests  [%s]%s:[%s]Tasks  [%s]%s:[%s]Search  [%s]%s:[%s]Menu  [%s]%s:[%s]Auto-Refresh  [%s]%s:[%s]Help  [%s]%s:[%s]Quit",
-		theme.Colors.Primary, keys.NodesPage, theme.Colors.Secondary,
-		theme.Colors.Primary, keys.GuestsPage, theme.Colors.Secondary,
-		theme.Colors.Primary, keys.TasksPage, theme.Colors.Secondary,
-		theme.Colors.Primary, keys.Search, theme.Colors.Secondary,
-		theme.Colors.Primary, keys.Menu, theme.Colors.Secondary,
-		theme.Colors.Primary, keys.AutoRefresh, theme.Colors.Secondary,
-		theme.Colors.Primary, keys.Help, theme.Colors.Secondary,
-		theme.Colors.Primary, keys.Quit, theme.Colors.Secondary,
+		theme.Colors.HeaderText, keys.NodesPage, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.GuestsPage, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.TasksPage, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.Search, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.Menu, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.AutoRefresh, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.Help, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.Quit, theme.Colors.Primary,
 	)
 }
 

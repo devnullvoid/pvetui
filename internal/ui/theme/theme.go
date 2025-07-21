@@ -48,6 +48,7 @@ var Colors = struct {
 	// Primary colors
 	Primary   tcell.Color // Main text and UI elements
 	Secondary tcell.Color // Supporting text and labels
+	Tertiary  tcell.Color // Supporting text and labels
 
 	// Semantic colors
 	Success tcell.Color // Positive states (running, online, etc.)
@@ -79,11 +80,12 @@ var Colors = struct {
 	// Map to standard ANSI colors that work well with terminal themes
 	Primary:   tcell.ColorWhite,
 	Secondary: tcell.ColorGray,
+	Tertiary:  tcell.ColorAqua,
 
 	Success: tcell.ColorGreen,
 	Warning: tcell.ColorYellow,
 	Error:   tcell.ColorRed,
-	Info:    tcell.ColorLightBlue,
+	Info:    tcell.ColorBlue,
 
 	Background: tcell.ColorDefault,
 	Border:     tcell.ColorGray,
@@ -154,9 +156,9 @@ func ColorToTag(c tcell.Color) string {
 	case tcell.ColorBlue:
 		return "blue"
 	case tcell.ColorPurple:
-		return "magenta"
+		return "purple"
 	case tcell.ColorTeal:
-		return "cyan"
+		return "teal"
 	case tcell.ColorWhite:
 		return "white"
 	case tcell.ColorGray:

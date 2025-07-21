@@ -151,35 +151,46 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 1, tview.NewTableCell(ipValue).SetTextColor(theme.Colors.Primary))
 	row++
 
-	// Resource Usage
+	// CPU Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.HeaderText))
 	cpuValue := api.StringNA
-	if vm.CPU >= 0 {
-		cpuValue = fmt.Sprintf("%.1f%%", vm.CPU*100)
+	var cpuUsageColor tcell.Color = theme.Colors.Primary
+	if vm.CPU >= 0 && vm.CPUCores > 0 {
+		cpuPercent := vm.CPU * 100
+		cpuValue = fmt.Sprintf("%.1f%% of %d cores", cpuPercent, vm.CPUCores)
+		cpuUsageColor = theme.GetUsageColor(cpuPercent)
+	} else if vm.CPU >= 0 {
+		cpuPercent := vm.CPU * 100
+		cpuValue = fmt.Sprintf("%.1f%%", cpuPercent)
+		cpuUsageColor = theme.GetUsageColor(cpuPercent)
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 1, tview.NewTableCell(cpuValue).SetTextColor(cpuUsageColor))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
 	memValue := api.StringNA
+	var memUsageColor tcell.Color = theme.Colors.Primary
 	if vm.MaxMem > 0 {
 		memUsedFormatted := utils.FormatBytes(vm.Mem)
 		memTotalFormatted := utils.FormatBytes(vm.MaxMem)
 		memoryPercent := utils.CalculatePercentageInt(vm.Mem, vm.MaxMem)
 		memValue = fmt.Sprintf("%.2f%% (%s) / %s", memoryPercent, memUsedFormatted, memTotalFormatted)
+		memUsageColor = theme.GetUsageColor(memoryPercent)
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 1, tview.NewTableCell(memValue).SetTextColor(memUsageColor))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(theme.Colors.HeaderText))
 	diskValue := api.StringNA
+	var diskUsageColor tcell.Color = theme.Colors.Primary
 	if vm.MaxDisk > 0 {
 		diskUsedFormatted := utils.FormatBytes(vm.Disk)
 		diskTotalFormatted := utils.FormatBytes(vm.MaxDisk)
 		diskPercent := utils.CalculatePercentageInt(vm.Disk, vm.MaxDisk)
 		diskValue = fmt.Sprintf("%.2f%% (%s) / %s", diskPercent, diskUsedFormatted, diskTotalFormatted)
+		diskUsageColor = theme.GetUsageColor(diskPercent)
 	}
-	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 1, tview.NewTableCell(diskValue).SetTextColor(diskUsageColor))
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.HeaderText))
@@ -242,6 +253,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			} else {
 				usedPercent = 0
 			}
+			var usageColor tcell.Color = theme.GetUsageColor(usedPercent)
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+fsName).SetTextColor(theme.Colors.Info))
 			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)%s",
 				usedPercent,
@@ -254,7 +266,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 						return ""
 					}
 				}(),
-			)).SetTextColor(theme.Colors.Secondary))
+			)).SetTextColor(usageColor))
 			row++
 		}
 	}
