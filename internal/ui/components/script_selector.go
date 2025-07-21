@@ -206,7 +206,10 @@ func (s *ScriptSelector) startLoadingAnimation() {
 			// Use a non-blocking update to prevent deadlocks
 			go s.app.QueueUpdateDraw(func() {
 				if s.loadingText != nil && s.isLoading {
-					s.loadingText.SetText(fmt.Sprintf("[yellow]Loading Scripts...[white]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]", spinner))
+					spinnerColor := theme.ColorToTag(theme.Colors.Warning)
+					whiteColor := theme.ColorToTag(theme.Colors.Primary)
+					grayColor := theme.ColorToTag(theme.Colors.Secondary)
+					s.loadingText.SetText(fmt.Sprintf("[%s]Loading Scripts...[%s]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[%s]Press Backspace or Escape to cancel[%s]", spinnerColor, whiteColor, spinner, grayColor, whiteColor))
 				}
 			})
 		}
@@ -227,7 +230,12 @@ func (s *ScriptSelector) createLoadingPage() *tview.Flex {
 	s.loadingText = tview.NewTextView()
 	s.loadingText.SetDynamicColors(true)
 	s.loadingText.SetTextAlign(tview.AlignCenter)
-	s.loadingText.SetText("[yellow]Loading Scripts...[white]\n\n⏳ Fetching scripts from GitHub\n\nThis may take a moment\n\n[gray]Press Backspace or Escape to cancel[white]")
+	spinnerColor := theme.ColorToTag(theme.Colors.Warning)
+	whiteColor := theme.ColorToTag(theme.Colors.Primary)
+	grayColor := theme.ColorToTag(theme.Colors.Secondary)
+	// In createLoadingPage and loading animation, use spinner only if defined
+	loadingMsg := fmt.Sprintf("[%s]Loading Scripts...[%s]\n\n⏳ Fetching scripts from GitHub\n\nThis may take a moment\n\n[%s]Press Backspace or Escape to cancel[%s]", spinnerColor, whiteColor, grayColor, whiteColor)
+	s.loadingText.SetText(loadingMsg)
 
 	// Set up input capture to allow canceling the loading
 	s.loadingText.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -510,39 +518,40 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("[yellow]Name:[-] %s\n\n", script.Name))
-	sb.WriteString(fmt.Sprintf("[yellow]Description:[-] %s\n\n", script.Description))
+	labelColor := theme.ColorToTag(theme.Colors.Warning)
+	sb.WriteString(fmt.Sprintf("[%s]Name:[-] %s\n\n", labelColor, script.Name))
+	sb.WriteString(fmt.Sprintf("[%s]Description:[-] %s\n\n", labelColor, script.Description))
 
 	if script.Type == "ct" {
-		sb.WriteString("[yellow]Type:[-] Container Template\n")
+		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Container Template\n", labelColor))
 	} else if script.Type == "vm" {
-		sb.WriteString("[yellow]Type:[-] Virtual Machine\n")
+		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Virtual Machine\n", labelColor))
 	} else {
-		sb.WriteString(fmt.Sprintf("[yellow]Type:[-] %s\n", script.Type))
+		sb.WriteString(fmt.Sprintf("[%s]Type:[-] %s\n", labelColor, script.Type))
 	}
 
 	if script.ScriptPath != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Script Path:[-] %s\n", script.ScriptPath))
+		sb.WriteString(fmt.Sprintf("[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath))
 	}
 
 	if script.Website != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Website:[-] %s\n", script.Website))
+		sb.WriteString(fmt.Sprintf("[%s]Website:[-] %s\n", labelColor, script.Website))
 	}
 
 	if script.Documentation != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Documentation:[-] %s\n", script.Documentation))
+		sb.WriteString(fmt.Sprintf("[%s]Documentation:[-] %s\n", labelColor, script.Documentation))
 	}
 
 	if script.DateCreated != "" {
-		sb.WriteString(fmt.Sprintf("[yellow]Date Created:[-] %s\n", script.DateCreated))
+		sb.WriteString(fmt.Sprintf("[%s]Date Created:[-] %s\n", labelColor, script.DateCreated))
 	}
 
-	sb.WriteString(fmt.Sprintf("\n[yellow]Target Node:[-] %s\n", s.node.Name))
+	sb.WriteString(fmt.Sprintf("\n[%s]Target Node:[-] %s\n", labelColor, s.node.Name))
 	if s.vm != nil {
-		sb.WriteString(fmt.Sprintf("[yellow]Context:[-] VM %s\n", s.vm.Name))
+		sb.WriteString(fmt.Sprintf("[%s]Context:[-] VM %s\n", labelColor, s.vm.Name))
 	}
 
-	sb.WriteString("\n[yellow]Note:[-] This will execute the script on the selected node via SSH.")
+	sb.WriteString(fmt.Sprintf("\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor))
 	if script.Type == "ct" {
 		sb.WriteString(" This will create a new LXC container.")
 	} else if script.Type == "vm" {

@@ -212,7 +212,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 			// Build network display string
 			var netInfo []string
-			if net.IPAddresses != nil && len(net.IPAddresses) > 0 {
+			if len(net.IPAddresses) > 0 {
 				netInfo = append(netInfo, net.IPAddresses[0].Address)
 			}
 			if net.MACAddress != "" {

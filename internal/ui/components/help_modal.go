@@ -59,14 +59,14 @@ func buildHelpText(keys config.KeyBindings) string {
 	items := []struct {
 		Cat, Key, Desc string
 	}{
-		{Cat: "[yellow]Navigation[-]"},
+		{Cat: fmt.Sprintf("[%s]Navigation[-]", theme.ColorToTag(theme.Colors.Warning))},
 		{Key: "Arrow Keys / hjkl", Desc: "Navigate lists and panels"},
 		{Key: fmt.Sprintf("%s / %s", keys.SwitchView, keys.SwitchViewReverse), Desc: "Switch between views (forward/reverse)"},
 		{Key: keys.NodesPage, Desc: "Switch to Nodes tab"},
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
 		{Cat: ""}, // Spacer
-		{Cat: "[yellow]Actions[-]"},
+		{Cat: fmt.Sprintf("[%s]Actions[-]", theme.ColorToTag(theme.Colors.Warning))},
 		{Key: keys.Search, Desc: "Search/Filter current list"},
 		{Key: keys.Shell, Desc: "Open SSH shell (node/guest)"},
 		{Key: keys.VNC, Desc: "Open VNC console (node/guest)"},
@@ -76,7 +76,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},
 		{Key: keys.Quit, Desc: "Quit application"},
 		{Cat: ""},
-		{Cat: "[yellow]Tips & Usage[-]"},
+		{Cat: fmt.Sprintf("[%s]Tips & Usage[-]", theme.ColorToTag(theme.Colors.Warning))},
 		{Desc: fmt.Sprintf("• Use search ([white]%s[-]) to quickly find nodes or guests.", keys.Search)},
 		{Desc: fmt.Sprintf("• The context menu ([white]%s[-]) provides quick access to actions.", keys.Menu)},
 		{Desc: "• VNC opens in your default web browser."},

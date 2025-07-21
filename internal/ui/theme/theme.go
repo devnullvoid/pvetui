@@ -36,6 +36,8 @@
 package theme
 
 import (
+	"fmt"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -136,4 +138,32 @@ func IsDarkTheme() bool {
 	// Default to assuming dark theme for better compatibility
 	// Users can override this through terminal emulator settings
 	return true
+}
+
+// ColorToTag returns a tview color tag string for a tcell.Color
+func ColorToTag(c tcell.Color) string {
+	switch c {
+	case tcell.ColorBlack:
+		return "black"
+	case tcell.ColorRed:
+		return "red"
+	case tcell.ColorGreen:
+		return "green"
+	case tcell.ColorYellow:
+		return "yellow"
+	case tcell.ColorBlue:
+		return "blue"
+	case tcell.ColorPurple:
+		return "magenta"
+	case tcell.ColorTeal:
+		return "cyan"
+	case tcell.ColorWhite:
+		return "white"
+	case tcell.ColorGray:
+		return "gray"
+	case tcell.ColorLightBlue:
+		return "aqua"
+	default:
+		return fmt.Sprintf("#%06x", c.Hex())
+	}
 }

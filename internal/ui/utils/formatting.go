@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
 // FormatUptime formats the uptime in seconds to a human-readable format
@@ -69,16 +71,20 @@ func FormatBytesFloat(gb float64) string {
 }
 
 // FormatStatusIndicator returns a string with a colored status emoji.
-// Green ▲ for online/running, Red ▼ for offline/stopped, Yellow ● for others.
+// Uses theme-aware color tags.
 func FormatStatusIndicator(status string) string {
 	status = strings.ToLower(status)
+	var colorTag string
 	switch status {
 	case "running", "online":
-		return "[green]▲[-] "
+		colorTag = theme.ColorToTag(theme.Colors.StatusRunning)
+		return fmt.Sprintf("[%s]▲[-] ", colorTag)
 	case "stopped", "offline":
-		return "[red]▼[-] "
+		colorTag = theme.ColorToTag(theme.Colors.StatusStopped)
+		return fmt.Sprintf("[%s]▼[-] ", colorTag)
 	default:
-		return "[yellow]●[-] "
+		colorTag = theme.ColorToTag(theme.Colors.Warning)
+		return fmt.Sprintf("[%s]●[-] ", colorTag)
 	}
 }
 
@@ -88,17 +94,17 @@ func FormatPendingStatusIndicator(status string, isPending bool, operation strin
 	if !isPending {
 		return FormatStatusIndicator(status)
 	}
-
-	// For pending operations, use a dimmed indicator
 	status = strings.ToLower(status)
+	var colorTag string
 	switch status {
 	case "running", "online":
-		return "[green::d]🗘[-::id] " // Dimmed green with different symbol
+		colorTag = theme.ColorToTag(theme.Colors.StatusRunning)
 	case "stopped", "offline":
-		return "[red::d]🗘[-::id] " // Dimmed red with different symbol
+		colorTag = theme.ColorToTag(theme.Colors.StatusStopped)
 	default:
-		return "[yellow::d]🗘[-::id] " // Dimmed yellow/orange with different symbol
+		colorTag = theme.ColorToTag(theme.Colors.Warning)
 	}
+	return fmt.Sprintf("[%s::d]🗘[-::id] ", colorTag)
 }
 
 // CalculatePercentage safely calculates percentage from used and total values
