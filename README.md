@@ -41,6 +41,7 @@
 - **VNC Console Access**: Embedded noVNC client with automatic authentication
 - **Community Scripts**: Install Proxmox community scripts directly from the TUI
 - **Modern Interface**: Vim-style navigation with customizable key bindings
+- **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
 
 ## 📸 Screenshots
 
@@ -131,6 +132,24 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 | `?` | Help | `q` | Quit |
 
 *Customize via `key_bindings` section in config*
+
+## 🎨 Theming
+
+Proxmox TUI automatically adapts to your terminal emulator's color scheme:
+
+- **Terminal Themes**: Works with popular themes (Dracula, Nord, Solarized, etc.)
+- **Semantic Colors**: Colors maintain consistent meaning across themes
+- **Zero Configuration**: Works out of the box with most terminal emulators
+- **Customizable**: Configure theme behavior in your config file
+
+```yaml
+# ~/.config/proxmox-tui/config.yml
+theme:
+  use_terminal_colors: true  # Adapt to terminal theme (recommended)
+  color_scheme: auto         # auto, light, or dark
+```
+
+See [THEMING.md](./docs/THEMING.md) for detailed theming guide and terminal setup instructions.
 
 ## 🖥️ VNC Console Access
 

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
 // Header encapsulates the application header
@@ -25,8 +26,8 @@ func NewHeader() *Header {
 	header.SetTextAlign(tview.AlignCenter)
 	header.SetText("Proxmox TUI")
 	header.SetDynamicColors(true)
-	header.SetBackgroundColor(tcell.ColorBlue)
-	header.SetTextColor(tcell.ColorGray)
+	header.SetBackgroundColor(theme.Colors.Header)
+	header.SetTextColor(theme.Colors.HeaderText)
 
 	return &Header{
 		TextView:    header,
@@ -77,7 +78,7 @@ func (h *Header) IsLoading() bool {
 // ShowSuccess displays a success message temporarily
 func (h *Header) ShowSuccess(message string) {
 	h.StopLoading()
-	h.SetText(fmt.Sprintf("[green]✓ %s[-]", message))
+	h.SetText(fmt.Sprintf("[%s]✓ %s[-]", theme.Colors.Success, message))
 
 	// Clear the message after 3 seconds
 	go func() {
@@ -93,11 +94,11 @@ func (h *Header) ShowSuccess(message string) {
 // ShowError displays an error message temporarily
 func (h *Header) ShowError(message string) {
 	h.StopLoading()
-	h.SetText(fmt.Sprintf("[red]✗ %s[-]", message))
+	h.SetText(fmt.Sprintf("[%s]✗ %s[-]", theme.Colors.Error, message))
 
-	// Clear the message after 5 seconds
+	// Clear the message after 3 seconds
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(3 * time.Second)
 		if h.app != nil {
 			h.app.QueueUpdateDraw(func() {
 				h.SetText("Proxmox TUI")
@@ -106,26 +107,24 @@ func (h *Header) ShowError(message string) {
 	}()
 }
 
-// animateLoading creates a spinning animation for loading
+// animateLoading displays an animated loading indicator
 func (h *Header) animateLoading() {
-	spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	i := 0
+	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	index := 0
 
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
+	for h.isLoading {
 		select {
 		case <-h.stopLoading:
 			return
-		case <-ticker.C:
+		default:
 			if h.app != nil {
-				spinner := spinners[i%len(spinners)]
 				h.app.QueueUpdateDraw(func() {
-					h.SetText(fmt.Sprintf("[yellow]%s [-]%s...", spinner, h.loadingText))
+					spinnerChar := spinner[index]
+					h.SetText(fmt.Sprintf("[%s]%s %s[-]", theme.Colors.Warning, spinnerChar, h.loadingText))
 				})
-				i++
 			}
+			index = (index + 1) % len(spinner)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }

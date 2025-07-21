@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Flexible Theming System**: Added comprehensive theming support with automatic terminal emulator adaptation
+  - **Semantic Color Constants**: Centralized color management with semantic meaning across themes
+  - **Terminal Theme Adaptation**: Automatic adaptation to popular terminal themes (Dracula, Nord, Solarized, etc.)
+  - **Configuration Options**: Theme settings in config file with `use_terminal_colors` and `color_scheme` options
+  - **Documentation**: Comprehensive theming guide with setup instructions for popular terminal emulators
+  - **Zero Configuration**: Works out of the box with most terminal emulators while maintaining semantic consistency
+
 ## [0.9.0] - 2025-07-16
 
 ### Changed

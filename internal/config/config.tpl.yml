@@ -27,3 +27,10 @@ key_bindings:
   quit: q
 # Reserved keys (h, j, k, l, arrows, Tab, Enter, Esc, Backspace) cannot be reassigned.
 # System combos like Ctrl+C, Ctrl+D and Ctrl+Z are also blocked.
+
+# Theme configuration
+theme:
+  # Enable terminal emulator color scheme adaptation (recommended)
+  use_terminal_colors: true
+  # Color scheme: "auto" (default), "light", "dark"
+  color_scheme: auto

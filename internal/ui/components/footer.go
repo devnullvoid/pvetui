@@ -6,6 +6,8 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
 // Footer encapsulates the application footer
@@ -27,7 +29,15 @@ func NewFooter() *Footer {
 	footer.SetTextAlign(tview.AlignLeft)
 	footer.SetDynamicColors(true)
 
-	baseText := "[yellow]F1:[white]Nodes  [yellow]F2:[white]Guests  [yellow]F3:[white]Tasks  [yellow]/:[white]Search  [yellow]M:[white]Menu  [yellow]A:[white]Auto-Refresh  [yellow]?:[white]Help  [yellow]Q:[white]Quit"
+	baseText := fmt.Sprintf("[%s]F1:[%s]Nodes  [%s]F2:[%s]Guests  [%s]F3:[%s]Tasks  [%s]/:[%s]Search  [%s]M:[%s]Menu  [%s]A:[%s]Auto-Refresh  [%s]?:[%s]Help  [%s]Q:[%s]Quit",
+		theme.Colors.Primary, theme.Colors.Secondary,
+		theme.Colors.Primary, theme.Colors.Secondary,
+		theme.Colors.Primary, theme.Colors.Secondary,
+		theme.Colors.Primary, theme.Colors.Secondary,
+		theme.Colors.Primary, theme.Colors.Secondary,
+		theme.Colors.Primary, theme.Colors.Secondary,
+		theme.Colors.Primary, theme.Colors.Secondary,
+		theme.Colors.Primary, theme.Colors.Secondary)
 
 	f := &Footer{
 		TextView:        footer,
@@ -44,15 +54,15 @@ func NewFooter() *Footer {
 // FormatFooterText builds the footer key binding text from config.
 func FormatFooterText(keys config.KeyBindings) string {
 	return fmt.Sprintf(
-		"[yellow]%s:[white]Nodes  [yellow]%s:[white]Guests  [yellow]%s:[white]Tasks  [yellow]%s:[white]Search  [yellow]%s:[white]Menu  [yellow]%s:[white]Auto-Refresh  [yellow]%s:[white]Help  [yellow]%s:[white]Quit",
-		keys.NodesPage,
-		keys.GuestsPage,
-		keys.TasksPage,
-		keys.Search,
-		keys.Menu,
-		keys.AutoRefresh,
-		keys.Help,
-		keys.Quit,
+		"[%s]%s:[%s]Nodes  [%s]%s:[%s]Guests  [%s]%s:[%s]Tasks  [%s]%s:[%s]Search  [%s]%s:[%s]Menu  [%s]%s:[%s]Auto-Refresh  [%s]%s:[%s]Help  [%s]%s:[%s]Quit",
+		theme.Colors.Primary, keys.NodesPage, theme.Colors.Secondary,
+		theme.Colors.Primary, keys.GuestsPage, theme.Colors.Secondary,
+		theme.Colors.Primary, keys.TasksPage, theme.Colors.Secondary,
+		theme.Colors.Primary, keys.Search, theme.Colors.Secondary,
+		theme.Colors.Primary, keys.Menu, theme.Colors.Secondary,
+		theme.Colors.Primary, keys.AutoRefresh, theme.Colors.Secondary,
+		theme.Colors.Primary, keys.Help, theme.Colors.Secondary,
+		theme.Colors.Primary, keys.Quit, theme.Colors.Secondary,
 	)
 }
 
@@ -117,18 +127,22 @@ func (f *Footer) updateDisplay() {
 func (f *Footer) updateDisplayWithWidth(width int) {
 	// Build status indicators for the right side
 	var statusParts []string
+
+	// Add VNC session count if any
 	if f.vncSessionCount > 0 {
-		statusParts = append(statusParts, fmt.Sprintf("[green]VNC:[white]%d", f.vncSessionCount))
+		statusParts = append(statusParts, fmt.Sprintf("[%s]VNC:[%s]%d", theme.Colors.Info, theme.Colors.Secondary, f.vncSessionCount))
 	}
+
+	// Add auto-refresh status if active
 	if f.autoRefreshActive {
 		if f.isLoading {
 			spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			spinner := spinners[f.spinnerIndex%len(spinners)]
-			statusParts = append(statusParts, fmt.Sprintf("[cyan]%s Refreshing...[white]", spinner))
+			statusParts = append(statusParts, fmt.Sprintf("[%s]%s Refreshing...[%s]", theme.Colors.Warning, spinner, theme.Colors.Secondary))
 		} else if f.refreshCountdown > 0 {
-			statusParts = append(statusParts, fmt.Sprintf("[cyan]Auto-Refresh:[white]ON ([yellow]%ds[white])", f.refreshCountdown))
+			statusParts = append(statusParts, fmt.Sprintf("[%s]Auto-Refresh:[%s]ON ([%s]%ds[%s])", theme.Colors.Info, theme.Colors.Secondary, theme.Colors.Warning, f.refreshCountdown, theme.Colors.Secondary))
 		} else {
-			statusParts = append(statusParts, "[cyan]Auto-Refresh:[white]ON")
+			statusParts = append(statusParts, fmt.Sprintf("[%s]Auto-Refresh:[%s]ON", theme.Colors.Info, theme.Colors.Secondary))
 		}
 	}
 

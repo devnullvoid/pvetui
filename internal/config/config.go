@@ -111,6 +111,18 @@ type KeyBindings struct {
 	Quit              string `yaml:"quit"`         // Quit application
 }
 
+// ThemeConfig defines theme-related configuration options.
+type ThemeConfig struct {
+	// UseTerminalColors enables/disables terminal emulator color scheme adaptation.
+	// When true (default), the application uses semantic colors that adapt to the
+	// terminal's color scheme. When false, uses fixed ANSI colors.
+	UseTerminalColors bool `yaml:"use_terminal_colors" default:"true"`
+
+	// ColorScheme specifies a predefined color scheme to use.
+	// Options: "auto" (default), "light", "dark"
+	ColorScheme string `yaml:"color_scheme" default:"auto"`
+}
+
 // Config represents the complete application configuration with support for
 // multiple authentication methods and XDG-compliant directory handling.
 //
@@ -145,6 +157,7 @@ type Config struct {
 	Debug       bool        `yaml:"debug"`        // Enable debug logging
 	CacheDir    string      `yaml:"cache_dir"`    // Custom cache directory path
 	KeyBindings KeyBindings `yaml:"key_bindings"` // Customizable key bindings
+	Theme       ThemeConfig `yaml:"theme"`        // Theme configuration
 }
 
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
@@ -690,5 +703,10 @@ func (c *Config) SetDefaults() {
 	}
 	if c.KeyBindings.Quit == "" {
 		c.KeyBindings.Quit = defaults.Quit
+	}
+
+	// Set default theme configuration
+	if c.Theme.ColorScheme == "" {
+		c.Theme.ColorScheme = "auto"
 	}
 }
