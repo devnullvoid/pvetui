@@ -1,6 +1,7 @@
 package components
 
 import (
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -34,9 +35,10 @@ func (cm *ContextMenu) Show() *tview.List {
 	list.ShowSecondaryText(false)
 	list.SetBorder(true)
 	list.SetTitle(cm.title)
+	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
 
 	for i, action := range cm.menuItems {
-		list.AddItem(action, "", rune('a'+i), nil)
+		list.AddItem(action, "", rune('1'+i), nil)
 	}
 
 	list.SetHighlightFullLine(true)

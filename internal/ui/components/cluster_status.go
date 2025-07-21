@@ -28,7 +28,7 @@ func NewClusterStatus() *ClusterStatus {
 	panel := tview.NewFlex()
 	panel.SetDirection(tview.FlexColumn)
 	panel.SetBorder(true)
-	panel.SetTitle("Cluster Status")
+	panel.SetTitle(" Cluster Status ")
 
 	// Create summary table
 	summary := tview.NewTable()

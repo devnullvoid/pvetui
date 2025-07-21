@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
@@ -29,7 +30,8 @@ func NewNodeList() *NodeList {
 	list := tview.NewList()
 	list.ShowSecondaryText(false)
 	list.SetBorder(true)
-	list.SetTitle("Nodes")
+	list.SetTitle(" Nodes ")
+	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
 
 	return &NodeList{
 		List:  list,
