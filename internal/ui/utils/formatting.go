@@ -74,18 +74,16 @@ func FormatBytesFloat(gb float64) string {
 // Uses theme-aware color tags.
 func FormatStatusIndicator(status string) string {
 	status = strings.ToLower(status)
-	var colorTag string
+	var tag string
 	switch status {
 	case "running", "online":
-		colorTag = theme.ColorToTag(theme.Colors.StatusRunning)
-		return fmt.Sprintf("[%s]▲[-] ", colorTag)
+		tag = "[success]▲[-] "
 	case "stopped", "offline":
-		colorTag = theme.ColorToTag(theme.Colors.StatusStopped)
-		return fmt.Sprintf("[%s]▼[-] ", colorTag)
+		tag = "[error]▼[-] "
 	default:
-		colorTag = theme.ColorToTag(theme.Colors.Warning)
-		return fmt.Sprintf("[%s]●[-] ", colorTag)
+		tag = "[warning]●[-] "
 	}
+	return theme.ReplaceSemanticTags(tag)
 }
 
 // FormatPendingStatusIndicator returns a status indicator with pending state visual feedback.
@@ -95,16 +93,16 @@ func FormatPendingStatusIndicator(status string, isPending bool, operation strin
 		return FormatStatusIndicator(status)
 	}
 	status = strings.ToLower(status)
-	var colorTag string
+	var tag string
 	switch status {
 	case "running", "online":
-		colorTag = theme.ColorToTag(theme.Colors.StatusRunning)
+		tag = "[success::d]🗘[-::id] "
 	case "stopped", "offline":
-		colorTag = theme.ColorToTag(theme.Colors.StatusStopped)
+		tag = "[error::d]🗘[-::id] "
 	default:
-		colorTag = theme.ColorToTag(theme.Colors.Warning)
+		tag = "[warning::d]🗘[-::id] "
 	}
-	return fmt.Sprintf("[%s::d]🗘[-::id] ", colorTag)
+	return theme.ReplaceSemanticTags(tag)
 }
 
 // CalculatePercentage safely calculates percentage from used and total values

@@ -59,14 +59,14 @@ func buildHelpText(keys config.KeyBindings) string {
 	items := []struct {
 		Cat, Key, Desc string
 	}{
-		{Cat: fmt.Sprintf("[%s]Navigation[-]", theme.ColorToTag(theme.Colors.Warning))},
+		{Cat: "[warning]Navigation[-]"},
 		{Key: "Arrow Keys / hjkl", Desc: "Navigate lists and panels"},
 		{Key: fmt.Sprintf("%s / %s", keys.SwitchView, keys.SwitchViewReverse), Desc: "Switch between views (forward/reverse)"},
 		{Key: keys.NodesPage, Desc: "Switch to Nodes tab"},
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
 		{Cat: ""}, // Spacer
-		{Cat: fmt.Sprintf("[%s]Actions[-]", theme.ColorToTag(theme.Colors.Warning))},
+		{Cat: "[warning]Actions[-]"},
 		{Key: keys.Search, Desc: "Search/Filter current list"},
 		{Key: keys.Shell, Desc: "Open SSH shell (node/guest)"},
 		{Key: keys.VNC, Desc: "Open VNC console (node/guest)"},
@@ -76,9 +76,9 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},
 		{Key: keys.Quit, Desc: "Quit application"},
 		{Cat: ""},
-		{Cat: fmt.Sprintf("[%s]Tips & Usage[-]", theme.ColorToTag(theme.Colors.Warning))},
-		{Desc: fmt.Sprintf("• Use search ([white]%s[-]) to quickly find nodes or guests.", keys.Search)},
-		{Desc: fmt.Sprintf("• The context menu ([white]%s[-]) provides quick access to actions.", keys.Menu)},
+		{Cat: "[warning]Tips & Usage[-]"},
+		{Desc: fmt.Sprintf("• Use search ([primary]%s[-]) to quickly find nodes or guests.", keys.Search)},
+		{Desc: fmt.Sprintf("• The context menu ([primary]%s[-]) provides quick access to actions.", keys.Menu)},
 		{Desc: "• VNC opens in your default web browser."},
 		{Desc: "• SSH sessions suspend the UI until the session is closed."},
 	}
@@ -100,7 +100,7 @@ func buildHelpText(keys config.KeyBindings) string {
 			builder.WriteString(fmt.Sprintf("%s\n", item.Cat))
 		} else if item.Key != "" {
 			padding := maxKeyWidth - tview.TaggedStringWidth(item.Key)
-			builder.WriteString(fmt.Sprintf("  [white]%-s%s[-]  %s\n", item.Key, strings.Repeat(" ", padding), item.Desc))
+			builder.WriteString(fmt.Sprintf("  [primary]%-s%s[-]  %s\n", item.Key, strings.Repeat(" ", padding), item.Desc))
 		} else if item.Desc != "" {
 			builder.WriteString(fmt.Sprintf("  %s\n", item.Desc))
 		} else {
@@ -110,9 +110,9 @@ func buildHelpText(keys config.KeyBindings) string {
 
 	// Add the final footer text
 	builder.WriteString("\n")
-	builder.WriteString(fmt.Sprintf("[gray]Press [white]%s[-][gray] again, [white]Escape[-][gray], or [white]%s[-][gray] to exit this help[-]", keys.Help, strings.ToLower(keys.Quit)))
+	builder.WriteString(fmt.Sprintf("[info]Press [primary]%s[-][info] again, [primary]Escape[-][info], or [primary]%s[-][info] to exit this help[-]", strings.ToLower(keys.Help), strings.ToLower(keys.Quit)))
 
-	return builder.String()
+	return theme.ReplaceSemanticTags(builder.String())
 }
 
 // SetApp sets the parent app reference

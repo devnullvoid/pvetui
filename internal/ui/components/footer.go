@@ -28,6 +28,7 @@ func NewFooter() *Footer {
 	footer := tview.NewTextView()
 	footer.SetTextAlign(tview.AlignLeft)
 	footer.SetDynamicColors(true)
+	footer.SetBackgroundColor(theme.Colors.Footer)
 
 	// Remove the hardcoded baseText and always use FormatFooterText for the footer text
 	// In the Footer constructor and any other relevant place, set the footer text using FormatFooterText()
@@ -123,7 +124,7 @@ func (f *Footer) updateDisplayWithWidth(width int) {
 
 	// Add VNC session count if any
 	if f.vncSessionCount > 0 {
-		statusParts = append(statusParts, fmt.Sprintf("[%s]VNC:[%s]%d", theme.Colors.Info, theme.Colors.Secondary, f.vncSessionCount))
+		statusParts = append(statusParts, fmt.Sprintf("[info]VNC:[secondary]%d", f.vncSessionCount))
 	}
 
 	// Add auto-refresh status if active
@@ -131,11 +132,11 @@ func (f *Footer) updateDisplayWithWidth(width int) {
 		if f.isLoading {
 			spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			spinner := spinners[f.spinnerIndex%len(spinners)]
-			statusParts = append(statusParts, fmt.Sprintf("[%s]%s Refreshing...[%s]", theme.Colors.Warning, spinner, theme.Colors.Secondary))
+			statusParts = append(statusParts, fmt.Sprintf("[warning]%s Refreshing...[secondary]", spinner))
 		} else if f.refreshCountdown > 0 {
-			statusParts = append(statusParts, fmt.Sprintf("[%s]Auto-Refresh:[%s]ON ([%s]%ds[%s])", theme.Colors.Info, theme.Colors.Secondary, theme.Colors.Warning, f.refreshCountdown, theme.Colors.Secondary))
+			statusParts = append(statusParts, fmt.Sprintf("[info]Auto-Refresh:[secondary]ON ([warning]%ds[secondary])", f.refreshCountdown))
 		} else {
-			statusParts = append(statusParts, fmt.Sprintf("[%s]Auto-Refresh:[%s]ON", theme.Colors.Info, theme.Colors.Secondary))
+			statusParts = append(statusParts, fmt.Sprintf("[info]Auto-Refresh:[secondary]ON"))
 		}
 	}
 

@@ -114,13 +114,13 @@ func (nl *NodeList) SetNodes(nodes []*api.Node) {
 			var mainText string
 			if isPending {
 				// For pending nodes, apply a dimmed effect to the entire item
-				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", node.Name)
+				mainText = statusIndicator + fmt.Sprintf("[secondary]%s[-]", node.Name)
 			} else {
 				// Normal formatting
 				mainText = statusIndicator + node.Name
 			}
 
-			nl.AddItem(mainText, "", 0, nil)
+			nl.AddItem(theme.ReplaceSemanticTags(mainText), "", 0, nil)
 		}
 	}
 }

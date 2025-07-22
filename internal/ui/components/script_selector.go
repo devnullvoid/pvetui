@@ -70,7 +70,8 @@ func (s *ScriptSelector) createLayout() {
 	// Create the category list
 	s.categoryList = tview.NewList().
 		ShowSecondaryText(true).
-		SetHighlightFullLine(true)
+		SetHighlightFullLine(true).
+		SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
 
 	// Add categories to the list
 	for _, category := range s.categories {
@@ -90,7 +91,8 @@ func (s *ScriptSelector) createLayout() {
 	// Create the script list
 	s.scriptList = tview.NewList().
 		ShowSecondaryText(true).
-		SetHighlightFullLine(true)
+		SetHighlightFullLine(true).
+		SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
 
 	// Create search input field
 	s.searchInput = tview.NewInputField().

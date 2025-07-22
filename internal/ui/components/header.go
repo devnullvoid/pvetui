@@ -78,7 +78,7 @@ func (h *Header) IsLoading() bool {
 // ShowSuccess displays a success message temporarily
 func (h *Header) ShowSuccess(message string) {
 	h.StopLoading()
-	h.SetText(fmt.Sprintf("[%s]✓ %s[-]", theme.Colors.Success, message))
+	h.SetText(theme.ReplaceSemanticTags("[success]✓ " + message + "[-]"))
 
 	// Clear the message after 3 seconds
 	h.clearMessageAfterDelay(3 * time.Second)
@@ -87,7 +87,7 @@ func (h *Header) ShowSuccess(message string) {
 // ShowError displays an error message temporarily
 func (h *Header) ShowError(message string) {
 	h.StopLoading()
-	h.SetText(fmt.Sprintf("[%s]✗ %s[-]", theme.Colors.Error, message))
+	h.SetText(theme.ReplaceSemanticTags("[error]✗ " + message + "[-]"))
 
 	// Clear the message after 3 seconds
 	h.clearMessageAfterDelay(3 * time.Second)
@@ -118,7 +118,7 @@ func (h *Header) animateLoading() {
 			if h.app != nil {
 				h.app.QueueUpdateDraw(func() {
 					spinnerChar := spinner[index]
-					h.SetText(fmt.Sprintf("[%s]%s %s[-]", theme.Colors.Info, spinnerChar, h.loadingText))
+					h.SetText(theme.ReplaceSemanticTags(fmt.Sprintf("[info]%s %s[-]", spinnerChar, h.loadingText)))
 				})
 			}
 			index = (index + 1) % len(spinner)

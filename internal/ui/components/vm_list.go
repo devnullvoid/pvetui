@@ -116,11 +116,11 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			var mainText string
 			if isPending {
 				// For pending VMs, apply a dimmed effect to the entire item
-				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", vmText)
+				mainText = statusIndicator + fmt.Sprintf("[secondary]%s[-]", vmText)
 			} else if vm.Status != api.VMStatusRunning {
 				// For stopped VMs, use gray color for the VM text part only
 				// Keep the red status indicator but make the text gray
-				mainText = statusIndicator + fmt.Sprintf("[gray]%s[-]", vmText)
+				mainText = statusIndicator + fmt.Sprintf("[secondary]%s[-]", vmText)
 			} else {
 				// For running VMs, use normal formatting
 				mainText = statusIndicator + vmText
