@@ -133,23 +133,25 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 
 *Customize via `key_bindings` section in config*
 
-## 🎨 Theming
+### Theming
 
-Proxmox TUI automatically adapts to your terminal emulator's color scheme:
+Proxmox TUI supports semantic theming. By default, it adapts to your terminal's color scheme, but you can override any color in your config file.
 
-- **Terminal Themes**: Works with popular themes (Dracula, Nord, Solarized, etc.)
-- **Semantic Colors**: Colors maintain consistent meaning across themes
-- **Zero Configuration**: Works out of the box with most terminal emulators
-- **Customizable**: Configure theme behavior in your config file
+- To use your terminal's palette, set `use_terminal_colors: true` (default).
+- To use custom colors, set `use_terminal_colors: false` and specify overrides in the `colors` map.
+- You can use hex codes, ANSI color names, or the special value `default`.
 
+Example:
 ```yaml
-# ~/.config/proxmox-tui/config.yml
 theme:
-  use_terminal_colors: true  # Adapt to terminal theme (recommended)
-  color_scheme: auto         # auto, light, or dark
+  use_terminal_colors: false
+  colors:
+    primary: "#e0e0e0"
+    background: "default"
+    error: "red"
 ```
 
-See [THEMING.md](./docs/THEMING.md) for detailed theming guide and terminal setup instructions.
+See [docs/THEMING.md](docs/THEMING.md) for the full list of color keys, advanced options, and troubleshooting.
 
 ## 🖥️ VNC Console Access
 

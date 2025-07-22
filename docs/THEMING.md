@@ -1,6 +1,6 @@
 # Theming Guide
 
-Proxmox TUI supports flexible theming through terminal emulator color schemes and application-level configuration.
+Proxmox TUI supports flexible theming through both terminal emulator color schemes and application-level configuration.
 
 ## Overview
 
@@ -11,122 +11,60 @@ The application uses semantic color constants that automatically adapt to your t
 - **Minimal configuration**: Works out of the box with most terminal emulators
 - **Consistent experience**: Same theme across all terminal applications
 
-## Terminal Emulator Theming
+## Application-Level Theming
 
-### Supported Themes
+You can override any semantic color in your config file. This allows for precise control over the UI appearance, regardless of your terminal's palette.
 
-The application works well with popular terminal color schemes:
+### How it works
+- By default, semantic colors (Primary, Success, Warning, etc) use your terminal's ANSI palette.
+- You can override any color by specifying a hex code (e.g. `#1e1e2e`) or an ANSI color name (e.g. `green`, `yellow`).
+- The special color name `default` uses your terminal's default color.
+- If `use_terminal_colors` is `true`, all semantic colors use their ANSI color names and custom hex overrides are ignored.
+- If `use_terminal_colors` is `false`, any color key you set in the config will override the default for that semantic role.
 
-#### Dark Themes
-- **Dracula**: Purple-accented dark theme
-- **Nord**: Arctic-inspired dark theme
-- **Gruvbox**: Retro groove color scheme
-- **Catppuccin**: Soothing pastel dark theme
-- **Tokyo Night**: Elegant dark theme
-- **One Dark**: Atom editor-inspired theme
+### All Themeable Color Keys
+- `primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `info`
+- `background`, `border`, `selection`, `header`, `headertext`, `footer`, `footertext`
+- `title`, `contrast`, `morecontrast`, `inverse`
+- `statusrunning`, `statusstopped`, `statuspending`, `statuserror`
+- `usagelow`, `usagemedium`, `usagehigh`, `usagecritical`
 
-#### Light Themes
-- **Solarized Light**: Carefully designed light palette
-- **Gruvbox Light**: Light version of the retro theme
-- **Catppuccin Latte**: Light pastel theme
-
-#### High Contrast
-- **High Contrast**: Accessibility-focused themes
-- **Monokai**: Bold, high-contrast colors
-
-### Setting Up Terminal Themes
-
-#### Alacritty
+### Example config
 ```yaml
-# ~/.config/alacritty/alacritty.yml
-colors:
-  primary:
-    background: '#282a36'
-    foreground: '#f8f8f2'
-  normal:
-    black:   '#000000'
-    red:     '#ff5555'
-    green:   '#50fa7b'
-    yellow:  '#f1fa8c'
-    blue:    '#bd93f9'
-    magenta: '#ff79c6'
-    cyan:    '#8be9fd'
-    white:   '#bfbfbf'
-  bright:
-    black:   '#4d4d4d'
-    red:     '#ff6e67'
-    green:   '#5af78e'
-    yellow:  '#f4f99d'
-    blue:    '#caa9fa'
-    magenta: '#ff92d0'
-    cyan:    '#9aedfe'
-    white:   '#e6e6e6'
-```
-
-#### Kitty
-```conf
-# ~/.config/kitty/kitty.conf
-background #282a36
-foreground #f8f8f2
-color0  #000000
-color1  #ff5555
-color2  #50fa7b
-color3  #f1fa8c
-color4  #bd93f9
-color5  #ff79c6
-color6  #8be9fd
-color7  #bfbfbf
-color8  #4d4d4d
-color9  #ff6e67
-color10 #5af78e
-color11 #f4f99d
-color12 #caa9fa
-color13 #ff92d0
-color14 #9aedfe
-color15 #e6e6e6
-```
-
-#### iTerm2
-1. Download theme files from [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes)
-2. Import via Preferences → Profiles → Colors → Color Presets
-3. Select your preferred theme
-
-#### WezTerm
-```toml
-# ~/.config/wezterm/wezterm.lua
-local config = {}
-
-config.color_scheme = "Dracula"
-
-return config
-```
-
-## Application Configuration
-
-### Theme Settings
-
-The application supports theme configuration through the config file:
-
-```yaml
-# ~/.config/proxmox-tui/config.yml
 theme:
-  # Enable terminal emulator color scheme adaptation (recommended)
-  use_terminal_colors: true
-
-  # Color scheme: "auto" (default), "light", "dark"
-  color_scheme: auto
+  use_terminal_colors: false
+  color_scheme: default
+  colors:
+    primary: "#e0e0e0"
+    secondary: "gray"
+    tertiary: "aqua"
+    success: "green"
+    warning: "yellow"
+    error: "red"
+    info: "blue"
+    background: "default"
+    border: "gray"
+    selection: "blue"
+    header: "navy"
+    headertext: "yellow"
+    footer: "black"
+    footertext: "white"
+    title: "white"
+    contrast: "blue"
+    morecontrast: "fuchsia"
+    inverse: "black"
+    statusrunning: "green"
+    statusstopped: "maroon"
+    statuspending: "yellow"
+    statuserror: "red"
+    usagelow: "green"
+    usagemedium: "yellow"
+    usagehigh: "red"
+    usagecritical: "fuchsia"
 ```
 
-### Configuration Options
-
-#### `use_terminal_colors`
-- **`true`** (default): Use semantic colors that adapt to terminal theme
-- **`false`**: Use fixed ANSI colors regardless of terminal theme
-
-#### `color_scheme`
-- **`auto`** (default): Automatically detect light/dark theme
-- **`light`**: Force light theme colors
-- **`dark`**: Force dark theme colors
+- Any omitted color key will use the built-in default for that semantic role.
+- You can use any valid tcell color name or hex code.
 
 ## Color Semantics
 
