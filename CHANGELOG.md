@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Documentation**: Comprehensive theming guide with setup instructions for popular terminal emulators
   - **Zero Configuration**: Works out of the box with most terminal emulators while maintaining semantic consistency
 - **Display Node Storage Pools**: Added node storage pools to node details panel
-- Added comprehensive custom theming support:
+- **Added comprehensive custom theming support**:
   - Users can override all semantic UI colors via the config file (`theme.colors`).
   - Supports hex codes, ANSI color names, and the special value `default`.
   - All themeable color keys are documented in docs/THEMING.md.

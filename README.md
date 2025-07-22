@@ -137,14 +137,13 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 
 Proxmox TUI supports semantic theming. By default, it adapts to your terminal's color scheme, but you can override any color in your config file.
 
-- To use your terminal's palette, set `use_terminal_colors: true` (default).
-- To use custom colors, set `use_terminal_colors: false` and specify overrides in the `colors` map.
-- You can use hex codes, ANSI color names, or the special value `default`.
+- You can use any tcell-supported color value: ANSI color names (e.g., "green"), W3C color names (e.g., "mediumseagreen"), or hex codes (e.g., "#008000").
+- The special value `default` uses your terminal's default color.
+- Any omitted color key will use the built-in default for that semantic role.
 
 Example:
 ```yaml
 theme:
-  use_terminal_colors: false
   colors:
     primary: "#e0e0e0"
     background: "default"

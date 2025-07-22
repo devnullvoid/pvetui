@@ -241,14 +241,9 @@ func ApplyToTview() {
 }
 
 // ApplyCustomTheme applies user config to override theme defaults.
-// Call this after loading config, before ApplyToTview().
-// If UseTerminalColors is true, custom colors are ignored and ANSI defaults are used.
+// Users can specify any tcell-supported color value (ANSI name, W3C name, or hex code) for each theme element.
 func ApplyCustomTheme(cfg *config.ThemeConfig) {
 	if cfg == nil {
-		return
-	}
-	if cfg.UseTerminalColors {
-		// Use ANSI defaults (already set in Colors)
 		return
 	}
 	for key, val := range cfg.Colors {
@@ -310,16 +305,10 @@ func ApplyCustomTheme(cfg *config.ThemeConfig) {
 	}
 }
 
-// parseColor parses a color string (hex, ANSI name, or "default") to tcell.Color
+// parseColor parses a color string (ANSI name, W3C name, or hex code) to tcell.Color.
 func parseColor(s string) tcell.Color {
 	if strings.EqualFold(s, "default") {
 		return tcell.ColorDefault
-	}
-	if strings.HasPrefix(s, "#") {
-		return tcell.GetColor(s)
-	}
-	if c, ok := tcell.ColorNames[strings.ToLower(s)]; ok {
-		return c
 	}
 	return tcell.GetColor(s)
 }

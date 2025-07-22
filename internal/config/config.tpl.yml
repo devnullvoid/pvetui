@@ -30,10 +30,7 @@ key_bindings:
 
 # Theme configuration
 theme:
-  # Enable terminal emulator color scheme adaptation (recommended)
-  use_terminal_colors: true
-  # Color scheme: "default", "light", "dark"
-  color_scheme: default
+  # Users can use any tcell-supported color value (ANSI name, W3C name, or hex code) for each theme color below.
   colors:
     primary: "white"
     secondary: "gray"

@@ -17,10 +17,9 @@ You can override any semantic color in your config file. This allows for precise
 
 ### How it works
 - By default, semantic colors (Primary, Success, Warning, etc) use your terminal's ANSI palette.
-- You can override any color by specifying a hex code (e.g. `#1e1e2e`) or an ANSI color name (e.g. `green`, `yellow`).
+- You can override any color by specifying a hex code (e.g. `#1e1e2e`), an ANSI color name (e.g. `green`, `yellow`), or a W3C color name (e.g. `mediumseagreen`).
 - The special color name `default` uses your terminal's default color.
-- If `use_terminal_colors` is `true`, all semantic colors use their ANSI color names and custom hex overrides are ignored.
-- If `use_terminal_colors` is `false`, any color key you set in the config will override the default for that semantic role.
+- Any omitted color key will use the built-in default for that semantic role.
 
 ### All Themeable Color Keys
 - `primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `info`
@@ -32,8 +31,6 @@ You can override any semantic color in your config file. This allows for precise
 ### Example config
 ```yaml
 theme:
-  use_terminal_colors: false
-  color_scheme: default
   colors:
     primary: "#e0e0e0"
     secondary: "gray"
@@ -93,7 +90,7 @@ The application uses semantic color constants that maintain consistent meaning a
 ### Colors Not Adapting to Terminal Theme
 
 1. **Check terminal emulator settings**: Ensure your terminal is using the correct color scheme
-2. **Verify configuration**: Check that `use_terminal_colors: true` in your config
+2. **Verify configuration**: Check your theme color overrides in the config
 3. **Restart application**: Some changes require a full restart
 4. **Check TERM variable**: Ensure `TERM` is set correctly (e.g., `xterm-256color`)
 
@@ -102,13 +99,12 @@ The application uses semantic color constants that maintain consistent meaning a
 1. **Try different themes**: Some themes work better than others
 2. **Adjust terminal colors**: Modify your terminal's color scheme
 3. **Use high contrast themes**: Themes designed for accessibility often work well
-4. **Check color scheme setting**: Try forcing `light` or `dark` in config
 
 ### Specific Color Issues
 
 If certain colors appear wrong or are hard to read:
 
-1. **Check terminal color support**: Ensure your terminal supports 256 colors
+1. **Check terminal color support**: Ensure your terminal supports 256 colors or truecolor
 2. **Verify theme compatibility**: Some themes may not work well with TUI applications
 3. **Report issues**: Open an issue with your terminal emulator and theme details
 
@@ -116,7 +112,7 @@ If certain colors appear wrong or are hard to read:
 
 ### Custom Color Schemes
 
-For advanced users, you can create custom color schemes by modifying your terminal emulator's color palette. The application will automatically adapt to your custom colors.
+For advanced users, you can create custom color schemes by modifying your terminal emulator's color palette. The application will automatically adapt to your custom colors unless you override them in the config.
 
 ### Environment Variables
 

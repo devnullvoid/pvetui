@@ -150,15 +150,9 @@ type KeyBindings struct {
 
 // ThemeConfig defines theme-related configuration options.
 type ThemeConfig struct {
-	// UseTerminalColors enables/disables terminal emulator color scheme adaptation.
-	// When true (default), the application uses semantic colors that adapt to the
-	// terminal's color scheme. When false, uses fixed ANSI colors.
-	UseTerminalColors bool `yaml:"use_terminal_colors" default:"true"`
-
-	// ColorScheme specifies a predefined color scheme to use.
-	// Options: "default", "light", "dark"
-	ColorScheme string            `yaml:"color_scheme" default:"default"`
-	Colors      map[string]string `yaml:"colors"`
+	// Colors specifies the color overrides for theme elements.
+	// Users can use any tcell-supported color value (ANSI name, W3C name, or hex code).
+	Colors map[string]string `yaml:"colors"`
 }
 
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
@@ -495,9 +489,7 @@ func (c *Config) MergeWithFile(path string) error {
 			Quit              string `yaml:"quit"`
 		} `yaml:"key_bindings"`
 		Theme struct {
-			UseTerminalColors bool              `yaml:"use_terminal_colors" default:"true"`
-			ColorScheme       string            `yaml:"color_scheme" default:"auto"`
-			Colors            map[string]string `yaml:"colors"`
+			Colors map[string]string `yaml:"colors"`
 		} `yaml:"theme"`
 	}
 
@@ -601,15 +593,9 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	// Merge theme configuration if provided
-	c.Theme.UseTerminalColors = fileConfig.Theme.UseTerminalColors
-	if fileConfig.Theme.ColorScheme != "" {
-		c.Theme.ColorScheme = fileConfig.Theme.ColorScheme
-	}
-	if fileConfig.Theme.Colors != nil {
-		c.Theme.Colors = make(map[string]string)
-		for k, v := range fileConfig.Theme.Colors {
-			c.Theme.Colors[k] = v
-		}
+	c.Theme.Colors = make(map[string]string)
+	for k, v := range fileConfig.Theme.Colors {
+		c.Theme.Colors[k] = v
 	}
 
 	return nil
@@ -724,13 +710,7 @@ func (c *Config) SetDefaults() {
 	}
 
 	// Set default theme configuration only if not already set
-	if c.Theme.ColorScheme == "" {
-		c.Theme.ColorScheme = "default"
-	}
-	// Only set UseTerminalColors if not set (default true)
-	// Go bool zero value is false, so only set if false and not set by config
-	// But if config file sets it to false, we must respect that, so skip this line
-	if c.Theme.UseTerminalColors || c.Theme.Colors == nil {
+	if c.Theme.Colors == nil {
 		c.Theme.Colors = make(map[string]string)
 	}
 }
