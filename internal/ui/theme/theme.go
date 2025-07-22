@@ -37,6 +37,7 @@ package theme
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -108,14 +109,39 @@ var Colors = struct {
 	Inverse:      tcell.ColorBlack,
 
 	StatusRunning: tcell.ColorGreen,
-	StatusStopped: tcell.ColorRed,
+	StatusStopped: tcell.ColorMaroon,
 	StatusPending: tcell.ColorYellow,
 	StatusError:   tcell.ColorRed,
 
 	UsageLow:      tcell.ColorGreen,
 	UsageMedium:   tcell.ColorYellow,
 	UsageHigh:     tcell.ColorRed,
-	UsageCritical: tcell.ColorRed,
+	UsageCritical: tcell.ColorFuchsia,
+}
+
+// Only expose semantic tags that map directly to user-themeable colors
+var semanticTagMap = map[string]func() tcell.Color{
+	"primary":   func() tcell.Color { return Colors.Primary },
+	"secondary": func() tcell.Color { return Colors.Secondary },
+	"tertiary":  func() tcell.Color { return Colors.Tertiary },
+	"success":   func() tcell.Color { return Colors.Success },
+	"warning":   func() tcell.Color { return Colors.Warning },
+	"error":     func() tcell.Color { return Colors.Error },
+	"info":      func() tcell.Color { return Colors.Info },
+	"selection": func() tcell.Color { return Colors.Selection },
+	"header":    func() tcell.Color { return Colors.HeaderText },
+	"footer":    func() tcell.Color { return Colors.FooterText },
+	"title":     func() tcell.Color { return Colors.Title },
+}
+
+// ReplaceSemanticTags replaces semantic tags like [primary] with the current theme color tag.
+func ReplaceSemanticTags(s string) string {
+	for tag, colorFunc := range semanticTagMap {
+		color := colorFunc()
+		colorTag := ColorToTag(color)
+		s = strings.ReplaceAll(s, "["+tag+"]", "["+colorTag+"]")
+	}
+	return s
 }
 
 // GetStatusColor returns the appropriate color for a given status.
@@ -159,24 +185,36 @@ func ColorToTag(c tcell.Color) string {
 	switch c {
 	case tcell.ColorBlack:
 		return "black"
-	case tcell.ColorRed:
-		return "red"
+	case tcell.ColorMaroon:
+		return "maroon"
 	case tcell.ColorGreen:
 		return "green"
-	case tcell.ColorYellow:
-		return "yellow"
-	case tcell.ColorBlue:
-		return "blue"
+	case tcell.ColorOlive:
+		return "olive"
+	case tcell.ColorNavy:
+		return "navy"
 	case tcell.ColorPurple:
 		return "purple"
 	case tcell.ColorTeal:
 		return "teal"
-	case tcell.ColorWhite:
-		return "white"
+	case tcell.ColorSilver:
+		return "silver"
 	case tcell.ColorGray:
 		return "gray"
-	case tcell.ColorLightBlue:
+	case tcell.ColorRed:
+		return "red"
+	case tcell.ColorLime:
+		return "lime"
+	case tcell.ColorYellow:
+		return "yellow"
+	case tcell.ColorBlue:
+		return "blue"
+	case tcell.ColorFuchsia:
+		return "fuchsia"
+	case tcell.ColorAqua:
 		return "aqua"
+	case tcell.ColorWhite:
+		return "white"
 	default:
 		return fmt.Sprintf("#%06x", c.Hex())
 	}
