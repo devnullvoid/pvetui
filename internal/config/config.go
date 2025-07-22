@@ -91,39 +91,6 @@ var templateFS embed.FS
 // components to determine whether to emit debug-level log messages.
 var DebugEnabled bool
 
-// KeyBindings defines customizable key mappings for common actions.
-// Each field represents a single keyboard key that triggers the action.
-// Only single characters and function keys (e.g. "F1") are supported.
-type KeyBindings struct {
-	SwitchView        string `yaml:"switch_view"` // Switch between pages
-	SwitchViewReverse string `yaml:"switch_view_reverse"`
-	NodesPage         string `yaml:"nodes_page"`   // Jump to Nodes page
-	GuestsPage        string `yaml:"guests_page"`  // Jump to Guests page
-	TasksPage         string `yaml:"tasks_page"`   // Jump to Tasks page
-	Menu              string `yaml:"menu"`         // Open context menu
-	Shell             string `yaml:"shell"`        // Open shell session
-	VNC               string `yaml:"vnc"`          // Open VNC console
-	Scripts           string `yaml:"scripts"`      // Install community scripts
-	Refresh           string `yaml:"refresh"`      // Manual refresh
-	AutoRefresh       string `yaml:"auto_refresh"` // Toggle auto-refresh
-	Search            string `yaml:"search"`       // Activate search
-	Help              string `yaml:"help"`         // Toggle help modal
-	Quit              string `yaml:"quit"`         // Quit application
-}
-
-// ThemeConfig defines theme-related configuration options.
-type ThemeConfig struct {
-	// UseTerminalColors enables/disables terminal emulator color scheme adaptation.
-	// When true (default), the application uses semantic colors that adapt to the
-	// terminal's color scheme. When false, uses fixed ANSI colors.
-	UseTerminalColors bool `yaml:"use_terminal_colors" default:"true"`
-
-	// ColorScheme specifies a predefined color scheme to use.
-	// Options: "auto" (default), "light", "dark"
-	ColorScheme string            `yaml:"color_scheme" default:"auto"`
-	Colors      map[string]string `yaml:"colors"`
-}
-
 // Config represents the complete application configuration with support for
 // multiple authentication methods and XDG-compliant directory handling.
 //
@@ -159,6 +126,39 @@ type Config struct {
 	CacheDir    string      `yaml:"cache_dir"`    // Custom cache directory path
 	KeyBindings KeyBindings `yaml:"key_bindings"` // Customizable key bindings
 	Theme       ThemeConfig `yaml:"theme"`        // Theme configuration
+}
+
+// KeyBindings defines customizable key mappings for common actions.
+// Each field represents a single keyboard key that triggers the action.
+// Only single characters and function keys (e.g. "F1") are supported.
+type KeyBindings struct {
+	SwitchView        string `yaml:"switch_view"` // Switch between pages
+	SwitchViewReverse string `yaml:"switch_view_reverse"`
+	NodesPage         string `yaml:"nodes_page"`   // Jump to Nodes page
+	GuestsPage        string `yaml:"guests_page"`  // Jump to Guests page
+	TasksPage         string `yaml:"tasks_page"`   // Jump to Tasks page
+	Menu              string `yaml:"menu"`         // Open context menu
+	Shell             string `yaml:"shell"`        // Open shell session
+	VNC               string `yaml:"vnc"`          // Open VNC console
+	Scripts           string `yaml:"scripts"`      // Install community scripts
+	Refresh           string `yaml:"refresh"`      // Manual refresh
+	AutoRefresh       string `yaml:"auto_refresh"` // Toggle auto-refresh
+	Search            string `yaml:"search"`       // Activate search
+	Help              string `yaml:"help"`         // Toggle help modal
+	Quit              string `yaml:"quit"`         // Quit application
+}
+
+// ThemeConfig defines theme-related configuration options.
+type ThemeConfig struct {
+	// UseTerminalColors enables/disables terminal emulator color scheme adaptation.
+	// When true (default), the application uses semantic colors that adapt to the
+	// terminal's color scheme. When false, uses fixed ANSI colors.
+	UseTerminalColors bool `yaml:"use_terminal_colors" default:"true"`
+
+	// ColorScheme specifies a predefined color scheme to use.
+	// Options: "default", "light", "dark"
+	ColorScheme string            `yaml:"color_scheme" default:"default"`
+	Colors      map[string]string `yaml:"colors"`
 }
 
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
@@ -462,7 +462,7 @@ func (c *Config) MergeWithFile(path string) error {
 			return derr
 		}
 		data = decrypted
-		log.Printf("Decrypted SOPS config file: %s", path)
+		fmt.Printf("🔐 Decrypted SOPS config file: %s\n", path)
 	}
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values
@@ -723,8 +723,14 @@ func (c *Config) SetDefaults() {
 		c.KeyBindings.Quit = defaults.Quit
 	}
 
-	// Set default theme configuration
-	c.Theme.UseTerminalColors = true
-	c.Theme.ColorScheme = "auto"
-	c.Theme.Colors = make(map[string]string)
+	// Set default theme configuration only if not already set
+	if c.Theme.ColorScheme == "" {
+		c.Theme.ColorScheme = "default"
+	}
+	// Only set UseTerminalColors if not set (default true)
+	// Go bool zero value is false, so only set if false and not set by config
+	// But if config file sets it to false, we must respect that, so skip this line
+	if c.Theme.UseTerminalColors || c.Theme.Colors == nil {
+		c.Theme.Colors = make(map[string]string)
+	}
 }

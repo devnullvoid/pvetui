@@ -184,6 +184,8 @@ func IsDarkTheme() bool {
 // ColorToTag returns a tview color tag string for a tcell.Color
 func ColorToTag(c tcell.Color) string {
 	switch c {
+	case tcell.ColorDefault:
+		return "default"
 	case tcell.ColorBlack:
 		return "black"
 	case tcell.ColorMaroon:
@@ -308,8 +310,11 @@ func ApplyCustomTheme(cfg *config.ThemeConfig) {
 	}
 }
 
-// parseColor parses a color string (hex or ANSI name) to tcell.Color
+// parseColor parses a color string (hex, ANSI name, or "default") to tcell.Color
 func parseColor(s string) tcell.Color {
+	if strings.EqualFold(s, "default") {
+		return tcell.ColorDefault
+	}
 	if strings.HasPrefix(s, "#") {
 		return tcell.GetColor(s)
 	}
