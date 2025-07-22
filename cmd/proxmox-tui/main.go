@@ -90,6 +90,7 @@ func main() {
 	}
 
 	// Apply theme to tview global styles
+	theme.ApplyCustomTheme(&cfg.Theme)
 	theme.ApplyToTview()
 
 	if err := app.RunWithStartupVerification(cfg, app.Options{NoCache: *noCacheFlag}); err != nil {

@@ -39,6 +39,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -235,4 +236,85 @@ func ApplyToTview() {
 		InverseTextColor:            Colors.Inverse,
 		ContrastSecondaryTextColor:  Colors.Selection,
 	}
+}
+
+// ApplyCustomTheme applies user config to override theme defaults.
+// Call this after loading config, before ApplyToTview().
+// If UseTerminalColors is true, custom colors are ignored and ANSI defaults are used.
+func ApplyCustomTheme(cfg *config.ThemeConfig) {
+	if cfg == nil {
+		return
+	}
+	if cfg.UseTerminalColors {
+		// Use ANSI defaults (already set in Colors)
+		return
+	}
+	for key, val := range cfg.Colors {
+		c := parseColor(val)
+		switch key {
+		case "primary":
+			Colors.Primary = c
+		case "secondary":
+			Colors.Secondary = c
+		case "tertiary":
+			Colors.Tertiary = c
+		case "success":
+			Colors.Success = c
+		case "warning":
+			Colors.Warning = c
+		case "error":
+			Colors.Error = c
+		case "info":
+			Colors.Info = c
+		case "background":
+			Colors.Background = c
+		case "border":
+			Colors.Border = c
+		case "selection":
+			Colors.Selection = c
+		case "header":
+			Colors.Header = c
+		case "headertext":
+			Colors.HeaderText = c
+		case "footer":
+			Colors.Footer = c
+		case "footertext":
+			Colors.FooterText = c
+		case "title":
+			Colors.Title = c
+		case "contrast":
+			Colors.Contrast = c
+		case "morecontrast":
+			Colors.MoreContrast = c
+		case "inverse":
+			Colors.Inverse = c
+		case "statusrunning":
+			Colors.StatusRunning = c
+		case "statusstopped":
+			Colors.StatusStopped = c
+		case "statuspending":
+			Colors.StatusPending = c
+		case "statuserror":
+			Colors.StatusError = c
+		case "usagelow":
+			Colors.UsageLow = c
+		case "usagemedium":
+			Colors.UsageMedium = c
+		case "usagehigh":
+			Colors.UsageHigh = c
+		case "usagecritical":
+			Colors.UsageCritical = c
+		}
+	}
+}
+
+// parseColor parses a color string (hex or ANSI name) to tcell.Color
+func parseColor(s string) tcell.Color {
+	if strings.HasPrefix(s, "#") {
+		return tcell.GetColor(s)
+	}
+	if c, ok := tcell.ColorNames[strings.ToLower(s)]; ok {
+		return c
+	}
+	return tcell.GetColor(s)
 }

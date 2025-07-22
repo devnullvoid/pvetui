@@ -120,7 +120,8 @@ type ThemeConfig struct {
 
 	// ColorScheme specifies a predefined color scheme to use.
 	// Options: "auto" (default), "light", "dark"
-	ColorScheme string `yaml:"color_scheme" default:"auto"`
+	ColorScheme string            `yaml:"color_scheme" default:"auto"`
+	Colors      map[string]string `yaml:"colors"`
 }
 
 // Config represents the complete application configuration with support for
@@ -493,6 +494,11 @@ func (c *Config) MergeWithFile(path string) error {
 			Help              string `yaml:"help"`
 			Quit              string `yaml:"quit"`
 		} `yaml:"key_bindings"`
+		Theme struct {
+			UseTerminalColors bool              `yaml:"use_terminal_colors" default:"true"`
+			ColorScheme       string            `yaml:"color_scheme" default:"auto"`
+			Colors            map[string]string `yaml:"colors"`
+		} `yaml:"theme"`
 	}
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
@@ -591,6 +597,18 @@ func (c *Config) MergeWithFile(path string) error {
 		}
 		if kb.Quit != "" {
 			c.KeyBindings.Quit = kb.Quit
+		}
+	}
+
+	// Merge theme configuration if provided
+	c.Theme.UseTerminalColors = fileConfig.Theme.UseTerminalColors
+	if fileConfig.Theme.ColorScheme != "" {
+		c.Theme.ColorScheme = fileConfig.Theme.ColorScheme
+	}
+	if fileConfig.Theme.Colors != nil {
+		c.Theme.Colors = make(map[string]string)
+		for k, v := range fileConfig.Theme.Colors {
+			c.Theme.Colors[k] = v
 		}
 	}
 
@@ -706,7 +724,7 @@ func (c *Config) SetDefaults() {
 	}
 
 	// Set default theme configuration
-	if c.Theme.ColorScheme == "" {
-		c.Theme.ColorScheme = "auto"
-	}
+	c.Theme.UseTerminalColors = true
+	c.Theme.ColorScheme = "auto"
+	c.Theme.Colors = make(map[string]string)
 }
