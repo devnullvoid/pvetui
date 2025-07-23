@@ -60,6 +60,40 @@ theme:
     usagecritical: "fuchsia"
 ```
 
+### Catppuccin Mocha Example
+A theme inspired by the [Catppuccin Mocha palette](https://github.com/catppuccin/catppuccin#-palette):
+
+```yaml
+theme:
+  colors:
+    primary:      "#cdd6f4"  # Text
+    secondary:    "#bac2de"  # Subtle text
+    tertiary:     "#a6adc8"  # Even more subtle
+    success:      "#a6e3a1"  # Green
+    warning:      "#f9e2af"  # Yellow
+    error:        "#f38ba8"  # Red
+    info:         "#89b4fa"  # Blue
+    background:   "#1e1e2e"  # Main background
+    border:       "#45475a"  # Borders
+    selection:    "#585b70"  # Selection highlight
+    header:       "#313244"  # Header background
+    headertext:   "#f5e0dc"  # Header text
+    footer:       "#313244"  # Footer background
+    footertext:   "#cdd6f4"  # Footer text
+    title:        "#b4befe"  # Titles
+    contrast:     "#313244"  # Contrast background
+    morecontrast: "#181825"  # Even more contrast
+    inverse:      "#1e1e2e"  # Inverse text
+    statusrunning: "#a6e3a1" # Green
+    statusstopped: "#f38ba8" # Red
+    statuspending: "#f9e2af" # Yellow
+    statuserror:   "#f38ba8" # Red
+    usagelow:      "#a6e3a1" # Green
+    usagemedium:   "#f9e2af" # Yellow
+    usagehigh:     "#fab387" # Peach
+    usagecritical: "#f38ba8" # Red
+```
+
 - Any omitted color key will use the built-in default for that semantic role.
 - You can use any valid tcell color name or hex code.
 

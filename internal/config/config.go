@@ -150,6 +150,9 @@ type KeyBindings struct {
 
 // ThemeConfig defines theme-related configuration options.
 type ThemeConfig struct {
+	// Name specifies the built-in theme to use as a base (e.g., "default", "catppuccin-mocha").
+	// If empty, defaults to "default".
+	Name string `yaml:"name"`
 	// Colors specifies the color overrides for theme elements.
 	// Users can use any tcell-supported color value (ANSI name, W3C name, or hex code).
 	Colors map[string]string `yaml:"colors"`
@@ -489,6 +492,7 @@ func (c *Config) MergeWithFile(path string) error {
 			Quit              string `yaml:"quit"`
 		} `yaml:"key_bindings"`
 		Theme struct {
+			Name   string            `yaml:"name"`
 			Colors map[string]string `yaml:"colors"`
 		} `yaml:"theme"`
 	}
@@ -593,6 +597,7 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	// Merge theme configuration if provided
+	c.Theme.Name = fileConfig.Theme.Name
 	c.Theme.Colors = make(map[string]string)
 	for k, v := range fileConfig.Theme.Colors {
 		c.Theme.Colors[k] = v

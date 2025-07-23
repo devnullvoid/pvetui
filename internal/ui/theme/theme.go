@@ -240,13 +240,92 @@ func ApplyToTview() {
 	}
 }
 
-// ApplyCustomTheme applies user config to override theme defaults.
-// Users can specify any tcell-supported color value (ANSI name, W3C name, or hex code) for each theme element.
-func ApplyCustomTheme(cfg *config.ThemeConfig) {
-	if cfg == nil {
-		return
+// BuiltInThemes defines the available built-in themes.
+var BuiltInThemes = map[string]map[string]string{
+	"default": {
+		"primary":       "white",
+		"secondary":     "gray",
+		"tertiary":      "aqua",
+		"success":       "green",
+		"warning":       "yellow",
+		"error":         "red",
+		"info":          "blue",
+		"background":    "default",
+		"border":        "gray",
+		"selection":     "blue",
+		"header":        "navy",
+		"headertext":    "yellow",
+		"footer":        "default",
+		"footertext":    "white",
+		"title":         "white",
+		"contrast":      "blue",
+		"morecontrast":  "fuchsia",
+		"inverse":       "black",
+		"statusrunning": "green",
+		"statusstopped": "maroon",
+		"statuspending": "yellow",
+		"statuserror":   "red",
+		"usagelow":      "green",
+		"usagemedium":   "yellow",
+		"usagehigh":     "red",
+		"usagecritical": "fuchsia",
+	},
+	"catppuccin-mocha": {
+		"primary":       "#cdd6f4",
+		"secondary":     "#bac2de",
+		"tertiary":      "#a6adc8",
+		"success":       "#a6e3a1",
+		"warning":       "#f9e2af",
+		"error":         "#f38ba8",
+		"info":          "#89b4fa",
+		"background":    "#1e1e2e",
+		"border":        "#45475a",
+		"selection":     "#585b70",
+		"header":        "#313244",
+		"headertext":    "#f5e0dc",
+		"footer":        "#313244",
+		"footertext":    "#cdd6f4",
+		"title":         "#b4befe",
+		"contrast":      "#313244",
+		"morecontrast":  "#181825",
+		"inverse":       "#1e1e2e",
+		"statusrunning": "#a6e3a1",
+		"statusstopped": "#f38ba8",
+		"statuspending": "#f9e2af",
+		"statuserror":   "#f38ba8",
+		"usagelow":      "#a6e3a1",
+		"usagemedium":   "#f9e2af",
+		"usagehigh":     "#fab387",
+		"usagecritical": "#f38ba8",
+	},
+}
+
+// ResolveTheme merges the selected built-in theme with user overrides.
+func ResolveTheme(cfg *config.ThemeConfig) map[string]string {
+	base := BuiltInThemes["default"]
+	if cfg != nil && cfg.Name != "" {
+		if t, ok := BuiltInThemes[cfg.Name]; ok {
+			base = t
+		}
 	}
-	for key, val := range cfg.Colors {
+	// Copy base to avoid mutation
+	resolved := make(map[string]string)
+	for k, v := range base {
+		resolved[k] = v
+	}
+	if cfg != nil {
+		for k, v := range cfg.Colors {
+			resolved[k] = v
+		}
+	}
+	return resolved
+}
+
+// ApplyCustomTheme applies the resolved theme to the Colors struct.
+// Users can select a built-in theme by name and override any color.
+func ApplyCustomTheme(cfg *config.ThemeConfig) {
+	resolved := ResolveTheme(cfg)
+	for key, val := range resolved {
 		c := parseColor(val)
 		switch key {
 		case "primary":

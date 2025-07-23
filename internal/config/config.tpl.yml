@@ -30,7 +30,9 @@ key_bindings:
 
 # Theme configuration
 theme:
-  # Users can use any tcell-supported color value (ANSI name, W3C name, or hex code) for each theme color below.
+  # Optionally set a built-in theme by name (e.g., "catppuccin-mocha").
+  # name: "catppuccin-mocha"
+  # You can override any color from the built-in theme below.
   colors:
     primary: "white"
     secondary: "gray"
