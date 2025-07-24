@@ -1,16 +1,16 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/app"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/rivo/tview"
 )
 
 var (
@@ -26,6 +26,7 @@ func main() {
 	configPath := flag.String("config", "", "Path to YAML config file")
 	noCacheFlag := flag.Bool("no-cache", false, "Disable caching")
 	versionFlag := flag.Bool("version", false, "Show version information")
+	configWizardFlag := flag.Bool("config-wizard", false, "Launch interactive config wizard and exit")
 	flag.Parse()
 
 	if *versionFlag {
@@ -42,39 +43,59 @@ func main() {
 		}
 	}
 
+	// Pre-fill cfg from config file if present
 	if *configPath != "" {
-		if err := cfg.MergeWithFile(*configPath); err != nil {
-			log.Fatalf("error loading config file %s: %v", *configPath, err)
+		_ = cfg.MergeWithFile(*configPath) // ignore error, just pre-fill what we can
+	}
+
+	// If --config-wizard is set, launch the wizard and exit
+	if *configWizardFlag {
+		app := tview.NewApplication()
+		result := make(chan bool, 1) // true=saved, false=cancelled
+		wizard := components.NewConfigWizardPage(app, cfg, *configPath, func(c *config.Config) error {
+			err := components.SaveConfigToFile(c, *configPath)
+			if err == nil {
+				result <- true
+			} else {
+				result <- false
+			}
+			return err
+		}, func() {
+			result <- false
+			app.Stop()
+		})
+		app.SetRoot(wizard, true)
+		_ = app.Run()
+		if <-result {
+			fmt.Println("Configuration saved. Exiting.")
 		}
+		os.Exit(0)
 	}
 
 	cfg.SetDefaults()
 	config.DebugEnabled = cfg.Debug
 
 	if err := cfg.Validate(); err != nil {
-		fmt.Println("🔧 Configuration Setup Required")
-		fmt.Println()
-		fmt.Printf("It looks like this is your first time running proxmox-tui, or your configuration needs attention.\n")
-		fmt.Printf("Missing: %v\n", err)
-		fmt.Println()
-		fmt.Printf("Would you like to create a default configuration file at '%s'? [Y/n] ", config.GetDefaultConfigPath())
-
-		reader := bufio.NewReader(os.Stdin)
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(strings.ToLower(input))
-
-		if input == "y" || input == "" {
-			fmt.Println()
-			path, createErr := config.CreateDefaultConfigFile()
-			if createErr != nil {
-				log.Fatalf("Error creating config file: %v", createErr)
+		// Launch the config wizard if config is missing/invalid
+		fmt.Println("🔧 Configuration Setup Required (launching wizard)")
+		app := tview.NewApplication()
+		result := make(chan bool, 1)
+		wizard := components.NewConfigWizardPage(app, cfg, *configPath, func(c *config.Config) error {
+			err := components.SaveConfigToFile(c, *configPath)
+			if err == nil {
+				result <- true
+			} else {
+				result <- false
 			}
-			fmt.Printf("✅ Success! Configuration file created at %s\n", path)
-			fmt.Println()
-			fmt.Println("Please edit it with your Proxmox details and run the application again.")
-		} else {
-			fmt.Println()
-			fmt.Println("Configuration setup canceled. You can configure via flags or environment variables instead.")
+			return err
+		}, func() {
+			result <- false
+			app.Stop()
+		})
+		app.SetRoot(wizard, true)
+		_ = app.Run()
+		if <-result {
+			fmt.Println("Configuration saved. Exiting.")
 		}
 		os.Exit(0)
 	}
