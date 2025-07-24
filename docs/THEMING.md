@@ -176,3 +176,33 @@ If you find a theme that works particularly well or have suggestions for improvi
 - [Base16 Theme Standard](https://github.com/chriskempson/base16)
 - [tcell Color Documentation](https://pkg.go.dev/github.com/gdamore/tcell/v2#Color)
 - [tview Theme Documentation](https://pkg.go.dev/github.com/rivo/tview#Theme)
+
+## Built-in Themes
+
+You can select from several built-in themes by setting `theme.name` in your config. Available built-in themes:
+
+- `default`
+- `dracula`
+- `catppuccin-mocha`
+- `gruvbox`
+- `nord`
+- `rose-pine`
+- `tokyonight`
+- `solarized`
+- `kanagawa`
+- `everforest`
+
+Example:
+```yaml
+theme:
+  name: gruvbox
+```
+
+You can override any color in a built-in theme by specifying it in the `colors` map:
+```yaml
+theme:
+  name: nord
+  colors:
+    error: "#ff0000"
+    background: "#2e3440"
+```

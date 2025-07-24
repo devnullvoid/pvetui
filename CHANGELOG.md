@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All themeable color keys are documented in docs/THEMING.md.
   - `use_terminal_colors` config option controls whether to use terminal palette or custom colors.
   - See docs/THEMING.md for full details and configuration examples.
+- Added built-in themes: default, dracula, catppuccin-mocha, gruvbox, nord, rose-pine, tokyonight, solarized, kanagawa, everforest. Users can select a built-in theme with theme.name in the config and override any color.
 
 ### Fixed
 - Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
