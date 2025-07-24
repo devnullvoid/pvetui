@@ -79,3 +79,15 @@ func (cm *ContextMenu) Show() *tview.List {
 	cm.list = list
 	return list
 }
+
+// CloseContextMenu closes the context menu and restores the previous focus
+func (a *App) CloseContextMenu() {
+	if a.isMenuOpen {
+		a.pages.RemovePage("contextMenu")
+		a.isMenuOpen = false
+		a.contextMenu = nil
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
+}

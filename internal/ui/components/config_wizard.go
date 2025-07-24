@@ -30,6 +30,17 @@ func ShowModal(app *tview.Application, message string, onClose func()) {
 	app.SetRoot(modal, true)
 }
 
+// Add a helper ShowModalOnPages(pages *tview.Pages, form *tview.Form, message string)
+func ShowModalOnPages(app *tview.Application, pages *tview.Pages, form *tview.Form, message string) {
+	modal := tview.NewModal().SetText(message).AddButtons([]string{"OK"}).SetDoneFunc(func(_ int, _ string) {
+		pages.RemovePage("modal")
+		pages.SwitchToPage("form")
+		app.SetFocus(form)
+	})
+	pages.AddPage("modal", modal, false, true)
+	pages.SwitchToPage("modal")
+}
+
 // FilepathBase returns the last element of the path.
 func FilepathBase(path string) string {
 	parts := strings.Split(path, "/")
@@ -70,28 +81,8 @@ func findSOPSRule(startDir string) bool {
 	return false
 }
 
-// ConfigWizardPage is a TUI form for creating or editing the main config file.
-type ConfigWizardPage struct {
-	*tview.Form
-	app        *tview.Application
-	config     *config.Config
-	configPath string
-	saveFn     func(*config.Config) error
-	cancelFn   func()
-}
-
 // NewConfigWizardPage creates a new config wizard/editor form.
-func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath string, saveFn func(*config.Config) error, cancelFn func()) *ConfigWizardPage {
-	form := tview.NewForm().SetHorizontal(false)
-	page := &ConfigWizardPage{
-		Form:       form,
-		app:        app,
-		config:     cfg,
-		configPath: configPath,
-		saveFn:     saveFn,
-		cancelFn:   cancelFn,
-	}
-
+func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath string, saveFn func(*config.Config) error, cancelFn func()) tview.Primitive {
 	// Detect if original config was SOPS-encrypted
 	wasSOPS := false
 	if configPath != "" {
@@ -99,36 +90,52 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			wasSOPS = isSOPSEncrypted(configPath, data)
 		}
 	}
-	// Check for .sops.yaml in config dir
+	// Check for .sops.yaml in config dir or parents
 	sopsRuleExists := false
 	if configPath != "" {
 		sopsRuleExists = findSOPSRule(filepath.Dir(configPath))
 	}
 
-	// Add fields for all config options
-	form.AddInputField("Proxmox API URL", cfg.Addr, 40, nil, func(text string) { page.config.Addr = strings.TrimSpace(text) })
-	form.AddInputField("Username", cfg.User, 20, nil, func(text string) { page.config.User = strings.TrimSpace(text) })
-	form.AddPasswordField("Password", cfg.Password, 20, '*', func(text string) { page.config.Password = text })
-	form.AddInputField("API Token ID", cfg.TokenID, 20, nil, func(text string) { page.config.TokenID = strings.TrimSpace(text) })
-	form.AddPasswordField("API Token Secret", cfg.TokenSecret, 20, '*', func(text string) { page.config.TokenSecret = text })
-	form.AddInputField("Realm", cfg.Realm, 10, nil, func(text string) { page.config.Realm = strings.TrimSpace(text) })
-	form.AddInputField("API Path", cfg.ApiPath, 20, nil, func(text string) { page.config.ApiPath = strings.TrimSpace(text) })
-	form.AddCheckbox("Skip TLS Verification", cfg.Insecure, func(checked bool) { page.config.Insecure = checked })
-	form.AddInputField("SSH Username", cfg.SSHUser, 20, nil, func(text string) { page.config.SSHUser = strings.TrimSpace(text) })
-	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { page.config.Debug = checked })
-	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { page.config.CacheDir = strings.TrimSpace(text) })
-	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { page.config.Theme.Name = strings.TrimSpace(text) })
-	// TODO: Optionally add color overrides and keybindings as advanced sections
-
+	form := tview.NewForm().SetHorizontal(false)
+	pages := tview.NewPages()
+	pages.AddPage("form", form, true, true)
+	form.AddInputField("Proxmox API URL", cfg.Addr, 40, nil, func(text string) { cfg.Addr = strings.TrimSpace(text) })
+	form.AddInputField("Username", cfg.User, 20, nil, func(text string) { cfg.User = strings.TrimSpace(text) })
+	form.AddPasswordField("Password", cfg.Password, 20, '*', func(text string) { cfg.Password = text })
+	form.AddInputField("API Token ID", cfg.TokenID, 20, nil, func(text string) { cfg.TokenID = strings.TrimSpace(text) })
+	form.AddPasswordField("API Token Secret", cfg.TokenSecret, 20, '*', func(text string) { cfg.TokenSecret = text })
+	form.AddInputField("Realm", cfg.Realm, 10, nil, func(text string) { cfg.Realm = strings.TrimSpace(text) })
+	form.AddInputField("API Path", cfg.ApiPath, 20, nil, func(text string) { cfg.ApiPath = strings.TrimSpace(text) })
+	form.AddCheckbox("Skip TLS Verification", cfg.Insecure, func(checked bool) { cfg.Insecure = checked })
+	form.AddInputField("SSH Username", cfg.SSHUser, 20, nil, func(text string) { cfg.SSHUser = strings.TrimSpace(text) })
+	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
+	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
+	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
 	form.AddButton("Save", func() {
-		if err := page.config.Validate(); err != nil {
-			ShowModal(app, "Validation error: "+err.Error(), func() { app.SetRoot(page, true) })
+		hasPassword := cfg.Password != ""
+		hasToken := cfg.TokenID != "" && cfg.TokenSecret != ""
+		if hasPassword && hasToken {
+			ShowModalOnPages(app, pages, form, "Please choose either password authentication or token authentication, not both.")
+			return
+		}
+		if !hasPassword && !hasToken {
+			ShowModalOnPages(app, pages, form, "You must provide either a password or a token for authentication.")
+			return
+		}
+		if hasPassword {
+			cfg.TokenID = ""
+			cfg.TokenSecret = ""
+		} else if hasToken {
+			cfg.Password = ""
+		}
+		if err := cfg.Validate(); err != nil {
+			ShowModalOnPages(app, pages, form, "Validation error: "+err.Error())
 			return
 		}
 		// Save config first
-		saveErr := page.saveFn(page.config)
+		saveErr := saveFn(cfg)
 		if saveErr != nil {
-			ShowModal(app, "Failed to save config: "+saveErr.Error(), func() { app.SetRoot(page, true) })
+			ShowModalOnPages(app, pages, form, "Failed to save config: "+saveErr.Error())
 			return
 		}
 		// If SOPS re-encryption is possible, prompt user
@@ -139,55 +146,40 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 					cmd := exec.Command("sops", "-e", "-i", configPath)
 					err := cmd.Run()
 					if err != nil {
-						ShowModal(app, "SOPS re-encryption failed: "+err.Error(), func() {
-							if page.cancelFn != nil {
-								page.cancelFn()
-							}
-						})
+						ShowModalOnPages(app, pages, form, "SOPS re-encryption failed: "+err.Error())
 						return
 					}
-					ShowModal(app, "Configuration saved and re-encrypted with SOPS!", func() {
-						if page.cancelFn != nil {
-							page.cancelFn()
-						}
-					})
+					ShowModalOnPages(app, pages, form, "Configuration saved and re-encrypted with SOPS!")
 				} else {
-					ShowModal(app, "Configuration saved (unencrypted).", func() {
-						if page.cancelFn != nil {
-							page.cancelFn()
-						}
-					})
+					ShowModalOnPages(app, pages, form, "Configuration saved (unencrypted).")
 				}
 				app.Stop()
 			})
-			app.SetRoot(modal, true)
+			pages.AddPage("modal", modal, false, true)
+			pages.SwitchToPage("modal")
 			return
 		}
-		ShowModal(app, "Configuration saved successfully!", func() {
-			if page.cancelFn != nil {
-				page.cancelFn()
-			}
-		})
+		ShowModalOnPages(app, pages, form, "Configuration saved successfully!")
 		app.Stop()
 	})
 	form.AddButton("Cancel", func() {
-		if page.cancelFn != nil {
-			page.cancelFn()
+		if cancelFn != nil {
+			cancelFn()
 		}
 		app.Stop()
 	})
 	form.SetBorder(true).SetTitle("Proxmox TUI - Config Wizard").SetTitleColor(theme.Colors.Primary)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
-			if page.cancelFn != nil {
-				page.cancelFn()
+			if cancelFn != nil {
+				cancelFn()
 			}
 			app.Stop()
 			return nil
 		}
 		return event
 	})
-	return page
+	return pages
 }
 
 // SaveConfigToFile writes the config to the given path in YAML format.

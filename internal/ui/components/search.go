@@ -2,6 +2,7 @@ package components
 
 import (
 	"strings"
+	"time"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	// "github.com/devnullvoid/proxmox-tui/pkg/config"
@@ -184,4 +185,41 @@ func (a *App) activateSearch() {
 
 		return event
 	})
+}
+
+// restoreSearchUI restores the search input UI state if it was active before a refresh.
+func (a *App) restoreSearchUI(searchWasActive bool, nodeSearchState, vmSearchState *models.SearchState) {
+	if !searchWasActive {
+		return
+	}
+	// Give a small delay to ensure all UI updates are complete
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		a.QueueUpdateDraw(func() {
+			// Check if search input is still in layout but focus was lost
+			if a.mainLayout.GetItemCount() > 4 && a.searchInput != nil {
+				// Restore focus to search input
+				a.SetFocus(a.searchInput)
+			} else if a.searchInput != nil {
+				// Search input was removed, re-add it if there's an active filter
+				currentPage, _ := a.pages.GetFrontPage()
+				var hasActiveFilter bool
+				if currentPage == api.PageNodes && nodeSearchState != nil && nodeSearchState.Filter != "" {
+					hasActiveFilter = true
+				} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.Filter != "" {
+					hasActiveFilter = true
+				} else if currentPage == api.PageTasks {
+					if taskSearchState := models.GlobalState.GetSearchState(api.PageTasks); taskSearchState != nil && taskSearchState.Filter != "" {
+						hasActiveFilter = true
+					}
+				}
+
+				if hasActiveFilter {
+					// Re-add search input and restore focus
+					a.mainLayout.AddItem(a.searchInput, 1, 0, true)
+					a.SetFocus(a.searchInput)
+				}
+			}
+		})
+	}()
 }

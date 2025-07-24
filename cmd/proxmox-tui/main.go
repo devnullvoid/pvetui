@@ -69,7 +69,7 @@ func main() {
 		app.SetRoot(wizard, true)
 		_ = app.Run()
 		if <-result {
-			fmt.Println("Configuration saved. Exiting.")
+			fmt.Println("✅ Configuration saved. Exiting.")
 		}
 		os.Exit(0)
 	}
@@ -84,7 +84,8 @@ func main() {
 		fmt.Printf("It looks like this is your first time running proxmox-tui, or your configuration needs attention.\n")
 		fmt.Printf("Missing: %v\n", err)
 		fmt.Println()
-		fmt.Printf("Would you like to create a default configuration file at '%s'? [Y/n] ", *configPath)
+		defaultPath := config.GetDefaultConfigPath()
+		fmt.Printf("Would you like to create a default configuration file at '%s'? [Y/n] ", defaultPath)
 
 		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
@@ -106,9 +107,9 @@ func main() {
 				// Load the new config and launch the wizard
 				newCfg := config.NewConfig()
 				_ = newCfg.MergeWithFile(path)
-				app := tview.NewApplication()
+				tviewApp := tview.NewApplication()
 				result := make(chan bool, 1)
-				wizard := components.NewConfigWizardPage(app, newCfg, path, func(c *config.Config) error {
+				wizard := components.NewConfigWizardPage(tviewApp, newCfg, path, func(c *config.Config) error {
 					err := components.SaveConfigToFile(c, path)
 					if err == nil {
 						result <- true
@@ -118,47 +119,48 @@ func main() {
 					return err
 				}, func() {
 					result <- false
-					app.Stop()
+					tviewApp.Stop()
 				})
-				app.SetRoot(wizard, true)
-				_ = app.Run()
+				tviewApp.SetRoot(wizard, true)
+				_ = tviewApp.Run()
 				if <-result {
-					fmt.Println("Configuration saved. Exiting.")
+					fmt.Println("✅ Configuration saved. Exiting.")
 				}
-			}
-			// After editing (or just after creation), ask if user wants to proceed to main app
-			fmt.Printf("Would you like to proceed with main application startup? [Y/n] ")
-			proceedInput, _ := reader.ReadString('\n')
-			proceedInput = strings.TrimSpace(strings.ToLower(proceedInput))
-			if proceedInput == "y" || proceedInput == "" {
-				// Reload config (in case it was edited)
-				*cfg = *config.NewConfig()
-				_ = cfg.MergeWithFile(path)
-				cfg.SetDefaults()
-				config.DebugEnabled = cfg.Debug
-				fmt.Println("\n🚀 Starting Proxmox TUI...")
-				// Show config source
-				fmt.Printf("✅ Configuration loaded from %s\n", path)
-				// Apply theme to tview global styles
-				theme.ApplyCustomTheme(&cfg.Theme)
-				theme.ApplyToTview()
-				if err := app.RunWithStartupVerification(cfg, app.Options{NoCache: *noCacheFlag}); err != nil {
-					fmt.Printf("❌ %v\n", err)
-					fmt.Println()
-					if strings.Contains(err.Error(), "authentication failed") {
-						fmt.Println("💡 Please check your credentials in the config file:")
-						fmt.Printf("   %s\n", path)
-					} else if strings.Contains(err.Error(), "connection") || strings.Contains(err.Error(), "timeout") {
-						fmt.Println("💡 Please check your Proxmox server address and network connectivity:")
-						fmt.Printf("   Current address: %s\n", cfg.Addr)
+				// After editing (or just after creation), ask if user wants to proceed to main app
+				fmt.Printf("Would you like to proceed with main application startup? [Y/n] ")
+				proceedInput, _ := reader.ReadString('\n')
+				proceedInput = strings.TrimSpace(strings.ToLower(proceedInput))
+				if proceedInput == "y" || proceedInput == "" {
+					// Reload config (in case it was edited)
+					*cfg = *config.NewConfig()
+					_ = cfg.MergeWithFile(path)
+					cfg.SetDefaults()
+					config.DebugEnabled = cfg.Debug
+					fmt.Println("\n🚀 Starting Proxmox TUI...")
+					// Show config source
+					fmt.Printf("✅ Configuration loaded from %s\n", path)
+					// Apply theme to tview global styles
+					theme.ApplyCustomTheme(&cfg.Theme)
+					theme.ApplyToTview()
+					if err := app.RunWithStartupVerification(cfg, app.Options{NoCache: *noCacheFlag}); err != nil {
+						fmt.Printf("❌ %v\n", err)
+						fmt.Println()
+						if strings.Contains(err.Error(), "authentication failed") {
+							fmt.Println("💡 Please check your credentials in the config file:")
+							fmt.Printf("   %s\n", path)
+						} else if strings.Contains(err.Error(), "connection") || strings.Contains(err.Error(), "timeout") {
+							fmt.Println("💡 Please check your Proxmox server address and network connectivity:")
+							fmt.Printf("   Current address: %s\n", cfg.Addr)
+						}
+						os.Exit(1)
 					}
-					os.Exit(1)
+					os.Exit(0)
+				} else {
+					fmt.Println("Exiting.")
+					os.Exit(0)
 				}
-				os.Exit(0)
-			} else {
-				fmt.Println("Exiting.")
-				os.Exit(0)
 			}
+			os.Exit(0)
 		} else {
 			fmt.Println()
 			fmt.Println("Configuration setup canceled. You can configure via flags or environment variables instead.")
