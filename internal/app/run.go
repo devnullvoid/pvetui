@@ -98,7 +98,7 @@ func RunWithStartupVerification(cfg *config.Config, opts Options) error {
 
 	fmt.Println("✅ Connected successfully")
 	fmt.Println("✅ Authentication successful")
-	fmt.Println("🖥️ Loading interface...")
+	fmt.Println("🖥️  Loading interface...")
 	fmt.Println()
 
 	// Start the UI

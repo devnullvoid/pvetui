@@ -84,7 +84,7 @@ func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool) {
 	defaultPath := config.GetDefaultConfigPath()
 	if !promptYesNo(fmt.Sprintf("Would you like to create a default configuration file at '%s'?", defaultPath)) {
 		fmt.Println("❌ Configuration setup canceled. You can configure via flags or environment variables instead.")
-		fmt.Println("☑️ Exiting.")
+		fmt.Println("🚪 Exiting.")
 		os.Exit(0)
 	}
 	fmt.Println()
@@ -108,7 +108,7 @@ func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool) {
 			startMainApp(cfg, path, noCacheFlag)
 		}
 	}
-	fmt.Println("☑️ Exiting.")
+	fmt.Println("🚪 Exiting.")
 	os.Exit(0)
 }
 
@@ -137,7 +137,7 @@ func startMainApp(cfg *config.Config, configPath string, noCacheFlag *bool) {
 		}
 		os.Exit(1)
 	}
-	fmt.Println("☑️ Exiting.")
+	fmt.Println("🚪 Exiting.")
 	os.Exit(0)
 }
 
