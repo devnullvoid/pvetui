@@ -57,11 +57,12 @@ func promptYesNo(prompt string) bool {
 		fmt.Printf("%s [Y/n] ", prompt)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
-		if input == "y" || input == "" {
+		switch input {
+		case "y", "":
 			return true
-		} else if input == "n" {
+		case "n":
 			return false
-		} else {
+		default:
 			fmt.Println("Please enter 'y' or 'n'.")
 		}
 	}
@@ -144,6 +145,7 @@ func main() {
 	cfg.ParseFlags()
 
 	configPathFlag := flag.String("config", "", "Path to YAML config file")
+	profileFlag := flag.String("profile", "", "Connection profile to use (overrides default_profile)")
 	noCacheFlag := flag.Bool("no-cache", false, "Disable caching")
 	versionFlag := flag.Bool("version", false, "Show version information")
 	configWizardFlag := flag.Bool("config-wizard", false, "Launch interactive config wizard and exit")
@@ -174,6 +176,25 @@ func main() {
 
 	cfg.SetDefaults()
 	config.DebugEnabled = cfg.Debug
+
+	// Profile selection logic
+	selectedProfile := *profileFlag
+	if selectedProfile == "" {
+		selectedProfile = os.Getenv("PROXMOX_TUI_PROFILE")
+	}
+	if selectedProfile == "" {
+		selectedProfile = cfg.DefaultProfile
+	}
+	if selectedProfile == "" && len(cfg.Profiles) > 0 {
+		selectedProfile = "default"
+	}
+	if selectedProfile != "" {
+		err := cfg.ApplyProfile(selectedProfile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Could not select profile '%s': %v\n", selectedProfile, err)
+			os.Exit(1)
+		}
+	}
 
 	if err := cfg.Validate(); err != nil {
 		onboardingFlow(cfg, configPath, noCacheFlag)

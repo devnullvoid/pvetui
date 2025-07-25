@@ -91,41 +91,84 @@ var templateFS embed.FS
 // components to determine whether to emit debug-level log messages.
 var DebugEnabled bool
 
-// Config represents the complete application configuration with support for
-// multiple authentication methods and XDG-compliant directory handling.
-//
-// The configuration supports both password-based and API token authentication
-// for Proxmox VE. All fields can be populated from environment variables,
-// command-line flags, or YAML configuration files.
-//
-// Authentication Methods:
-//   - Password: Use User + Password + Realm
-//   - API Token: Use User + TokenID + TokenSecret + Realm
-//
-// Example configuration:
-//
-//	config := &Config{
-//		Addr:     "https://pve.example.com:8006",
-//		User:     "root",
-//		Password: "secret",
-//		Realm:    "pam",
-//		Insecure: false,
-//		Debug:    true,
-//	}
+// ProfileConfig holds a single connection profile's settings.
+type ProfileConfig struct {
+	Addr        string `yaml:"addr"`
+	User        string `yaml:"user"`
+	Password    string `yaml:"password"`
+	TokenID     string `yaml:"token_id"`
+	TokenSecret string `yaml:"token_secret"`
+	Realm       string `yaml:"realm"`
+	ApiPath     string `yaml:"api_path"`
+	Insecure    bool   `yaml:"insecure"`
+	SSHUser     string `yaml:"ssh_user"`
+}
+
+// Config represents the complete application configuration, including multiple profiles.
 type Config struct {
-	Addr        string      `yaml:"addr"`         // Proxmox server URL (e.g., "https://pve.example.com:8006")
-	User        string      `yaml:"user"`         // Username for authentication (without realm)
-	Password    string      `yaml:"password"`     // Password for password-based authentication
-	TokenID     string      `yaml:"token_id"`     // API token ID for token-based authentication
-	TokenSecret string      `yaml:"token_secret"` // API token secret for token-based authentication
-	Realm       string      `yaml:"realm"`        // Authentication realm (e.g., "pam", "pve")
-	ApiPath     string      `yaml:"api_path"`     // API base path (default: "/api2/json")
-	Insecure    bool        `yaml:"insecure"`     // Skip TLS certificate verification
-	SSHUser     string      `yaml:"ssh_user"`     // SSH username for shell connections
-	Debug       bool        `yaml:"debug"`        // Enable debug logging
-	CacheDir    string      `yaml:"cache_dir"`    // Custom cache directory path
-	KeyBindings KeyBindings `yaml:"key_bindings"` // Customizable key bindings
-	Theme       ThemeConfig `yaml:"theme"`        // Theme configuration
+	Profiles       map[string]ProfileConfig `yaml:"profiles"`
+	DefaultProfile string                   `yaml:"default_profile"`
+	// The following fields are global settings, not per-profile
+	Debug       bool        `yaml:"debug"`
+	CacheDir    string      `yaml:"cache_dir"`
+	KeyBindings KeyBindings `yaml:"key_bindings"`
+	Theme       ThemeConfig `yaml:"theme"`
+	// Deprecated: legacy single-profile fields for migration
+	Addr        string `yaml:"addr"`
+	User        string `yaml:"user"`
+	Password    string `yaml:"password"`
+	TokenID     string `yaml:"token_id"`
+	TokenSecret string `yaml:"token_secret"`
+	Realm       string `yaml:"realm"`
+	ApiPath     string `yaml:"api_path"`
+	Insecure    bool   `yaml:"insecure"`
+	SSHUser     string `yaml:"ssh_user"`
+}
+
+// ApplyProfile copies the selected profile's fields into the legacy fields for compatibility.
+func (c *Config) ApplyProfile(profileName string) error {
+	if c.Profiles == nil {
+		return errors.New("no profiles defined in config")
+	}
+	p, ok := c.Profiles[profileName]
+	if !ok {
+		return fmt.Errorf("profile '%s' not found", profileName)
+	}
+	c.Addr = p.Addr
+	c.User = p.User
+	c.Password = p.Password
+	c.TokenID = p.TokenID
+	c.TokenSecret = p.TokenSecret
+	c.Realm = p.Realm
+	c.ApiPath = p.ApiPath
+	c.Insecure = p.Insecure
+	c.SSHUser = p.SSHUser
+	return nil
+}
+
+// MigrateLegacyToProfiles migrates old single-profile configs to the new profiles structure.
+func (c *Config) MigrateLegacyToProfiles() bool {
+	if len(c.Profiles) > 0 {
+		return false // Already migrated
+	}
+	if c.Addr == "" && c.User == "" {
+		return false // Nothing to migrate
+	}
+	c.Profiles = map[string]ProfileConfig{
+		"default": {
+			Addr:        c.Addr,
+			User:        c.User,
+			Password:    c.Password,
+			TokenID:     c.TokenID,
+			TokenSecret: c.TokenSecret,
+			Realm:       c.Realm,
+			ApiPath:     c.ApiPath,
+			Insecure:    c.Insecure,
+			SSHUser:     c.SSHUser,
+		},
+	}
+	c.DefaultProfile = "default"
+	return true
 }
 
 // KeyBindings defines customizable key mappings for common actions.
@@ -393,26 +436,12 @@ func FindDefaultConfigPath() (string, bool) {
 //	}
 func NewConfig() *Config {
 	return &Config{
-		Addr:        os.Getenv("PROXMOX_ADDR"),
-		User:        os.Getenv("PROXMOX_USER"),
-		Password:    os.Getenv("PROXMOX_PASSWORD"),
-		TokenID:     os.Getenv("PROXMOX_TOKEN_ID"),
-		TokenSecret: os.Getenv("PROXMOX_TOKEN_SECRET"),
-		Realm:       getEnvWithDefault("PROXMOX_REALM", "pam"),
-		ApiPath:     getEnvWithDefault("PROXMOX_API_PATH", "/api2/json"),
-		Insecure:    strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true",
-		SSHUser:     os.Getenv("PROXMOX_SSH_USER"),
-		Debug:       strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
-		CacheDir:    os.Getenv("PROXMOX_CACHE_DIR"),
-		KeyBindings: DefaultKeyBindings(),
+		Profiles:       make(map[string]ProfileConfig),
+		DefaultProfile: "default",
+		Debug:          strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
+		CacheDir:       os.Getenv("PROXMOX_CACHE_DIR"),
+		KeyBindings:    DefaultKeyBindings(),
 	}
-}
-
-func getEnvWithDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 var (
@@ -464,18 +493,11 @@ func (c *Config) MergeWithFile(path string) error {
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values
 	var fileConfig struct {
-		Addr        string `yaml:"addr"`
-		User        string `yaml:"user"`
-		Password    string `yaml:"password"`
-		TokenID     string `yaml:"token_id"`
-		TokenSecret string `yaml:"token_secret"`
-		Realm       string `yaml:"realm"`
-		ApiPath     string `yaml:"api_path"`
-		Insecure    *bool  `yaml:"insecure"`
-		SSHUser     string `yaml:"ssh_user"`
-		Debug       *bool  `yaml:"debug"`
-		CacheDir    string `yaml:"cache_dir"`
-		KeyBindings struct {
+		Profiles       map[string]ProfileConfig `yaml:"profiles"`
+		DefaultProfile string                   `yaml:"default_profile"`
+		Debug          *bool                    `yaml:"debug"`
+		CacheDir       string                   `yaml:"cache_dir"`
+		KeyBindings    struct {
 			SwitchView        string `yaml:"switch_view"`
 			SwitchViewReverse string `yaml:"switch_view_reverse"`
 			NodesPage         string `yaml:"nodes_page"`
@@ -495,46 +517,54 @@ func (c *Config) MergeWithFile(path string) error {
 			Name   string            `yaml:"name"`
 			Colors map[string]string `yaml:"colors"`
 		} `yaml:"theme"`
+		// Legacy fields for migration
+		Addr        string `yaml:"addr"`
+		User        string `yaml:"user"`
+		Password    string `yaml:"password"`
+		TokenID     string `yaml:"token_id"`
+		TokenSecret string `yaml:"token_secret"`
+		Realm       string `yaml:"realm"`
+		ApiPath     string `yaml:"api_path"`
+		Insecure    *bool  `yaml:"insecure"`
+		SSHUser     string `yaml:"ssh_user"`
 	}
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
 		return err
 	}
 
-	// Merge fields where file has values
-	if fileConfig.Addr != "" {
+	// Load profiles and default_profile
+	if fileConfig.Profiles != nil {
+		c.Profiles = fileConfig.Profiles
+	}
+	if fileConfig.DefaultProfile != "" {
+		c.DefaultProfile = fileConfig.DefaultProfile
+	}
+
+	// Migrate legacy fields if no profiles are present
+	if len(c.Profiles) == 0 && (fileConfig.Addr != "" || fileConfig.User != "") {
 		c.Addr = fileConfig.Addr
-	}
-	if fileConfig.User != "" {
 		c.User = fileConfig.User
-	}
-	if fileConfig.Password != "" {
 		c.Password = fileConfig.Password
-	}
-	if fileConfig.TokenID != "" {
 		c.TokenID = fileConfig.TokenID
-	}
-	if fileConfig.TokenSecret != "" {
 		c.TokenSecret = fileConfig.TokenSecret
-	}
-	if fileConfig.Realm != "" {
 		c.Realm = fileConfig.Realm
-	}
-	if fileConfig.ApiPath != "" {
 		c.ApiPath = fileConfig.ApiPath
-	}
-	if fileConfig.Insecure != nil {
-		c.Insecure = *fileConfig.Insecure
-	}
-	if fileConfig.SSHUser != "" {
+		if fileConfig.Insecure != nil {
+			c.Insecure = *fileConfig.Insecure
+		}
 		c.SSHUser = fileConfig.SSHUser
+		c.MigrateLegacyToProfiles()
 	}
+
+	// Merge global settings
 	if fileConfig.Debug != nil {
 		c.Debug = *fileConfig.Debug
 	}
 	if fileConfig.CacheDir != "" {
 		c.CacheDir = fileConfig.CacheDir
 	}
+
 	// Merge key bindings if provided
 	if kb := fileConfig.KeyBindings; kb != struct {
 		SwitchView        string `yaml:"switch_view"`
