@@ -71,16 +71,14 @@ go build -o proxmox-tui ./cmd/proxmox-tui
 ./proxmox-tui
 ```
 
-### First Run
-No configuration needed initially! The app will:
-- Detect missing configuration and offer to create a default config file
-- Guide you through the setup process with clear prompts
-- Test connectivity and authentication before starting the interface
-
 ## ⚙️ Configuration
 
-### Automatic Setup
-On first run, Proxmox TUI will prompt you to create a configuration file at `~/.config/proxmox-tui/config.yml`. Simply edit this file with your Proxmox details and restart the application.
+### First Run & Interactive Config Wizard
+- On first run, the app will offer to create and edit a config file in a user-friendly TUI wizard
+- Launch the wizard anytime with `--config-wizard`
+- Edit, validate, and save your config (supports SOPS-encrypted files)
+- Only one authentication method (password or token) is allowed
+- All errors and confirmations are shown in clear, interactive modals
 
 ### Manual Configuration
 ```yaml

@@ -21,7 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All themeable color keys are documented in docs/THEMING.md.
   - `use_terminal_colors` config option controls whether to use terminal palette or custom colors.
   - See docs/THEMING.md for full details and configuration examples.
-- Added built-in themes: default, dracula, catppuccin-mocha, gruvbox, nord, rose-pine, tokyonight, solarized, kanagawa, everforest. Users can select a built-in theme with theme.name in the config and override any color.
+- **Built-in themes**: default, dracula, catppuccin-mocha, gruvbox, nord, rose-pine, tokyonight, solarized, kanagawa, everforest. Users can select a built-in theme with theme.name in the config and override any color.
+- **Interactive Config Wizard and Editor**:
+  - Added a full-screen, interactive TUI wizard for creating and editing the main config file.
+  - Automatically launches on first run if no config is found, or can be invoked at any time with `--config-wizard`.
+  - Pre-fills fields from existing config, validates input, and provides clear error/success feedback.
+  - Supports both password and token authentication, and SOPS/age-encrypted configs with opt-in re-encryption.
+  - All onboarding and config editing flows now use consistent, user-friendly modals and prompts.
 
 ### Fixed
 - Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.

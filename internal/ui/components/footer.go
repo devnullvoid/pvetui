@@ -136,7 +136,7 @@ func (f *Footer) updateDisplayWithWidth(width int) {
 		} else if f.refreshCountdown > 0 {
 			statusParts = append(statusParts, fmt.Sprintf("[info]Auto-Refresh:[secondary]ON ([warning]%ds[secondary])", f.refreshCountdown))
 		} else {
-			statusParts = append(statusParts, fmt.Sprintf("[info]Auto-Refresh:[secondary]ON"))
+			statusParts = append(statusParts, "[info]Auto-Refresh:[secondary]ON")
 		}
 	}
 
