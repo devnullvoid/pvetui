@@ -19,24 +19,22 @@ func configToYAML(cfg *config.Config) ([]byte, error) {
 	return yaml.Marshal(cfg)
 }
 
-// showModal displays a simple modal dialog with a message and an OK button, then calls onClose and always calls app.Stop().
-func ShowModal(app *tview.Application, message string, onClose func()) {
-	modal := tview.NewModal().SetText(message).AddButtons([]string{"OK"}).SetDoneFunc(func(_ int, _ string) {
-		if onClose != nil {
-			onClose()
-		}
-		app.Stop()
-	})
-	app.SetRoot(modal, true)
-}
-
-// Add a helper ShowModalOnPages(pages *tview.Pages, form *tview.Form, message string)
-func ShowModalOnPages(app *tview.Application, pages *tview.Pages, form *tview.Form, message string) {
-	modal := tview.NewModal().SetText(message).AddButtons([]string{"OK"}).SetDoneFunc(func(_ int, _ string) {
+// Update showWizardModal to accept an onClose callback
+func showWizardModal(pages *tview.Pages, form *tview.Form, app *tview.Application, kind, message string, onClose func()) {
+	cb := func() {
 		pages.RemovePage("modal")
 		pages.SwitchToPage("form")
 		app.SetFocus(form)
-	})
+		if onClose != nil {
+			onClose()
+		}
+	}
+	var modal *tview.Modal
+	if kind == "error" {
+		modal = CreateErrorDialog("Error", message, cb)
+	} else {
+		modal = CreateInfoDialog("Info", message, cb)
+	}
 	pages.AddPage("modal", modal, false, true)
 	pages.SwitchToPage("modal")
 }
@@ -81,8 +79,15 @@ func findSOPSRule(startDir string) bool {
 	return false
 }
 
-// NewConfigWizardPage creates a new config wizard/editor form.
-func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath string, saveFn func(*config.Config) error, cancelFn func()) tview.Primitive {
+// Add WizardResult struct
+type WizardResult struct {
+	Saved         bool
+	SopsEncrypted bool
+	Cancelled     bool
+}
+
+// Update NewConfigWizardPage to accept a resultChan chan<- WizardResult
+func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath string, saveFn func(*config.Config) error, cancelFn func(), resultChan chan<- WizardResult) tview.Primitive {
 	// Detect if original config was SOPS-encrypted
 	wasSOPS := false
 	if configPath != "" {
@@ -115,11 +120,11 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		hasPassword := cfg.Password != ""
 		hasToken := cfg.TokenID != "" && cfg.TokenSecret != ""
 		if hasPassword && hasToken {
-			ShowModalOnPages(app, pages, form, "Please choose either password authentication or token authentication, not both.")
+			showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
 			return
 		}
 		if !hasPassword && !hasToken {
-			ShowModalOnPages(app, pages, form, "You must provide either a password or a token for authentication.")
+			showWizardModal(pages, form, app, "error", "You must provide either a password or a token for authentication.", nil)
 			return
 		}
 		if hasPassword {
@@ -129,43 +134,50 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			cfg.Password = ""
 		}
 		if err := cfg.Validate(); err != nil {
-			ShowModalOnPages(app, pages, form, "Validation error: "+err.Error())
+			showWizardModal(pages, form, app, "error", "Validation error: "+err.Error(), nil)
 			return
 		}
 		// Save config first
 		saveErr := saveFn(cfg)
 		if saveErr != nil {
-			ShowModalOnPages(app, pages, form, "Failed to save config: "+saveErr.Error())
+			showWizardModal(pages, form, app, "error", "Failed to save config: "+saveErr.Error(), nil)
 			return
 		}
 		// If SOPS re-encryption is possible, prompt user
 		if wasSOPS && sopsRuleExists {
-			modal := tview.NewModal().SetText("The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?").AddButtons([]string{"Yes", "No"}).SetDoneFunc(func(i int, label string) {
-				if label == "Yes" {
-					// Run sops -e -i <configPath>
-					cmd := exec.Command("sops", "-e", "-i", configPath)
-					err := cmd.Run()
-					if err != nil {
-						ShowModalOnPages(app, pages, form, "SOPS re-encryption failed: "+err.Error())
-						return
-					}
-					ShowModalOnPages(app, pages, form, "Configuration saved and re-encrypted with SOPS!")
-				} else {
-					ShowModalOnPages(app, pages, form, "Configuration saved (unencrypted).")
+			onYes := func() {
+				cmd := exec.Command("sops", "-e", "-i", configPath)
+				err := cmd.Run()
+				if err != nil {
+					showWizardModal(pages, form, app, "error", "SOPS re-encryption failed: "+err.Error(), nil)
+					return
 				}
-				app.Stop()
-			})
-			pages.AddPage("modal", modal, false, true)
+				showWizardModal(pages, form, app, "info", "Configuration saved and re-encrypted with SOPS!", func() {
+					resultChan <- WizardResult{Saved: true, SopsEncrypted: true}
+					app.Stop()
+				})
+			}
+			onNo := func() {
+				showWizardModal(pages, form, app, "info", "Configuration saved (unencrypted).", func() {
+					resultChan <- WizardResult{Saved: true}
+					app.Stop()
+				})
+			}
+			confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
+			pages.AddPage("modal", confirm, false, true)
 			pages.SwitchToPage("modal")
 			return
 		}
-		ShowModalOnPages(app, pages, form, "Configuration saved successfully!")
-		app.Stop()
+		showWizardModal(pages, form, app, "info", "Configuration saved successfully!", func() {
+			resultChan <- WizardResult{Saved: true}
+			app.Stop()
+		})
 	})
 	form.AddButton("Cancel", func() {
 		if cancelFn != nil {
 			cancelFn()
 		}
+		resultChan <- WizardResult{Cancelled: true}
 		app.Stop()
 	})
 	form.SetBorder(true).SetTitle("Proxmox TUI - Config Wizard").SetTitleColor(theme.Colors.Primary)

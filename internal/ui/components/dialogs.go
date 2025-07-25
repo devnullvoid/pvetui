@@ -291,9 +291,12 @@ func CreateLoginForm() *tview.Form {
 // CreateConfirmDialog creates a confirmation dialog
 func CreateConfirmDialog(title, message string, onConfirm, onCancel func()) *tview.Modal {
 	modal := tview.NewModal()
-	modal.SetText(fmt.Sprintf("%s\n\n%s", title, message))
-	modal.SetBackgroundColor(theme.Colors.Background)
+	modal.SetText(message)
+	// modal.SetBackgroundColor(theme.Colors.Background)
 	modal.SetTextColor(theme.Colors.Primary)
+	modal.SetBorderColor(theme.Colors.Border)
+	modal.SetTitle(title)
+	modal.SetTitleColor(theme.Colors.Title)
 
 	// Add buttons
 	modal.AddButtons([]string{"Yes", "No"})
@@ -311,9 +314,12 @@ func CreateConfirmDialog(title, message string, onConfirm, onCancel func()) *tvi
 // CreateInfoDialog creates an information dialog
 func CreateInfoDialog(title, message string, onClose func()) *tview.Modal {
 	modal := tview.NewModal()
-	modal.SetText(fmt.Sprintf("%s\n\n%s", title, message))
-	modal.SetBackgroundColor(theme.Colors.Background)
+	modal.SetText(message)
+	// modal.SetBackgroundColor(theme.Colors.Background)
 	modal.SetTextColor(theme.Colors.Primary)
+	modal.SetBorderColor(theme.Colors.Border)
+	modal.SetTitle(title)
+	modal.SetTitleColor(theme.Colors.Title)
 
 	// Add close button
 	modal.AddButtons([]string{"OK"})
@@ -329,9 +335,12 @@ func CreateInfoDialog(title, message string, onClose func()) *tview.Modal {
 // CreateErrorDialog creates an error dialog
 func CreateErrorDialog(title, message string, onClose func()) *tview.Modal {
 	modal := tview.NewModal()
-	modal.SetText(fmt.Sprintf("%s\n\n%s", title, message))
-	modal.SetBackgroundColor(theme.Colors.Background)
+	modal.SetText(message)
+	// modal.SetBackgroundColor(theme.Colors.Background)
 	modal.SetTextColor(theme.Colors.Error)
+	modal.SetBorderColor(theme.Colors.Border)
+	modal.SetTitle(title)
+	modal.SetTitleColor(theme.Colors.Title)
 
 	// Add close button
 	modal.AddButtons([]string{"OK"})
@@ -349,7 +358,7 @@ func CreateFormDialog(title string, fields []FormField, onSubmit, onCancel func(
 	form := tview.NewForm()
 	form.SetBorder(true)
 	form.SetTitle(fmt.Sprintf(" %s ", title))
-	form.SetTitleColor(theme.Colors.Primary)
+	form.SetTitleColor(theme.Colors.Title)
 	form.SetBorderColor(theme.Colors.Border)
 
 	// Add form fields

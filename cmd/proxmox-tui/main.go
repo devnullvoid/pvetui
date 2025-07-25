@@ -37,24 +37,17 @@ func resolveConfigPath(flagPath string) string {
 	return ""
 }
 
-func launchConfigWizard(cfg *config.Config, configPath string) bool {
+func launchConfigWizard(cfg *config.Config, configPath string) components.WizardResult {
 	tviewApp := tview.NewApplication()
-	result := make(chan bool, 1)
+	resultChan := make(chan components.WizardResult, 1)
 	wizard := components.NewConfigWizardPage(tviewApp, cfg, configPath, func(c *config.Config) error {
-		err := components.SaveConfigToFile(c, configPath)
-		if err == nil {
-			result <- true
-		} else {
-			result <- false
-		}
-		return err
+		return components.SaveConfigToFile(c, configPath)
 	}, func() {
-		result <- false
 		tviewApp.Stop()
-	})
+	}, resultChan)
 	tviewApp.SetRoot(wizard, true)
 	_ = tviewApp.Run()
-	return <-result
+	return <-resultChan
 }
 
 // Add promptYesNo helper
@@ -97,8 +90,13 @@ func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool) {
 	if promptYesNo("Would you like to edit the new config in the interactive editor?") {
 		newCfg := config.NewConfig()
 		_ = newCfg.MergeWithFile(path)
-		if launchConfigWizard(newCfg, path) {
-			fmt.Println("✅ Configuration saved. Exiting.")
+		res := launchConfigWizard(newCfg, path)
+		if res.SopsEncrypted {
+			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", path)
+		} else if res.Saved {
+			fmt.Println("✅ Configuration saved.")
+		} else if res.Cancelled {
+			fmt.Println("🚪 Exiting.")
 		}
 		if promptYesNo("Would you like to proceed with main application startup?") {
 			*cfg = *config.NewConfig()
@@ -163,8 +161,13 @@ func main() {
 	}
 
 	if *configWizardFlag {
-		if launchConfigWizard(cfg, configPath) {
-			fmt.Println("✅ Configuration saved. Exiting.")
+		res := launchConfigWizard(cfg, configPath)
+		if res.SopsEncrypted {
+			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", configPath)
+		} else if res.Saved {
+			fmt.Println("✅ Configuration saved.")
+		} else if res.Cancelled {
+			fmt.Println("🚪 Exiting.")
 		}
 		os.Exit(0)
 	}
