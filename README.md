@@ -89,8 +89,9 @@ insecure: false
 # Authentication (choose one)
 user: "your-user"
 realm: "pam"
-password: "your-password"  # Method 1: Password auth
 
+# Method 1: Password auth
+password: "your-password"
 # OR
 token_id: "your-token-id"      # Method 2: API token (recommended)
 token_secret: "your-secret"
