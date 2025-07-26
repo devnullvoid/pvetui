@@ -37,10 +37,24 @@ func resolveConfigPath(flagPath string) string {
 	return ""
 }
 
-func launchConfigWizard(cfg *config.Config, configPath string) components.WizardResult {
+func launchConfigWizard(cfg *config.Config, configPath string, activeProfile string) components.WizardResult {
 	tviewApp := tview.NewApplication()
 	resultChan := make(chan components.WizardResult, 1)
 	wizard := components.NewConfigWizardPage(tviewApp, cfg, configPath, func(c *config.Config) error {
+		// Minimal fix: if editing a profile, update the profile map with the edited legacy fields
+		if activeProfile != "" && c.Profiles != nil {
+			c.Profiles[activeProfile] = config.ProfileConfig{
+				Addr:        c.Addr,
+				User:        c.User,
+				Password:    c.Password,
+				TokenID:     c.TokenID,
+				TokenSecret: c.TokenSecret,
+				Realm:       c.Realm,
+				ApiPath:     c.ApiPath,
+				Insecure:    c.Insecure,
+				SSHUser:     c.SSHUser,
+			}
+		}
 		return components.SaveConfigToFile(c, configPath)
 	}, func() {
 		tviewApp.Stop()
@@ -69,7 +83,7 @@ func promptYesNo(prompt string) bool {
 }
 
 // Refactor onboardingFlow to use promptYesNo for all prompts
-func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool) {
+func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool, activeProfile string) {
 	fmt.Println("🔧 Configuration Setup Required")
 	fmt.Println()
 	fmt.Printf("It looks like this is your first time running proxmox-tui, or your configuration needs attention.\n")
@@ -91,7 +105,7 @@ func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool) {
 	if promptYesNo("Would you like to edit the new config in the interactive editor?") {
 		newCfg := config.NewConfig()
 		_ = newCfg.MergeWithFile(path)
-		res := launchConfigWizard(newCfg, path)
+		res := launchConfigWizard(newCfg, path, activeProfile)
 		if res.SopsEncrypted {
 			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", path)
 		} else if res.Saved {
@@ -162,21 +176,6 @@ func main() {
 		_ = cfg.MergeWithFile(configPath)
 	}
 
-	if *configWizardFlag {
-		res := launchConfigWizard(cfg, configPath)
-		if res.SopsEncrypted {
-			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", configPath)
-		} else if res.Saved {
-			fmt.Println("✅ Configuration saved.")
-		} else if res.Cancelled {
-			fmt.Println("🚪 Exiting.")
-		}
-		os.Exit(0)
-	}
-
-	cfg.SetDefaults()
-	config.DebugEnabled = cfg.Debug
-
 	// Profile selection logic
 	selectedProfile := *profileFlag
 	if selectedProfile == "" {
@@ -196,8 +195,23 @@ func main() {
 		}
 	}
 
+	if *configWizardFlag {
+		res := launchConfigWizard(cfg, configPath, selectedProfile)
+		if res.SopsEncrypted {
+			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", configPath)
+		} else if res.Saved {
+			fmt.Println("✅ Configuration saved.")
+		} else if res.Cancelled {
+			fmt.Println("🚪 Exiting.")
+		}
+		os.Exit(0)
+	}
+
+	cfg.SetDefaults()
+	config.DebugEnabled = cfg.Debug
+
 	if err := cfg.Validate(); err != nil {
-		onboardingFlow(cfg, configPath, noCacheFlag)
+		onboardingFlow(cfg, configPath, noCacheFlag, selectedProfile)
 	}
 
 	startMainApp(cfg, configPath, noCacheFlag)
