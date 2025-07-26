@@ -186,6 +186,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			if cancelFn != nil {
 				cancelFn()
 			}
+			resultChan <- WizardResult{Cancelled: true}
 			app.Stop()
 			return nil
 		}
