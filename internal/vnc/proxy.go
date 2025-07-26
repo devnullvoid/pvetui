@@ -301,11 +301,16 @@ func (p *WebSocketProxy) connectToProxmox() (*websocket.Conn, error) {
 		if resp != nil {
 			p.logger.Error("Failed to connect to Proxmox VNC websocket for %s (HTTP %d): %v",
 				targetName, resp.StatusCode, err)
+			resp.Body.Close() // Close response body on error
 			return nil, fmt.Errorf("failed to connect to Proxmox VNC websocket (status %d): %w",
 				resp.StatusCode, err)
 		}
 		p.logger.Error("Failed to connect to Proxmox VNC websocket for %s: %v", targetName, err)
 		return nil, fmt.Errorf("failed to connect to Proxmox VNC websocket: %w", err)
+	}
+	// Close response body on success
+	if resp != nil {
+		resp.Body.Close()
 	}
 
 	p.logger.Info("Successfully connected to Proxmox VNC websocket for %s", targetName)

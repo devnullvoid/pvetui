@@ -14,6 +14,12 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
+// Script type constants
+const (
+	scriptTypeCT = "ct"
+	scriptTypeVM = "vm"
+)
+
 // ScriptSelector represents a page-based script selector for installing community scripts
 type ScriptSelector struct {
 	*tview.Pages
@@ -339,9 +345,9 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 			for _, script := range s.filteredScripts {
 				// Add more detailed information in the secondary text
 				var secondaryText string
-				if script.Type == "ct" {
+				if script.Type == scriptTypeCT {
 					secondaryText = fmt.Sprintf("Container: %s", script.Description)
-				} else if script.Type == "vm" {
+				} else if script.Type == scriptTypeVM {
 					secondaryText = fmt.Sprintf("VM: %s", script.Description)
 				} else {
 					secondaryText = script.Description
@@ -529,9 +535,9 @@ func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 	sb.WriteString(fmt.Sprintf("[%s]Name:[-] %s\n\n", labelColor, script.Name))
 	sb.WriteString(fmt.Sprintf("[%s]Description:[-] %s\n\n", labelColor, script.Description))
 
-	if script.Type == "ct" {
+	if script.Type == scriptTypeCT {
 		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Container Template\n", labelColor))
-	} else if script.Type == "vm" {
+	} else if script.Type == scriptTypeVM {
 		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Virtual Machine\n", labelColor))
 	} else {
 		sb.WriteString(fmt.Sprintf("[%s]Type:[-] %s\n", labelColor, script.Type))
@@ -559,9 +565,9 @@ func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 	}
 
 	sb.WriteString(fmt.Sprintf("\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor))
-	if script.Type == "ct" {
+	if script.Type == scriptTypeCT {
 		sb.WriteString(" This will create a new LXC container.")
-	} else if script.Type == "vm" {
+	} else if script.Type == scriptTypeVM {
 		sb.WriteString(" This will create a new virtual machine.")
 	}
 
@@ -575,7 +581,6 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 		// Install the script interactively
 		fmt.Printf("Installing %s...\n", script.Name)
 		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
-
 		if err != nil {
 			fmt.Printf("\nScript installation failed: %v\n", err)
 		}
@@ -695,9 +700,9 @@ func (s *ScriptSelector) onSearchChanged(text string) {
 	for _, script := range s.filteredScripts {
 		// Add more detailed information in the secondary text
 		var secondaryText string
-		if script.Type == "ct" {
+		if script.Type == scriptTypeCT {
 			secondaryText = fmt.Sprintf("Container: %s", script.Description)
-		} else if script.Type == "vm" {
+		} else if script.Type == scriptTypeVM {
 			secondaryText = fmt.Sprintf("VM: %s", script.Description)
 		} else {
 			secondaryText = script.Description

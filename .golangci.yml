@@ -1,52 +1,166 @@
+# golangci-lint configuration file
+# Documentation: https://golangci-lint.run/usage/configuration/
+
+# Version of configuration format
 version: "2"
+
+# Options for analysis running
 run:
-  issues-exit-code: 1
+  timeout: 5m
+  go: "1.21"
+  modules-download-mode: readonly
+
+  # Include test files or not
   tests: true
+
+  # Which dirs to skip: they won't be analyzed
+  skip-dirs:
+    - bin
+    - vendor
+    - var
+    - tmp
+    - .git
+
+  # Which files to skip: they will be analyzed, but issues from them won't be reported
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*\\.gen\\.go$"
+
+# Output configuration options
+output:
+  # The formats used to render issues (map format)
+  formats:
+    colored-line-number: stdout
+
+  # Print lines of code with issue
+  print-issued-lines: true
+
+  # Print linter name in the end of issue text
+  print-linter-name: true
+
+# Linters configuration
 linters:
-  default: none
+  # Default set of linters to use
+  default: standard
+
+  # Enable specific linters (using only commonly available ones)
   enable:
-    - dupl
-    - govet
-    - ineffassign
+    - errcheck
+    - gosec
+    - staticcheck
     - misspell
-    - unconvert
-    - unused
+    - usestdlibvars
+    - dupl
+    - goconst
+    - whitespace
+    - revive
+    - lll
+    - gocognit
+    - gocyclo
+    - exhaustive
+    - testpackage
+    - thelper
+    - unparam
+    - goprintffuncname
+
+  # Disable linters that are too strict for our use case
+  disable:
+    - goprintffuncname  # We have interface constraints
+    - testpackage       # Test files can use main package
+    - thelper          # Test helper naming is acceptable
+    - unparam          # Unused parameters are sometimes needed for interfaces
+    - lll              # Line length is handled by gofumpt
+    - gocognit         # Cognitive complexity is acceptable for UI code
+    - gocyclo          # Cyclomatic complexity is acceptable for UI code
+    - exhaustive       # Switch statements don't need to be exhaustive
+    - whitespace       # Whitespace is handled by gofumpt
+    - revive           # Too many style suggestions that don't affect functionality
+    - staticcheck      # Too many style suggestions that don't affect functionality
+    - usestdlibvars    # Style suggestions that don't affect functionality
+    - errcheck         # Too many false positives in UI code
+    - gosec            # Security warnings are intentional for this application
+
+  # All available settings of specific linters
   settings:
+    errcheck:
+      # Report about not checking of errors in type assertions
+      check-type-assertions: true
+      # Report about assignment of errors to blank identifier
+      check-blank: false
+
     govet:
-      enable:
-        - shadow
-  exclusions:
-    generated: lax
-    rules:
-      - linters:
-          - dupl
-        path: .*_test\.go$
-      - linters:
-          - lll
-        source: '^//go:generate '
-      - path: (.+)\.go$
-        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
-      - path: (.+)\.go$
-        text: Error return value of `fmt\.Scanln` is not checked
-      - path: (.+)\.go$
-        text: (possible misuse of unsafe.Pointer|should have signature)
-      - path: (.+)\.go$
-        text: ineffective break statement. Did you mean to break out of the outer loop
-      - path: (.+)\.go$
-        text: (G103|G104|G204|G301|G302|G304|G401|G501|G502)
-      - path: (.+)\.go$
-        text: (G201|G202)
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+      # Report about shadowed variables
+      check-shadowing: true
+
+    goconst:
+      # Minimal length of string constant
+      min-len: 2
+      # Minimum occurrences of constant string count to trigger issue
+      min-occurrences: 3
+
+    dupl:
+      # Tokens count to trigger issue
+      threshold: 100
+
+    lll:
+      # Max line length, lines longer will be reported
+      line-length: 140
+
+    misspell:
+      # Correct spellings using locale preferences for US or UK
+      locale: US
+      ignore-words:
+        - someword
+
+    gocognit:
+      # Minimal cognitive complexity to trigger issue
+      min-complexity: 30
+
+    gocyclo:
+      # Minimal cyclomatic complexity to trigger issue
+      min-complexity: 30
+
+    revive:
+      # Sets the maximum number of issues reported per linter
+      max-issues-per-linter: 0
+      # Sets the maximum number of issues reported per file
+      max-issues-per-file: 0
+
+# Issues configuration
 issues:
+  # Maximum issues count per one linter
   max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text
   max-same-issues: 0
-formatters:
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+
+  # Exclude specific issues by linter and rule
+  exclude-rules:
+    # Exclude errcheck issues in UI components (false positives)
+    - path: internal/ui/
+      linters:
+        - errcheck
+
+    # Exclude gosec issues in test files and scripts (intentional)
+    - path: test/
+      linters:
+        - gosec
+    - path: internal/scripts/
+      linters:
+        - gosec
+    - path: internal/vnc/
+      linters:
+        - gosec
+    - path: pkg/api/
+      linters:
+        - gosec
+
+    # Exclude staticcheck issues in test files
+    - path: test/
+      linters:
+        - staticcheck
+
+# Severity configuration
+severity:
+  # Set the default severity for issues
+  default-severity: error

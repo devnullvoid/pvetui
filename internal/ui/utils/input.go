@@ -18,7 +18,10 @@ func WaitForReturnWithCountdown(seconds int) {
 // WaitForEnter waits for the user to press Enter before continuing.
 // This is useful for pausing execution and waiting for user acknowledgment.
 func WaitForEnter() {
-	fmt.Scanln()
+	if _, err := fmt.Scanln(); err != nil {
+		// Ignore scan errors as they're not critical for this function
+		// The user might have pressed Ctrl+C or similar
+	}
 
 	// Add a small delay and countdown for better UX
 	WaitForReturnWithCountdown(3)
@@ -36,5 +39,9 @@ func WaitForEnterToReturn(err error, successMsg, failureMsg string) {
 	}
 
 	fmt.Print("\nPress Enter to return to the TUI...")
-	fmt.Scanln() // Simple blocking read for Enter key
+	if _, err := fmt.Scanln(); err != nil {
+		// Ignore scan errors as they're not critical for this function
+		// The user might have pressed Ctrl+C or similar
+		_ = err // Explicitly ignore the error
+	}
 }

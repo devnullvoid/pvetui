@@ -12,6 +12,13 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
+// Common status constants
+const (
+	statusRunning = "running"
+	statusStopped = "stopped"
+	vmTypeLXC     = "lxc"
+)
+
 // NodeDetails encapsulates the node details panel
 type NodeDetails struct {
 	*tview.Table
@@ -44,32 +51,7 @@ func (nd *NodeDetails) SetApp(app *App) {
 	nd.app = app
 
 	// Set up input capture for arrow keys and VI-like navigation (hjkl)
-	nd.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyLeft:
-			if nd.app != nil {
-				nd.app.SetFocus(nd.app.nodeList)
-				return nil
-			}
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'h': // VI-like left navigation
-				if nd.app != nil {
-					nd.app.SetFocus(nd.app.nodeList)
-					return nil
-				}
-			case 'j': // VI-like down navigation
-				// Let the table handle down navigation naturally
-				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
-			case 'k': // VI-like up navigation
-				// Let the table handle up navigation naturally
-				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-			case 'l': // VI-like right navigation - no action for node details (already at rightmost)
-				return nil
-			}
-		}
-		return event
-	})
+	nd.SetInputCapture(createNavigationInputCapture(nd.app, nd.app.nodeList, nil))
 }
 
 // Update fills the node details table for the given node
@@ -114,7 +96,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// CPU Usage
 	nd.SetCell(row, 0, tview.NewTableCell("🖥️ CPU").SetTextColor(theme.Colors.HeaderText))
 	cpuValue := api.StringNA
-	var cpuUsageColor tcell.Color = theme.Colors.Primary
+	cpuUsageColor := theme.Colors.Primary
 	if node.CPUUsage >= 0 && node.CPUCount > 0 {
 		cpuPercent := node.CPUUsage * 100
 		cpuValue = fmt.Sprintf("%.1f%% of %.0f cores", cpuPercent, node.CPUCount)
@@ -139,7 +121,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// Memory Usage
 	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
 	memValue := api.StringNA
-	var memUsageColor tcell.Color = theme.Colors.Primary
+	memUsageColor := theme.Colors.Primary
 	if node.MemoryTotal > 0 {
 		memUsedFormatted := utils.FormatBytes(int64(node.MemoryUsed * 1073741824))
 		memTotalFormatted := utils.FormatBytes(int64(node.MemoryTotal * 1073741824))
@@ -195,9 +177,9 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		if n.Name == node.Name {
 			for _, vm := range n.VMs {
 				switch vm.Status {
-				case "running":
+				case statusRunning:
 					vmRunning++
-				case "stopped":
+				case statusStopped:
 					vmStopped++
 				}
 				if vm.Template {
@@ -220,8 +202,8 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	for _, n := range allNodes {
 		if n.Name == node.Name {
 			for _, vm := range n.VMs {
-				if vm.Type == "lxc" {
-					if vm.Status == "running" {
+				if vm.Type == vmTypeLXC {
+					if vm.Status == statusRunning {
 						lxcRunning++
 					} else {
 						lxcStopped++

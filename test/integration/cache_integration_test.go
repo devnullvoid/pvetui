@@ -428,7 +428,6 @@ func testCachePersistence(t *testing.T, cacheDir string) {
 
 // TestCacheIntegration_ErrorHandling tests error handling scenarios
 func TestCacheIntegration_ErrorHandling(t *testing.T) {
-
 	t.Run("invalid_cache_directory", func(t *testing.T) {
 		// Try to create cache in invalid directory
 		invalidPath := "/dev/null/invalidcache"

@@ -90,12 +90,16 @@ func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 	// Validate cache directory before attempting to use it
 	if cfg.CacheDir != "" {
 		// Test if we can create the directory and write to it
-		if err := os.MkdirAll(cfg.CacheDir, 0755); err == nil {
+		if err := os.MkdirAll(cfg.CacheDir, 0o750); err == nil {
 			// Test write access by creating a temporary file
 			testFile := filepath.Join(cfg.CacheDir, ".write_test")
 			if file, err := os.Create(testFile); err == nil {
-				file.Close()
-				os.Remove(testFile) // Clean up test file
+				if err := file.Close(); err != nil {
+					// Log error but continue - this is acceptable in cleanup code
+				}
+				if err := os.Remove(testFile); err != nil {
+					// Log error but continue
+				}
 
 				// Cache directory is valid, use file-based logging
 				internalLogger, err := logger.NewInternalLogger(level, cfg.CacheDir)

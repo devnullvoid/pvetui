@@ -2,12 +2,11 @@ package scripts
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"os"
 
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/testutils"

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/keys"
@@ -32,6 +33,44 @@ func keyMatch(ev *tcell.EventKey, spec string) bool {
 	}
 	match := evKey == key
 	return match
+}
+
+// createNavigationInputCapture creates a common input capture handler for navigation between components
+func createNavigationInputCapture(app *App, leftTarget, rightTarget tview.Primitive) func(*tcell.EventKey) *tcell.EventKey {
+	return func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyLeft:
+			if app != nil && leftTarget != nil {
+				app.SetFocus(leftTarget)
+				return nil
+			}
+		case tcell.KeyRight:
+			if app != nil && rightTarget != nil {
+				app.SetFocus(rightTarget)
+				return nil
+			}
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'h': // VI-like left navigation
+				if app != nil && leftTarget != nil {
+					app.SetFocus(leftTarget)
+					return nil
+				}
+			case 'l': // VI-like right navigation
+				if app != nil && rightTarget != nil {
+					app.SetFocus(rightTarget)
+					return nil
+				}
+			case 'j': // VI-like down navigation
+				// Let the component handle down navigation naturally
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k': // VI-like up navigation
+				// Let the component handle up navigation naturally
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			}
+		}
+		return event
+	}
 }
 
 // setupKeyboardHandlers configures global keyboard shortcuts

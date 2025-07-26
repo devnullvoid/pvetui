@@ -49,7 +49,7 @@ type FileCache struct {
 // NewFileCache creates a new file-based cache
 func NewFileCache(cacheDir string, persisted bool) (*FileCache, error) {
 	// Create cache directory if it doesn't exist
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
@@ -183,7 +183,7 @@ func (c *FileCache) Set(key string, data interface{}, ttl time.Duration) error {
 
 		// Write to file
 		filePath := filepath.Join(c.dir, key+".json")
-		if err := os.WriteFile(filePath, bytes, 0644); err != nil {
+		if err := os.WriteFile(filePath, bytes, 0o600); err != nil {
 			return fmt.Errorf("failed to write cache file: %w", err)
 		}
 	}
@@ -300,14 +300,14 @@ func InitGlobalCache(cacheDir string) error {
 		globalCacheDir = cacheDir
 
 		// Create cache directory if it doesn't exist
-		if err = os.MkdirAll(cacheDir, 0755); err != nil {
+		if err = os.MkdirAll(cacheDir, 0o750); err != nil {
 			err = fmt.Errorf("failed to create cache directory: %w", err)
 			return
 		}
 
 		// Create a Badger database directory
 		badgerDir := filepath.Join(cacheDir, "badger")
-		if err = os.MkdirAll(badgerDir, 0755); err != nil {
+		if err = os.MkdirAll(badgerDir, 0o750); err != nil {
 			err = fmt.Errorf("failed to create badger directory: %w", err)
 			return
 		}

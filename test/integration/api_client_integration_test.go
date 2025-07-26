@@ -321,7 +321,6 @@ func TestAPIClientIntegration_ErrorScenarios(t *testing.T) {
 		client, err := api.NewClient(configAdapter,
 			api.WithLogger(loggerAdapter),
 			api.WithCache(testCache))
-
 		if err != nil {
 			t.Logf("Skipping timeout test: %v", err)
 			return

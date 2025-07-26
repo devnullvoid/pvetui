@@ -67,7 +67,7 @@ func NewInternalLogger(level Level, cacheDir string) (*Logger, error) {
 		logsDir = "."
 	}
 
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
+	if err := os.MkdirAll(logsDir, 0o750); err != nil {
 		// If we can't create cache directory, fall back to current directory
 		logsDir = "."
 	}
@@ -97,7 +97,7 @@ func NewLogger(config *Config) (*Logger, error) {
 		config = DefaultConfig()
 	}
 
-	var output io.Writer = config.Output
+	output := config.Output
 	if output == nil {
 		output = os.Stdout
 	}
@@ -106,12 +106,12 @@ func NewLogger(config *Config) (*Logger, error) {
 	if config.LogToFile && config.LogFile != "" {
 		// Ensure the directory exists
 		dir := filepath.Dir(config.LogFile)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return nil, fmt.Errorf("failed to create log directory: %w", err)
 		}
 
 		// Open the log file
-		file, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open log file: %w", err)
 		}

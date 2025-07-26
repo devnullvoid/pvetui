@@ -152,8 +152,14 @@ func (s *Server) startHTTPServer() error {
 		s.logger.Error("Failed to find available port: %v", err)
 		return fmt.Errorf("failed to find available port: %w", err)
 	}
-	s.port = listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
+	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("failed to get TCP address from listener")
+	}
+	s.port = tcpAddr.Port
+	if err := listener.Close(); err != nil {
+		s.logger.Error("Failed to close listener: %v", err)
+	}
 
 	s.logger.Info("Allocated port %d for HTTP server", s.port)
 

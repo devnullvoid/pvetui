@@ -14,6 +14,12 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/testutils"
 )
 
+// Test constants for repeated strings
+const (
+	testTokenValue = "user@realm!tokenid=secret"
+	testEndpoint   = "/access/ticket"
+)
+
 func TestAuthToken_IsValid(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -76,7 +82,7 @@ func TestNewAuthManagerWithPassword(t *testing.T) {
 func TestNewAuthManagerWithToken(t *testing.T) {
 	httpClient := &HTTPClient{baseURL: "https://test.example.com"}
 	logger := testutils.NewTestLogger()
-	token := "user@realm!tokenid=secret"
+	token := testTokenValue
 
 	authManager := NewAuthManagerWithToken(httpClient, token, logger)
 
@@ -109,7 +115,7 @@ func TestAuthManager_EnsureAuthenticated_WithToken(t *testing.T) {
 		client:  &http.Client{},
 	}
 	logger := testutils.NewTestLogger()
-	token := "user@realm!tokenid=secret"
+	token := testTokenValue
 
 	authManager := NewAuthManagerWithToken(httpClient, token, logger)
 
@@ -123,7 +129,7 @@ func TestAuthManager_EnsureAuthenticated_WithToken(t *testing.T) {
 func TestAuthManager_GetValidToken_WithAPIToken(t *testing.T) {
 	httpClient := &HTTPClient{baseURL: "https://test.example.com"}
 	logger := testutils.NewTestLogger()
-	apiToken := "user@realm!tokenid=secret"
+	apiToken := testTokenValue
 
 	authManager := NewAuthManagerWithToken(httpClient, apiToken, logger)
 
@@ -159,7 +165,7 @@ func TestAuthManager_GetValidToken_WithCachedToken(t *testing.T) {
 func TestAuthManager_GetValidToken_WithExpiredToken(t *testing.T) {
 	// Create a test server that returns a successful authentication response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/access/ticket" && r.Method == "POST" {
+		if r.URL.Path == testEndpoint && r.Method == http.MethodPost {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"ticket":              "new-ticket",
@@ -204,7 +210,7 @@ func TestAuthManager_GetValidToken_WithExpiredToken(t *testing.T) {
 func TestAuthManager_authenticate_Success(t *testing.T) {
 	// Create a test server that returns a successful authentication response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/access/ticket" && r.Method == "POST" {
+		if r.URL.Path == "/access/ticket" && r.Method == http.MethodPost {
 			// Verify the request
 			assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 			assert.Equal(t, "proxmox-tui", r.Header.Get("User-Agent"))
@@ -253,7 +259,7 @@ func TestAuthManager_authenticate_Success(t *testing.T) {
 func TestAuthManager_authenticate_HTTPError(t *testing.T) {
 	// Create a test server that returns an error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/access/ticket" {
+		if r.URL.Path == testEndpoint {
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte("Authentication failed"))
 			return
@@ -279,7 +285,7 @@ func TestAuthManager_authenticate_HTTPError(t *testing.T) {
 func TestAuthManager_authenticate_InvalidJSON(t *testing.T) {
 	// Create a test server that returns invalid JSON
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/access/ticket" {
+		if r.URL.Path == testEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte("invalid json"))
 			return
@@ -305,7 +311,7 @@ func TestAuthManager_authenticate_InvalidJSON(t *testing.T) {
 func TestAuthManager_authenticate_NoTicket(t *testing.T) {
 	// Create a test server that returns response without ticket
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/access/ticket" {
+		if r.URL.Path == testEndpoint {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"username": "testuser",
@@ -372,7 +378,7 @@ func TestAuthManager_ClearToken(t *testing.T) {
 func TestAuthManager_ConcurrentAccess(t *testing.T) {
 	// Create a test server that simulates slow authentication
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/access/ticket" {
+		if r.URL.Path == testEndpoint {
 			// Add a small delay to test concurrent access
 			time.Sleep(10 * time.Millisecond)
 
@@ -465,7 +471,7 @@ func TestAuthManager_ContextCancellation(t *testing.T) {
 func TestAuthManager_EnsureAuthenticated_WithPassword(t *testing.T) {
 	// Create a test server for authentication
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/access/ticket" {
+		if r.URL.Path == testEndpoint {
 			response := map[string]interface{}{
 				"data": map[string]interface{}{
 					"ticket":              "ensure-auth-ticket",

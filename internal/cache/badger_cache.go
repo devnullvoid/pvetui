@@ -18,7 +18,7 @@ type BadgerCache struct {
 // NewBadgerCache creates a new Badger-based cache
 func NewBadgerCache(dir string) (*BadgerCache, error) {
 	// Ensure the directory exists
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create badger directory: %w", err)
 	}
 
@@ -170,7 +170,6 @@ func (c *BadgerCache) Set(key string, data interface{}, ttl time.Duration) error
 	err = c.db.Update(func(txn *badger.Txn) error {
 		return txn.Set([]byte(key), bytes)
 	})
-
 	if err != nil {
 		return fmt.Errorf("badger set operation: %w", err)
 	}

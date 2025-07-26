@@ -64,7 +64,7 @@ debug: true
 cache_dir: "` + itc.CacheDir + `"
 `
 		configFile := filepath.Join(itc.TempDir, "e2e-config.yml")
-		err := os.WriteFile(configFile, []byte(configContent), 0644)
+		err := os.WriteFile(configFile, []byte(configContent), 0o644)
 		require.NoError(t, err)
 
 		// Step 2: Load configuration from file
@@ -262,7 +262,7 @@ password: "testpass"
 # Missing required addr field
 `
 		configFile := filepath.Join(itc.TempDir, "invalid-config.yml")
-		err := os.WriteFile(configFile, []byte(invalidConfigContent), 0644)
+		err := os.WriteFile(configFile, []byte(invalidConfigContent), 0o644)
 		require.NoError(t, err)
 
 		// Step 2: Try to load configuration

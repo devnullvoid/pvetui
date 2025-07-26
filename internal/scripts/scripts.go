@@ -18,9 +18,11 @@ import (
 )
 
 // GitHubRepo is the URL to the Proxmox Community Scripts repository
-const GitHubRepo = "https://github.com/community-scripts/ProxmoxVE"
-const GitHubAPIRepo = "https://api.github.com/repos/community-scripts/ProxmoxVE"
-const RawGitHubRepo = "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+const (
+	GitHubRepo    = "https://github.com/community-scripts/ProxmoxVE"
+	GitHubAPIRepo = "https://api.github.com/repos/community-scripts/ProxmoxVE"
+	RawGitHubRepo = "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+)
 
 // Cache TTLs
 const (
@@ -130,7 +132,7 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	url := GitHubAPIRepo + "/contents/frontend/public/json"
 
 	// Create a new request with GitHub API headers
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -206,7 +208,7 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 	}
 
 	// Create a new request with GitHub API headers
-	req, err := http.NewRequest("GET", metadataURL, nil)
+	req, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

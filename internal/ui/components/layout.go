@@ -99,29 +99,7 @@ func (a *App) setupComponentConnections() {
 	a.tasksList.SetApp(a)
 
 	// Load initial tasks data
-	go func() {
-		tasks, err := a.client.GetClusterTasks()
-		if err == nil {
-			a.QueueUpdateDraw(func() {
-				// Update global state with tasks
-				models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
-				models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
-				copy(models.GlobalState.OriginalTasks, tasks)
-				copy(models.GlobalState.FilteredTasks, tasks)
-
-				// Check for existing search filters
-				taskSearchState := models.GlobalState.GetSearchState(api.PageTasks)
-				if taskSearchState != nil && taskSearchState.Filter != "" {
-					// Apply existing filter
-					models.FilterTasks(taskSearchState.Filter)
-					a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
-				} else {
-					// No filter, use original data
-					a.tasksList.SetTasks(tasks)
-				}
-			})
-		}
-	}()
+	a.loadTasksData()
 
 	// Configure help modal
 	a.helpModal.SetApp(a)

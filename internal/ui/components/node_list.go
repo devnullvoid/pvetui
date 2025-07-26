@@ -49,32 +49,7 @@ func (nl *NodeList) SetApp(app *App) {
 	nl.app = app
 
 	// Set up input capture for arrow keys and VI-like navigation (hjkl)
-	nl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyRight:
-			if nl.app != nil {
-				nl.app.SetFocus(nl.app.nodeDetails)
-				return nil
-			}
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'l': // VI-like right navigation
-				if nl.app != nil {
-					nl.app.SetFocus(nl.app.nodeDetails)
-					return nil
-				}
-			case 'j': // VI-like down navigation
-				// Let the list handle down navigation naturally
-				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
-			case 'k': // VI-like up navigation
-				// Let the list handle up navigation naturally
-				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-			case 'h': // VI-like left navigation - no action for node list (already at leftmost)
-				return nil
-			}
-		}
-		return event
-	})
+	nl.SetInputCapture(createNavigationInputCapture(nl.app, nil, nl.app.nodeDetails))
 }
 
 // SetNodes updates the list with the provided nodes

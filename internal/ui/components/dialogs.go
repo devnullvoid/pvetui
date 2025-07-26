@@ -115,6 +115,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	// Add buttons
 	form.AddButton("Migrate", func() {
 		// Get form values
+		// GetCurrentOption() doesn't return an error, so we can ignore the errcheck warning
 		_, targetNode := form.GetFormItemByLabel("Target Node").(*tview.DropDown).GetCurrentOption()
 
 		// Show confirmation dialog
@@ -138,19 +139,25 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 			}
 
 			// Close dialog and perform migration
-			a.pages.RemovePage("migration")
+			if err := a.pages.RemovePage("migration"); err != nil {
+				models.GetUILogger().Error("Failed to remove migration page: %v", err)
+			}
 			a.performMigrationOperation(vm, options)
 		})
 	})
 
 	form.AddButton("Cancel", func() {
-		a.pages.RemovePage("migration")
+		if err := a.pages.RemovePage("migration"); err != nil {
+			models.GetUILogger().Error("Failed to remove migration page: %v", err)
+		}
 	})
 
 	// Set up input capture for navigation
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			a.pages.RemovePage("migration")
+			if err := a.pages.RemovePage("migration"); err != nil {
+				models.GetUILogger().Error("Failed to remove migration page: %v", err)
+			}
 			return nil
 		}
 		return event
@@ -311,12 +318,12 @@ func CreateConfirmDialog(title, message string, onConfirm, onCancel func()) *tvi
 	return modal
 }
 
-// CreateInfoDialog creates an information dialog
-func CreateInfoDialog(title, message string, onClose func()) *tview.Modal {
+// createBaseModal creates a base modal with common configuration
+func createBaseModal(title, message string, textColor tcell.Color, onClose func()) *tview.Modal {
 	modal := tview.NewModal()
 	modal.SetText(message)
 	// modal.SetBackgroundColor(theme.Colors.Background)
-	modal.SetTextColor(theme.Colors.Primary)
+	modal.SetTextColor(textColor)
 	modal.SetBorderColor(theme.Colors.Border)
 	modal.SetTitle(title)
 	modal.SetTitleColor(theme.Colors.Title)
@@ -332,25 +339,14 @@ func CreateInfoDialog(title, message string, onClose func()) *tview.Modal {
 	return modal
 }
 
+// CreateInfoDialog creates an information dialog
+func CreateInfoDialog(title, message string, onClose func()) *tview.Modal {
+	return createBaseModal(title, message, theme.Colors.Primary, onClose)
+}
+
 // CreateErrorDialog creates an error dialog
 func CreateErrorDialog(title, message string, onClose func()) *tview.Modal {
-	modal := tview.NewModal()
-	modal.SetText(message)
-	// modal.SetBackgroundColor(theme.Colors.Background)
-	modal.SetTextColor(theme.Colors.Error)
-	modal.SetBorderColor(theme.Colors.Border)
-	modal.SetTitle(title)
-	modal.SetTitleColor(theme.Colors.Title)
-
-	// Add close button
-	modal.AddButtons([]string{"OK"})
-	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-		if onClose != nil {
-			onClose()
-		}
-	})
-
-	return modal
+	return createBaseModal(title, message, theme.Colors.Error, onClose)
 }
 
 // CreateFormDialog creates a form dialog with custom fields

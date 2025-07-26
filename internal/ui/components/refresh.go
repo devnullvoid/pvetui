@@ -120,24 +120,7 @@ func (a *App) manualRefresh() {
 				a.header.ShowSuccess("Data refreshed successfully")
 				a.footer.SetLoading(false)
 				// Refresh tasks as well
-				go func() {
-					tasks, err := a.client.GetClusterTasks()
-					if err == nil {
-						a.QueueUpdateDraw(func() {
-							models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
-							models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
-							copy(models.GlobalState.OriginalTasks, tasks)
-							copy(models.GlobalState.FilteredTasks, tasks)
-							taskSearchState := models.GlobalState.GetSearchState(api.PageTasks)
-							if taskSearchState != nil && taskSearchState.Filter != "" {
-								models.FilterTasks(taskSearchState.Filter)
-								a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
-							} else {
-								a.tasksList.SetTasks(tasks)
-							}
-						})
-					}
-				}()
+				a.loadTasksData()
 			})
 		}()
 	}()
@@ -282,5 +265,32 @@ func (a *App) refreshNodeData(node *api.Node) {
 			}
 			a.header.ShowSuccess(fmt.Sprintf("Node %s refreshed successfully", node.Name))
 		})
+	}()
+}
+
+// loadTasksData loads and updates task data with proper filtering
+func (a *App) loadTasksData() {
+	go func() {
+		tasks, err := a.client.GetClusterTasks()
+		if err == nil {
+			a.QueueUpdateDraw(func() {
+				// Update global state with tasks
+				models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+				models.GlobalState.FilteredTasks = make([]*api.ClusterTask, len(tasks))
+				copy(models.GlobalState.OriginalTasks, tasks)
+				copy(models.GlobalState.FilteredTasks, tasks)
+
+				// Check for existing search filters
+				taskSearchState := models.GlobalState.GetSearchState(api.PageTasks)
+				if taskSearchState != nil && taskSearchState.Filter != "" {
+					// Apply existing filter
+					models.FilterTasks(taskSearchState.Filter)
+					a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+				} else {
+					// No filter, use original data
+					a.tasksList.SetTasks(tasks)
+				}
+			})
+		}
 	}()
 }

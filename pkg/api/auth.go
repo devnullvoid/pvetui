@@ -286,7 +286,7 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 	am.logger.Debug("Form data: username=%s, password=<hidden>", am.username)
 
 	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, "POST", am.httpClient.baseURL+authURL, strings.NewReader(formData.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, am.httpClient.baseURL+authURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create authentication request: %w", err)
 	}

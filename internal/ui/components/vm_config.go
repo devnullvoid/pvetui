@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -101,7 +102,9 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	// Set ESC key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
-			app.pages.RemovePage("vmConfig")
+			if err := app.pages.RemovePage("vmConfig"); err != nil {
+				models.GetUILogger().Error("Failed to remove vmConfig page: %v", err)
+			}
 			return nil
 		}
 		return event
@@ -117,7 +120,7 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 
 	// Build list of storage devices (filter to only resizable volumes)
 	var deviceNames []string
-	var deviceMap = make(map[string]*api.StorageDevice)
+	deviceMap := make(map[string]*api.StorageDevice)
 	for _, dev := range vm.StorageDevices {
 		if dev.Size == "" {
 			continue // must have a size
@@ -148,7 +151,11 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 	}, nil)
 
 	modal.AddButton("Resize", func() {
-		amountField := modal.GetFormItemByLabel("Expand by (GB)").(*tview.InputField)
+		amountField, ok := modal.GetFormItemByLabel("Expand by (GB)").(*tview.InputField)
+		if !ok {
+			app.showMessage("Failed to get amount field.")
+			return
+		}
 		amountStr := amountField.GetText()
 		amount, err := strconv.Atoi(amountStr)
 		if err != nil || amount <= 0 {
@@ -174,19 +181,25 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 				} else {
 					app.showMessage("Resize operation started successfully.")
 					app.manualRefresh()
-					app.pages.RemovePage("resizeStorage")
+					if err := app.pages.RemovePage("resizeStorage"); err != nil {
+						models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
+					}
 				}
 			})
 		}()
 	})
 	modal.AddButton("Cancel", func() {
-		app.pages.RemovePage("resizeStorage")
+		if err := app.pages.RemovePage("resizeStorage"); err != nil {
+			models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
+		}
 	})
 	modal.SetBorder(true).SetTitle("Resize Storage Volume").SetTitleColor(theme.Colors.Primary)
 	// Set ESC key to cancel for resize modal
 	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
-			app.pages.RemovePage("resizeStorage")
+			if err := app.pages.RemovePage("resizeStorage"); err != nil {
+				models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
+			}
 			return nil
 		}
 		return event

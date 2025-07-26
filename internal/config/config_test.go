@@ -403,84 +403,53 @@ func TestConfig_SetDefaults(t *testing.T) {
 	assert.Contains(t, config.CacheDir, "proxmox-tui")
 }
 
-func TestGetXDGCacheDir(t *testing.T) {
+// testXDGPathHelper runs tests for XDG path functions with common setup and teardown
+func testXDGPathHelper(t *testing.T, envVar string, testFunc func() string, expectedSuffix string) {
 	// Save original environment
-	originalXDGCache := os.Getenv("XDG_CACHE_HOME")
+	originalEnv := os.Getenv(envVar)
 	originalHome := os.Getenv("HOME")
 	defer func() {
-		os.Setenv("XDG_CACHE_HOME", originalXDGCache)
+		os.Setenv(envVar, originalEnv)
 		os.Setenv("HOME", originalHome)
 	}()
 
 	tests := []struct {
 		name           string
-		xdgCache       string
+		envValue       string
 		home           string
 		expectedSuffix string
 	}{
 		{
-			name:           "XDG_CACHE_HOME set",
-			xdgCache:       "/custom/cache",
+			name:           envVar + " set",
+			envValue:       "/custom/path",
 			home:           "/home/user",
-			expectedSuffix: "/custom/cache/proxmox-tui",
+			expectedSuffix: "/custom/path/proxmox-tui",
 		},
 		{
-			name:           "HOME set, no XDG_CACHE_HOME",
-			xdgCache:       "",
+			name:           "HOME set, no " + envVar,
+			envValue:       "",
 			home:           "/home/user",
-			expectedSuffix: "/home/user/.cache/proxmox-tui",
+			expectedSuffix: expectedSuffix,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("XDG_CACHE_HOME", tt.xdgCache)
+			os.Setenv(envVar, tt.envValue)
 			os.Setenv("HOME", tt.home)
 
-			result := getXDGCacheDir()
+			result := testFunc()
 			assert.Equal(t, tt.expectedSuffix, result)
 		})
 	}
 }
 
+func TestGetXDGCacheDir(t *testing.T) {
+	testXDGPathHelper(t, "XDG_CACHE_HOME", getXDGCacheDir, "/home/user/.cache/proxmox-tui")
+}
+
 func TestGetXDGConfigDir(t *testing.T) {
-	// Save original environment
-	originalXDGConfig := os.Getenv("XDG_CONFIG_HOME")
-	originalHome := os.Getenv("HOME")
-	defer func() {
-		os.Setenv("XDG_CONFIG_HOME", originalXDGConfig)
-		os.Setenv("HOME", originalHome)
-	}()
-
-	tests := []struct {
-		name           string
-		xdgConfig      string
-		home           string
-		expectedSuffix string
-	}{
-		{
-			name:           "XDG_CONFIG_HOME set",
-			xdgConfig:      "/custom/config",
-			home:           "/home/user",
-			expectedSuffix: "/custom/config/proxmox-tui",
-		},
-		{
-			name:           "HOME set, no XDG_CONFIG_HOME",
-			xdgConfig:      "",
-			home:           "/home/user",
-			expectedSuffix: "/home/user/.config/proxmox-tui",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("XDG_CONFIG_HOME", tt.xdgConfig)
-			os.Setenv("HOME", tt.home)
-
-			result := getXDGConfigDir()
-			assert.Equal(t, tt.expectedSuffix, result)
-		})
-	}
+	testXDGPathHelper(t, "XDG_CONFIG_HOME", getXDGConfigDir, "/home/user/.config/proxmox-tui")
 }
 
 func TestValidateKeyBindings(t *testing.T) {

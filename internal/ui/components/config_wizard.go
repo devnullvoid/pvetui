@@ -83,7 +83,7 @@ func findSOPSRule(startDir string) bool {
 type WizardResult struct {
 	Saved         bool
 	SopsEncrypted bool
-	Cancelled     bool
+	Canceled      bool
 }
 
 // Update NewConfigWizardPage to accept a resultChan chan<- WizardResult
@@ -177,7 +177,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		if cancelFn != nil {
 			cancelFn()
 		}
-		resultChan <- WizardResult{Cancelled: true}
+		resultChan <- WizardResult{Canceled: true}
 		app.Stop()
 	})
 	form.SetBorder(true).SetTitle("Proxmox TUI - Config Wizard").SetTitleColor(theme.Colors.Primary)
@@ -186,7 +186,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			if cancelFn != nil {
 				cancelFn()
 			}
-			resultChan <- WizardResult{Cancelled: true}
+			resultChan <- WizardResult{Canceled: true}
 			app.Stop()
 			return nil
 		}
@@ -197,13 +197,13 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 // SaveConfigToFile writes the config to the given path in YAML format.
 func SaveConfigToFile(cfg *config.Config, path string) error {
-	// Use the config package's YAML marshalling
+	// Use the config package's YAML marshaling
 	data, err := configToYAML(cfg)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(strings.TrimSuffix(path, "/"+FilepathBase(path)), 0755); err != nil {
+	if err := os.MkdirAll(strings.TrimSuffix(path, "/"+FilepathBase(path)), 0o750); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0o600)
 }

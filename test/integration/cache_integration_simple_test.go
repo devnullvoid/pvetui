@@ -11,6 +11,12 @@ import (
 	"github.com/devnullvoid/proxmox-tui/test/testutils"
 )
 
+// Test constants for repeated strings
+const (
+	testKey   = "test-string"
+	testValue = "hello world"
+)
+
 // TestCacheIntegration_Simple tests basic cache functionality
 func TestCacheIntegration_Simple(t *testing.T) {
 	itc := testutils.NewIntegrationTestConfig(t)
@@ -22,8 +28,8 @@ func TestCacheIntegration_Simple(t *testing.T) {
 		defer badgerCache.Close()
 
 		// Test basic string operations
-		key := "test-string"
-		value := "hello world"
+		key := testKey
+		value := testValue
 
 		// Set value
 		err = badgerCache.Set(key, value, time.Hour)
@@ -51,8 +57,8 @@ func TestCacheIntegration_Simple(t *testing.T) {
 		memCache := cache.NewMemoryCache()
 
 		// Test basic string operations
-		key := "test-string"
-		value := "hello world"
+		key := testKey
+		value := testValue
 
 		// Set value
 		err := memCache.Set(key, value, time.Hour)

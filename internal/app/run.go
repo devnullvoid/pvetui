@@ -38,7 +38,7 @@ func RunWithStartupVerification(cfg *config.Config, opts Options) error {
 
 	// Create cache directory
 	if cfg.CacheDir != "" {
-		if mkdirErr := os.MkdirAll(cfg.CacheDir, 0755); mkdirErr != nil {
+		if mkdirErr := os.MkdirAll(cfg.CacheDir, 0o750); mkdirErr != nil {
 			return fmt.Errorf("create cache dir: %w", mkdirErr)
 		}
 	}

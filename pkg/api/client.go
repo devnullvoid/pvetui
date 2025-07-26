@@ -415,7 +415,11 @@ func NewClient(config interfaces.Config, options ...ClientOption) (*Client, erro
 
 	// Configure TLS
 	tlsConfig := &tls.Config{InsecureSkipVerify: config.GetInsecure()}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("failed to get default transport")
+	}
+	transport = transport.Clone()
 	transport.TLSClientConfig = tlsConfig
 
 	// Create HTTP client

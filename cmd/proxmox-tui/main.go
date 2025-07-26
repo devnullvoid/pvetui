@@ -110,7 +110,7 @@ func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool, ac
 			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", path)
 		} else if res.Saved {
 			fmt.Println("✅ Configuration saved.")
-		} else if res.Cancelled {
+		} else if res.Canceled {
 			fmt.Println("🚪 Exiting.")
 		}
 		if promptYesNo("Would you like to proceed with main application startup?") {
@@ -201,7 +201,7 @@ func main() {
 			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", configPath)
 		} else if res.Saved {
 			fmt.Println("✅ Configuration saved.")
-		} else if res.Cancelled {
+		} else if res.Canceled {
 			fmt.Println("🚪 Exiting.")
 		}
 		os.Exit(0)

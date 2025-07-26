@@ -68,7 +68,7 @@ cache_dir: "%s"
 `, itc.ProxmoxAddr, itc.ProxmoxUser, itc.ProxmoxPass, itc.CacheDir)
 	}
 
-	err := os.WriteFile(itc.ConfigFile, []byte(configContent), 0644)
+	err := os.WriteFile(itc.ConfigFile, []byte(configContent), 0o644)
 	require.NoError(t, err)
 }
 
@@ -85,7 +85,7 @@ func (itc *IntegrationTestConfig) CreateTestConfig() *config.Config {
 	}
 
 	// Ensure cache directory exists
-	_ = os.MkdirAll(itc.CacheDir, 0755)
+	_ = os.MkdirAll(itc.CacheDir, 0o750)
 
 	return cfg
 }

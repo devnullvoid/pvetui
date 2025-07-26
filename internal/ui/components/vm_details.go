@@ -45,32 +45,7 @@ func (vd *VMDetails) SetApp(app *App) {
 	vd.app = app
 
 	// Set up input capture for arrow keys and VI-like navigation (hjkl)
-	vd.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyLeft:
-			if vd.app != nil {
-				vd.app.SetFocus(vd.app.vmList)
-				return nil
-			}
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'h': // VI-like left navigation
-				if vd.app != nil {
-					vd.app.SetFocus(vd.app.vmList)
-					return nil
-				}
-			case 'j': // VI-like down navigation
-				// Let the table handle down navigation naturally
-				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
-			case 'k': // VI-like up navigation
-				// Let the table handle up navigation naturally
-				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-			case 'l': // VI-like right navigation - no action for VM details (already at rightmost)
-				return nil
-			}
-		}
-		return event
-	})
+	vd.SetInputCapture(createNavigationInputCapture(vd.app, vd.app.vmList, nil))
 }
 
 // Update fills the VM details table for the given VM
@@ -154,7 +129,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	// CPU Usage
 	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.HeaderText))
 	cpuValue := api.StringNA
-	var cpuUsageColor tcell.Color = theme.Colors.Primary
+	cpuUsageColor := theme.Colors.Primary
 	if vm.CPU >= 0 && vm.CPUCores > 0 {
 		cpuPercent := vm.CPU * 100
 		cpuValue = fmt.Sprintf("%.1f%% of %d cores", cpuPercent, vm.CPUCores)
@@ -169,7 +144,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
 	memValue := api.StringNA
-	var memUsageColor tcell.Color = theme.Colors.Primary
+	memUsageColor := theme.Colors.Primary
 	if vm.MaxMem > 0 {
 		memUsedFormatted := utils.FormatBytes(vm.Mem)
 		memTotalFormatted := utils.FormatBytes(vm.MaxMem)
@@ -182,7 +157,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(theme.Colors.HeaderText))
 	diskValue := api.StringNA
-	var diskUsageColor tcell.Color = theme.Colors.Primary
+	diskUsageColor := theme.Colors.Primary
 	if vm.MaxDisk > 0 {
 		diskUsedFormatted := utils.FormatBytes(vm.Disk)
 		diskTotalFormatted := utils.FormatBytes(vm.MaxDisk)
@@ -253,7 +228,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			} else {
 				usedPercent = 0
 			}
-			var usageColor tcell.Color = theme.GetUsageColor(usedPercent)
+			usageColor := theme.GetUsageColor(usedPercent)
 			vd.SetCell(row, 0, tview.NewTableCell("  • "+fsName).SetTextColor(theme.Colors.Info))
 			vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.2f%% (%s/%s)%s",
 				usedPercent,

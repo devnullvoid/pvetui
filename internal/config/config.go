@@ -357,7 +357,7 @@ func GetDefaultConfigPath() string {
 // the default config.tpl.yml template.
 func CreateDefaultConfigFile() (string, error) {
 	configDir := getXDGConfigDir()
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return "", fmt.Errorf("failed to create config directory %s: %w", configDir, err)
 	}
 
@@ -368,7 +368,7 @@ func CreateDefaultConfigFile() (string, error) {
 	}
 
 	configPath := GetDefaultConfigPath()
-	if err := os.WriteFile(configPath, templateData, 0644); err != nil {
+	if err := os.WriteFile(configPath, templateData, 0o600); err != nil {
 		return "", fmt.Errorf("failed to write config file to %s: %w", configPath, err)
 	}
 

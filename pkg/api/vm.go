@@ -134,36 +134,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					for _, iface := range rawNetInterfaces {
 						// Skip loopback and veth interfaces, and check against configured MACs
 						if !iface.IsLoopback && !strings.HasPrefix(iface.Name, "veth") && (vm.ConfiguredMACs == nil || vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]) {
-							// Prioritize IPv4, then first IPv6, then no IP for this interface if none match
-							var bestIP IPAddress
-							foundIP := false
-							for _, ip := range iface.IPAddresses {
-								if ip.Type == IPTypeIPv4 {
-									bestIP = ip
-									foundIP = true
-									break
-								}
-							}
-							if !foundIP && len(iface.IPAddresses) > 0 {
-								// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
-								for _, ip := range iface.IPAddresses {
-									if ip.Type == IPTypeIPv6 { // Explicitly look for IPv6 first
-										bestIP = ip
-										foundIP = true
-										break
-									}
-								}
-								if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
-									bestIP = iface.IPAddresses[0]
-									foundIP = true
-								}
-							}
-
-							if foundIP {
-								iface.IPAddresses = []IPAddress{bestIP}
-							} else {
-								iface.IPAddresses = nil // No suitable IP found
-							}
+							iface.IPAddresses = prioritizeIPAddresses(iface.IPAddresses)
 							filteredInterfaces = append(filteredInterfaces, iface)
 						}
 					}
@@ -289,35 +260,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 				}
 
 				if showInterface {
-					// Prioritize IPv4, then first IPv6
-					var bestIP IPAddress
-					foundIP := false
-					for _, ip := range iface.IPAddresses {
-						if ip.Type == IPTypeIPv4 {
-							bestIP = ip
-							foundIP = true
-							break
-						}
-					}
-					if !foundIP && len(iface.IPAddresses) > 0 {
-						for _, ip := range iface.IPAddresses { // Explicitly look for IPv6 first
-							if ip.Type == IPTypeIPv6 {
-								bestIP = ip
-								foundIP = true
-								break
-							}
-						}
-						if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
-							bestIP = iface.IPAddresses[0]
-							foundIP = true
-						}
-					}
-
-					if foundIP {
-						iface.IPAddresses = []IPAddress{bestIP}
-					} else {
-						iface.IPAddresses = nil
-					}
+					iface.IPAddresses = prioritizeIPAddresses(iface.IPAddresses)
 					filteredLxcInterfaces = append(filteredLxcInterfaces, iface)
 				}
 			}
@@ -427,4 +370,41 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 	populateConfigDetails(vm, configData)
 
 	return vm, nil
+}
+
+// prioritizeIPAddresses selects the best IP address from a list, prioritizing IPv4 over IPv6
+func prioritizeIPAddresses(ipAddresses []IPAddress) []IPAddress {
+	if len(ipAddresses) == 0 {
+		return nil
+	}
+
+	// Prioritize IPv4, then first IPv6, then no IP for this interface if none match
+	var bestIP IPAddress
+	foundIP := false
+	for _, ip := range ipAddresses {
+		if ip.Type == IPTypeIPv4 {
+			bestIP = ip
+			foundIP = true
+			break
+		}
+	}
+	if !foundIP && len(ipAddresses) > 0 {
+		// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
+		for _, ip := range ipAddresses {
+			if ip.Type == IPTypeIPv6 { // Explicitly look for IPv6 first
+				bestIP = ip
+				foundIP = true
+				break
+			}
+		}
+		if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
+			bestIP = ipAddresses[0]
+			foundIP = true
+		}
+	}
+
+	if foundIP {
+		return []IPAddress{bestIP}
+	}
+	return nil // No suitable IP found
 }
