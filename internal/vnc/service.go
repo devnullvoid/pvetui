@@ -42,6 +42,13 @@ func NewServiceWithLogger(client *api.Client, sharedLogger *logger.Logger) *Serv
 	}
 }
 
+// UpdateClient updates the VNC service's client (used when switching profiles)
+func (s *Service) UpdateClient(client *api.Client) {
+	s.logger.Info("Updating VNC service client for profile switch")
+	s.client = client
+	s.sessionManager.UpdateClient(client)
+}
+
 // ConnectToVM opens a VNC connection to a VM in the user's browser
 // Note: Validation should be done using GetVMVNCStatus before calling this method
 func (s *Service) ConnectToVM(vm *api.VM) error {

@@ -56,7 +56,7 @@ func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 			if err != nil {
 				// Clear the loading message from header
 				a.header.StopLoading()
-				a.header.SetTitle("Proxmox TUI") // Reset to default title
+				a.updateHeaderWithActiveProfile() // Restore header with active profile
 				// Show error in modal dialog instead of header
 				errorModal := CreateErrorDialog("VNC Connection Error",
 					fmt.Sprintf("Failed to start VNC shell for %s:\n\n%s", node.Name, err.Error()),
@@ -83,7 +83,7 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 			if err != nil {
 				// Clear the loading message from header
 				a.header.StopLoading()
-				a.header.SetTitle("Proxmox TUI") // Reset to default title
+				a.updateHeaderWithActiveProfile() // Restore header with active profile
 				// Show error in modal dialog instead of header
 				errorModal := CreateErrorDialog("VNC Connection Error",
 					fmt.Sprintf("Failed to start VNC console for %s:\n\n%s", vm.Name, err.Error()),

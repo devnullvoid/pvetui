@@ -9,13 +9,16 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
+const appName = "Proxmox TUI"
+
 // Header encapsulates the application header
 type Header struct {
 	*tview.TextView
-	isLoading   bool
-	loadingText string
-	stopLoading chan bool
-	app         *tview.Application
+	isLoading      bool
+	loadingText    string
+	stopLoading    chan bool
+	app            *tview.Application
+	currentProfile string // Track the current active profile
 }
 
 var _ HeaderComponent = (*Header)(nil)
@@ -43,6 +46,11 @@ func (h *Header) SetApp(app *tview.Application) {
 // SetTitle updates the header text
 func (h *Header) SetTitle(title string) {
 	h.SetText(title)
+}
+
+// SetText updates the header text directly
+func (h *Header) SetText(text string) {
+	h.TextView.SetText(text)
 }
 
 // ShowLoading displays an animated loading indicator
@@ -80,8 +88,8 @@ func (h *Header) ShowSuccess(message string) {
 	h.StopLoading()
 	h.SetText(theme.ReplaceSemanticTags("[success]✓ " + message + "[-]"))
 
-	// Clear the message after 3 seconds
-	h.clearMessageAfterDelay(3 * time.Second)
+	// Clear the message after 2 seconds (shorter than error messages)
+	h.clearMessageAfterDelay(2 * time.Second)
 }
 
 // ShowError displays an error message temporarily
@@ -93,13 +101,38 @@ func (h *Header) ShowError(message string) {
 	h.clearMessageAfterDelay(3 * time.Second)
 }
 
+// formatProfileText creates the formatted header text for a profile
+func (h *Header) formatProfileText(profileName string) string {
+	if profileName == "" {
+		return appName
+	}
+	return theme.ReplaceSemanticTags(fmt.Sprintf("%s - [info]%s[-]", appName, profileName))
+}
+
+// ShowActiveProfile displays the active profile in the header
+func (h *Header) ShowActiveProfile(profileName string) {
+	h.StopLoading()
+	h.currentProfile = profileName // Store the profile name
+	h.SetText(h.formatProfileText(profileName))
+}
+
+// restoreProfile simply restores the profile display without stopping loading
+func (h *Header) restoreProfile() {
+	h.SetText(h.formatProfileText(h.currentProfile))
+}
+
 // Add a helper to clear the header message after a delay
 func (h *Header) clearMessageAfterDelay(delay time.Duration) {
 	go func() {
 		time.Sleep(delay)
 		if h.app != nil {
 			h.app.QueueUpdateDraw(func() {
-				h.SetText("Proxmox TUI")
+				// Restore the current profile if it exists, otherwise reset to default
+				if h.currentProfile != "" {
+					h.restoreProfile()
+				} else {
+					h.SetText(appName)
+				}
 			})
 		}
 	}()

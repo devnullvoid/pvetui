@@ -143,6 +143,7 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.ApiPath = p.ApiPath
 	c.Insecure = p.Insecure
 	c.SSHUser = p.SSHUser
+	c.DefaultProfile = profileName // Update the default profile field
 	return nil
 }
 

@@ -66,6 +66,7 @@ type HeaderComponent interface {
 	ShowSuccess(string)
 	ShowError(string)
 	SetTitle(string)
+	ShowActiveProfile(string)
 }
 
 type FooterComponent interface {

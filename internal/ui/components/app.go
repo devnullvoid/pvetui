@@ -90,6 +90,9 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 	// Set app reference for components that need it
 	app.header.SetApp(app.Application)
 
+	// Show the active profile in the header
+	app.updateHeaderWithActiveProfile()
+
 	uiLogger.Debug("Loading initial cluster data")
 
 	// Show loading indicator for guest data enrichment
@@ -201,9 +204,10 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 				}
 			}
 
-			// Stop the loading indicator and show success notification
+			// Stop the loading indicator and show success notification briefly
 			app.header.StopLoading()
 			app.header.ShowSuccess("Guest agent data loaded")
+			// The profile will be restored after the success message clears (2 seconds)
 			uiLogger.Debug("VM enrichment completed successfully")
 		})
 	}); err != nil {
@@ -302,4 +306,15 @@ func (a *App) Run() error {
 		uiLogger.Error("Failed to close VNC sessions on exit: %v", closeErr)
 	}
 	return nil
+}
+
+// updateHeaderWithActiveProfile updates the header to show the current active profile
+func (a *App) updateHeaderWithActiveProfile() {
+	profileName := a.config.DefaultProfile
+
+	if profileName == "" {
+		a.header.ShowActiveProfile("")
+	} else {
+		a.header.ShowActiveProfile(profileName)
+	}
 }

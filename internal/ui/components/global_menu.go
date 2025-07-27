@@ -139,6 +139,10 @@ func (a *App) applyConnectionProfile(profileName string) {
 		return
 	}
 
+	// Note: We don't save the config file when switching profiles in the UI
+	// The default_profile should only be changed via the config wizard
+	// This allows temporary profile switching without affecting the saved config
+
 	// Recreate the API client with the new profile
 	client, err := api.NewClient(&a.config, api.WithLogger(models.GetUILogger()))
 	if err != nil {
@@ -148,6 +152,12 @@ func (a *App) applyConnectionProfile(profileName string) {
 
 	// Update the app's client
 	a.client = client
+
+	// Update the VNC service's client to use the new profile
+	a.vncService.UpdateClient(client)
+
+	// Update the header to show the active profile
+	a.updateHeaderWithActiveProfile()
 
 	// Refresh the data
 	a.manualRefresh()

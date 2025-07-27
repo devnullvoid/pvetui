@@ -285,6 +285,15 @@ func NewSessionManagerWithLogger(client *api.Client, sharedLogger *logger.Logger
 	return manager
 }
 
+// UpdateClient updates the session manager's client (used when switching profiles)
+func (sm *SessionManager) UpdateClient(client *api.Client) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	sm.logger.Info("Updating session manager client for profile switch")
+	sm.client = client
+}
+
 // CreateVMSession creates a new VNC session for a VM.
 // If a session already exists for the same VM, it may be reused.
 func (sm *SessionManager) CreateVMSession(vm *api.VM) (*VNCSession, error) {
