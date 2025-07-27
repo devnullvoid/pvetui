@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +73,13 @@ func (s *Server) StartVMVNCServerWithSession(client *api.Client, vm *api.VM, ses
 
 	s.logger.Debug("VM proxy config created - Port: %s, VM Type: %s", config.Port, config.VMType)
 
+	// Check VNC port accessibility before starting the server
+	s.logger.Debug("Checking VNC port accessibility for VM %s", vm.Name)
+	if err := s.checkVNCPortAccessibility(config); err != nil {
+		s.logger.Error("VNC port not accessible for VM %s: %v", vm.Name, err)
+		return "", fmt.Errorf("VNC port not accessible: %w", err)
+	}
+
 	// Create WebSocket proxy with session notifications
 	s.logger.Debug("Creating WebSocket proxy for VM %s", vm.Name)
 	s.proxy = NewWebSocketProxyWithSessionAndLogger(config, session, s.logger)
@@ -111,6 +120,13 @@ func (s *Server) StartNodeVNCServerWithSession(client *api.Client, nodeName stri
 	}
 
 	s.logger.Debug("Node proxy config created - Port: %s", config.Port)
+
+	// Check VNC port accessibility before starting the server
+	s.logger.Debug("Checking VNC port accessibility for node %s", nodeName)
+	if err := s.checkVNCPortAccessibility(config); err != nil {
+		s.logger.Error("VNC port not accessible for node %s: %v", nodeName, err)
+		return "", fmt.Errorf("VNC port not accessible: %w", err)
+	}
 
 	// Create WebSocket proxy with session notifications
 	s.logger.Debug("Creating WebSocket proxy for node %s", nodeName)
@@ -231,6 +247,30 @@ func (s *Server) Stop() error {
 
 	s.logger.Info("HTTP server stopped successfully")
 	return err
+}
+
+// checkVNCPortAccessibility tests if the VNC port is accessible from the current network
+func (s *Server) checkVNCPortAccessibility(config *ProxyConfig) error {
+	// Parse the VNC port
+	vncPort, err := strconv.Atoi(config.Port)
+	if err != nil {
+		return fmt.Errorf("invalid VNC port '%s': %w", config.Port, err)
+	}
+
+	// Try to connect to the VNC port on the Proxmox host
+	timeout := 5 * time.Second
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", config.ProxmoxHost, vncPort), timeout)
+	if err != nil {
+		// Check if this looks like a public URL that might not have VNC access
+		if strings.Contains(config.ProxmoxHost, "pve.") || strings.Contains(config.ProxmoxHost, "proxmox.") || strings.Contains(config.ProxmoxHost, "cloud.") {
+			return fmt.Errorf("cannot connect to VNC port %d on %s: %w (this appears to be a public Proxmox URL - VNC ports are typically only accessible from internal networks. Try using an internal Proxmox URL or configure your reverse proxy to forward VNC connections)", vncPort, config.ProxmoxHost, err)
+		}
+		return fmt.Errorf("cannot connect to VNC port %d on %s: %w (this usually means the VNC port is not accessible from your current network - try using an internal Proxmox URL)", vncPort, config.ProxmoxHost, err)
+	}
+	defer conn.Close()
+
+	s.logger.Debug("VNC port %d is accessible on %s", vncPort, config.ProxmoxHost)
+	return nil
 }
 
 // GetPort returns the port the server is running on

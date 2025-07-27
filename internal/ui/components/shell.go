@@ -54,7 +54,16 @@ func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 		err := vncService.ConnectToNodeEmbedded(node.Name)
 		a.QueueUpdateDraw(func() {
 			if err != nil {
-				a.header.ShowError(fmt.Sprintf("Failed to start VNC shell: %v", err))
+				// Clear the loading message from header
+				a.header.StopLoading()
+				a.header.SetTitle("Proxmox TUI") // Reset to default title
+				// Show error in modal dialog instead of header
+				errorModal := CreateErrorDialog("VNC Connection Error",
+					fmt.Sprintf("Failed to start VNC shell for %s:\n\n%s", node.Name, err.Error()),
+					func() {
+						a.pages.RemovePage("vnc_error")
+					})
+				a.pages.AddPage("vnc_error", errorModal, false, true)
 			} else {
 				a.header.ShowSuccess(fmt.Sprintf("Embedded VNC shell started for %s", node.Name))
 			}
@@ -72,7 +81,16 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 		err := vncService.ConnectToVMEmbedded(vm)
 		a.QueueUpdateDraw(func() {
 			if err != nil {
-				a.header.ShowError(fmt.Sprintf("Failed to start VNC console: %v", err))
+				// Clear the loading message from header
+				a.header.StopLoading()
+				a.header.SetTitle("Proxmox TUI") // Reset to default title
+				// Show error in modal dialog instead of header
+				errorModal := CreateErrorDialog("VNC Connection Error",
+					fmt.Sprintf("Failed to start VNC console for %s:\n\n%s", vm.Name, err.Error()),
+					func() {
+						a.pages.RemovePage("vnc_error")
+					})
+				a.pages.AddPage("vnc_error", errorModal, false, true)
 			} else {
 				a.header.ShowSuccess(fmt.Sprintf("Embedded VNC console started for %s", vm.Name))
 			}
@@ -84,7 +102,11 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 func (a *App) openNodeVNC() {
 	node := a.nodeList.GetSelectedNode()
 	if node == nil {
-		a.header.ShowError("No node selected")
+		// Show error in modal dialog instead of header
+		errorModal := CreateErrorDialog("VNC Error", "No node selected", func() {
+			a.pages.RemovePage("vnc_error")
+		})
+		a.pages.AddPage("vnc_error", errorModal, false, true)
 		return
 	}
 
@@ -97,7 +119,11 @@ func (a *App) openNodeVNC() {
 	// Check if VNC is available for this node
 	available, reason := vncService.GetNodeVNCStatus(node.Name)
 	if !available {
-		a.header.ShowError(reason)
+		// Show error in modal dialog instead of header
+		errorModal := CreateErrorDialog("VNC Not Available", reason, func() {
+			a.pages.RemovePage("vnc_error")
+		})
+		a.pages.AddPage("vnc_error", errorModal, false, true)
 		return
 	}
 
@@ -109,7 +135,11 @@ func (a *App) openNodeVNC() {
 func (a *App) openVMVNC() {
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
-		a.header.ShowError("No VM selected")
+		// Show error in modal dialog instead of header
+		errorModal := CreateErrorDialog("VNC Error", "No VM selected", func() {
+			a.pages.RemovePage("vnc_error")
+		})
+		a.pages.AddPage("vnc_error", errorModal, false, true)
 		return
 	}
 
@@ -119,7 +149,11 @@ func (a *App) openVMVNC() {
 	// Check if VNC is available for this VM
 	available, reason := vncService.GetVMVNCStatus(vm)
 	if !available {
-		a.header.ShowError(reason)
+		// Show error in modal dialog instead of header
+		errorModal := CreateErrorDialog("VNC Not Available", reason, func() {
+			a.pages.RemovePage("vnc_error")
+		})
+		a.pages.AddPage("vnc_error", errorModal, false, true)
 		return
 	}
 
