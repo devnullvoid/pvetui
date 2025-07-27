@@ -41,27 +41,27 @@ output:
 # Linters configuration
 linters:
   # Default set of linters to use
-  default: fast
+  default: standard
 
   # Enable specific linters (using only commonly available ones)
-  # enable:
-  #   - errcheck
-  #   - gosec
-  #   - staticcheck
-  #   - misspell
-  #   - usestdlibvars
-  #   - dupl
-  #   - goconst
-  #   - whitespace
-  #   - revive
-  #   - lll
-  #   - gocognit
-  #   - gocyclo
-  #   - exhaustive
-  #   - testpackage
-  #   - thelper
-  #   - unparam
-  #   - goprintffuncname
+  enable:
+    - errcheck
+    - gosec
+    - staticcheck
+    - misspell
+    - usestdlibvars
+    - dupl
+    - goconst
+    - whitespace
+    - revive
+    - lll
+    - gocognit
+    - gocyclo
+    - exhaustive
+    - testpackage
+    - thelper
+    - unparam
+    - goprintffuncname
 
   # Disable linters that are too strict for our use case
   disable:
