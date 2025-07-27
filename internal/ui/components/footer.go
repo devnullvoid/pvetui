@@ -48,13 +48,13 @@ func NewFooter() *Footer {
 // FormatFooterText builds the footer key binding text from config.
 func FormatFooterText(keys config.KeyBindings) string {
 	return fmt.Sprintf(
-		"[%s]%s:[%s]Nodes  [%s]%s:[%s]Guests  [%s]%s:[%s]Tasks  [%s]%s:[%s]Search  [%s]%s:[%s]Menu  [%s]%s:[%s]Auto-Refresh  [%s]%s:[%s]Help  [%s]%s:[%s]Quit",
+		"[%s]%s:[%s]Nodes  [%s]%s:[%s]Guests  [%s]%s:[%s]Tasks  [%s]%s:[%s]Search  [%s]%s:[%s]Menu  [%s]%s:[%s]Global  [%s]%s:[%s]Help  [%s]%s:[%s]Quit",
 		theme.Colors.HeaderText, keys.NodesPage, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.GuestsPage, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.TasksPage, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Search, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Menu, theme.Colors.Primary,
-		theme.Colors.HeaderText, keys.AutoRefresh, theme.Colors.Primary,
+		theme.Colors.HeaderText, keys.GlobalMenu, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Help, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Quit, theme.Colors.Primary,
 	)

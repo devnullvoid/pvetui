@@ -181,6 +181,7 @@ type KeyBindings struct {
 	GuestsPage        string `yaml:"guests_page"`  // Jump to Guests page
 	TasksPage         string `yaml:"tasks_page"`   // Jump to Tasks page
 	Menu              string `yaml:"menu"`         // Open context menu
+	GlobalMenu        string `yaml:"global_menu"`  // Open global context menu
 	Shell             string `yaml:"shell"`        // Open shell session
 	VNC               string `yaml:"vnc"`          // Open VNC console
 	Scripts           string `yaml:"scripts"`      // Install community scripts
@@ -210,6 +211,7 @@ func DefaultKeyBindings() KeyBindings {
 		GuestsPage:        "F2",
 		TasksPage:         "F3",
 		Menu:              "m",
+		GlobalMenu:        "g",
 		Shell:             "s",
 		VNC:               "v",
 		Scripts:           "c",
@@ -230,6 +232,7 @@ func keyBindingsToMap(kb KeyBindings) map[string]string {
 		"guests_page":         kb.GuestsPage,
 		"tasks_page":          kb.TasksPage,
 		"menu":                kb.Menu,
+		"global_menu":         kb.GlobalMenu,
 		"shell":               kb.Shell,
 		"vnc":                 kb.VNC,
 		"scripts":             kb.Scripts,
@@ -504,6 +507,7 @@ func (c *Config) MergeWithFile(path string) error {
 			GuestsPage        string `yaml:"guests_page"`
 			TasksPage         string `yaml:"tasks_page"`
 			Menu              string `yaml:"menu"`
+			GlobalMenu        string `yaml:"global_menu"`
 			Shell             string `yaml:"shell"`
 			VNC               string `yaml:"vnc"`
 			Scripts           string `yaml:"scripts"`
@@ -573,6 +577,7 @@ func (c *Config) MergeWithFile(path string) error {
 		GuestsPage        string `yaml:"guests_page"`
 		TasksPage         string `yaml:"tasks_page"`
 		Menu              string `yaml:"menu"`
+		GlobalMenu        string `yaml:"global_menu"`
 		Shell             string `yaml:"shell"`
 		VNC               string `yaml:"vnc"`
 		Scripts           string `yaml:"scripts"`
@@ -599,6 +604,9 @@ func (c *Config) MergeWithFile(path string) error {
 		}
 		if kb.Menu != "" {
 			c.KeyBindings.Menu = kb.Menu
+		}
+		if kb.GlobalMenu != "" {
+			c.KeyBindings.GlobalMenu = kb.GlobalMenu
 		}
 		if kb.Shell != "" {
 			c.KeyBindings.Shell = kb.Shell
@@ -718,6 +726,9 @@ func (c *Config) SetDefaults() {
 	}
 	if c.KeyBindings.Menu == "" {
 		c.KeyBindings.Menu = defaults.Menu
+	}
+	if c.KeyBindings.GlobalMenu == "" {
+		c.KeyBindings.GlobalMenu = defaults.GlobalMenu
 	}
 	if c.KeyBindings.Shell == "" {
 		c.KeyBindings.Shell = defaults.Shell

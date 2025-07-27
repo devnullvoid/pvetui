@@ -71,6 +71,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.Shell, Desc: "Open SSH shell (node/guest)"},
 		{Key: keys.VNC, Desc: "Open VNC console (node/guest)"},
 		{Key: keys.Menu, Desc: "Open context menu"},
+		{Key: keys.GlobalMenu, Desc: "Open global menu"},
 		{Key: keys.Scripts, Desc: "Install community scripts (nodes)"},
 		{Key: keys.Refresh, Desc: "Manual refresh"},
 		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},

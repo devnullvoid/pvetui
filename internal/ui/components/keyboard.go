@@ -211,6 +211,11 @@ func (a *App) setupKeyboardHandlers() {
 			}
 			return nil
 		}
+		if keyMatch(event, a.config.KeyBindings.GlobalMenu) {
+			// Open global context menu
+			a.ShowGlobalContextMenu()
+			return nil
+		}
 		if keyMatch(event, a.config.KeyBindings.Scripts) {
 			// Open community scripts installer - only available for nodes
 			currentPage, _ := a.pages.GetFrontPage()
