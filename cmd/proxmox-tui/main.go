@@ -31,9 +31,11 @@ func resolveConfigPath(flagPath string) string {
 	if flagPath != "" {
 		return flagPath
 	}
+
 	if path, found := config.FindDefaultConfigPath(); found {
 		return path
 	}
+
 	return ""
 }
 
@@ -55,22 +57,27 @@ func launchConfigWizard(cfg *config.Config, configPath string, activeProfile str
 				SSHUser:     c.SSHUser,
 			}
 		}
+
 		return components.SaveConfigToFile(c, configPath)
 	}, func() {
 		tviewApp.Stop()
 	}, resultChan)
 	tviewApp.SetRoot(wizard, true)
 	_ = tviewApp.Run()
+
 	return <-resultChan
 }
 
-// Add promptYesNo helper
+// Add promptYesNo helper.
 func promptYesNo(prompt string) bool {
 	reader := bufio.NewReader(os.Stdin)
+
 	for {
 		fmt.Printf("%s [Y/n] ", prompt)
+
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
+
 		switch input {
 		case "y", "":
 			return true
@@ -82,29 +89,35 @@ func promptYesNo(prompt string) bool {
 	}
 }
 
-// Refactor onboardingFlow to use promptYesNo for all prompts
+// Refactor onboardingFlow to use promptYesNo for all prompts.
 func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool, activeProfile string) {
 	fmt.Println("🔧 Configuration Setup Required")
 	fmt.Println()
 	fmt.Printf("It looks like this is your first time running proxmox-tui, or your configuration needs attention.\n")
 	fmt.Printf("Missing: %v\n", cfg.Validate())
 	fmt.Println()
+
 	defaultPath := config.GetDefaultConfigPath()
 	if !promptYesNo(fmt.Sprintf("Would you like to create a default configuration file at '%s'?", defaultPath)) {
 		fmt.Println("❌ Configuration setup canceled. You can configure via flags or environment variables instead.")
 		fmt.Println("🚪 Exiting.")
 		os.Exit(0)
 	}
+
 	fmt.Println()
+
 	path, createErr := config.CreateDefaultConfigFile()
 	if createErr != nil {
 		log.Fatalf("❌ Error creating config file: %v", createErr)
 	}
+
 	fmt.Printf("✅ Success! Configuration file created at %s\n", path)
 	fmt.Println()
+
 	if promptYesNo("Would you like to edit the new config in the interactive editor?") {
 		newCfg := config.NewConfig()
 		_ = newCfg.MergeWithFile(path)
+
 		res := launchConfigWizard(newCfg, path, activeProfile)
 		if res.SopsEncrypted {
 			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", path)
@@ -113,6 +126,7 @@ func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool, ac
 		} else if res.Canceled {
 			fmt.Println("🚪 Exiting.")
 		}
+
 		if promptYesNo("Would you like to proceed with main application startup?") {
 			*cfg = *config.NewConfig()
 			_ = cfg.MergeWithFile(path)
@@ -121,24 +135,30 @@ func onboardingFlow(cfg *config.Config, configPath string, noCacheFlag *bool, ac
 			startMainApp(cfg, path, noCacheFlag)
 		}
 	}
+
 	fmt.Println("🚪 Exiting.")
 	os.Exit(0)
 }
 
 func startMainApp(cfg *config.Config, configPath string, noCacheFlag *bool) {
 	fmt.Println("\n🚀 Starting Proxmox TUI...")
+
 	if configPath != "" {
 		fmt.Printf("✅ Configuration loaded from %s\n", configPath)
 	} else {
 		fmt.Println("✅ Configuration loaded from environment variables")
 	}
+
 	theme.ApplyCustomTheme(&cfg.Theme)
 	theme.ApplyToTview()
+
 	if err := app.RunWithStartupVerification(cfg, app.Options{NoCache: *noCacheFlag}); err != nil {
 		fmt.Printf("❌ %v\n", err)
 		fmt.Println()
+
 		if strings.Contains(err.Error(), "authentication failed") {
 			fmt.Println("💡 Please check your credentials in the config file:")
+
 			if configPath != "" {
 				fmt.Printf("   %s\n", configPath)
 			} else {
@@ -148,8 +168,10 @@ func startMainApp(cfg *config.Config, configPath string, noCacheFlag *bool) {
 			fmt.Println("💡 Please check your Proxmox server address and network connectivity:")
 			fmt.Printf("   Current address: %s\n", cfg.Addr)
 		}
+
 		os.Exit(1)
 	}
+
 	fmt.Println("🚪 Exiting.")
 	os.Exit(0)
 }
@@ -167,6 +189,7 @@ func main() {
 
 	if *versionFlag {
 		printVersion()
+
 		return
 	}
 
@@ -181,12 +204,15 @@ func main() {
 	if selectedProfile == "" {
 		selectedProfile = os.Getenv("PROXMOX_TUI_PROFILE")
 	}
+
 	if selectedProfile == "" {
 		selectedProfile = cfg.DefaultProfile
 	}
+
 	if selectedProfile == "" && len(cfg.Profiles) > 0 {
 		selectedProfile = "default"
 	}
+
 	if selectedProfile != "" {
 		err := cfg.ApplyProfile(selectedProfile)
 		if err != nil {
@@ -204,6 +230,7 @@ func main() {
 		} else if res.Canceled {
 			fmt.Println("🚪 Exiting.")
 		}
+
 		os.Exit(0)
 	}
 

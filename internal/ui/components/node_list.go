@@ -13,19 +13,20 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// NodeList encapsulates the node list panel
+// NodeList encapsulates the node list panel.
 type NodeList struct {
 	*tview.List
+
 	nodes     []*api.Node
 	onSelect  func(*api.Node)
 	onChanged func(*api.Node)
 	app       *App
 }
 
-// Ensure NodeList implements NodeListComponent
+// Ensure NodeList implements NodeListComponent.
 var _ NodeListComponent = (*NodeList)(nil)
 
-// NewNodeList creates a new node list component
+// NewNodeList creates a new node list component.
 func NewNodeList() *NodeList {
 	list := tview.NewList()
 	list.ShowSecondaryText(false)
@@ -39,12 +40,12 @@ func NewNodeList() *NodeList {
 	}
 }
 
-// SetCurrentItem wraps the list method to match the interface
+// SetCurrentItem wraps the list method to match the interface.
 func (nl *NodeList) SetCurrentItem(index int) *tview.List {
 	return nl.List.SetCurrentItem(index)
 }
 
-// SetApp sets the parent app reference for focus management
+// SetApp sets the parent app reference for focus management.
 func (nl *NodeList) SetApp(app *App) {
 	nl.app = app
 
@@ -52,7 +53,7 @@ func (nl *NodeList) SetApp(app *App) {
 	nl.SetInputCapture(createNavigationInputCapture(nl.app, nil, nl.app.nodeDetails))
 }
 
-// SetNodes updates the list with the provided nodes
+// SetNodes updates the list with the provided nodes.
 func (nl *NodeList) SetNodes(nodes []*api.Node) {
 	nl.Clear()
 
@@ -65,6 +66,7 @@ func (nl *NodeList) SetNodes(nodes []*api.Node) {
 		if nodesCopy[i] == nil || nodesCopy[j] == nil {
 			return nodesCopy[i] != nil
 		}
+
 		return nodesCopy[i].Name < nodesCopy[j].Name
 	})
 
@@ -100,21 +102,22 @@ func (nl *NodeList) SetNodes(nodes []*api.Node) {
 	}
 }
 
-// GetSelectedNode returns the currently selected node
+// GetSelectedNode returns the currently selected node.
 func (nl *NodeList) GetSelectedNode() *api.Node {
 	idx := nl.GetCurrentItem()
 	if idx >= 0 && idx < len(nl.nodes) {
 		return nl.nodes[idx]
 	}
+
 	return nil
 }
 
-// GetNodes returns the current nodes slice
+// GetNodes returns the current nodes slice.
 func (nl *NodeList) GetNodes() []*api.Node {
 	return nl.nodes
 }
 
-// SetSelectedFunc sets the function to be called when a node is selected
+// SetSelectedFunc sets the function to be called when a node is selected.
 func (nl *NodeList) SetNodeSelectedFunc(handler func(*api.Node)) {
 	nl.onSelect = handler
 
@@ -127,7 +130,7 @@ func (nl *NodeList) SetNodeSelectedFunc(handler func(*api.Node)) {
 	})
 }
 
-// SetChangedFunc sets the function to be called when selection changes
+// SetChangedFunc sets the function to be called when selection changes.
 func (nl *NodeList) SetNodeChangedFunc(handler func(*api.Node)) {
 	nl.onChanged = handler
 

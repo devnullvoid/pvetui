@@ -42,8 +42,11 @@ func TestConfigWizardValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			hasPassword := tc.cfg.Password != ""
 			hasToken := tc.cfg.TokenID != "" && tc.cfg.TokenSecret != ""
+
 			var gotError bool
+
 			var gotMsg string
+
 			if hasPassword && hasToken {
 				gotError = true
 				gotMsg = "either password authentication or token authentication, not both"
@@ -51,9 +54,11 @@ func TestConfigWizardValidation(t *testing.T) {
 				gotError = true
 				gotMsg = "must provide either a password or a token"
 			}
+
 			if gotError != tc.wantError {
 				t.Errorf("expected error=%v, got %v", tc.wantError, gotError)
 			}
+
 			if tc.wantError && tc.wantMsg != "" && gotMsg != tc.wantMsg {
 				t.Errorf("expected msg %q, got %q", tc.wantMsg, gotMsg)
 			}
@@ -74,7 +79,9 @@ func TestFindSOPSRule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	f.Close()
+
 	if !findSOPSRule(subdir) {
 		t.Error("expected true when .sops.yaml present in parent")
 	}

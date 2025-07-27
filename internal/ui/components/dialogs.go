@@ -13,7 +13,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// showMessage displays a message to the user
+// showMessage displays a message to the user.
 func (a *App) showMessage(message string) {
 	modal := tview.NewModal().
 		SetText(message).
@@ -27,7 +27,7 @@ func (a *App) showMessage(message string) {
 	a.pages.AddPage("message", modal, false, true)
 }
 
-// showConfirmationDialog displays a confirmation dialog with Yes/No options
+// showConfirmationDialog displays a confirmation dialog with Yes/No options.
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	modal := tview.NewModal().
 		SetText(message).
@@ -36,6 +36,7 @@ func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 		AddButtons([]string{"Yes", "No"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("confirmation")
+
 			if buttonIndex == 0 {
 				// Yes was selected
 				onConfirm()
@@ -45,10 +46,11 @@ func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	a.pages.AddPage("confirmation", modal, false, true)
 }
 
-// openScriptSelector opens the script selector dialog
+// openScriptSelector opens the script selector dialog.
 func (a *App) openScriptSelector(node *api.Node, vm *api.VM) {
 	if a.config.SSHUser == "" {
 		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+
 		return
 	}
 
@@ -56,15 +58,17 @@ func (a *App) openScriptSelector(node *api.Node, vm *api.VM) {
 	selector.Show()
 }
 
-// showMigrationDialog displays a dialog for configuring VM migration
+// showMigrationDialog displays a dialog for configuring VM migration.
 func (a *App) showMigrationDialog(vm *api.VM) {
 	if vm == nil {
 		a.showMessage("No VM selected")
+
 		return
 	}
 
 	// Get available nodes (excluding current node)
 	var availableNodes []*api.Node
+
 	if a.client.Cluster != nil {
 		for _, node := range a.client.Cluster.Nodes {
 			if node != nil && node.Name != vm.Node && node.Online {
@@ -75,6 +79,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 
 	if len(availableNodes) == 0 {
 		a.showMessage("No other online nodes available for migration")
+
 		return
 	}
 
@@ -90,6 +95,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	for i, node := range availableNodes {
 		nodeOptions[i] = node.Name
 	}
+
 	selectedNodeIndex := 0
 	form.AddDropDown("Target Node", nodeOptions, selectedNodeIndex, nil)
 
@@ -142,6 +148,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 			if err := a.pages.RemovePage("migration"); err != nil {
 				models.GetUILogger().Error("Failed to remove migration page: %v", err)
 			}
+
 			a.performMigrationOperation(vm, options)
 		})
 	})
@@ -158,8 +165,10 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 			if err := a.pages.RemovePage("migration"); err != nil {
 				models.GetUILogger().Error("Failed to remove migration page: %v", err)
 			}
+
 			return nil
 		}
+
 		return event
 	})
 
@@ -176,7 +185,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	a.SetFocus(form)
 }
 
-// performMigrationOperation performs an asynchronous VM migration operation
+// performMigrationOperation performs an asynchronous VM migration operation.
 func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOptions) {
 	// Set pending state immediately for visual feedback
 	migrationTypeStr := "offline"
@@ -185,6 +194,7 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 	} else if options.Online != nil && *options.Online {
 		migrationTypeStr = "online"
 	}
+
 	models.GlobalState.SetVMPending(vm, "Migrating")
 
 	// Show loading indicator
@@ -220,6 +230,7 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 				a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
 					strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, err))
 			})
+
 			return
 		}
 
@@ -233,24 +244,29 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 		for time.Since(startTime) < maxWaitTime {
 			migratedVM := &api.VM{ID: vm.ID, Node: options.Target, Type: vm.Type}
 			freshVM, err := a.client.RefreshVMData(migratedVM, nil)
+
 			if err == nil && freshVM != nil {
 				migratedVM = freshVM
 			}
+
 			if migratedVM != nil {
 				if vm.Type == api.VMTypeLXC || (vm.Type == api.VMTypeQemu && (options.Online == nil || !*options.Online)) {
 					// LXC or offline QEMU: consider migration complete as soon as uptime is > 0
 					if migratedVM.Uptime > 0 {
 						migrationComplete = true
+
 						break
 					}
 				} else if vm.Type == api.VMTypeQemu && options.Online != nil && *options.Online {
 					// Online QEMU: wait for status to be running
 					if migratedVM.Status == api.VMStatusRunning {
 						migrationComplete = true
+
 						break
 					}
 				}
 			}
+
 			time.Sleep(checkInterval)
 		}
 
@@ -274,7 +290,7 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 	}()
 }
 
-// CreateLoginForm creates a login form dialog
+// CreateLoginForm creates a login form dialog.
 func CreateLoginForm() *tview.Form {
 	form := tview.NewForm()
 	form.SetBorder(true)
@@ -295,7 +311,7 @@ func CreateLoginForm() *tview.Form {
 	return form
 }
 
-// CreateConfirmDialog creates a confirmation dialog
+// CreateConfirmDialog creates a confirmation dialog.
 func CreateConfirmDialog(title, message string, onConfirm, onCancel func()) *tview.Modal {
 	modal := tview.NewModal()
 	modal.SetText(message)
@@ -318,7 +334,7 @@ func CreateConfirmDialog(title, message string, onConfirm, onCancel func()) *tvi
 	return modal
 }
 
-// createBaseModal creates a base modal with common configuration
+// createBaseModal creates a base modal with common configuration.
 func createBaseModal(title, message string, textColor tcell.Color, onClose func()) *tview.Modal {
 	modal := tview.NewModal()
 	modal.SetText(message)
@@ -339,17 +355,17 @@ func createBaseModal(title, message string, textColor tcell.Color, onClose func(
 	return modal
 }
 
-// CreateInfoDialog creates an information dialog
+// CreateInfoDialog creates an information dialog.
 func CreateInfoDialog(title, message string, onClose func()) *tview.Modal {
 	return createBaseModal(title, message, theme.Colors.Primary, onClose)
 }
 
-// CreateErrorDialog creates an error dialog
+// CreateErrorDialog creates an error dialog.
 func CreateErrorDialog(title, message string, onClose func()) *tview.Modal {
 	return createBaseModal(title, message, theme.Colors.Error, onClose)
 }
 
-// CreateFormDialog creates a form dialog with custom fields
+// CreateFormDialog creates a form dialog with custom fields.
 func CreateFormDialog(title string, fields []FormField, onSubmit, onCancel func(map[string]string)) *tview.Form {
 	form := tview.NewForm()
 	form.SetBorder(true)
@@ -359,6 +375,7 @@ func CreateFormDialog(title string, fields []FormField, onSubmit, onCancel func(
 
 	// Add form fields
 	fieldValues := make(map[string]string)
+
 	for _, field := range fields {
 		fieldName := field.Name
 		form.AddInputField(field.Label, field.DefaultValue, field.MaxLength, nil, func(text string) {
@@ -381,7 +398,7 @@ func CreateFormDialog(title string, fields []FormField, onSubmit, onCancel func(
 	return form
 }
 
-// FormField represents a form field
+// FormField represents a form field.
 type FormField struct {
 	Name         string
 	Label        string

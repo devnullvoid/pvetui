@@ -11,14 +11,15 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
-// HelpModal represents a modal dialog showing keybindings and usage information
+// HelpModal represents a modal dialog showing keybindings and usage information.
 type HelpModal struct {
 	*tview.Pages
+
 	app      *App
 	textView *tview.TextView
 }
 
-// NewHelpModal creates a new help modal
+// NewHelpModal creates a new help modal.
 func NewHelpModal(keys config.KeyBindings) *HelpModal {
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
@@ -86,6 +87,7 @@ func buildHelpText(keys config.KeyBindings) string {
 
 	// Calculate the maximum width of the key column to align descriptions
 	maxKeyWidth := 0
+
 	for _, item := range items {
 		if item.Key != "" {
 			width := tview.TaggedStringWidth(item.Key)
@@ -96,6 +98,7 @@ func buildHelpText(keys config.KeyBindings) string {
 	}
 
 	var builder strings.Builder
+
 	for _, item := range items {
 		if item.Cat != "" {
 			builder.WriteString(fmt.Sprintf("%s\n", item.Cat))
@@ -116,12 +119,12 @@ func buildHelpText(keys config.KeyBindings) string {
 	return theme.ReplaceSemanticTags(builder.String())
 }
 
-// SetApp sets the parent app reference
+// SetApp sets the parent app reference.
 func (hm *HelpModal) SetApp(app *App) {
 	hm.app = app
 }
 
-// Show displays the help modal
+// Show displays the help modal.
 func (hm *HelpModal) Show() {
 	if hm.app != nil {
 		// Set up input capture to handle closing and scrolling
@@ -130,12 +133,14 @@ func (hm *HelpModal) Show() {
 			case event.Key() == tcell.KeyEscape ||
 				(event.Key() == tcell.KeyRune && (event.Rune() == '?' || event.Rune() == 'q')):
 				hm.Hide()
+
 				return nil
 			case event.Key() == tcell.KeyRune && event.Rune() == 'j':
 				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone) // Map 'j' to Down
 			case event.Key() == tcell.KeyRune && event.Rune() == 'k':
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone) // Map 'k' to Up
 			}
+
 			return event
 		})
 
@@ -144,7 +149,7 @@ func (hm *HelpModal) Show() {
 	}
 }
 
-// Hide hides the help modal
+// Hide hides the help modal.
 func (hm *HelpModal) Hide() {
 	if hm.app != nil && hm.app.pages != nil {
 		hm.app.pages.RemovePage("help")

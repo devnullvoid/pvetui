@@ -18,7 +18,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/test/testutils"
 )
 
-// TestAPIClientIntegration_MockServer tests the API client against a mock Proxmox server
+// TestAPIClientIntegration_MockServer tests the API client against a mock Proxmox server.
 func TestAPIClientIntegration_MockServer(t *testing.T) {
 	testutils.SkipIfRealProxmox(t)
 
@@ -125,7 +125,7 @@ func TestAPIClientIntegration_MockServer(t *testing.T) {
 	})
 }
 
-// TestAPIClientIntegration_TokenAuth tests token-based authentication
+// TestAPIClientIntegration_TokenAuth tests token-based authentication.
 func TestAPIClientIntegration_TokenAuth(t *testing.T) {
 	testutils.SkipIfRealProxmox(t)
 
@@ -176,7 +176,7 @@ func TestAPIClientIntegration_TokenAuth(t *testing.T) {
 	})
 }
 
-// TestAPIClientIntegration_RealProxmox tests against a real Proxmox server
+// TestAPIClientIntegration_RealProxmox tests against a real Proxmox server.
 func TestAPIClientIntegration_RealProxmox(t *testing.T) {
 	testutils.SkipIfNoRealProxmox(t)
 
@@ -212,16 +212,20 @@ func TestAPIClientIntegration_RealProxmox(t *testing.T) {
 	t.Run("real_caching", func(t *testing.T) {
 		// Test caching with real API calls
 		start := time.Now()
+
 		var result1 map[string]interface{}
 		err := client.GetWithCache("/version", &result1, time.Hour)
 		require.NoError(t, err)
+
 		firstCallDuration := time.Since(start)
 
 		// Second call should be faster (cached)
 		start = time.Now()
+
 		var result2 map[string]interface{}
 		err = client.GetWithCache("/version", &result2, time.Hour)
 		require.NoError(t, err)
+
 		secondCallDuration := time.Since(start)
 
 		assert.Equal(t, result1, result2)
@@ -230,7 +234,7 @@ func TestAPIClientIntegration_RealProxmox(t *testing.T) {
 	})
 }
 
-// TestAPIClientIntegration_ErrorScenarios tests various error scenarios
+// TestAPIClientIntegration_ErrorScenarios tests various error scenarios.
 func TestAPIClientIntegration_ErrorScenarios(t *testing.T) {
 	testutils.SkipIfRealProxmox(t)
 
@@ -323,6 +327,7 @@ func TestAPIClientIntegration_ErrorScenarios(t *testing.T) {
 			api.WithCache(testCache))
 		if err != nil {
 			t.Logf("Skipping timeout test: %v", err)
+
 			return
 		}
 
@@ -335,7 +340,7 @@ func TestAPIClientIntegration_ErrorScenarios(t *testing.T) {
 	})
 }
 
-// TestAPIClientIntegration_ConcurrentAccess tests concurrent API access
+// TestAPIClientIntegration_ConcurrentAccess tests concurrent API access.
 func TestAPIClientIntegration_ConcurrentAccess(t *testing.T) {
 	testutils.SkipIfRealProxmox(t)
 
@@ -362,6 +367,7 @@ func TestAPIClientIntegration_ConcurrentAccess(t *testing.T) {
 
 	t.Run("concurrent_api_calls", func(t *testing.T) {
 		const numGoroutines = 10
+
 		const numCallsPerGoroutine = 5
 
 		results := make(chan error, numGoroutines*numCallsPerGoroutine)
@@ -378,6 +384,7 @@ func TestAPIClientIntegration_ConcurrentAccess(t *testing.T) {
 
 		// Collect results
 		var errors []error
+
 		for i := 0; i < numGoroutines*numCallsPerGoroutine; i++ {
 			if err := <-results; err != nil {
 				errors = append(errors, err)
@@ -390,6 +397,7 @@ func TestAPIClientIntegration_ConcurrentAccess(t *testing.T) {
 
 	t.Run("concurrent_cache_access", func(t *testing.T) {
 		const numGoroutines = 10
+
 		const numCallsPerGoroutine = 3
 
 		results := make(chan error, numGoroutines*numCallsPerGoroutine)
@@ -407,6 +415,7 @@ func TestAPIClientIntegration_ConcurrentAccess(t *testing.T) {
 
 		// Collect results
 		var errors []error
+
 		for i := 0; i < numGoroutines*numCallsPerGoroutine; i++ {
 			if err := <-results; err != nil {
 				errors = append(errors, err)

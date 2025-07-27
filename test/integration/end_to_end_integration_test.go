@@ -20,7 +20,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/test/testutils"
 )
 
-// TestEndToEndIntegration_CompleteWorkflow tests a complete workflow from config to API calls
+// TestEndToEndIntegration_CompleteWorkflow tests a complete workflow from config to API calls.
 func TestEndToEndIntegration_CompleteWorkflow(t *testing.T) {
 	testutils.SkipIfRealProxmox(t)
 
@@ -39,10 +39,12 @@ func TestEndToEndIntegration_CompleteWorkflow(t *testing.T) {
 			"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
 		}
 		originalEnv := make(map[string]string)
+
 		for _, env := range envVars {
 			originalEnv[env] = os.Getenv(env)
 			os.Unsetenv(env)
 		}
+
 		defer func() {
 			for _, env := range envVars {
 				if val, exists := originalEnv[env]; exists && val != "" {
@@ -128,10 +130,12 @@ cache_dir: "` + itc.CacheDir + `"
 			"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
 		}
 		originalEnv := make(map[string]string)
+
 		for _, env := range envVars {
 			originalEnv[env] = os.Getenv(env)
 			os.Unsetenv(env)
 		}
+
 		defer func() {
 			for _, env := range envVars {
 				if val, exists := originalEnv[env]; exists && val != "" {
@@ -226,7 +230,7 @@ cache_dir: "` + itc.CacheDir + `"
 	})
 }
 
-// TestEndToEndIntegration_ErrorRecovery tests error recovery scenarios
+// TestEndToEndIntegration_ErrorRecovery tests error recovery scenarios.
 func TestEndToEndIntegration_ErrorRecovery(t *testing.T) {
 	testutils.SkipIfRealProxmox(t)
 
@@ -241,10 +245,12 @@ func TestEndToEndIntegration_ErrorRecovery(t *testing.T) {
 			"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
 		}
 		originalEnv := make(map[string]string)
+
 		for _, env := range envVars {
 			originalEnv[env] = os.Getenv(env)
 			os.Unsetenv(env)
 		}
+
 		defer func() {
 			for _, env := range envVars {
 				if val, exists := originalEnv[env]; exists && val != "" {
@@ -375,7 +381,7 @@ password: "testpass"
 	})
 }
 
-// TestEndToEndIntegration_RealProxmox tests against a real Proxmox server
+// TestEndToEndIntegration_RealProxmox tests against a real Proxmox server.
 func TestEndToEndIntegration_RealProxmox(t *testing.T) {
 	testutils.SkipIfNoRealProxmox(t)
 
@@ -417,15 +423,19 @@ func TestEndToEndIntegration_RealProxmox(t *testing.T) {
 
 		// Step 6: Test caching with real data
 		start := time.Now()
+
 		var result1 map[string]interface{}
 		err = client.GetWithCache("/version", &result1, time.Hour)
 		require.NoError(t, err)
+
 		firstCallDuration := time.Since(start)
 
 		start = time.Now()
+
 		var result2 map[string]interface{}
 		err = client.GetWithCache("/version", &result2, time.Hour)
 		require.NoError(t, err)
+
 		secondCallDuration := time.Since(start)
 
 		assert.Equal(t, result1, result2)
@@ -449,13 +459,14 @@ func TestEndToEndIntegration_RealProxmox(t *testing.T) {
 		var cachedResult map[string]interface{}
 		found, err := newCache.Get(cacheKey, &cachedResult)
 		require.NoError(t, err)
+
 		if found {
 			t.Logf("Cache persistence verified")
 		}
 	})
 }
 
-// TestEndToEndIntegration_Performance tests performance characteristics
+// TestEndToEndIntegration_Performance tests performance characteristics.
 func TestEndToEndIntegration_Performance(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping performance tests in short mode")
@@ -501,19 +512,23 @@ func TestEndToEndIntegration_Performance(t *testing.T) {
 
 		// Test uncached calls
 		start := time.Now()
+
 		for i := 0; i < numCalls; i++ {
 			_, err := client.Version(context.Background())
 			require.NoError(t, err)
 		}
+
 		uncachedDuration := time.Since(start)
 
 		// Test cached calls
 		start = time.Now()
+
 		for i := 0; i < numCalls; i++ {
 			var result map[string]interface{}
 			err := client.GetWithCache("/version", &result, time.Hour)
 			require.NoError(t, err)
 		}
+
 		cachedDuration := time.Since(start)
 
 		t.Logf("Uncached %d calls: %v (%.2f calls/sec)",
@@ -555,11 +570,13 @@ func TestEndToEndIntegration_Performance(t *testing.T) {
 
 		// Test concurrent access
 		const numGoroutines = 10
+
 		const numCallsPerGoroutine = 20
 
 		results := make(chan error, numGoroutines*numCallsPerGoroutine)
 
 		start := time.Now()
+
 		for i := 0; i < numGoroutines; i++ {
 			go func(goroutineID int) {
 				for j := 0; j < numCallsPerGoroutine; j++ {
@@ -571,11 +588,13 @@ func TestEndToEndIntegration_Performance(t *testing.T) {
 
 		// Collect results
 		var errors []error
+
 		for i := 0; i < numGoroutines*numCallsPerGoroutine; i++ {
 			if err := <-results; err != nil {
 				errors = append(errors, err)
 			}
 		}
+
 		concurrentDuration := time.Since(start)
 
 		assert.Empty(t, errors, "No errors expected from concurrent calls")

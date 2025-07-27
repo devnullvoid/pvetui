@@ -13,7 +13,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
-// HTTPClient wraps http.Client with Proxmox-specific functionality and dependency injection
+// HTTPClient wraps http.Client with Proxmox-specific functionality and dependency injection.
 type HTTPClient struct {
 	client      *http.Client
 	authManager *AuthManager
@@ -22,7 +22,7 @@ type HTTPClient struct {
 	logger      interfaces.Logger
 }
 
-// NewHTTPClient creates a new Proxmox HTTP client with dependency injection
+// NewHTTPClient creates a new Proxmox HTTP client with dependency injection.
 func NewHTTPClient(httpClient *http.Client, baseURL string, logger interfaces.Logger) *HTTPClient {
 	return &HTTPClient{
 		client:  httpClient,
@@ -31,47 +31,47 @@ func NewHTTPClient(httpClient *http.Client, baseURL string, logger interfaces.Lo
 	}
 }
 
-// SetAuthManager sets the auth manager for the HTTP client
+// SetAuthManager sets the auth manager for the HTTP client.
 func (hc *HTTPClient) SetAuthManager(authManager *AuthManager) {
 	hc.authManager = authManager
 }
 
-// SetAPIToken sets the API token for authentication
+// SetAPIToken sets the API token for authentication.
 func (hc *HTTPClient) SetAPIToken(token string) {
 	hc.apiToken = token
 }
 
-// Get performs a GET request to the Proxmox API
+// Get performs a GET request to the Proxmox API.
 func (hc *HTTPClient) Get(ctx context.Context, path string, result *map[string]interface{}) error {
 	return hc.doRequest(ctx, "GET", path, nil, result)
 }
 
-// Post performs a POST request to the Proxmox API
+// Post performs a POST request to the Proxmox API.
 func (hc *HTTPClient) Post(ctx context.Context, path string, data interface{}, result *map[string]interface{}) error {
 	return hc.doRequest(ctx, "POST", path, data, result)
 }
 
-// Put performs a PUT request to the Proxmox API
+// Put performs a PUT request to the Proxmox API.
 func (hc *HTTPClient) Put(ctx context.Context, path string, data interface{}, result *map[string]interface{}) error {
 	return hc.doRequest(ctx, "PUT", path, data, result)
 }
 
-// Delete performs a DELETE request to the Proxmox API
+// Delete performs a DELETE request to the Proxmox API.
 func (hc *HTTPClient) Delete(ctx context.Context, path string, result *map[string]interface{}) error {
 	return hc.doRequest(ctx, "DELETE", path, nil, result)
 }
 
-// GetWithRetry performs a GET request with retry logic
+// GetWithRetry performs a GET request with retry logic.
 func (hc *HTTPClient) GetWithRetry(ctx context.Context, path string, result *map[string]interface{}, maxRetries int) error {
 	return hc.doRequestWithRetry(ctx, "GET", path, nil, result, maxRetries)
 }
 
-// doRequest performs an HTTP request with proper authentication
+// doRequest performs an HTTP request with proper authentication.
 func (hc *HTTPClient) doRequest(ctx context.Context, method, path string, data interface{}, result *map[string]interface{}) error {
 	return hc.doRequestWithRetry(ctx, method, path, data, result, 1)
 }
 
-// doRequestWithRetry performs an HTTP request with retry logic
+// doRequestWithRetry performs an HTTP request with retry logic.
 func (hc *HTTPClient) doRequestWithRetry(ctx context.Context, method, path string, data interface{}, result *map[string]interface{}, maxRetries int) error {
 	var lastErr error
 
@@ -106,7 +106,7 @@ func (hc *HTTPClient) doRequestWithRetry(ctx context.Context, method, path strin
 	return fmt.Errorf("request failed after %d attempts: %w", maxRetries, lastErr)
 }
 
-// executeRequest performs a single HTTP request
+// executeRequest performs a single HTTP request.
 func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, data interface{}, result *map[string]interface{}) error {
 	// Construct full URL
 	fullURL := hc.baseURL + path
@@ -116,11 +116,13 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 
 	// Prepare request body
 	var body io.Reader
+
 	if data != nil {
 		jsonData, err := json.Marshal(data)
 		if err != nil {
 			return fmt.Errorf("failed to marshal request data: %w", err)
 		}
+
 		body = bytes.NewReader(jsonData)
 	}
 
@@ -155,6 +157,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 				req.Header.Set("CSRFPreventionToken", token.CSRFToken)
 			}
 		}
+
 		hc.logger.Debug("Using ticket-based authentication")
 	}
 
@@ -183,6 +186,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 		} else if hc.authManager != nil {
 			hc.logger.Debug("Authentication token expired, clearing cache")
 			hc.authManager.ClearToken()
+
 			return fmt.Errorf("authentication failed: %s", resp.Status)
 		}
 	}
@@ -202,7 +206,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 	return nil
 }
 
-// shouldRetry determines if a request should be retried
+// shouldRetry determines if a request should be retried.
 func (hc *HTTPClient) shouldRetry(err error, attempt, maxRetries int) bool {
 	if attempt >= maxRetries {
 		return false

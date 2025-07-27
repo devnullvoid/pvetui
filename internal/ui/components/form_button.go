@@ -8,6 +8,7 @@ import (
 // FormButton is a reusable FormItem that acts like a button and can be placed anywhere in a tview.Form.
 type FormButton struct {
 	*tview.Box
+
 	label    string
 	selected func()
 	focused  bool
@@ -34,6 +35,7 @@ func (b *FormButton) Draw(screen tcell.Screen) {
 	style := tcell.StyleDefault
 	bg := tview.Styles.PrimitiveBackgroundColor
 	fg := tview.Styles.PrimaryTextColor
+
 	if b.focused {
 		bg = tview.Styles.ContrastBackgroundColor
 		fg = tview.Styles.PrimaryTextColor
@@ -44,10 +46,12 @@ func (b *FormButton) Draw(screen tcell.Screen) {
 	// Add a space padding around the label to match tview button look
 	paddedLabel := " " + label + " "
 	labelWidth := tview.TaggedStringWidth(paddedLabel)
+
 	labelX := x + (w-labelWidth)/2
 	if labelX < x {
 		labelX = x
 	}
+
 	for i, r := range paddedLabel {
 		screen.SetContent(labelX+i, y+h/2, r, nil, style)
 	}
@@ -61,6 +65,7 @@ func (b *FormButton) GetLabel() string {
 // SetLabel sets the button label.
 func (b *FormButton) SetLabel(label string) tview.FormItem {
 	b.label = label
+
 	return b
 }
 
@@ -108,12 +113,15 @@ func (b *FormButton) InputHandler() func(event *tcell.EventKey, setFocus func(p 
 			if b.selected != nil {
 				b.selected()
 			}
+
 			return
 		}
+
 		if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab {
 			if b.doneFunc != nil {
 				b.doneFunc(event.Key())
 			}
+
 			return
 		}
 		// Do not handle Escape/Backspace; let the form handle it at the form level.
@@ -123,12 +131,14 @@ func (b *FormButton) InputHandler() func(event *tcell.EventKey, setFocus func(p 
 // SetSelectedFunc sets the callback for when the button is pressed.
 func (b *FormButton) SetSelectedFunc(handler func()) *FormButton {
 	b.selected = handler
+
 	return b
 }
 
 // SetDisabled sets whether the button is disabled.
 func (b *FormButton) SetDisabled(disabled bool) tview.FormItem {
 	b.disabled = disabled
+
 	return b
 }
 
@@ -140,5 +150,6 @@ func (b *FormButton) IsDisabled() bool {
 // SetFinishedFunc sets the doneFunc for Tab/Backtab navigation.
 func (b *FormButton) SetFinishedFunc(handler func(key tcell.Key)) tview.FormItem {
 	b.doneFunc = handler
+
 	return b
 }

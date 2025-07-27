@@ -61,6 +61,7 @@ func TestHTTPClient_Get_Success(t *testing.T) {
 				"test": "value",
 			},
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -86,6 +87,7 @@ func TestHTTPClient_Get_WithAPIToken(t *testing.T) {
 		assert.Equal(t, "user@realm!tokenid=secret", r.Header.Get("Authorization"))
 
 		response := map[string]interface{}{"success": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -108,6 +110,7 @@ func TestHTTPClient_Get_WithTicketAuth(t *testing.T) {
 		assert.Equal(t, "PVEAuthCookie=test-ticket", r.Header.Get("Cookie"))
 
 		response := map[string]interface{}{"success": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -144,6 +147,7 @@ func TestHTTPClient_Post_Success(t *testing.T) {
 		assert.Equal(t, "test-value", requestData["key"])
 
 		response := map[string]interface{}{"created": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -152,6 +156,7 @@ func TestHTTPClient_Post_Success(t *testing.T) {
 	client := NewHTTPClient(server.Client(), server.URL, testutils.NewTestLogger())
 
 	postData := map[string]interface{}{"key": "test-value"}
+
 	var result map[string]interface{}
 	err := client.Post(context.Background(), "/test", postData, &result)
 
@@ -167,6 +172,7 @@ func TestHTTPClient_Post_WithCSRFToken(t *testing.T) {
 		assert.Equal(t, "test-csrf", r.Header.Get("CSRFPreventionToken"))
 
 		response := map[string]interface{}{"success": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -184,6 +190,7 @@ func TestHTTPClient_Post_WithCSRFToken(t *testing.T) {
 	client.SetAuthManager(authManager)
 
 	postData := map[string]interface{}{"test": "data"}
+
 	var result map[string]interface{}
 	err := client.Post(context.Background(), "/test", postData, &result)
 
@@ -198,6 +205,7 @@ func TestHTTPClient_Put_Success(t *testing.T) {
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 		response := map[string]interface{}{"updated": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -206,6 +214,7 @@ func TestHTTPClient_Put_Success(t *testing.T) {
 	client := NewHTTPClient(server.Client(), server.URL, testutils.NewTestLogger())
 
 	putData := map[string]interface{}{"key": "updated-value"}
+
 	var result map[string]interface{}
 	err := client.Put(context.Background(), "/test", putData, &result)
 
@@ -219,6 +228,7 @@ func TestHTTPClient_Delete_Success(t *testing.T) {
 		assert.Equal(t, "DELETE", r.Method)
 
 		response := map[string]interface{}{"deleted": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -389,16 +399,19 @@ func TestHTTPClient_ContextCancellation(t *testing.T) {
 
 func TestHTTPClient_GetWithRetry_Success(t *testing.T) {
 	attemptCount := 0
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attemptCount++
 		if attemptCount < 3 {
 			// Fail first two attempts
 			w.WriteHeader(http.StatusInternalServerError)
+
 			return
 		}
 
 		// Succeed on third attempt
 		response := map[string]interface{}{"success": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -416,8 +429,10 @@ func TestHTTPClient_GetWithRetry_Success(t *testing.T) {
 
 func TestHTTPClient_GetWithRetry_MaxRetriesExceeded(t *testing.T) {
 	attemptCount := 0
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attemptCount++
+
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("Server error"))
 	}))
@@ -534,6 +549,7 @@ func TestHTTPClient_MarshalError(t *testing.T) {
 func TestHTTPClient_NilResult(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]interface{}{"success": true}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -562,10 +578,11 @@ func TestHTTPClient_EmptyResponse(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to parse response JSON")
 }
 
-// Benchmark tests
+// Benchmark tests.
 func BenchmarkHTTPClient_Get(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]interface{}{"data": "benchmark"}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
@@ -575,6 +592,7 @@ func BenchmarkHTTPClient_Get(b *testing.B) {
 	ctx := context.Background()
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		var result map[string]interface{}
 		_ = client.Get(ctx, "/benchmark", &result)
@@ -586,6 +604,7 @@ func BenchmarkHTTPClient_shouldRetry(b *testing.B) {
 	err := fmt.Errorf("connection refused")
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		_ = client.shouldRetry(err, 1, 3)
 	}

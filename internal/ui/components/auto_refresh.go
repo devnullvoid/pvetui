@@ -8,7 +8,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// toggleAutoRefresh toggles the auto-refresh functionality on/off
+// toggleAutoRefresh toggles the auto-refresh functionality on/off.
 func (a *App) toggleAutoRefresh() {
 	uiLogger := models.GetUILogger()
 
@@ -29,7 +29,7 @@ func (a *App) toggleAutoRefresh() {
 	}
 }
 
-// startAutoRefresh starts the auto-refresh timer
+// startAutoRefresh starts the auto-refresh timer.
 func (a *App) startAutoRefresh() {
 	// Don't start if auto-refresh is not enabled
 	if !a.autoRefreshEnabled {
@@ -49,6 +49,7 @@ func (a *App) startAutoRefresh() {
 	// Start countdown goroutine
 	go func() {
 		uiLogger := models.GetUILogger()
+
 		for {
 			select {
 			case <-a.autoRefreshCountdownStop:
@@ -57,12 +58,15 @@ func (a *App) startAutoRefresh() {
 				return
 			default:
 				time.Sleep(1 * time.Second)
+
 				if !a.autoRefreshEnabled {
 					return
 				}
+
 				if a.footer.IsLoading() {
 					continue // Pause countdown while loading
 				}
+
 				a.autoRefreshCountdown--
 				if a.autoRefreshCountdown < 0 {
 					a.autoRefreshCountdown = 0
@@ -73,6 +77,7 @@ func (a *App) startAutoRefresh() {
 					// Only refresh if not currently loading something and no pending operations
 					if !a.header.IsLoading() && !models.GlobalState.HasPendingOperations() {
 						uiLogger.Debug("Auto-refresh triggered by countdown")
+
 						go a.autoRefreshDataWithFooter()
 					} else {
 						if a.header.IsLoading() {
@@ -100,9 +105,11 @@ func (a *App) startAutoRefresh() {
 				return
 			default:
 				time.Sleep(100 * time.Millisecond)
+
 				if !a.autoRefreshEnabled {
 					return
 				}
+
 				if a.footer.IsLoading() {
 					a.QueueUpdateDraw(func() {
 						a.footer.TickSpinner()
@@ -113,7 +120,7 @@ func (a *App) startAutoRefresh() {
 	}()
 }
 
-// stopAutoRefresh stops the auto-refresh timer
+// stopAutoRefresh stops the auto-refresh timer.
 func (a *App) stopAutoRefresh() {
 	// Always stop and nil out the ticker, close channels, and reset countdown
 	if a.autoRefreshTicker != nil {
@@ -129,31 +136,38 @@ func (a *App) stopAutoRefresh() {
 		close(a.autoRefreshStop)
 		a.autoRefreshStop = nil
 	}
+
 	if a.autoRefreshCountdownStop != nil {
 		close(a.autoRefreshCountdownStop)
 		a.autoRefreshCountdownStop = nil
 	}
+
 	a.autoRefreshCountdown = 0
 	a.footer.UpdateAutoRefreshCountdown(0)
 }
 
-// autoRefreshDataWithFooter sets loading state and starts the data fetch in a new goroutine
+// autoRefreshDataWithFooter sets loading state and starts the data fetch in a new goroutine.
 func (a *App) autoRefreshDataWithFooter() {
 	a.QueueUpdateDraw(func() {
 		a.footer.SetLoading(true)
 	})
+
 	go a.autoRefreshData()
 }
 
-// autoRefreshData performs a lightweight refresh of performance data
+// autoRefreshData performs a lightweight refresh of performance data.
 func (a *App) autoRefreshData() {
 	uiLogger := models.GetUILogger()
 
 	// Store current selections to preserve them
 	var selectedVMID int
+
 	var selectedVMNode string
+
 	var selectedNodeName string
+
 	var hasSelectedVM bool
+
 	var hasSelectedNode bool
 
 	if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
@@ -177,6 +191,7 @@ func (a *App) autoRefreshData() {
 		a.QueueUpdateDraw(func() {
 			a.footer.SetLoading(false)
 		})
+
 		return
 	}
 
@@ -192,6 +207,7 @@ func (a *App) autoRefreshData() {
 			for _, existingNode := range models.GlobalState.OriginalNodes {
 				if existingNode != nil && existingNode.Version != "" {
 					cluster.Version = fmt.Sprintf("Proxmox VE %s", existingNode.Version)
+
 					break
 				}
 			}
@@ -214,6 +230,7 @@ func (a *App) autoRefreshData() {
 						freshNode.CGroupMode = existingNode.CGroupMode
 						freshNode.Level = existingNode.Level
 						freshNode.Storage = existingNode.Storage
+
 						break
 					}
 				}
@@ -222,6 +239,7 @@ func (a *App) autoRefreshData() {
 
 		// Rebuild VM list from fresh cluster data
 		var vms []*api.VM
+
 		for _, node := range cluster.Nodes {
 			if node != nil {
 				for _, vm := range node.VMs {

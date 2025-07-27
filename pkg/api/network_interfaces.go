@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// NetworkInterfaceStatistics represents network interface statistics from QEMU guest agent
+// NetworkInterfaceStatistics represents network interface statistics from QEMU guest agent.
 type NetworkInterfaceStatistics struct {
 	RxBytes   int64 `json:"rx-bytes"`
 	RxDropped int64 `json:"rx-dropped"`
@@ -17,14 +17,14 @@ type NetworkInterfaceStatistics struct {
 	TxPackets int64 `json:"tx-packets"`
 }
 
-// IPAddress represents an IP address from QEMU guest agent
+// IPAddress represents an IP address from QEMU guest agent.
 type IPAddress struct {
 	Address string `json:"ip-address"`
 	Type    string `json:"ip-address-type"` // ipv4 or ipv6
 	Prefix  int    `json:"prefix"`
 }
 
-// NetworkInterface represents a network interface from QEMU guest agent
+// NetworkInterface represents a network interface from QEMU guest agent.
 type NetworkInterface struct {
 	Name        string                     `json:"name"`
 	MACAddress  string                     `json:"hardware-address"`
@@ -33,7 +33,7 @@ type NetworkInterface struct {
 	IsLoopback  bool                       `json:"-"` // Determined by name (lo)
 }
 
-// GetGuestAgentInterfaces retrieves network interface information from the QEMU guest agent
+// GetGuestAgentInterfaces retrieves network interface information from the QEMU guest agent.
 func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 	if vm.Type != VMTypeQemu || vm.Status != VMStatusRunning {
 		return nil, fmt.Errorf("guest agent not applicable for this VM type or status")
@@ -44,6 +44,7 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 	}
 
 	var res map[string]interface{}
+
 	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/network-get-interfaces", vm.Node, vm.ID)
 
 	// Use GetNoRetry to avoid repeated failed requests if agent is not running
@@ -53,6 +54,7 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 		if strings.Contains(err.Error(), "QEMU guest agent is not running") {
 			return nil, fmt.Errorf("QEMU guest agent is not running")
 		}
+
 		return nil, fmt.Errorf("failed to get guest agent interfaces: %w", err)
 	}
 
@@ -117,24 +119,31 @@ func (c *Client) GetGuestAgentInterfaces(vm *VM) ([]NetworkInterface, error) {
 			if rxBytes, ok := stats["rx-bytes"].(float64); ok {
 				netInterface.Statistics.RxBytes = int64(rxBytes)
 			}
+
 			if rxDropped, ok := stats["rx-dropped"].(float64); ok {
 				netInterface.Statistics.RxDropped = int64(rxDropped)
 			}
+
 			if rxErrs, ok := stats["rx-errs"].(float64); ok {
 				netInterface.Statistics.RxErrors = int64(rxErrs)
 			}
+
 			if rxPackets, ok := stats["rx-packets"].(float64); ok {
 				netInterface.Statistics.RxPackets = int64(rxPackets)
 			}
+
 			if txBytes, ok := stats["tx-bytes"].(float64); ok {
 				netInterface.Statistics.TxBytes = int64(txBytes)
 			}
+
 			if txDropped, ok := stats["tx-dropped"].(float64); ok {
 				netInterface.Statistics.TxDropped = int64(txDropped)
 			}
+
 			if txErrs, ok := stats["tx-errs"].(float64); ok {
 				netInterface.Statistics.TxErrors = int64(txErrs)
 			}
+
 			if txPackets, ok := stats["tx-packets"].(float64); ok {
 				netInterface.Statistics.TxPackets = int64(txPackets)
 			}
@@ -153,12 +162,14 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 	}
 
 	var apiResponse map[string]interface{}
+
 	endpoint := fmt.Sprintf("/nodes/%s/lxc/%d/interfaces", vm.Node, vm.ID)
 
 	if err := c.GetWithCache(endpoint, &apiResponse, VMDataTTL); err != nil {
 		// Based on previous handling, API might return 500 if feature not available or container stopped.
 		// Treat this as "no interfaces found" rather than a hard error for GetVmStatus.
 		c.logger.Debug("Failed to get LXC interfaces for VM %d on node %s (may be expected): %v", vm.ID, vm.Node, err)
+
 		return nil, nil
 	}
 
@@ -176,10 +187,12 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 	}
 
 	var interfaces []NetworkInterface
+
 	for _, ifaceDataItem := range responseData {
 		ifaceMap, ok := ifaceDataItem.(map[string]interface{})
 		if !ok {
 			c.logger.Debug("LXC interface item is not a map[string]interface{}: %+v", ifaceDataItem)
+
 			continue
 		}
 
@@ -188,21 +201,25 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 			netInterface.Name = name
 			netInterface.IsLoopback = (name == "lo")
 		}
+
 		if hwaddr, ok := ifaceMap["hwaddr"].(string); ok {
 			netInterface.MACAddress = hwaddr
 		}
 
 		var ipAddresses []IPAddress
+
 		if inet, ok := ifaceMap["inet"].(string); ok {
 			if ip, valid := parseIPCIDR(inet, IPTypeIPv4); valid {
 				ipAddresses = append(ipAddresses, ip)
 			}
 		}
+
 		if inet6, ok := ifaceMap["inet6"].(string); ok {
 			if ip, valid := parseIPCIDR(inet6, IPTypeIPv6); valid {
 				ipAddresses = append(ipAddresses, ip)
 			}
 		}
+
 		netInterface.IPAddresses = ipAddresses
 		interfaces = append(interfaces, netInterface)
 	}
@@ -210,7 +227,7 @@ func (c *Client) GetLxcInterfaces(vm *VM) ([]NetworkInterface, error) {
 	return interfaces, nil
 }
 
-// GetFirstNonLoopbackIP returns the first non-loopback IP address from network interfaces
+// GetFirstNonLoopbackIP returns the first non-loopback IP address from network interfaces.
 func GetFirstNonLoopbackIP(interfaces []NetworkInterface, preferIPv4 bool) string {
 	// First look for preferred IP version
 	for _, iface := range interfaces {
@@ -246,6 +263,7 @@ func parseIPCIDR(ipCIDR string, ipType string) (IPAddress, bool) {
 	if ipCIDR == "" {
 		return IPAddress{}, false
 	}
+
 	parts := strings.Split(ipCIDR, "/")
 	if len(parts) == 0 {
 		return IPAddress{}, false
@@ -262,16 +280,19 @@ func parseIPCIDR(ipCIDR string, ipType string) (IPAddress, bool) {
 		// Could log an error here if prefix parsing fails but IP is present
 		// For now, we still consider it a valid IP, just without a prefix
 	}
+
 	return ipAddr, true
 }
 
 // Helper function to parse int, assuming it might be missing in this context
-// For a real scenario, use strconv.Atoi
+// For a real scenario, use strconv.Atoi.
 func parseInt(s string) (int, error) {
 	var i int
+
 	n, err := fmt.Sscan(s, &i)
 	if err != nil || n == 0 {
 		return 0, fmt.Errorf("failed to parse int: %s", s)
 	}
+
 	return i, nil
 }

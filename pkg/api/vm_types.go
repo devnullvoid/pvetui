@@ -94,7 +94,7 @@ type VM struct {
 // For LXC containers, the Model field contains the interface name like "eth0", "eth1".
 //
 // Example QEMU network config: "virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,tag=100,firewall=1"
-// Example LXC network config: "name=eth0,hwaddr=AA:BB:CC:DD:EE:FF,bridge=vmbr0,ip=dhcp"
+// Example LXC network config: "name=eth0,hwaddr=AA:BB:CC:DD:EE:FF,bridge=vmbr0,ip=dhcp".
 type ConfiguredNetwork struct {
 	Interface string `json:"interface"`          // Interface identifier (net0, net1, etc.)
 	Model     string `json:"model"`              // Network model (QEMU) or interface name (LXC)
@@ -118,7 +118,7 @@ type ConfiguredNetwork struct {
 //
 // Example QEMU storage: "local-lvm:vm-100-disk-0,size=32G,cache=writeback,iothread=1"
 // Example LXC storage: "local-lvm:vm-101-disk-0,size=8G" (rootfs)
-// Example direct device: "/dev/disk/by-id/ata-SAMSUNG-SSD,size=500G,ssd=1,discard=on"
+// Example direct device: "/dev/disk/by-id/ata-SAMSUNG-SSD,size=500G,ssd=1,discard=on".
 type StorageDevice struct {
 	Device    string `json:"device"`              // Device identifier (scsi0, ide0, virtio0, rootfs, mp0, etc.)
 	Storage   string `json:"storage"`             // Storage pool name or device path
@@ -134,7 +134,7 @@ type StorageDevice struct {
 	Media     string `json:"media,omitempty"`     // Media type (e.g., "cdrom")
 }
 
-// Filesystem represents filesystem information from QEMU guest agent
+// Filesystem represents filesystem information from QEMU guest agent.
 type Filesystem struct {
 	Name          string `json:"name"`
 	Mountpoint    string `json:"mountpoint"`

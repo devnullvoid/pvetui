@@ -136,9 +136,11 @@ func TestNewLogger_FileCreationError(t *testing.T) {
 	} else {
 		// Unexpected case - no error occurred, but logger should still be valid
 		assert.NotNil(t, logger)
+
 		if logger != nil {
 			logger.Close() // Clean up if logger was created
 		}
+
 		t.Log("Warning: Expected error creating log file in /root/nonexistent/, but operation succeeded")
 	}
 }
@@ -171,6 +173,7 @@ func TestNewInternalLogger_EmptyCacheDir(t *testing.T) {
 	// Change to temp directory temporarily
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
+
 	defer func() {
 		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
 			t.Errorf("Failed to change back to original directory: %v", chdirErr)
@@ -183,6 +186,7 @@ func TestNewInternalLogger_EmptyCacheDir(t *testing.T) {
 	logger, err := NewInternalLogger(LevelInfo, "")
 	require.NoError(t, err)
 	assert.NotNil(t, logger)
+
 	defer logger.Close()
 }
 
@@ -193,6 +197,7 @@ func TestNewInternalLogger_InvalidCacheDir(t *testing.T) {
 	// Change to temp directory temporarily
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
+
 	defer func() {
 		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
 			t.Errorf("Failed to change back to original directory: %v", chdirErr)
@@ -206,6 +211,7 @@ func TestNewInternalLogger_InvalidCacheDir(t *testing.T) {
 	logger, err := NewInternalLogger(LevelInfo, "/root/nonexistent")
 	require.NoError(t, err) // Should not error, falls back to current directory
 	assert.NotNil(t, logger)
+
 	defer logger.Close()
 }
 
@@ -225,6 +231,7 @@ func TestNewFileLogger(t *testing.T) {
 	logger, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
 	assert.NotNil(t, logger)
+
 	defer logger.Close()
 }
 
@@ -238,6 +245,7 @@ func TestNewDualLogger(t *testing.T) {
 	logger, err := NewDualLogger(LevelInfo, logFile)
 	require.NoError(t, err)
 	assert.NotNil(t, logger)
+
 	defer logger.Close()
 }
 
@@ -258,6 +266,7 @@ func TestLogger_LogLevels(t *testing.T) {
 
 	// Test that info messages are logged
 	logger.Info("info message")
+
 	output := buf.String()
 	assert.Contains(t, output, "[INFO]")
 	assert.Contains(t, output, "info message")
@@ -267,6 +276,7 @@ func TestLogger_LogLevels(t *testing.T) {
 
 	// Test that error messages are logged
 	logger.Error("error message")
+
 	output = buf.String()
 	assert.Contains(t, output, "[ERROR]")
 	assert.Contains(t, output, "error message")
@@ -366,6 +376,7 @@ func TestLogger_SetLevel(t *testing.T) {
 
 	// Now debug should be logged
 	logger.Debug("debug message 2")
+
 	output := buf.String()
 	assert.Contains(t, output, "[DEBUG]")
 	assert.Contains(t, output, "debug message 2")
@@ -385,6 +396,7 @@ func TestLogger_Close(t *testing.T) {
 	logFile := filepath.Join(tempDir, "close_test.log")
 	logger, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
+
 	defer logger.Close()
 
 	// Write something to the log
@@ -451,7 +463,7 @@ func TestLogger_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-// TestLogger_InterfaceCompliance verifies that Logger implements interfaces.Logger
+// TestLogger_InterfaceCompliance verifies that Logger implements interfaces.Logger.
 func TestLogger_InterfaceCompliance(t *testing.T) {
 	logger := NewSimpleLogger(LevelInfo)
 
@@ -477,12 +489,14 @@ func TestLogger_AppendToExistingFile(t *testing.T) {
 	// Create first logger and write a message
 	logger1, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
+
 	defer logger1.Close()
 	logger1.Info("first message")
 
 	// Create second logger and write another message
 	logger2, err := NewFileLogger(LevelInfo, logFile)
 	require.NoError(t, err)
+
 	defer logger2.Close()
 	logger2.Info("second message")
 

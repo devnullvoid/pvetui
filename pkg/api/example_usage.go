@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-// ExampleConfig demonstrates how to implement the Config interface
+// ExampleConfig demonstrates how to implement the Config interface.
 type ExampleConfig struct {
 	addr        string
 	user        string
@@ -39,10 +39,11 @@ func (c *ExampleConfig) GetAPIToken() string {
 	if !c.IsUsingTokenAuth() {
 		return ""
 	}
+
 	return fmt.Sprintf("PVEAPIToken=%s@%s!%s=%s", c.user, c.realm, c.tokenID, c.tokenSecret)
 }
 
-// ExampleLogger demonstrates how to implement the Logger interface
+// ExampleLogger demonstrates how to implement the Logger interface.
 type ExampleLogger struct{}
 
 func (l *ExampleLogger) Debug(format string, args ...interface{}) {
@@ -57,7 +58,7 @@ func (l *ExampleLogger) Error(format string, args ...interface{}) {
 	log.Printf("[ERROR] "+format, args...)
 }
 
-// ExampleUsage demonstrates how to use the reusable API package
+// ExampleUsage demonstrates how to use the reusable API package.
 func ExampleUsage() {
 	// Create configuration
 	config := NewExampleConfig(

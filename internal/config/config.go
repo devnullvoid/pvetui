@@ -130,10 +130,12 @@ func (c *Config) ApplyProfile(profileName string) error {
 	if c.Profiles == nil {
 		return errors.New("no profiles defined in config")
 	}
+
 	p, ok := c.Profiles[profileName]
 	if !ok {
 		return fmt.Errorf("profile '%s' not found", profileName)
 	}
+
 	c.Addr = p.Addr
 	c.User = p.User
 	c.Password = p.Password
@@ -144,6 +146,7 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.Insecure = p.Insecure
 	c.SSHUser = p.SSHUser
 	c.DefaultProfile = profileName // Update the default profile field
+
 	return nil
 }
 
@@ -152,9 +155,11 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	if len(c.Profiles) > 0 {
 		return false // Already migrated
 	}
+
 	if c.Addr == "" && c.User == "" {
 		return false // Nothing to migrate
 	}
+
 	c.Profiles = map[string]ProfileConfig{
 		"default": {
 			Addr:        c.Addr,
@@ -169,6 +174,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 		},
 	}
 	c.DefaultProfile = "default"
+
 	return true
 }
 
@@ -256,6 +262,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 		if spec == "" {
 			continue
 		}
+
 		key, r, mod, err := keys.Parse(spec)
 		if err != nil {
 			return fmt.Errorf("invalid key binding %s: %w", name, err)
@@ -269,6 +276,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 		if other, ok := seen[id]; ok {
 			return fmt.Errorf("key binding %s duplicates %s", name, other)
 		}
+
 		seen[id] = name
 	}
 
@@ -282,17 +290,21 @@ func isSOPSEncrypted(path string, data []byte) bool {
 		if DebugEnabled {
 			log.Printf("Detected SOPS encryption via filename: %s", path)
 		}
+
 		return true
 	}
+
 	var m map[string]any
 	if err := yaml.Unmarshal(data, &m); err == nil {
 		if _, ok := m["sops"]; ok {
 			if DebugEnabled {
 				log.Printf("Detected SOPS encryption via metadata: %s", path)
 			}
+
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -461,7 +473,7 @@ func ParseConfigFlags() {
 	_ = configFs.Parse(os.Args[1:]) // Parse just the --config flag first, ignore errors
 }
 
-// ParseFlags adds command-line flag definitions to a Config object
+// ParseFlags adds command-line flag definitions to a Config object.
 func (c *Config) ParseFlags() {
 	flag.StringVar(&c.Addr, "addr", c.Addr, "Proxmox API URL (env PROXMOX_ADDR)")
 	flag.StringVar(&c.User, "user", c.User, "Proxmox username (env PROXMOX_USER)")
@@ -491,7 +503,9 @@ func (c *Config) MergeWithFile(path string) error {
 		if derr != nil {
 			return derr
 		}
+
 		data = decrypted
+
 		fmt.Printf("🔐 Decrypted SOPS config file: %s\n", path)
 	}
 
@@ -542,6 +556,7 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.Profiles != nil {
 		c.Profiles = fileConfig.Profiles
 	}
+
 	if fileConfig.DefaultProfile != "" {
 		c.DefaultProfile = fileConfig.DefaultProfile
 	}
@@ -555,9 +570,11 @@ func (c *Config) MergeWithFile(path string) error {
 		c.TokenSecret = fileConfig.TokenSecret
 		c.Realm = fileConfig.Realm
 		c.ApiPath = fileConfig.ApiPath
+
 		if fileConfig.Insecure != nil {
 			c.Insecure = *fileConfig.Insecure
 		}
+
 		c.SSHUser = fileConfig.SSHUser
 		c.MigrateLegacyToProfiles()
 	}
@@ -566,6 +583,7 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.Debug != nil {
 		c.Debug = *fileConfig.Debug
 	}
+
 	if fileConfig.CacheDir != "" {
 		c.CacheDir = fileConfig.CacheDir
 	}
@@ -591,45 +609,59 @@ func (c *Config) MergeWithFile(path string) error {
 		if kb.SwitchView != "" {
 			c.KeyBindings.SwitchView = kb.SwitchView
 		}
+
 		if kb.SwitchViewReverse != "" {
 			c.KeyBindings.SwitchViewReverse = kb.SwitchViewReverse
 		}
+
 		if kb.NodesPage != "" {
 			c.KeyBindings.NodesPage = kb.NodesPage
 		}
+
 		if kb.GuestsPage != "" {
 			c.KeyBindings.GuestsPage = kb.GuestsPage
 		}
+
 		if kb.TasksPage != "" {
 			c.KeyBindings.TasksPage = kb.TasksPage
 		}
+
 		if kb.Menu != "" {
 			c.KeyBindings.Menu = kb.Menu
 		}
+
 		if kb.GlobalMenu != "" {
 			c.KeyBindings.GlobalMenu = kb.GlobalMenu
 		}
+
 		if kb.Shell != "" {
 			c.KeyBindings.Shell = kb.Shell
 		}
+
 		if kb.VNC != "" {
 			c.KeyBindings.VNC = kb.VNC
 		}
+
 		if kb.Scripts != "" {
 			c.KeyBindings.Scripts = kb.Scripts
 		}
+
 		if kb.Refresh != "" {
 			c.KeyBindings.Refresh = kb.Refresh
 		}
+
 		if kb.AutoRefresh != "" {
 			c.KeyBindings.AutoRefresh = kb.AutoRefresh
 		}
+
 		if kb.Search != "" {
 			c.KeyBindings.Search = kb.Search
 		}
+
 		if kb.Help != "" {
 			c.KeyBindings.Help = kb.Help
 		}
+
 		if kb.Quit != "" {
 			c.KeyBindings.Quit = kb.Quit
 		}
@@ -638,6 +670,7 @@ func (c *Config) MergeWithFile(path string) error {
 	// Merge theme configuration if provided
 	c.Theme.Name = fileConfig.Theme.Name
 	c.Theme.Colors = make(map[string]string)
+
 	for k, v := range fileConfig.Theme.Colors {
 		c.Theme.Colors[k] = v
 	}
@@ -649,6 +682,7 @@ func (c *Config) Validate() error {
 	if c.Addr == "" {
 		return errors.New("proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
 	}
+
 	if c.User == "" {
 		return errors.New("proxmox username required: set via -user flag, PROXMOX_USER env var, or config file")
 	}
@@ -672,21 +706,22 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// IsUsingTokenAuth returns true if the configuration is set up for API token authentication
+// IsUsingTokenAuth returns true if the configuration is set up for API token authentication.
 func (c *Config) IsUsingTokenAuth() bool {
 	return c.TokenID != "" && c.TokenSecret != ""
 }
 
 // GetAPIToken returns the full API token string in the format required by Proxmox
-// Format: PVEAPIToken=USER@REALM!TOKENID=SECRET
+// Format: PVEAPIToken=USER@REALM!TOKENID=SECRET.
 func (c *Config) GetAPIToken() string {
 	if !c.IsUsingTokenAuth() {
 		return ""
 	}
+
 	return fmt.Sprintf("PVEAPIToken=%s@%s!%s=%s", c.User, c.Realm, c.TokenID, c.TokenSecret)
 }
 
-// Getter methods for API client compatibility
+// Getter methods for API client compatibility.
 func (c *Config) GetAddr() string        { return c.Addr }
 func (c *Config) GetUser() string        { return c.User }
 func (c *Config) GetPassword() string    { return c.Password }
@@ -695,14 +730,16 @@ func (c *Config) GetTokenID() string     { return c.TokenID }
 func (c *Config) GetTokenSecret() string { return c.TokenSecret }
 func (c *Config) GetInsecure() bool      { return c.Insecure }
 
-// SetDefaults sets default values for unspecified configuration options
+// SetDefaults sets default values for unspecified configuration options.
 func (c *Config) SetDefaults() {
 	if c.Realm == "" {
 		c.Realm = "pam"
 	}
+
 	if c.ApiPath == "" {
 		c.ApiPath = "/api2/json"
 	}
+
 	if c.CacheDir == "" {
 		// Use XDG_CACHE_HOME for cache directory
 		c.CacheDir = getXDGCacheDir()
@@ -713,45 +750,59 @@ func (c *Config) SetDefaults() {
 	if c.KeyBindings.SwitchView == "" {
 		c.KeyBindings.SwitchView = defaults.SwitchView
 	}
+
 	if c.KeyBindings.SwitchViewReverse == "" {
 		c.KeyBindings.SwitchViewReverse = defaults.SwitchViewReverse
 	}
+
 	if c.KeyBindings.NodesPage == "" {
 		c.KeyBindings.NodesPage = defaults.NodesPage
 	}
+
 	if c.KeyBindings.GuestsPage == "" {
 		c.KeyBindings.GuestsPage = defaults.GuestsPage
 	}
+
 	if c.KeyBindings.TasksPage == "" {
 		c.KeyBindings.TasksPage = defaults.TasksPage
 	}
+
 	if c.KeyBindings.Menu == "" {
 		c.KeyBindings.Menu = defaults.Menu
 	}
+
 	if c.KeyBindings.GlobalMenu == "" {
 		c.KeyBindings.GlobalMenu = defaults.GlobalMenu
 	}
+
 	if c.KeyBindings.Shell == "" {
 		c.KeyBindings.Shell = defaults.Shell
 	}
+
 	if c.KeyBindings.VNC == "" {
 		c.KeyBindings.VNC = defaults.VNC
 	}
+
 	if c.KeyBindings.Scripts == "" {
 		c.KeyBindings.Scripts = defaults.Scripts
 	}
+
 	if c.KeyBindings.Refresh == "" {
 		c.KeyBindings.Refresh = defaults.Refresh
 	}
+
 	if c.KeyBindings.AutoRefresh == "" {
 		c.KeyBindings.AutoRefresh = defaults.AutoRefresh
 	}
+
 	if c.KeyBindings.Search == "" {
 		c.KeyBindings.Search = defaults.Search
 	}
+
 	if c.KeyBindings.Help == "" {
 		c.KeyBindings.Help = defaults.Help
 	}
+
 	if c.KeyBindings.Quit == "" {
 		c.KeyBindings.Quit = defaults.Quit
 	}

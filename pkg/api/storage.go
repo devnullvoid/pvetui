@@ -1,6 +1,6 @@
 package api
 
-// Storage represents a Proxmox storage resource
+// Storage represents a Proxmox storage resource.
 type Storage struct {
 	ID         string `json:"id"`         // Full ID like "storage/saturn/bigdiggus-ssd"
 	Name       string `json:"storage"`    // Storage name like "bigdiggus-ssd"
@@ -14,30 +14,31 @@ type Storage struct {
 	Type       string `json:"type"`       // Always "storage" from API
 }
 
-// IsShared returns true if this storage is shared across multiple nodes
+// IsShared returns true if this storage is shared across multiple nodes.
 func (s *Storage) IsShared() bool {
 	return s.Shared == 1
 }
 
-// GetUsagePercent returns the storage usage as a percentage
+// GetUsagePercent returns the storage usage as a percentage.
 func (s *Storage) GetUsagePercent() float64 {
 	if s.MaxDisk == 0 {
 		return 0
 	}
+
 	return (float64(s.Disk) / float64(s.MaxDisk)) * 100
 }
 
-// GetUsageGB returns used space in GB
+// GetUsageGB returns used space in GB.
 func (s *Storage) GetUsageGB() float64 {
 	return float64(s.Disk) / 1024 / 1024 / 1024
 }
 
-// GetTotalGB returns total space in GB
+// GetTotalGB returns total space in GB.
 func (s *Storage) GetTotalGB() float64 {
 	return float64(s.MaxDisk) / 1024 / 1024 / 1024
 }
 
-// StorageManager handles storage aggregation and deduplication
+// StorageManager handles storage aggregation and deduplication.
 type StorageManager struct {
 	// AllStorages contains all storage entries (including duplicates for shared storage)
 	AllStorages []*Storage
@@ -54,7 +55,7 @@ type StorageManager struct {
 	LocalStorages []*Storage
 }
 
-// NewStorageManager creates a new storage manager
+// NewStorageManager creates a new storage manager.
 func NewStorageManager() *StorageManager {
 	return &StorageManager{
 		AllStorages:    make([]*Storage, 0),
@@ -64,19 +65,22 @@ func NewStorageManager() *StorageManager {
 	}
 }
 
-// AddStorage adds a storage entry and handles deduplication
+// AddStorage adds a storage entry and handles deduplication.
 func (sm *StorageManager) AddStorage(storage *Storage) {
 	sm.AllStorages = append(sm.AllStorages, storage)
 
 	if storage.IsShared() {
 		// For shared storage, only add if we haven't seen this storage name before
 		found := false
+
 		for _, existing := range sm.SharedStorages {
 			if existing.Name == storage.Name {
 				found = true
+
 				break
 			}
 		}
+
 		if !found {
 			sm.SharedStorages = append(sm.SharedStorages, storage)
 			sm.UniqueStorages = append(sm.UniqueStorages, storage)
@@ -88,20 +92,22 @@ func (sm *StorageManager) AddStorage(storage *Storage) {
 	}
 }
 
-// GetTotalUsage returns total used space across all unique storages
+// GetTotalUsage returns total used space across all unique storages.
 func (sm *StorageManager) GetTotalUsage() int64 {
 	var total int64
 	for _, storage := range sm.UniqueStorages {
 		total += storage.Disk
 	}
+
 	return total
 }
 
-// GetTotalCapacity returns total capacity across all unique storages
+// GetTotalCapacity returns total capacity across all unique storages.
 func (sm *StorageManager) GetTotalCapacity() int64 {
 	var total int64
 	for _, storage := range sm.UniqueStorages {
 		total += storage.MaxDisk
 	}
+
 	return total
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/testutils"
 )
 
-// Test constants for repeated strings
+// Test constants for repeated strings.
 const (
 	testTokenValue = "user@realm!tokenid=secret"
 	testEndpoint   = "/access/ticket"
@@ -173,10 +173,13 @@ func TestAuthManager_GetValidToken_WithExpiredToken(t *testing.T) {
 					"username":            "testuser",
 				},
 			}
+
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(response)
+
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -228,10 +231,13 @@ func TestAuthManager_authenticate_Success(t *testing.T) {
 					"username":            "testuser",
 				},
 			}
+
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(response)
+
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -262,8 +268,10 @@ func TestAuthManager_authenticate_HTTPError(t *testing.T) {
 		if r.URL.Path == testEndpoint {
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte("Authentication failed"))
+
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -288,8 +296,10 @@ func TestAuthManager_authenticate_InvalidJSON(t *testing.T) {
 		if r.URL.Path == testEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte("invalid json"))
+
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -318,10 +328,13 @@ func TestAuthManager_authenticate_NoTicket(t *testing.T) {
 					// Missing ticket
 				},
 			}
+
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(response)
+
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -389,10 +402,13 @@ func TestAuthManager_ConcurrentAccess(t *testing.T) {
 					"username":            "testuser",
 				},
 			}
+
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(response)
+
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -423,6 +439,7 @@ func TestAuthManager_ConcurrentAccess(t *testing.T) {
 
 	// Collect results
 	var tokens []*AuthToken
+
 	for i := 0; i < numGoroutines; i++ {
 		select {
 		case token := <-results:
@@ -436,6 +453,7 @@ func TestAuthManager_ConcurrentAccess(t *testing.T) {
 
 	// All tokens should be the same (cached)
 	assert.Len(t, tokens, numGoroutines)
+
 	for i := 1; i < len(tokens); i++ {
 		assert.Equal(t, tokens[0], tokens[i])
 	}
@@ -479,10 +497,13 @@ func TestAuthManager_EnsureAuthenticated_WithPassword(t *testing.T) {
 					"username":            "testuser",
 				},
 			}
+
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(response)
+
 			return
 		}
+
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
@@ -503,7 +524,7 @@ func TestAuthManager_EnsureAuthenticated_WithPassword(t *testing.T) {
 	assert.Equal(t, "ensure-auth-ticket", authManager.authToken.Ticket)
 }
 
-// Benchmark tests
+// Benchmark tests.
 func BenchmarkAuthToken_IsValid(b *testing.B) {
 	token := &AuthToken{
 		Ticket:    "benchmark-ticket",
@@ -511,6 +532,7 @@ func BenchmarkAuthToken_IsValid(b *testing.B) {
 	}
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		_ = token.IsValid()
 	}
@@ -527,6 +549,7 @@ func BenchmarkAuthManager_GetValidToken_Cached(b *testing.B) {
 	}
 
 	ctx := context.Background()
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

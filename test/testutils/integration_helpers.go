@@ -26,7 +26,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
-// IntegrationTestConfig holds configuration for integration tests
+// IntegrationTestConfig holds configuration for integration tests.
 type IntegrationTestConfig struct {
 	TempDir        string
 	ConfigFile     string
@@ -38,7 +38,7 @@ type IntegrationTestConfig struct {
 	ProxmoxPass    string
 }
 
-// NewIntegrationTestConfig creates a new integration test configuration
+// NewIntegrationTestConfig creates a new integration test configuration.
 func NewIntegrationTestConfig(t *testing.T) *IntegrationTestConfig {
 	tempDir := t.TempDir()
 
@@ -54,7 +54,7 @@ func NewIntegrationTestConfig(t *testing.T) *IntegrationTestConfig {
 	}
 }
 
-// CreateTestConfigFile creates a configuration file for testing
+// CreateTestConfigFile creates a configuration file for testing.
 func (itc *IntegrationTestConfig) CreateTestConfigFile(t *testing.T, configContent string) {
 	if configContent == "" {
 		configContent = fmt.Sprintf(`
@@ -72,7 +72,7 @@ cache_dir: "%s"
 	require.NoError(t, err)
 }
 
-// CreateTestConfig creates a test configuration object
+// CreateTestConfig creates a test configuration object.
 func (itc *IntegrationTestConfig) CreateTestConfig() *config.Config {
 	cfg := &config.Config{
 		Addr:     itc.ProxmoxAddr,
@@ -90,7 +90,7 @@ func (itc *IntegrationTestConfig) CreateTestConfig() *config.Config {
 	return cfg
 }
 
-// SetupIntegrationTest sets up a complete integration test environment
+// SetupIntegrationTest sets up a complete integration test environment.
 func (itc *IntegrationTestConfig) SetupIntegrationTest(t *testing.T) (*config.Config, interfaces.Logger, interfaces.Cache, *api.Client) {
 	// Create configuration
 	cfg := itc.CreateTestConfig()
@@ -127,14 +127,15 @@ func (itc *IntegrationTestConfig) SetupIntegrationTest(t *testing.T) (*config.Co
 	return cfg, testLogger, testCache, client
 }
 
-// MockProxmoxServer creates a mock Proxmox API server for testing
+// MockProxmoxServer creates a mock Proxmox API server for testing.
 type MockProxmoxServer struct {
 	*httptest.Server
+
 	responses map[string]interface{}
 	authToken string
 }
 
-// NewMockProxmoxServer creates a new mock Proxmox server
+// NewMockProxmoxServer creates a new mock Proxmox server.
 func NewMockProxmoxServer() *MockProxmoxServer {
 	server := &MockProxmoxServer{
 		responses: make(map[string]interface{}),
@@ -166,15 +167,16 @@ func NewMockProxmoxServer() *MockProxmoxServer {
 	return server
 }
 
-// SetResponse sets a mock response for a specific endpoint
+// SetResponse sets a mock response for a specific endpoint.
 func (m *MockProxmoxServer) SetResponse(path string, response interface{}) {
 	m.responses[path] = response
 }
 
-// handleAuth handles authentication requests
+// handleAuth handles authentication requests.
 func (m *MockProxmoxServer) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+
 		return
 	}
 
@@ -190,7 +192,7 @@ func (m *MockProxmoxServer) handleAuth(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// handleVersion handles version requests
+// handleVersion handles version requests.
 func (m *MockProxmoxServer) handleVersion(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"data": map[string]interface{}{
@@ -203,7 +205,7 @@ func (m *MockProxmoxServer) handleVersion(w http.ResponseWriter, r *http.Request
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// handleClusterResources handles cluster resources requests
+// handleClusterResources handles cluster resources requests.
 func (m *MockProxmoxServer) handleClusterResources(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"data": []interface{}{
@@ -230,7 +232,7 @@ func (m *MockProxmoxServer) handleClusterResources(w http.ResponseWriter, r *htt
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// handleNodes handles nodes requests
+// handleNodes handles nodes requests.
 func (m *MockProxmoxServer) handleNodes(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"data": []interface{}{
@@ -247,7 +249,7 @@ func (m *MockProxmoxServer) handleNodes(w http.ResponseWriter, r *http.Request) 
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// handleClusterStatus handles cluster status requests
+// handleClusterStatus handles cluster status requests.
 func (m *MockProxmoxServer) handleClusterStatus(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"data": []interface{}{
@@ -263,7 +265,7 @@ func (m *MockProxmoxServer) handleClusterStatus(w http.ResponseWriter, r *http.R
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// handleGeneric handles generic requests
+// handleGeneric handles generic requests.
 func (m *MockProxmoxServer) handleGeneric(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
@@ -275,6 +277,7 @@ func (m *MockProxmoxServer) handleGeneric(w http.ResponseWriter, r *http.Request
 	if response, exists := m.responses[path]; exists {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
+
 		return
 	}
 
@@ -289,48 +292,50 @@ func (m *MockProxmoxServer) handleGeneric(w http.ResponseWriter, r *http.Request
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// GetURL returns the mock server URL
+// GetURL returns the mock server URL.
 func (m *MockProxmoxServer) GetURL() string {
 	return m.Server.URL
 }
 
-// Close closes the mock server
+// Close closes the mock server.
 func (m *MockProxmoxServer) Close() {
 	m.Server.Close()
 }
 
-// WaitForCondition waits for a condition to be true with timeout
+// WaitForCondition waits for a condition to be true with timeout.
 func WaitForCondition(t *testing.T, condition func() bool, timeout time.Duration, message string) {
 	start := time.Now()
 	for !condition() {
 		if time.Since(start) > timeout {
 			t.Fatalf("Timeout waiting for condition: %s", message)
 		}
+
 		time.Sleep(10 * time.Millisecond)
 	}
 }
 
-// AssertEventuallyTrue asserts that a condition becomes true within a timeout
+// AssertEventuallyTrue asserts that a condition becomes true within a timeout.
 func AssertEventuallyTrue(t *testing.T, condition func() bool, timeout time.Duration, message string) {
 	WaitForCondition(t, condition, timeout, message)
 }
 
-// getEnvOrDefault returns environment variable value or default
+// getEnvOrDefault returns environment variable value or default.
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
+
 	return defaultValue
 }
 
-// SkipIfNoRealProxmox skips the test if not running against real Proxmox
+// SkipIfNoRealProxmox skips the test if not running against real Proxmox.
 func SkipIfNoRealProxmox(t *testing.T) {
 	if os.Getenv("PROXMOX_INTEGRATION_TEST") != "true" {
 		t.Skip("Skipping integration test - set PROXMOX_INTEGRATION_TEST=true to run against real Proxmox")
 	}
 }
 
-// SkipIfRealProxmox skips the test if running against real Proxmox
+// SkipIfRealProxmox skips the test if running against real Proxmox.
 func SkipIfRealProxmox(t *testing.T) {
 	if os.Getenv("PROXMOX_INTEGRATION_TEST") == "true" {
 		t.Skip("Skipping mock test - running against real Proxmox")

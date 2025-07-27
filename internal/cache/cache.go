@@ -13,7 +13,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
-// Cache defines the interface for the caching system
+// Cache defines the interface for the caching system.
 type Cache interface {
 	// Get retrieves data from the cache, returning whether it was found
 	Get(key string, dest interface{}) (bool, error)
@@ -31,14 +31,14 @@ type Cache interface {
 	Close() error
 }
 
-// CacheItem represents an item in the cache with TTL
+// CacheItem represents an item in the cache with TTL.
 type CacheItem struct {
 	Data      interface{} `json:"data"`
 	Timestamp int64       `json:"timestamp"`
 	TTL       int64       `json:"ttl"` // TTL in seconds, 0 means no expiration
 }
 
-// FileCache implements a simple file-based cache
+// FileCache implements a simple file-based cache.
 type FileCache struct {
 	dir       string
 	mutex     sync.RWMutex
@@ -46,7 +46,7 @@ type FileCache struct {
 	persisted bool
 }
 
-// NewFileCache creates a new file-based cache
+// NewFileCache creates a new file-based cache.
 func NewFileCache(cacheDir string, persisted bool) (*FileCache, error) {
 	// Create cache directory if it doesn't exist
 	if err := os.MkdirAll(cacheDir, 0o750); err != nil {
@@ -70,7 +70,7 @@ func NewFileCache(cacheDir string, persisted bool) (*FileCache, error) {
 	return cache, nil
 }
 
-// loadCacheFiles loads all existing cache files into memory
+// loadCacheFiles loads all existing cache files into memory.
 func (c *FileCache) loadCacheFiles() error {
 	files, err := os.ReadDir(c.dir)
 	if err != nil {
@@ -88,6 +88,7 @@ func (c *FileCache) loadCacheFiles() error {
 		data, err := os.ReadFile(filepath.Join(c.dir, file.Name()))
 		if err != nil {
 			getCacheLogger().Debug("Warning: Failed to read cache file %s: %v", file.Name(), err)
+
 			continue
 		}
 
@@ -95,6 +96,7 @@ func (c *FileCache) loadCacheFiles() error {
 		var item CacheItem
 		if err := json.Unmarshal(data, &item); err != nil {
 			getCacheLogger().Debug("Warning: Failed to parse cache file %s: %v", file.Name(), err)
+
 			continue
 		}
 
@@ -104,6 +106,7 @@ func (c *FileCache) loadCacheFiles() error {
 			if err := os.Remove(filepath.Join(c.dir, file.Name())); err != nil {
 				getCacheLogger().Debug("Warning: Failed to remove expired cache file %s: %v", file.Name(), err)
 			}
+
 			continue
 		}
 
@@ -114,7 +117,7 @@ func (c *FileCache) loadCacheFiles() error {
 	return nil
 }
 
-// Get retrieves data from the cache
+// Get retrieves data from the cache.
 func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -123,6 +126,7 @@ func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
 	item, exists := c.inMemory[key]
 	if !exists {
 		getCacheLogger().Debug("Cache miss for: %s", key)
+
 		return false, nil
 	}
 
@@ -158,7 +162,7 @@ func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
 	return true, nil
 }
 
-// Set stores data in the cache
+// Set stores data in the cache.
 func (c *FileCache) Set(key string, data interface{}, ttl time.Duration) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -189,10 +193,11 @@ func (c *FileCache) Set(key string, data interface{}, ttl time.Duration) error {
 	}
 
 	getCacheLogger().Debug("Cached item: %s with TTL %v", key, ttl)
+
 	return nil
 }
 
-// Delete removes an item from the cache
+// Delete removes an item from the cache.
 func (c *FileCache) Delete(key string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -209,10 +214,11 @@ func (c *FileCache) Delete(key string) error {
 	}
 
 	getCacheLogger().Debug("Deleted cache item: %s", key)
+
 	return nil
 }
 
-// Clear removes all items from the cache
+// Clear removes all items from the cache.
 func (c *FileCache) Clear() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -242,12 +248,12 @@ func (c *FileCache) Clear() error {
 }
 
 // Close implements the Cache.Close method for FileCache
-// This is a no-op for FileCache since it doesn't maintain any resources that need explicit closing
+// This is a no-op for FileCache since it doesn't maintain any resources that need explicit closing.
 func (c *FileCache) Close() error {
 	return nil
 }
 
-// NewMemoryCache creates an in-memory only cache (no persistence)
+// NewMemoryCache creates an in-memory only cache (no persistence).
 func NewMemoryCache() *FileCache {
 	return &FileCache{
 		inMemory:  make(map[string]*CacheItem),
@@ -255,7 +261,7 @@ func NewMemoryCache() *FileCache {
 	}
 }
 
-// Global singleton cache instance
+// Global singleton cache instance.
 var (
 	globalCache     Cache
 	cacheLogger     interfaces.Logger
@@ -264,7 +270,7 @@ var (
 	cacheLoggerOnce sync.Once
 )
 
-// getCacheLogger returns the cache logger, initializing it if necessary
+// getCacheLogger returns the cache logger, initializing it if necessary.
 func getCacheLogger() interfaces.Logger {
 	cacheLoggerOnce.Do(func() {
 		// Create a logger for cache operations that logs to file
@@ -273,6 +279,7 @@ func getCacheLogger() interfaces.Logger {
 		if config.DebugEnabled {
 			level = logger.LevelDebug
 		}
+
 		var err error
 
 		// Use the global cache directory if available, otherwise fallback to current directory
@@ -288,10 +295,11 @@ func getCacheLogger() interfaces.Logger {
 			cacheLogger = logger.NewSimpleLogger(level)
 		}
 	})
+
 	return cacheLogger
 }
 
-// InitGlobalCache initializes the global cache with the given directory
+// InitGlobalCache initializes the global cache with the given directory.
 func InitGlobalCache(cacheDir string) error {
 	var err error
 
@@ -302,6 +310,7 @@ func InitGlobalCache(cacheDir string) error {
 		// Create cache directory if it doesn't exist
 		if err = os.MkdirAll(cacheDir, 0o750); err != nil {
 			err = fmt.Errorf("failed to create cache directory: %w", err)
+
 			return
 		}
 
@@ -309,19 +318,23 @@ func InitGlobalCache(cacheDir string) error {
 		badgerDir := filepath.Join(cacheDir, "badger")
 		if err = os.MkdirAll(badgerDir, 0o750); err != nil {
 			err = fmt.Errorf("failed to create badger directory: %w", err)
+
 			return
 		}
 
 		// Check if there's an existing process using the badger directory
 		lockFilePath := filepath.Join(badgerDir, "LOCK")
 		lockFileExists := false
+
 		if _, statErr := os.Stat(lockFilePath); statErr == nil {
 			lockFileExists = true
+
 			getCacheLogger().Debug("Found existing BadgerDB lock file")
 		}
 
 		// Initialize badger cache
 		getCacheLogger().Debug("Attempting to initialize BadgerDB cache at %s", badgerDir)
+
 		badgerCache, badgerErr := NewBadgerCache(badgerDir)
 		if badgerErr != nil {
 			// If lock file exists and we failed to initialize, it might be a lock contention
@@ -329,6 +342,7 @@ func InitGlobalCache(cacheDir string) error {
 				getCacheLogger().Debug("Lock contention detected, waiting for lock release...")
 				// Wait a short time and try again once
 				time.Sleep(500 * time.Millisecond)
+
 				badgerCache, badgerErr = NewBadgerCache(badgerDir)
 			}
 
@@ -336,13 +350,16 @@ func InitGlobalCache(cacheDir string) error {
 			if badgerErr != nil {
 				getCacheLogger().Debug("Failed to initialize BadgerDB cache: %v", badgerErr)
 				getCacheLogger().Debug("Using temporary in-memory cache - no persistence will be available")
+
 				globalCache = NewMemoryCache()
 				err = badgerErr
+
 				return
 			}
 		}
 
 		getCacheLogger().Debug("Successfully initialized BadgerDB cache")
+
 		globalCache = badgerCache
 
 		// Verify cache is working by writing and reading a test item
@@ -353,6 +370,7 @@ func InitGlobalCache(cacheDir string) error {
 			getCacheLogger().Debug("WARNING: Failed to write test item to cache: %v", err)
 		} else {
 			var result map[string]string
+
 			found, getErr := globalCache.Get(testKey, &result)
 			if getErr != nil {
 				getCacheLogger().Debug("WARNING: Failed to read test item from cache: %v", getErr)
@@ -369,7 +387,7 @@ func InitGlobalCache(cacheDir string) error {
 	return err
 }
 
-// GetGlobalCache returns the global cache instance
+// GetGlobalCache returns the global cache instance.
 func GetGlobalCache() Cache {
 	if globalCache == nil {
 		// If global cache is not initialized, use a temporary in-memory cache
@@ -379,9 +397,10 @@ func GetGlobalCache() Cache {
 	return globalCache
 }
 
-// GetBadgerCache returns the global cache as a BadgerCache if applicable
+// GetBadgerCache returns the global cache as a BadgerCache if applicable.
 func GetBadgerCache() (*BadgerCache, bool) {
 	cache := GetGlobalCache()
 	badgerCache, ok := cache.(*BadgerCache)
+
 	return badgerCache, ok
 }

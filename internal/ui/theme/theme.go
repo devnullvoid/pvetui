@@ -120,7 +120,7 @@ var Colors = struct {
 	UsageCritical: tcell.ColorFuchsia,
 }
 
-// Only expose semantic tags that map directly to user-themeable colors
+// Only expose semantic tags that map directly to user-themeable colors.
 var semanticTagMap = map[string]func() tcell.Color{
 	"primary":   func() tcell.Color { return Colors.Primary },
 	"secondary": func() tcell.Color { return Colors.Secondary },
@@ -142,6 +142,7 @@ func ReplaceSemanticTags(s string) string {
 		colorTag := ColorToTag(color)
 		s = strings.ReplaceAll(s, "["+tag+"]", "["+colorTag+"]")
 	}
+
 	return s
 }
 
@@ -181,7 +182,7 @@ func IsDarkTheme() bool {
 	return true
 }
 
-// ColorToTag returns a tview color tag string for a tcell.Color
+// ColorToTag returns a tview color tag string for a tcell.Color.
 func ColorToTag(c tcell.Color) string {
 	switch c {
 	case tcell.ColorDefault:
@@ -535,6 +536,7 @@ var BuiltInThemes = map[string]map[string]string{
 // ResolveTheme merges the selected built-in theme with user overrides.
 func ResolveTheme(cfg *config.ThemeConfig) map[string]string {
 	base := BuiltInThemes["default"]
+
 	if cfg != nil && cfg.Name != "" {
 		if t, ok := BuiltInThemes[cfg.Name]; ok {
 			base = t
@@ -545,11 +547,13 @@ func ResolveTheme(cfg *config.ThemeConfig) map[string]string {
 	for k, v := range base {
 		resolved[k] = v
 	}
+
 	if cfg != nil {
 		for k, v := range cfg.Colors {
 			resolved[k] = v
 		}
 	}
+
 	return resolved
 }
 
@@ -559,6 +563,7 @@ func ApplyCustomTheme(cfg *config.ThemeConfig) {
 	resolved := ResolveTheme(cfg)
 	for key, val := range resolved {
 		c := parseColor(val)
+
 		switch key {
 		case "primary":
 			Colors.Primary = c
@@ -621,5 +626,6 @@ func parseColor(s string) tcell.Color {
 	if strings.EqualFold(s, "default") {
 		return tcell.ColorDefault
 	}
+
 	return tcell.GetColor(s)
 }

@@ -6,16 +6,18 @@ import (
 	"sync"
 )
 
-// EnrichVMs enriches all VMs in the cluster with detailed status information
+// EnrichVMs enriches all VMs in the cluster with detailed status information.
 func (c *Client) EnrichVMs(cluster *Cluster) error {
 	const maxConcurrentRequests = 5 // Limit concurrent API requests
 
 	var wg sync.WaitGroup
+
 	errChan := make(chan error, 100) // Buffer for potential errors
 	vmChan := make(chan *VM, 100)    // Channel for VM tasks
 
 	// Count total VMs for error channel sizing
 	totalVMs := 0
+
 	for _, node := range cluster.Nodes {
 		if node.Online && node.VMs != nil {
 			totalVMs += len(node.VMs)
@@ -28,21 +30,26 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 
 	// Start error collector
 	var errors []error
+
 	done := make(chan struct{})
+
 	go func() {
 		for err := range errChan {
 			if err != nil {
 				errors = append(errors, err)
 			}
 		}
+
 		close(done)
 	}()
 
 	// Start workers with limited concurrency
 	for i := 0; i < maxConcurrentRequests; i++ {
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
+
 			for vm := range vmChan {
 				// Store the current disk usage values from /cluster/resources
 				diskUsage := vm.Disk
@@ -97,6 +104,7 @@ func (c *Client) EnrichVMs(cluster *Cluster) error {
 // populateConfiguredMACs extracts MAC addresses from the VM configuration (net0, net1, etc.)
 func populateConfiguredMACs(vm *VM, configData map[string]interface{}) {
 	vm.ConfiguredMACs = make(map[string]bool)
+
 	for k, v := range configData {
 		if strings.HasPrefix(k, "net") && len(k) > 3 && k[3] >= '0' && k[3] <= '9' {
 			netStr, ok := v.(string)
@@ -125,6 +133,7 @@ func populateConfiguredMACs(vm *VM, configData map[string]interface{}) {
 
 				if macAddress != "" && len(macAddress) == 17 && strings.Count(macAddress, ":") == 5 {
 					vm.ConfiguredMACs[macAddress] = true
+
 					break // Found MAC for this netX device
 				}
 			}
@@ -333,9 +342,11 @@ func parseStorageConfig(configData map[string]interface{}, vmType string) []Stor
 
 	for key, value := range configData {
 		var isStorageDevice bool
+
 		for _, prefix := range devicePrefixes {
 			if strings.HasPrefix(key, prefix) {
 				isStorageDevice = true
+
 				break
 			}
 		}
@@ -434,7 +445,7 @@ func parseStorageConfig(configData map[string]interface{}, vmType string) []Stor
 	return devices
 }
 
-// GetGuestAgentFilesystems retrieves filesystem information from the QEMU guest agent
+// GetGuestAgentFilesystems retrieves filesystem information from the QEMU guest agent.
 func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
 	if vm.Type != VMTypeQemu || vm.Status != VMStatusRunning {
 		return nil, fmt.Errorf("guest agent not applicable for this VM type or status")
@@ -445,6 +456,7 @@ func (c *Client) GetGuestAgentFilesystems(vm *VM) ([]Filesystem, error) {
 	}
 
 	var res map[string]interface{}
+
 	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/get-fsinfo", vm.Node, vm.ID)
 
 	if err := c.GetWithCache(endpoint, &res, VMDataTTL); err != nil {

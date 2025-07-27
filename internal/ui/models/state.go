@@ -13,14 +13,14 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
-// SearchState holds the state for a search operation
+// SearchState holds the state for a search operation.
 type SearchState struct {
 	CurrentPage   string
 	Filter        string
 	SelectedIndex int
 }
 
-// State holds all UI state components
+// State holds all UI state components.
 type State struct {
 	NodeList     tview.Primitive
 	VMList       tview.Primitive
@@ -42,7 +42,7 @@ type State struct {
 	pendingMutex          sync.RWMutex      // Thread-safe access to pending maps
 }
 
-// GlobalState is the singleton instance for UI state
+// GlobalState is the singleton instance for UI state.
 var GlobalState = State{
 	SearchStates:          make(map[string]*SearchState),
 	FilteredNodes:         make([]*api.Node, 0),
@@ -55,15 +55,15 @@ var GlobalState = State{
 	PendingNodeOperations: make(map[string]string),
 }
 
-// UI logger instance - will be set by the main application
+// UI logger instance - will be set by the main application.
 var uiLogger interfaces.Logger
 
-// SetUILogger sets the shared logger instance for UI components
+// SetUILogger sets the shared logger instance for UI components.
 func SetUILogger(logger interfaces.Logger) {
 	uiLogger = logger
 }
 
-// GetUILogger returns the UI logger, with fallback if not set
+// GetUILogger returns the UI logger, with fallback if not set.
 func GetUILogger() interfaces.Logger {
 	if uiLogger != nil {
 		return uiLogger
@@ -73,24 +73,27 @@ func GetUILogger() interfaces.Logger {
 	if config.DebugEnabled {
 		level = logger.LevelDebug
 	}
+
 	return logger.NewSimpleLogger(level)
 }
 
-// GetSearchState returns the search state for a given component
+// GetSearchState returns the search state for a given component.
 func (s *State) GetSearchState(component string) *SearchState {
 	state, exists := s.SearchStates[component]
 	if !exists {
 		return nil
 	}
+
 	return state
 }
 
-// FilterNodes filters the nodes based on the given search string
+// FilterNodes filters the nodes based on the given search string.
 func FilterNodes(filter string) {
 	if filter == "" {
 		// No filter, use all nodes
 		GlobalState.FilteredNodes = make([]*api.Node, len(GlobalState.OriginalNodes))
 		copy(GlobalState.FilteredNodes, GlobalState.OriginalNodes)
+
 		return
 	}
 
@@ -109,12 +112,14 @@ func FilterNodes(filter string) {
 		// Check node name
 		if strings.Contains(strings.ToLower(node.Name), filter) {
 			GlobalState.FilteredNodes = append(GlobalState.FilteredNodes, node)
+
 			continue
 		}
 
 		// Check node IP
 		if strings.Contains(strings.ToLower(node.IP), filter) {
 			GlobalState.FilteredNodes = append(GlobalState.FilteredNodes, node)
+
 			continue
 		}
 
@@ -123,22 +128,25 @@ func FilterNodes(filter string) {
 		if node.Online {
 			statusText = "online"
 		}
+
 		if strings.Contains(statusText, filter) {
 			GlobalState.FilteredNodes = append(GlobalState.FilteredNodes, node)
+
 			continue
 		}
 	}
-
 	// GetUILogger().Debug("Filtered nodes from %d to %d with filter '%s'",
-	// 	len(GlobalState.OriginalNodes), len(GlobalState.FilteredNodes), filter)
+	//
+	//	len(GlobalState.OriginalNodes), len(GlobalState.FilteredNodes), filter)
 }
 
-// FilterVMs filters the VMs based on the given search string
+// FilterVMs filters the VMs based on the given search string.
 func FilterVMs(filter string) {
 	if filter == "" {
 		// No filter, use all VMs
 		GlobalState.FilteredVMs = make([]*api.VM, len(GlobalState.OriginalVMs))
 		copy(GlobalState.FilteredVMs, GlobalState.OriginalVMs)
+
 		return
 	}
 
@@ -157,6 +165,7 @@ func FilterVMs(filter string) {
 		// Check VM name
 		if strings.Contains(strings.ToLower(vm.Name), filter) {
 			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+
 			continue
 		}
 
@@ -164,38 +173,43 @@ func FilterVMs(filter string) {
 		vmIDStr := fmt.Sprintf("%d", vm.ID)
 		if strings.Contains(vmIDStr, filter) {
 			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+
 			continue
 		}
 
 		// Check VM type
 		if strings.Contains(strings.ToLower(vm.Type), filter) {
 			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+
 			continue
 		}
 
 		// Check VM status
 		if strings.Contains(strings.ToLower(vm.Status), filter) {
 			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+
 			continue
 		}
 
 		// Check VM node
 		if strings.Contains(strings.ToLower(vm.Node), filter) {
 			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+
 			continue
 		}
 	}
-
 	// GetUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
-	// 	len(GlobalState.OriginalVMs), len(GlobalState.FilteredVMs), filter)
+	//
+	//	len(GlobalState.OriginalVMs), len(GlobalState.FilteredVMs), filter)
 }
 
-// FilterTasks filters the tasks based on the given search string
+// FilterTasks filters the tasks based on the given search string.
 func FilterTasks(filter string) {
 	if filter == "" {
 		// No filter, use all tasks
 		GlobalState.FilteredTasks = make([]*api.ClusterTask, len(GlobalState.OriginalTasks))
 		copy(GlobalState.FilteredTasks, GlobalState.OriginalTasks)
+
 		return
 	}
 
@@ -214,94 +228,106 @@ func FilterTasks(filter string) {
 		// Check task ID
 		if strings.Contains(strings.ToLower(task.ID), filter) {
 			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+
 			continue
 		}
 
 		// Check task node
 		if strings.Contains(strings.ToLower(task.Node), filter) {
 			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+
 			continue
 		}
 
 		// Check task type
 		if strings.Contains(strings.ToLower(task.Type), filter) {
 			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+
 			continue
 		}
 
 		// Check task status
 		if strings.Contains(strings.ToLower(task.Status), filter) {
 			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+
 			continue
 		}
 
 		// Check task user
 		if strings.Contains(strings.ToLower(task.User), filter) {
 			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+
 			continue
 		}
 
 		// Check UPID
 		if strings.Contains(strings.ToLower(task.UPID), filter) {
 			GlobalState.FilteredTasks = append(GlobalState.FilteredTasks, task)
+
 			continue
 		}
 	}
-
 	// GetUILogger().Debug("Filtered tasks from %d to %d with filter '%s'",
-	// 	len(GlobalState.OriginalTasks), len(GlobalState.FilteredTasks), filter)
+	//
+	//	len(GlobalState.OriginalTasks), len(GlobalState.FilteredTasks), filter)
 }
 
-// SetVMPending marks a VM as having a pending operation
+// SetVMPending marks a VM as having a pending operation.
 func (s *State) SetVMPending(vm *api.VM, operation string) {
 	s.pendingMutex.Lock()
 	defer s.pendingMutex.Unlock()
+
 	key := fmt.Sprintf("%s:%d", vm.Node, vm.ID)
 	s.PendingVMOperations[key] = operation
 }
 
-// ClearVMPending removes the pending operation status for a VM
+// ClearVMPending removes the pending operation status for a VM.
 func (s *State) ClearVMPending(vm *api.VM) {
 	s.pendingMutex.Lock()
 	defer s.pendingMutex.Unlock()
+
 	key := fmt.Sprintf("%s:%d", vm.Node, vm.ID)
 	delete(s.PendingVMOperations, key)
 }
 
-// IsVMPending checks if a VM has a pending operation
+// IsVMPending checks if a VM has a pending operation.
 func (s *State) IsVMPending(vm *api.VM) (bool, string) {
 	s.pendingMutex.RLock()
 	defer s.pendingMutex.RUnlock()
+
 	key := fmt.Sprintf("%s:%d", vm.Node, vm.ID)
 	operation, exists := s.PendingVMOperations[key]
+
 	return exists, operation
 }
 
-// SetNodePending marks a node as having a pending operation
+// SetNodePending marks a node as having a pending operation.
 func (s *State) SetNodePending(node *api.Node, operation string) {
 	s.pendingMutex.Lock()
 	defer s.pendingMutex.Unlock()
 	s.PendingNodeOperations[node.Name] = operation
 }
 
-// ClearNodePending removes the pending operation status for a node
+// ClearNodePending removes the pending operation status for a node.
 func (s *State) ClearNodePending(node *api.Node) {
 	s.pendingMutex.Lock()
 	defer s.pendingMutex.Unlock()
 	delete(s.PendingNodeOperations, node.Name)
 }
 
-// IsNodePending checks if a node has a pending operation
+// IsNodePending checks if a node has a pending operation.
 func (s *State) IsNodePending(node *api.Node) (bool, string) {
 	s.pendingMutex.RLock()
 	defer s.pendingMutex.RUnlock()
 	operation, exists := s.PendingNodeOperations[node.Name]
+
 	return exists, operation
 }
 
-// HasPendingOperations checks if there are any pending VM or node operations
+// HasPendingOperations checks if there are any pending VM or node operations.
 func (s *State) HasPendingOperations() bool {
 	s.pendingMutex.RLock()
 	defer s.pendingMutex.RUnlock()
+
 	return len(s.PendingVMOperations) > 0 || len(s.PendingNodeOperations) > 0
 }

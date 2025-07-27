@@ -5,22 +5,24 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 
-	// "github.com/devnullvoid/proxmox-tui/pkg/config"
+	// "github.com/devnullvoid/proxmox-tui/pkg/config".
 	"github.com/devnullvoid/proxmox-tui/internal/ssh"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/vnc"
 )
 
-// openNodeShell opens an SSH session to the currently selected node
+// openNodeShell opens an SSH session to the currently selected node.
 func (a *App) openNodeShell() {
 	if a.config.SSHUser == "" {
 		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+
 		return
 	}
 
 	node := a.nodeList.GetSelectedNode()
 	if node == nil || node.IP == "" {
 		a.showMessage("Node IP address not available")
+
 		return
 	}
 
@@ -34,7 +36,6 @@ func (a *App) openNodeShell() {
 		if err != nil {
 			fmt.Printf("\nError connecting to node: %v\n", err)
 		}
-
 		// Wait for user to press Enter
 		// fmt.Print("\nPress Vj`Enter to return to the TUI...")
 		// utils.WaitForEnter()
@@ -44,7 +45,7 @@ func (a *App) openNodeShell() {
 	a.Sync()
 }
 
-// connectToNodeVNC performs the actual node VNC connection using embedded noVNC client
+// connectToNodeVNC performs the actual node VNC connection using embedded noVNC client.
 func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 	// Show loading message
 	a.header.ShowLoading(fmt.Sprintf("Starting embedded VNC shell for %s...", node.Name))
@@ -52,6 +53,7 @@ func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 	// Open embedded VNC connection in a goroutine to avoid blocking UI
 	go func() {
 		err := vncService.ConnectToNodeEmbedded(node.Name)
+
 		a.QueueUpdateDraw(func() {
 			if err != nil {
 				// Clear the loading message from header
@@ -71,7 +73,7 @@ func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 	}()
 }
 
-// connectToVMVNC performs the actual VM VNC connection using embedded noVNC client
+// connectToVMVNC performs the actual VM VNC connection using embedded noVNC client.
 func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 	// Show loading message
 	a.header.ShowLoading(fmt.Sprintf("Starting embedded VNC console for %s...", vm.Name))
@@ -79,6 +81,7 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 	// Open embedded VNC connection in a goroutine to avoid blocking UI
 	go func() {
 		err := vncService.ConnectToVMEmbedded(vm)
+
 		a.QueueUpdateDraw(func() {
 			if err != nil {
 				// Clear the loading message from header
@@ -98,7 +101,7 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 	}()
 }
 
-// openNodeVNC opens a VNC shell connection to the currently selected node
+// openNodeVNC opens a VNC shell connection to the currently selected node.
 func (a *App) openNodeVNC() {
 	node := a.nodeList.GetSelectedNode()
 	if node == nil {
@@ -107,6 +110,7 @@ func (a *App) openNodeVNC() {
 			a.pages.RemovePage("vnc_error")
 		})
 		a.pages.AddPage("vnc_error", errorModal, false, true)
+
 		return
 	}
 
@@ -124,6 +128,7 @@ func (a *App) openNodeVNC() {
 			a.pages.RemovePage("vnc_error")
 		})
 		a.pages.AddPage("vnc_error", errorModal, false, true)
+
 		return
 	}
 
@@ -131,7 +136,7 @@ func (a *App) openNodeVNC() {
 	a.connectToNodeVNC(node, vncService)
 }
 
-// openVMVNC opens a VNC console connection to the currently selected VM
+// openVMVNC opens a VNC console connection to the currently selected VM.
 func (a *App) openVMVNC() {
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
@@ -140,6 +145,7 @@ func (a *App) openVMVNC() {
 			a.pages.RemovePage("vnc_error")
 		})
 		a.pages.AddPage("vnc_error", errorModal, false, true)
+
 		return
 	}
 
@@ -154,6 +160,7 @@ func (a *App) openVMVNC() {
 			a.pages.RemovePage("vnc_error")
 		})
 		a.pages.AddPage("vnc_error", errorModal, false, true)
+
 		return
 	}
 
@@ -161,30 +168,35 @@ func (a *App) openVMVNC() {
 	a.connectToVMVNC(vm, vncService)
 }
 
-// openVMShell opens a shell session to the currently selected VM/container
+// openVMShell opens a shell session to the currently selected VM/container.
 func (a *App) openVMShell() {
 	if a.config.SSHUser == "" {
 		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+
 		return
 	}
 
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
 		a.showMessage("Selected VM not found")
+
 		return
 	}
 
 	// Get node IP from the cluster
 	var nodeIP string
+
 	for _, node := range a.client.Cluster.Nodes {
 		if node.Name == vm.Node {
 			nodeIP = node.IP
+
 			break
 		}
 	}
 
 	if nodeIP == "" {
 		a.showMessage("Host node IP address not available")
+
 		return
 	}
 

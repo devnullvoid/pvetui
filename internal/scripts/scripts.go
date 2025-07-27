@@ -17,33 +17,33 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
-// GitHubRepo is the URL to the Proxmox Community Scripts repository
+// GitHubRepo is the URL to the Proxmox Community Scripts repository.
 const (
 	GitHubRepo    = "https://github.com/community-scripts/ProxmoxVE"
 	GitHubAPIRepo = "https://api.github.com/repos/community-scripts/ProxmoxVE"
 	RawGitHubRepo = "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
 )
 
-// Cache TTLs
+// Cache TTLs.
 const (
 	ScriptMetadataTTL = 24 * time.Hour // Cache script metadata for 24 hours
 	ScriptListTTL     = 12 * time.Hour // Cache script list for 12 hours
 )
 
-// Cache keys
+// Cache keys.
 const (
 	ScriptListCacheKey   = "github_script_list"
 	ScriptCacheKeyPrefix = "github_script_"
 )
 
-// ScriptCategory represents a category of Proxmox scripts
+// ScriptCategory represents a category of Proxmox scripts.
 type ScriptCategory struct {
 	Name        string
 	Description string
 	Path        string
 }
 
-// Script represents a single script from the repository
+// Script represents a single script from the repository.
 type Script struct {
 	Name          string `json:"name"`
 	Slug          string `json:"slug"`
@@ -61,7 +61,7 @@ type Script struct {
 	DateCreated   string `json:"date_created"`
 }
 
-// GitHubContent represents a file or directory in the GitHub API
+// GitHubContent represents a file or directory in the GitHub API.
 type GitHubContent struct {
 	Name        string `json:"name"`
 	Path        string `json:"path"`
@@ -69,22 +69,23 @@ type GitHubContent struct {
 	DownloadURL string `json:"download_url"`
 }
 
-// Scripts logger instance
+// Scripts logger instance.
 var (
 	scriptsLogger     interfaces.Logger
 	scriptsLoggerOnce sync.Once
 )
 
-// getScriptsLogger returns the scripts logger, initializing it if necessary
+// getScriptsLogger returns the scripts logger, initializing it if necessary.
 func getScriptsLogger() interfaces.Logger {
 	scriptsLoggerOnce.Do(func() {
 		// Use the global logger system for unified logging
 		scriptsLogger = logger.GetPackageLogger("scripts")
 	})
+
 	return scriptsLogger
 }
 
-// GetScriptCategories returns the available script categories
+// GetScriptCategories returns the available script categories.
 func GetScriptCategories() []ScriptCategory {
 	return []ScriptCategory{
 		{
@@ -115,16 +116,19 @@ func GetScriptCategories() []ScriptCategory {
 	}
 }
 
-// GetScriptMetadataFiles fetches the list of script metadata JSON files from the repository
+// GetScriptMetadataFiles fetches the list of script metadata JSON files from the repository.
 func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	// Check cache first
 	c := cache.GetGlobalCache()
+
 	var cachedFiles []GitHubContent
+
 	found, err := c.Get(ScriptListCacheKey, &cachedFiles)
 	if err != nil {
 		getScriptsLogger().Debug("Cache error for script list: %v", err)
 	} else if found && len(cachedFiles) > 0 {
 		getScriptsLogger().Debug("Using cached script list (%d items)", len(cachedFiles))
+
 		return cachedFiles, nil
 	}
 
@@ -142,21 +146,25 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 
 	// Execute the request
 	client := &http.Client{}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch script metadata list: %w", err)
 	}
+
 	defer resp.Body.Close()
 
 	// Check for GitHub API rate limiting
 	if resp.StatusCode == 403 && resp.Header.Get("X-RateLimit-Remaining") == "0" {
 		resetTime := resp.Header.Get("X-RateLimit-Reset")
+
 		return nil, fmt.Errorf("GitHub API rate limit exceeded. Please try again later (reset at %s)", resetTime)
 	}
 
 	// Check for other errors
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+
 		return nil, fmt.Errorf("GitHub API error: %s - %s", resp.Status, string(body))
 	}
 
@@ -168,13 +176,16 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 
 	// Filter for JSON files only, but exclude metadata.json and versions.json
 	var jsonFiles []GitHubContent
+
 	for _, content := range contents {
 		if content.Type == "file" && strings.HasSuffix(content.Name, ".json") {
 			// Skip the special metadata files that have different structures
 			if content.Name == "metadata.json" || content.Name == "versions.json" {
 				getScriptsLogger().Debug("Skipping special metadata file: %s", content.Name)
+
 				continue
 			}
+
 			jsonFiles = append(jsonFiles, content)
 		}
 	}
@@ -191,19 +202,22 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	return jsonFiles, nil
 }
 
-// GetScriptMetadata fetches and parses the metadata for a specific script
+// GetScriptMetadata fetches and parses the metadata for a specific script.
 func GetScriptMetadata(metadataURL string) (*Script, error) {
 	// Generate a cache key based on the URL
 	cacheKey := ScriptCacheKeyPrefix + strings.ReplaceAll(metadataURL, "/", "_")
 
 	// Check cache first
 	c := cache.GetGlobalCache()
+
 	var cachedScript Script
+
 	found, err := c.Get(cacheKey, &cachedScript)
 	if err != nil {
 		getScriptsLogger().Debug("Cache error for script %s: %v", metadataURL, err)
 	} else if found && cachedScript.Name != "" {
 		getScriptsLogger().Debug("Using cached script metadata for %s", cachedScript.Name)
+
 		return &cachedScript, nil
 	}
 
@@ -218,21 +232,25 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 
 	// Execute the request
 	client := &http.Client{}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch script metadata: %w", err)
 	}
+
 	defer resp.Body.Close()
 
 	// Check for GitHub API rate limiting
 	if resp.StatusCode == 403 && resp.Header.Get("X-RateLimit-Remaining") == "0" {
 		resetTime := resp.Header.Get("X-RateLimit-Reset")
+
 		return nil, fmt.Errorf("GitHub API rate limit exceeded. Please try again later (reset at %s)", resetTime)
 	}
 
 	// Check for other errors
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+
 		return nil, fmt.Errorf("GitHub API error: %s - %s", resp.Status, string(body))
 	}
 
@@ -291,7 +309,7 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 	return &script, nil
 }
 
-// FetchScripts fetches all available scripts from the repository
+// FetchScripts fetches all available scripts from the repository.
 func FetchScripts() ([]Script, error) {
 	// Get all metadata files
 	metadataFiles, err := GetScriptMetadataFiles()
@@ -306,6 +324,7 @@ func FetchScripts() ([]Script, error) {
 
 	// Fetch metadata for each script
 	var scripts []Script
+
 	var errorCount int
 
 	for _, file := range metadataFiles {
@@ -313,6 +332,7 @@ func FetchScripts() ([]Script, error) {
 		if err != nil {
 			// Skip this script but log the error
 			getScriptsLogger().Debug("Error fetching metadata for %s: %v", file.Name, err)
+
 			errorCount++
 
 			// If we're getting too many errors, something might be wrong with GitHub API
@@ -336,7 +356,7 @@ func FetchScripts() ([]Script, error) {
 	return scripts, nil
 }
 
-// GetScriptsByCategory returns scripts for a specific category
+// GetScriptsByCategory returns scripts for a specific category.
 func GetScriptsByCategory(category string) ([]Script, error) {
 	allScripts, err := FetchScripts()
 	if err != nil {
@@ -345,6 +365,7 @@ func GetScriptsByCategory(category string) ([]Script, error) {
 
 	// Filter scripts by category
 	var categoryScripts []Script
+
 	for _, script := range allScripts {
 		// If the script path starts with the category name or the type matches
 		if strings.HasPrefix(script.ScriptPath, category+"/") || script.Type == category {
@@ -359,7 +380,7 @@ func GetScriptsByCategory(category string) ([]Script, error) {
 	return categoryScripts, nil
 }
 
-// InstallScript installs a script on a Proxmox node interactively
+// InstallScript installs a script on a Proxmox node interactively.
 func InstallScript(user, nodeIP, scriptPath string) error {
 	// Validate script path for security
 	for _, c := range scriptPath {
@@ -399,10 +420,11 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 	if err != nil {
 		return fmt.Errorf("script installation failed: %w", err)
 	}
+
 	return nil
 }
 
-// ValidateConnection checks if SSH connection to the node is possible
+// ValidateConnection checks if SSH connection to the node is possible.
 func ValidateConnection(user, nodeIP string) error {
 	// Simple command to test SSH connection with timeout
 	// Use similar SSH options as InstallScript for consistency

@@ -15,6 +15,7 @@ func ListNodes(client *api.Client) ([]api.Node, error) {
 	if client == nil {
 		return nil, fmt.Errorf("nil api client")
 	}
+
 	return client.ListNodes()
 }
 
@@ -23,6 +24,7 @@ func StartVM(client *api.Client, id string) error {
 	if client == nil {
 		return fmt.Errorf("nil api client")
 	}
+
 	vmID, err := strconv.Atoi(id)
 	if err != nil {
 		return fmt.Errorf("invalid id %s: %w", id, err)
@@ -38,12 +40,14 @@ func StartVM(client *api.Client, id string) error {
 		if node == nil {
 			continue
 		}
+
 		for _, vm := range node.VMs {
 			if vm != nil && vm.ID == vmID {
 				return client.StartVM(vm)
 			}
 		}
 	}
+
 	return fmt.Errorf("vm %d not found", vmID)
 }
 
@@ -52,5 +56,6 @@ func ShellNode(sshClient *ssh.SSHClient) error {
 	if sshClient == nil {
 		return fmt.Errorf("nil ssh client")
 	}
+
 	return sshClient.Shell()
 }

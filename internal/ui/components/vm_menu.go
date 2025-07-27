@@ -8,7 +8,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// ShowVMContextMenu displays the context menu for VM actions
+// ShowVMContextMenu displays the context menu for VM actions.
 func (a *App) ShowVMContextMenu() {
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
@@ -40,6 +40,7 @@ func (a *App) ShowVMContextMenu() {
 
 	menu := NewContextMenu(" Guest Actions ", menuItems, func(index int, action string) {
 		a.CloseContextMenu()
+
 		switch action {
 		case "Open Shell":
 			a.openVMShell()
@@ -51,8 +52,10 @@ func (a *App) ShowVMContextMenu() {
 				a.QueueUpdateDraw(func() {
 					if err != nil {
 						a.showMessage(fmt.Sprintf("Failed to load config: %v", err))
+
 						return
 					}
+
 					page := NewVMConfigPage(a, vm, cfg, func(newCfg *api.VMConfig) error {
 						return a.client.UpdateVMConfig(vm, newCfg)
 					})
@@ -107,11 +110,14 @@ func (a *App) ShowVMContextMenu() {
 	menuList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || (event.Key() == tcell.KeyRune && event.Rune() == 'h') {
 			a.CloseContextMenu()
+
 			return nil
 		}
+
 		if oldCapture != nil {
 			return oldCapture(event)
 		}
+
 		return event
 	})
 

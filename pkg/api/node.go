@@ -5,12 +5,12 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	// "github.com/devnullvoid/proxmox-tui/pkg/config"
+	// "github.com/devnullvoid/proxmox-tui/pkg/config".
 )
 
 // Ensure config package is properly imported
 
-// CPUInfo contains detailed CPU information from Proxmox node status
+// CPUInfo contains detailed CPU information from Proxmox node status.
 type CPUInfo struct {
 	Cores   int    `json:"cores"`
 	Cpus    int    `json:"cpus"`
@@ -18,7 +18,7 @@ type CPUInfo struct {
 	Sockets int    `json:"sockets"`
 }
 
-// Node represents a Proxmox cluster node
+// Node represents a Proxmox cluster node.
 type Node struct {
 	ID            string     `json:"id"`
 	Name          string     `json:"name"`
@@ -49,7 +49,7 @@ type Node struct {
 	// lastLoadAvg       []string      `json:"-"`
 }
 
-// ListNodes retrieves nodes from cached cluster data
+// ListNodes retrieves nodes from cached cluster data.
 func (c *Client) ListNodes() ([]Node, error) {
 	if c.Cluster == nil {
 		if _, err := c.GetClusterStatus(); err != nil {
@@ -58,15 +58,17 @@ func (c *Client) ListNodes() ([]Node, error) {
 	}
 
 	nodes := make([]Node, 0, len(c.Cluster.Nodes))
+
 	for _, clusterNode := range c.Cluster.Nodes {
 		if clusterNode != nil {
 			nodes = append(nodes, *clusterNode)
 		}
 	}
+
 	return nodes, nil
 }
 
-// GetNodeStatus retrieves real-time status for a specific node
+// GetNodeStatus retrieves real-time status for a specific node.
 func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	var res map[string]interface{}
 
@@ -117,21 +119,26 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 		if cores, ok := cpuinfoData["cores"].(float64); ok {
 			cpuInfo.Cores = int(cores)
 		}
+
 		if cpus, ok := cpuinfoData["cpus"].(float64); ok {
 			cpuInfo.Cpus = int(cpus)
 		}
+
 		if model, ok := cpuinfoData["model"].(string); ok {
 			cpuInfo.Model = model
 		}
+
 		if sockets, ok := cpuinfoData["sockets"].(float64); ok {
 			cpuInfo.Sockets = int(sockets)
 		}
+
 		node.CPUInfo = cpuInfo
 	}
 
 	// Parse load averages with type conversion
 	if loadavg, ok := data["loadavg"].([]interface{}); ok {
 		node.LoadAvg = make([]string, 0, len(loadavg))
+
 		for _, val := range loadavg {
 			// Convert numeric values to strings if needed
 			switch v := val.(type) {
@@ -159,32 +166,36 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	return node, nil
 }
 
-// GetNodeConfig retrieves configuration for a given node with caching
+// GetNodeConfig retrieves configuration for a given node with caching.
 func (c *Client) GetNodeConfig(nodeName string) (map[string]interface{}, error) {
 	var res map[string]interface{}
 	if err := c.GetWithCache(fmt.Sprintf("/nodes/%s/config", nodeName), &res, NodeDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get node config: %w", err)
 	}
+
 	data, ok := res["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unexpected format for node config")
 	}
+
 	return data, nil
 }
 
-// GetNodeVNCShell creates a VNC shell connection for a node and returns connection details
+// GetNodeVNCShell creates a VNC shell connection for a node and returns connection details.
 func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 	c.logger.Info("Creating VNC shell for node: %s", nodeName)
 
 	// Node VNC shells don't work with API token authentication
 	if c.IsUsingTokenAuth() {
 		c.logger.Error("VNC shell not supported with API token authentication for node: %s", nodeName)
+
 		return nil, fmt.Errorf("node VNC shells are not supported with API token authentication, please use password authentication")
 	}
 
 	c.logger.Debug("Using password authentication for node VNC shell: %s", nodeName)
 
 	var res map[string]interface{}
+
 	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
 
 	c.logger.Debug("Node VNC shell API path: %s", path)
@@ -198,6 +209,7 @@ func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 
 	if err := c.PostWithResponse(path, data, &res); err != nil {
 		c.logger.Error("Failed to create VNC shell for node %s: %v", nodeName, err)
+
 		return nil, fmt.Errorf("failed to create VNC shell: %w", err)
 	}
 
@@ -206,6 +218,7 @@ func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 	responseData, ok := res["data"].(map[string]interface{})
 	if !ok {
 		c.logger.Error("Unexpected VNC shell response format for node %s", nodeName)
+
 		return nil, fmt.Errorf("unexpected VNC shell response format")
 	}
 
@@ -235,22 +248,25 @@ func (c *Client) GetNodeVNCShell(nodeName string) (*VNCProxyResponse, error) {
 	}
 
 	c.logger.Info("VNC shell created successfully for node %s - Port: %s", nodeName, response.Port)
+
 	return response, nil
 }
 
-// GetNodeVNCShellWithWebSocket creates a VNC shell connection for a node with WebSocket support and one-time password
+// GetNodeVNCShellWithWebSocket creates a VNC shell connection for a node with WebSocket support and one-time password.
 func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyResponse, error) {
 	c.logger.Info("Creating VNC shell with WebSocket for node: %s", nodeName)
 
 	// Node VNC shells don't work with API token authentication
 	if c.IsUsingTokenAuth() {
 		c.logger.Error("VNC shell with WebSocket not supported with API token authentication for node: %s", nodeName)
+
 		return nil, fmt.Errorf("node VNC shells are not supported with API token authentication, please use password authentication")
 	}
 
 	c.logger.Debug("Using password authentication for node VNC shell with WebSocket: %s", nodeName)
 
 	var res map[string]interface{}
+
 	path := fmt.Sprintf("/nodes/%s/vncshell", nodeName)
 
 	c.logger.Debug("Node VNC shell WebSocket API path: %s", path)
@@ -265,6 +281,7 @@ func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyRespons
 
 	if err := c.PostWithResponse(path, data, &res); err != nil {
 		c.logger.Error("Failed to create VNC shell with WebSocket for node %s: %v", nodeName, err)
+
 		return nil, fmt.Errorf("failed to create VNC shell with WebSocket: %w", err)
 	}
 
@@ -273,6 +290,7 @@ func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyRespons
 	responseData, ok := res["data"].(map[string]interface{})
 	if !ok {
 		c.logger.Error("Unexpected VNC shell WebSocket response format for node %s", nodeName)
+
 		return nil, fmt.Errorf("unexpected VNC shell response format")
 	}
 
@@ -310,18 +328,21 @@ func (c *Client) GetNodeVNCShellWithWebSocket(nodeName string) (*VNCProxyRespons
 
 	c.logger.Info("VNC shell with WebSocket created successfully for node %s - Port: %s, Has Password: %t",
 		nodeName, response.Port, response.Password != "")
+
 	return response, nil
 }
 
-// GenerateNodeVNCURL creates a noVNC shell URL for the given node
+// GenerateNodeVNCURL creates a noVNC shell URL for the given node.
 func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
 	c.logger.Info("Generating VNC shell URL for node: %s", nodeName)
 
 	// Get VNC shell proxy details
 	c.logger.Debug("Requesting VNC shell proxy for URL generation for node %s", nodeName)
+
 	proxy, err := c.GetNodeVNCShell(nodeName)
 	if err != nil {
 		c.logger.Error("Failed to get VNC shell proxy for URL generation for node %s: %v", nodeName, err)
+
 		return "", err
 	}
 

@@ -10,9 +10,10 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
-// Footer encapsulates the application footer
+// Footer encapsulates the application footer.
 type Footer struct {
 	*tview.TextView
+
 	vncSessionCount   int
 	autoRefreshActive bool
 	baseText          string
@@ -23,7 +24,7 @@ type Footer struct {
 
 var _ FooterComponent = (*Footer)(nil)
 
-// NewFooter creates a new application footer with key bindings
+// NewFooter creates a new application footer with key bindings.
 func NewFooter() *Footer {
 	footer := tview.NewTextView()
 	footer.SetTextAlign(tview.AlignLeft)
@@ -60,36 +61,37 @@ func FormatFooterText(keys config.KeyBindings) string {
 	)
 }
 
-// UpdateKeybindings updates the footer text with custom key bindings
+// UpdateKeybindings updates the footer text with custom key bindings.
 func (f *Footer) UpdateKeybindings(text string) {
 	f.baseText = text
 	f.updateDisplay()
 }
 
-// UpdateVNCSessionCount updates the VNC session count display
+// UpdateVNCSessionCount updates the VNC session count display.
 func (f *Footer) UpdateVNCSessionCount(count int) {
 	f.vncSessionCount = count
 	f.updateDisplay()
 }
 
-// UpdateAutoRefreshStatus updates the auto-refresh status display
+// UpdateAutoRefreshStatus updates the auto-refresh status display.
 func (f *Footer) UpdateAutoRefreshStatus(active bool) {
 	f.autoRefreshActive = active
 	f.updateDisplay()
 }
 
-// UpdateAutoRefreshCountdown updates the countdown for the next auto-refresh
+// UpdateAutoRefreshCountdown updates the countdown for the next auto-refresh.
 func (f *Footer) UpdateAutoRefreshCountdown(seconds int) {
 	f.refreshCountdown = seconds
 	f.updateDisplay()
 }
 
-// SetLoading sets the loading state and resets the spinner
+// SetLoading sets the loading state and resets the spinner.
 func (f *Footer) SetLoading(loading bool) {
 	f.isLoading = loading
 	if !loading {
 		f.spinnerIndex = 0
 	}
+
 	f.updateDisplay()
 }
 
@@ -104,7 +106,7 @@ func (f *Footer) TickSpinner() {
 	f.updateDisplay()
 }
 
-// updateDisplay refreshes the footer text with current information
+// updateDisplay refreshes the footer text with current information.
 func (f *Footer) updateDisplay() {
 	// Get the terminal width to calculate spacing
 	_, _, width, _ := f.GetRect()
@@ -117,7 +119,7 @@ func (f *Footer) updateDisplay() {
 	f.updateDisplayWithWidth(width)
 }
 
-// updateDisplayWithWidth refreshes the footer text with a specific width
+// updateDisplayWithWidth refreshes the footer text with a specific width.
 func (f *Footer) updateDisplayWithWidth(width int) {
 	// Build status indicators for the right side
 	var statusParts []string
@@ -152,6 +154,7 @@ func (f *Footer) updateDisplayWithWidth(width int) {
 		if width > statusLength+10 { // +10 for some padding
 			// Create padding to push status to the right
 			baseLength := tview.TaggedStringWidth(f.baseText)
+
 			padding := width - baseLength - statusLength - 2 // -2 for some spacing
 			if padding > 0 {
 				paddingStr := strings.Repeat(" ", padding)

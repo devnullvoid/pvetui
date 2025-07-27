@@ -5,7 +5,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// ShowNodeContextMenu displays the context menu for node actions
+// ShowNodeContextMenu displays the context menu for node actions.
 func (a *App) ShowNodeContextMenu() {
 	node := a.nodeList.GetSelectedNode()
 	if node == nil {
@@ -26,6 +26,7 @@ func (a *App) ShowNodeContextMenu() {
 
 	menu := NewContextMenu(" Node Actions ", menuItems, func(index int, action string) {
 		a.CloseContextMenu()
+
 		switch action {
 		case "Open Shell":
 			a.openNodeShell()
@@ -48,11 +49,14 @@ func (a *App) ShowNodeContextMenu() {
 	menuList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || (event.Key() == tcell.KeyRune && event.Rune() == 'h') {
 			a.CloseContextMenu()
+
 			return nil
 		}
+
 		if oldCapture != nil {
 			return oldCapture(event)
 		}
+
 		return event
 	})
 

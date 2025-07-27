@@ -14,9 +14,10 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// App is the main application component
+// App is the main application component.
 type App struct {
 	*tview.Application
+
 	client        *api.Client
 	config        config.Config
 	vncService    *vnc.Service
@@ -47,7 +48,7 @@ type App struct {
 	autoRefreshCountdownStop chan bool
 }
 
-// NewApp creates a new application instance with all UI components
+// NewApp creates a new application instance with all UI components.
 func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Creating new App instance")
@@ -182,6 +183,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 								}
 
 								found = true
+
 								break
 							}
 						}
@@ -199,6 +201,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 				for _, enrichedVM := range enrichedVMs {
 					if enrichedVM.ID == selectedVM.ID && enrichedVM.Node == selectedVM.Node {
 						app.vmDetails.Update(enrichedVM)
+
 						break
 					}
 				}
@@ -221,6 +224,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 
 	// Initialize VM list from all nodes
 	var vms []*api.VM
+
 	if client.Cluster != nil {
 		for _, node := range client.Cluster.Nodes {
 			if node != nil {
@@ -254,6 +258,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 		copy(models.GlobalState.OriginalNodes, client.Cluster.Nodes)
 		copy(models.GlobalState.FilteredNodes, client.Cluster.Nodes)
 	}
+
 	copy(models.GlobalState.OriginalVMs, vms)
 	copy(models.GlobalState.FilteredVMs, vms)
 
@@ -283,12 +288,13 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 	return app
 }
 
-// Run starts the application
+// Run starts the application.
 func (a *App) Run() error {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Starting application")
 
 	a.startAutoRefresh()
+
 	defer func() {
 		a.stopAutoRefresh()
 		a.cancel()
@@ -296,19 +302,22 @@ func (a *App) Run() error {
 
 	if err := a.Application.Run(); err != nil {
 		uiLogger.Error("Application run failed: %v", err)
+
 		return err
 	}
 
 	uiLogger.Debug("Application stopped normally")
 	// Clean up VNC sessions on exit
 	uiLogger.Debug("Cleaning up VNC sessions on application exit")
+
 	if closeErr := a.vncService.CloseAllSessions(); closeErr != nil {
 		uiLogger.Error("Failed to close VNC sessions on exit: %v", closeErr)
 	}
+
 	return nil
 }
 
-// updateHeaderWithActiveProfile updates the header to show the current active profile
+// updateHeaderWithActiveProfile updates the header to show the current active profile.
 func (a *App) updateHeaderWithActiveProfile() {
 	profileName := a.config.DefaultProfile
 

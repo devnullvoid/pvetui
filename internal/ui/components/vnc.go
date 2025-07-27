@@ -7,12 +7,12 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/vnc"
 )
 
-// GetVNCService returns the VNC service instance
+// GetVNCService returns the VNC service instance.
 func (a *App) GetVNCService() *vnc.Service {
 	return a.vncService
 }
 
-// startVNCSessionMonitoring starts a background goroutine to monitor and update VNC session count
+// startVNCSessionMonitoring starts a background goroutine to monitor and update VNC session count.
 func (a *App) startVNCSessionMonitoring() {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Starting VNC session monitoring")
@@ -49,7 +49,7 @@ func (a *App) startVNCSessionMonitoring() {
 	}()
 }
 
-// registerVNCSessionCallback registers a callback for immediate VNC session count updates
+// registerVNCSessionCallback registers a callback for immediate VNC session count updates.
 func (a *App) registerVNCSessionCallback() {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Registering VNC session count callback for immediate updates")

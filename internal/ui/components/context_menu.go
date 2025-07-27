@@ -6,7 +6,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// ContextMenu represents a popup menu with actions for a selected item
+// ContextMenu represents a popup menu with actions for a selected item.
 type ContextMenu struct {
 	list      *tview.List
 	app       *App
@@ -15,7 +15,7 @@ type ContextMenu struct {
 	title     string
 }
 
-// NewContextMenu creates a new context menu component
+// NewContextMenu creates a new context menu component.
 func NewContextMenu(title string, actions []string, onAction func(index int, action string)) *ContextMenu {
 	return &ContextMenu{
 		menuItems: actions,
@@ -24,12 +24,12 @@ func NewContextMenu(title string, actions []string, onAction func(index int, act
 	}
 }
 
-// SetApp sets the parent app reference
+// SetApp sets the parent app reference.
 func (cm *ContextMenu) SetApp(app *App) {
 	cm.app = app
 }
 
-// Show displays the context menu as a modal
+// Show displays the context menu as a modal.
 func (cm *ContextMenu) Show() *tview.List {
 	list := tview.NewList()
 	list.ShowSecondaryText(false)
@@ -70,22 +70,26 @@ func (cm *ContextMenu) Show() *tview.List {
 						cm.onAction(index, cm.menuItems[index])
 					}
 				}
+
 				return nil
 			}
 		}
+
 		return event
 	})
 
 	cm.list = list
+
 	return list
 }
 
-// CloseContextMenu closes the context menu and restores the previous focus
+// CloseContextMenu closes the context menu and restores the previous focus.
 func (a *App) CloseContextMenu() {
 	if a.isMenuOpen {
 		a.pages.RemovePage("contextMenu")
 		a.isMenuOpen = false
 		a.contextMenu = nil
+
 		if a.lastFocus != nil {
 			a.SetFocus(a.lastFocus)
 		}

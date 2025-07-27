@@ -51,6 +51,7 @@ func TestConfigAdapter_TokenAuth(t *testing.T) {
 	adapter := NewConfigAdapter(cfg)
 
 	assert.True(t, adapter.IsUsingTokenAuth())
+
 	expectedToken := "PVEAPIToken=testuser@pam!testtoken=testsecret"
 	assert.Equal(t, expectedToken, adapter.GetAPIToken())
 }

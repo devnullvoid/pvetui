@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// GetVmStatus retrieves current status metrics for a VM or LXC
+// GetVmStatus retrieves current status metrics for a VM or LXC.
 func (c *Client) GetVmStatus(vm *VM) error {
 	vm.mu.Lock()
 	defer vm.mu.Unlock()
@@ -15,6 +15,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 	currentMaxDisk := vm.MaxDisk
 
 	var res map[string]interface{}
+
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", vm.Node, vm.Type, vm.ID)
 	if err := c.GetWithCache(endpoint, &res, VMDataTTL); err != nil {
 		return err
@@ -46,6 +47,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 
 	// Get disk usage - only update if the API returns non-zero values
 	diskFound := false
+
 	if diskVal, ok := data["disk"]; ok {
 		if diskFloat, ok := diskVal.(float64); ok && diskFloat > 0 {
 			vm.Disk = int64(diskFloat)
@@ -54,6 +56,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 	}
 
 	maxDiskFound := false
+
 	if maxDiskVal, ok := data["maxdisk"]; ok {
 		if maxDiskFloat, ok := maxDiskVal.(float64); ok && maxDiskFloat > 0 {
 			vm.MaxDisk = int64(maxDiskFloat)
@@ -104,6 +107,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 	if vm.Type == VMTypeQemu && vm.Status == VMStatusRunning {
 		// Get VM config to identify configured MAC addresses
 		var configRes map[string]interface{}
+
 		configEndpoint := fmt.Sprintf("/nodes/%s/qemu/%d/config", vm.Node, vm.ID)
 		if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err == nil {
 			if configData, ok := configRes["data"].(map[string]interface{}); ok {
@@ -128,9 +132,12 @@ func (c *Client) GetVmStatus(vm *VM) error {
 			if !vm.guestAgentChecked {
 				vm.guestAgentChecked = true
 				rawNetInterfaces, err := c.GetGuestAgentInterfaces(vm)
+
 				if err == nil && len(rawNetInterfaces) > 0 {
 					vm.AgentRunning = true
+
 					var filteredInterfaces []NetworkInterface
+
 					for _, iface := range rawNetInterfaces {
 						// Skip loopback and veth interfaces, and check against configured MACs
 						if !iface.IsLoopback && !strings.HasPrefix(iface.Name, "veth") && (vm.ConfiguredMACs == nil || vm.ConfiguredMACs[strings.ToUpper(iface.MACAddress)]) {
@@ -138,6 +145,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 							filteredInterfaces = append(filteredInterfaces, iface)
 						}
 					}
+
 					vm.NetInterfaces = filteredInterfaces
 
 					// Update IP address if we don't have one yet and have interfaces
@@ -204,6 +212,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 						// Update disk usage from filesystem information if we have good data
 						// This is more accurate than the API's disk usage values
 						var totalDiskSpace int64
+
 						var usedDiskSpace int64
 
 						for _, fs := range filteredFilesystems {
@@ -236,6 +245,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 	} else if vm.Type == VMTypeLXC && vm.Status == VMStatusRunning {
 		// Get LXC config to identify configured MAC addresses (if any, often not explicitly set for LXC ethX)
 		var configRes map[string]interface{}
+
 		configEndpoint := fmt.Sprintf("/nodes/%s/lxc/%d/config", vm.Node, vm.ID)
 		if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err == nil {
 			if configData, ok := configRes["data"].(map[string]interface{}); ok {
@@ -248,8 +258,10 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		if lxcErr != nil {
 			c.logger.Debug("[vm.go] Error calling GetLxcInterfaces for %s (%d): %v", vm.Name, vm.ID, lxcErr)
 		}
+
 		if len(rawNetInterfaces) > 0 {
 			var filteredLxcInterfaces []NetworkInterface
+
 			for _, iface := range rawNetInterfaces {
 				// Skip loopback interfaces. For LXC, we might not always have MACs in config,
 				// so if ConfiguredMACs is empty, we show all non-loopback by default.
@@ -264,6 +276,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					filteredLxcInterfaces = append(filteredLxcInterfaces, iface)
 				}
 			}
+
 			vm.NetInterfaces = filteredLxcInterfaces
 			if vm.IP == "" && len(vm.NetInterfaces) > 0 {
 				vm.IP = GetFirstNonLoopbackIP(vm.NetInterfaces, true)
@@ -278,6 +291,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 	}
 
 	vm.Enriched = true
+
 	return nil
 }
 
@@ -291,12 +305,14 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 
 	// Get status information (cached)
 	var statusRes map[string]interface{}
+
 	statusEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", node, vmType, vmid)
 	if err := c.GetWithCache(statusEndpoint, &statusRes, VMDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get VM status: %w", err)
 	}
 
 	statusDataRaw := statusRes["data"]
+
 	statusData, okStatusData := statusDataRaw.(map[string]interface{})
 	if !okStatusData {
 		return nil, fmt.Errorf("invalid VM status response format")
@@ -306,57 +322,74 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 	if name, okName := statusData["name"].(string); okName {
 		vm.Name = name
 	}
+
 	if status, okStatus := statusData["status"].(string); okStatus {
 		vm.Status = status
 	}
+
 	if cpu, okCPU := statusData["cpu"].(float64); okCPU {
 		vm.CPU = cpu
 	}
+
 	if mem, okMem := statusData["mem"].(float64); okMem {
 		vm.Mem = int64(mem)
 	}
+
 	if maxmem, okMaxMem := statusData["maxmem"].(float64); okMaxMem {
 		vm.MaxMem = int64(maxmem)
 	}
+
 	if disk, okDisk := statusData["disk"].(float64); okDisk {
 		vm.Disk = int64(disk)
 	}
+
 	if maxdisk, okMaxDisk := statusData["maxdisk"].(float64); okMaxDisk {
 		vm.MaxDisk = int64(maxdisk)
 	}
+
 	if uptime, okUptime := statusData["uptime"].(float64); okUptime {
 		vm.Uptime = int64(uptime)
 	}
+
 	if diskread, okDiskRead := statusData["diskread"].(float64); okDiskRead {
 		vm.DiskRead = int64(diskread)
 	}
+
 	if diskwrite, okDiskWrite := statusData["diskwrite"].(float64); okDiskWrite {
 		vm.DiskWrite = int64(diskwrite)
 	}
+
 	if netin, okNetIn := statusData["netin"].(float64); okNetIn {
 		vm.NetIn = int64(netin)
 	}
+
 	if netout, okNetOut := statusData["netout"].(float64); okNetOut {
 		vm.NetOut = int64(netout)
 	}
+
 	if hastate, okHAState := statusData["hastate"].(string); okHAState {
 		vm.HAState = hastate
 	}
+
 	if lock, okLock := statusData["lock"].(string); okLock {
 		vm.Lock = lock
 	}
+
 	if tags, okTags := statusData["tags"].(string); okTags {
 		vm.Tags = tags
 	}
+
 	if template, okTemplate := statusData["template"].(bool); okTemplate {
 		vm.Template = template
 	}
+
 	if pool, okPool := statusData["pool"].(string); okPool {
 		vm.Pool = pool
 	}
 
 	// Get config information (cached)
 	var configRes map[string]interface{}
+
 	configEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", node, vmType, vmid)
 	if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get VM config: %w", err)
@@ -372,7 +405,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 	return vm, nil
 }
 
-// prioritizeIPAddresses selects the best IP address from a list, prioritizing IPv4 over IPv6
+// prioritizeIPAddresses selects the best IP address from a list, prioritizing IPv4 over IPv6.
 func prioritizeIPAddresses(ipAddresses []IPAddress) []IPAddress {
 	if len(ipAddresses) == 0 {
 		return nil
@@ -380,23 +413,29 @@ func prioritizeIPAddresses(ipAddresses []IPAddress) []IPAddress {
 
 	// Prioritize IPv4, then first IPv6, then no IP for this interface if none match
 	var bestIP IPAddress
+
 	foundIP := false
+
 	for _, ip := range ipAddresses {
 		if ip.Type == IPTypeIPv4 {
 			bestIP = ip
 			foundIP = true
+
 			break
 		}
 	}
+
 	if !foundIP && len(ipAddresses) > 0 {
 		// If no IPv4, take the first IPv6 (or any first IP if types are mixed unexpectedly)
 		for _, ip := range ipAddresses {
 			if ip.Type == IPTypeIPv6 { // Explicitly look for IPv6 first
 				bestIP = ip
 				foundIP = true
+
 				break
 			}
 		}
+
 		if !foundIP { // Fallback to literally the first IP if no IPv6 was marked
 			bestIP = ipAddresses[0]
 			foundIP = true
@@ -406,5 +445,6 @@ func prioritizeIPAddresses(ipAddresses []IPAddress) []IPAddress {
 	if foundIP {
 		return []IPAddress{bestIP}
 	}
+
 	return nil // No suitable IP found
 }

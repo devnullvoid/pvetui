@@ -77,6 +77,7 @@ func RunWithStartupVerification(cfg *config.Config, opts Options) error {
 		} else if strings.Contains(err.Error(), "missing port") {
 			return fmt.Errorf("invalid address format (missing port): %w", err)
 		}
+
 		return fmt.Errorf("failed to initialize API client: %w", err)
 	}
 
@@ -93,6 +94,7 @@ func RunWithStartupVerification(cfg *config.Config, opts Options) error {
 		} else if strings.Contains(testErr.Error(), "connection") || strings.Contains(testErr.Error(), "timeout") || strings.Contains(testErr.Error(), "dial") || strings.Contains(testErr.Error(), "name resolution") {
 			return fmt.Errorf("connection failed: %w", testErr)
 		}
+
 		return fmt.Errorf("API test failed: %w", testErr)
 	}
 
@@ -104,5 +106,6 @@ func RunWithStartupVerification(cfg *config.Config, opts Options) error {
 	// Start the UI
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	return ui.RunApp(ctx, client, cfg)
 }

@@ -11,13 +11,13 @@ import (
 	"github.com/devnullvoid/proxmox-tui/test/testutils"
 )
 
-// Test constants for repeated strings
+// Test constants for repeated strings.
 const (
 	testKey   = "test-string"
 	testValue = "hello world"
 )
 
-// TestCacheIntegration_Simple tests basic cache functionality
+// TestCacheIntegration_Simple tests basic cache functionality.
 func TestCacheIntegration_Simple(t *testing.T) {
 	itc := testutils.NewIntegrationTestConfig(t)
 

@@ -193,11 +193,13 @@ func (am *AuthManager) EnsureAuthenticated() error {
 	if am.token != "" {
 		// Using API token, no need to authenticate
 		am.httpClient.SetAPIToken(am.token)
+
 		return nil
 	}
 
 	// Using password authentication, need to get a ticket
 	_, err := am.GetValidToken(context.Background())
+
 	return err
 }
 
@@ -238,6 +240,7 @@ func (am *AuthManager) GetValidToken(ctx context.Context) (*AuthToken, error) {
 	if am.authToken != nil && am.authToken.IsValid() {
 		token := am.authToken
 		am.mu.RUnlock()
+
 		return token, nil
 	}
 	am.mu.RUnlock()
@@ -311,6 +314,7 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 		// Read response body for better error details
 		body, _ := io.ReadAll(resp.Body)
 		am.logger.Debug("Authentication failed response body: %s", string(body))
+
 		return nil, fmt.Errorf("authentication failed with status %d: %s", resp.StatusCode, resp.Status)
 	}
 

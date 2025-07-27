@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestNoVNCFilesEmbedded verifies that noVNC files are properly embedded
+// TestNoVNCFilesEmbedded verifies that noVNC files are properly embedded.
 func TestNoVNCFilesEmbedded(t *testing.T) {
 	// Test that the embedded filesystem contains expected files
 	expectedFiles := []string{
@@ -32,7 +32,7 @@ func TestNoVNCFilesEmbedded(t *testing.T) {
 	}
 }
 
-// TestNoVNCMainPage verifies that the main noVNC page can be read
+// TestNoVNCMainPage verifies that the main noVNC page can be read.
 func TestNoVNCMainPage(t *testing.T) {
 	novncFS, err := fs.Sub(novncFiles, "novnc")
 	if err != nil {

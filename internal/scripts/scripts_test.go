@@ -17,7 +17,7 @@ func isTerminal(fd uintptr) bool {
 	return term.IsTerminal(int(fd))
 }
 
-// Test data for mock GitHub API responses
+// Test data for mock GitHub API responses.
 var mockMetadataFiles = []GitHubContent{
 	{
 		Name:        "nextcloud.json",
@@ -133,6 +133,7 @@ func TestInstallScript_Validation(t *testing.T) {
 	if os.Getenv("CI") != "" || !isTerminal(os.Stdin.Fd()) {
 		t.Skip("Skipping InstallScript validation in CI or non-interactive environment")
 	}
+
 	tests := []struct {
 		name        string
 		scriptPath  string
@@ -188,6 +189,7 @@ func TestInstallScript_Validation(t *testing.T) {
 			err := InstallScript("testuser", "192.168.254.254", tt.scriptPath)
 
 			assert.Error(t, err)
+
 			if tt.errorMsg != "" {
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else if !tt.skipSSH {
@@ -229,14 +231,14 @@ func TestScriptCategory_Methods(t *testing.T) {
 	assert.Equal(t, "ct", category.Path)
 }
 
-// Benchmark tests for performance profiling
+// Benchmark tests for performance profiling.
 func BenchmarkGetScriptCategories(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = GetScriptCategories()
 	}
 }
 
-// BenchmarkCacheOperations benchmarks cache set/get performance
+// BenchmarkCacheOperations benchmarks cache set/get performance.
 func BenchmarkCacheOperations(b *testing.B) {
 	testCache := testutils.NewInMemoryCache()
 
@@ -255,15 +257,17 @@ func BenchmarkCacheOperations(b *testing.B) {
 		}
 
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			key := fmt.Sprintf("benchmark-key-%d", i%1000)
+
 			var result Script
 			_, _ = testCache.Get(key, &result)
 		}
 	})
 }
 
-// BenchmarkScriptValidation benchmarks the script path validation
+// BenchmarkScriptValidation benchmarks the script path validation.
 func BenchmarkScriptValidation(b *testing.B) {
 	validPaths := []string{
 		"ct/nextcloud.sh",
@@ -311,6 +315,7 @@ func BenchmarkGetScriptMetadataFiles_WithMemoryCache(b *testing.B) {
 	_ = memCache.Set(ScriptListCacheKey, mockMetadataFiles, ScriptListTTL)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		// Note: This benchmark only tests cache hits since we can't make real GitHub API calls
 		// For real network benchmarks, use integration tests
@@ -327,13 +332,14 @@ func BenchmarkGetScriptMetadata_WithMemoryCache(b *testing.B) {
 	_ = memCache.Set(cacheKey, mockScript, ScriptMetadataTTL)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		// Note: This benchmark only tests cache hits since we can't make real GitHub API calls
 		_, _ = GetScriptMetadata("test_url")
 	}
 }
 
-// Test helper functions
+// Test helper functions.
 func TestScriptsLogger(t *testing.T) {
 	logger1 := getScriptsLogger()
 	logger2 := getScriptsLogger()
@@ -343,7 +349,7 @@ func TestScriptsLogger(t *testing.T) {
 	assert.NotNil(t, logger1)
 }
 
-// Test cache TTL constants
+// Test cache TTL constants.
 func TestCacheTTLConstants(t *testing.T) {
 	assert.Equal(t, 24*time.Hour, ScriptMetadataTTL)
 	assert.Equal(t, 12*time.Hour, ScriptListTTL)
@@ -351,14 +357,14 @@ func TestCacheTTLConstants(t *testing.T) {
 	assert.Equal(t, "github_script_", ScriptCacheKeyPrefix)
 }
 
-// Test GitHub repository constants
+// Test GitHub repository constants.
 func TestGitHubConstants(t *testing.T) {
 	assert.Contains(t, GitHubRepo, "github.com/community-scripts/ProxmoxVE")
 	assert.Contains(t, GitHubAPIRepo, "api.github.com/repos/community-scripts/ProxmoxVE")
 	assert.Contains(t, RawGitHubRepo, "raw.githubusercontent.com/community-scripts/ProxmoxVE/main")
 }
 
-// Test GitHubContent struct
+// Test GitHubContent struct.
 func TestGitHubContent(t *testing.T) {
 	content := GitHubContent{
 		Name:        "test.json",
@@ -373,7 +379,7 @@ func TestGitHubContent(t *testing.T) {
 	assert.Equal(t, "https://example.com/test.json", content.DownloadURL)
 }
 
-// Test script filtering logic (without external dependencies)
+// Test script filtering logic (without external dependencies).
 func TestScriptFiltering(t *testing.T) {
 	scripts := []Script{
 		{Name: "Nextcloud", Type: "ct", ScriptPath: "ct/nextcloud.sh"},
@@ -384,6 +390,7 @@ func TestScriptFiltering(t *testing.T) {
 
 	// Filter by container type
 	var ctScripts []Script
+
 	for _, script := range scripts {
 		if script.Type == "ct" {
 			ctScripts = append(ctScripts, script)
@@ -396,6 +403,7 @@ func TestScriptFiltering(t *testing.T) {
 
 	// Filter by VM type
 	var vmScripts []Script
+
 	for _, script := range scripts {
 		if script.Type == "vm" {
 			vmScripts = append(vmScripts, script)
@@ -406,7 +414,7 @@ func TestScriptFiltering(t *testing.T) {
 	assert.Equal(t, "Ubuntu VM", vmScripts[0].Name)
 }
 
-// Test caching functions using testutils in-memory cache
+// Test caching functions using testutils in-memory cache.
 func TestCacheIntegrationWithTestUtils(t *testing.T) {
 	// Create a test cache
 	testCache := testutils.NewInMemoryCache()
@@ -465,7 +473,7 @@ func TestCacheIntegrationWithTestUtils(t *testing.T) {
 }
 
 // Integration tests that require network access should be in separate file
-// or marked with build tags for optional execution
+// or marked with build tags for optional execution.
 func TestGetScriptMetadataFiles_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")

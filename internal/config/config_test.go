@@ -326,6 +326,7 @@ invalid: yaml: content:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var filePath string
+
 			if tt.fileContent != "" {
 				// Create temporary file
 				file, err := os.CreateTemp(tempDir, "config-*.yml")
@@ -346,6 +347,7 @@ invalid: yaml: content:
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+
 				if tt.expectedConfig != nil {
 					assert.Equal(t, tt.expectedConfig.Addr, tt.initialConfig.Addr)
 					assert.Equal(t, tt.expectedConfig.User, tt.initialConfig.User)
@@ -379,6 +381,7 @@ func TestConfig_MergeWithEncryptedFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(plainPath, []byte("addr: https://enc.example.com\nuser: encuser\n"), 0o600))
 
 	cmd := exec.Command("sops", "--encrypt", "--input-type", "yaml", "--output-type", "yaml", "--age", id.Recipient().String(), plainPath)
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Skipf("sops encryption failed: %v\nstderr: %s", err, string(out))
@@ -403,11 +406,12 @@ func TestConfig_SetDefaults(t *testing.T) {
 	assert.Contains(t, config.CacheDir, "proxmox-tui")
 }
 
-// testXDGPathHelper runs tests for XDG path functions with common setup and teardown
+// testXDGPathHelper runs tests for XDG path functions with common setup and teardown.
 func testXDGPathHelper(t *testing.T, envVar string, testFunc func() string, expectedSuffix string) {
 	// Save original environment
 	originalEnv := os.Getenv(envVar)
 	originalHome := os.Getenv("HOME")
+
 	defer func() {
 		os.Setenv(envVar, originalEnv)
 		os.Setenv("HOME", originalHome)
@@ -478,7 +482,7 @@ func TestValidateKeyBindings(t *testing.T) {
 	})
 }
 
-// Helper function to clear all Proxmox environment variables
+// Helper function to clear all Proxmox environment variables.
 func clearProxmoxEnvVars() {
 	envVars := []string{
 		"PROXMOX_ADDR",

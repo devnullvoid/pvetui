@@ -19,7 +19,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// ProxyConfig holds configuration for the VNC WebSocket proxy
+// ProxyConfig holds configuration for the VNC WebSocket proxy.
 type ProxyConfig struct {
 	// VNC proxy details from Proxmox API
 	Port     string
@@ -40,7 +40,7 @@ type ProxyConfig struct {
 }
 
 // WebSocketProxy handles the bidirectional WebSocket proxy between
-// noVNC client and Proxmox VNC websocket endpoint
+// noVNC client and Proxmox VNC websocket endpoint.
 type WebSocketProxy struct {
 	config   *ProxyConfig
 	upgrader websocket.Upgrader
@@ -48,24 +48,24 @@ type WebSocketProxy struct {
 	session  SessionNotifier // Interface for session lifecycle notifications
 }
 
-// SessionNotifier interface for notifying session about connection events
+// SessionNotifier interface for notifying session about connection events.
 type SessionNotifier interface {
 	OnClientConnected()
 	OnClientDisconnected()
 	UpdateLastUsed()
 }
 
-// NewWebSocketProxy creates a new WebSocket proxy with the given configuration
+// NewWebSocketProxy creates a new WebSocket proxy with the given configuration.
 func NewWebSocketProxy(config *ProxyConfig) *WebSocketProxy {
 	return NewWebSocketProxyWithSession(config, nil)
 }
 
-// NewWebSocketProxyWithSession creates a new WebSocket proxy with session notifications
+// NewWebSocketProxyWithSession creates a new WebSocket proxy with session notifications.
 func NewWebSocketProxyWithSession(config *ProxyConfig, session SessionNotifier) *WebSocketProxy {
 	return NewWebSocketProxyWithSessionAndLogger(config, session, nil)
 }
 
-// NewWebSocketProxyWithSessionAndLogger creates a new WebSocket proxy with session notifications and shared logger
+// NewWebSocketProxyWithSessionAndLogger creates a new WebSocket proxy with session notifications and shared logger.
 func NewWebSocketProxyWithSessionAndLogger(config *ProxyConfig, session SessionNotifier, sharedLogger *logger.Logger) *WebSocketProxy {
 	var proxyLogger *logger.Logger
 
@@ -90,11 +90,13 @@ func NewWebSocketProxyWithSessionAndLogger(config *ProxyConfig, session SessionN
 				origin := r.Header.Get("Origin")
 				if origin == "" {
 					proxyLogger.Debug("WebSocket connection with no origin header (non-browser)")
+
 					return true // Allow non-browser connections
 				}
 				u, err := url.Parse(origin)
 				if err != nil {
 					proxyLogger.Error("Failed to parse origin header: %s", origin)
+
 					return false
 				}
 				allowed := u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1"
@@ -103,22 +105,24 @@ func NewWebSocketProxyWithSessionAndLogger(config *ProxyConfig, session SessionN
 				} else {
 					proxyLogger.Debug("WebSocket connection allowed from origin: %s", origin)
 				}
+
 				return allowed
 			},
 		},
 	}
 }
 
-// getTargetName returns a descriptive name for the target (VM name or node name)
+// getTargetName returns a descriptive name for the target (VM name or node name).
 func getTargetName(config *ProxyConfig) string {
 	if config.VMType == "node" {
 		return config.NodeName
 	}
+
 	return fmt.Sprintf("VM-%d", config.VMID)
 }
 
 // HandleWebSocketProxy handles incoming WebSocket connections from noVNC client
-// and proxies them to the Proxmox VNC websocket endpoint
+// and proxies them to the Proxmox VNC websocket endpoint.
 func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Request) {
 	targetName := getTargetName(p.config)
 	p.logger.Info("Handling WebSocket proxy request for %s from %s", targetName, r.RemoteAddr)
@@ -127,12 +131,15 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 
 	// Upgrade the HTTP connection to WebSocket
 	p.logger.Debug("Upgrading HTTP connection to WebSocket for %s", targetName)
+
 	clientConn, err := p.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		p.logger.Error("Failed to upgrade connection to WebSocket for %s: %v", targetName, err)
 		http.Error(w, fmt.Sprintf("Failed to upgrade connection: %v", err), http.StatusBadRequest)
+
 		return
 	}
+
 	defer func() {
 		p.logger.Debug("Closing client WebSocket connection for %s", targetName)
 		clientConn.Close()
@@ -156,16 +163,20 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 
 	// Create connection to Proxmox VNC websocket
 	p.logger.Debug("Establishing connection to Proxmox VNC websocket for %s", targetName)
+
 	proxmoxConn, err := p.connectToProxmox()
 	if err != nil {
 		p.logger.Error("Failed to connect to Proxmox VNC websocket for %s: %v", targetName, err)
+
 		if writeErr := clientConn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseInternalServerErr,
 				fmt.Sprintf("Failed to connect to Proxmox: %v", err))); writeErr != nil {
 			p.logger.Debug("Failed to send close message to client: %v", writeErr)
 		}
+
 		return
 	}
+
 	defer func() {
 		p.logger.Debug("Closing Proxmox WebSocket connection for %s", targetName)
 		proxmoxConn.Close()
@@ -193,14 +204,18 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 				// Send ping to client
 				if err := clientConn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 					p.logger.Debug("Failed to ping client for %s: %v", targetName, err)
+
 					return
 				}
 				// Send ping to Proxmox
 				if err := proxmoxConn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 					p.logger.Debug("Failed to ping Proxmox for %s: %v", targetName, err)
+
 					return
 				}
+
 				p.logger.Debug("Sent keepalive pings for %s", targetName)
+
 				if p.session != nil {
 					p.session.UpdateLastUsed()
 				}
@@ -237,7 +252,7 @@ func (p *WebSocketProxy) HandleWebSocketProxy(w http.ResponseWriter, r *http.Req
 	p.logger.Info("WebSocket proxy session ended for %s", targetName)
 }
 
-// connectToProxmox establishes a WebSocket connection to the Proxmox VNC endpoint
+// connectToProxmox establishes a WebSocket connection to the Proxmox VNC endpoint.
 func (p *WebSocketProxy) connectToProxmox() (*websocket.Conn, error) {
 	targetName := getTargetName(p.config)
 	p.logger.Debug("Building Proxmox VNC websocket URL for %s", targetName)
@@ -277,6 +292,7 @@ func (p *WebSocketProxy) connectToProxmox() (*websocket.Conn, error) {
 
 	// Set up headers for authentication
 	headers := make(http.Header)
+
 	if p.config.AuthToken != "" {
 		// Check if it's an API token or cookie
 		if strings.HasPrefix(p.config.AuthToken, "PVEAPIToken") {
@@ -296,16 +312,20 @@ func (p *WebSocketProxy) connectToProxmox() (*websocket.Conn, error) {
 
 	// Connect to Proxmox VNC websocket
 	p.logger.Info("Connecting to Proxmox VNC websocket for %s", targetName)
+
 	conn, resp, err := dialer.Dial(vncURL, headers)
 	if err != nil {
 		if resp != nil {
 			p.logger.Error("Failed to connect to Proxmox VNC websocket for %s (HTTP %d): %v",
 				targetName, resp.StatusCode, err)
 			resp.Body.Close() // Close response body on error
+
 			return nil, fmt.Errorf("failed to connect to Proxmox VNC websocket (status %d): %w",
 				resp.StatusCode, err)
 		}
+
 		p.logger.Error("Failed to connect to Proxmox VNC websocket for %s: %v", targetName, err)
+
 		return nil, fmt.Errorf("failed to connect to Proxmox VNC websocket: %w", err)
 	}
 	// Close response body on success
@@ -314,10 +334,11 @@ func (p *WebSocketProxy) connectToProxmox() (*websocket.Conn, error) {
 	}
 
 	p.logger.Info("Successfully connected to Proxmox VNC websocket for %s", targetName)
+
 	return conn, nil
 }
 
-// proxyMessages handles message forwarding between WebSocket connections
+// proxyMessages handles message forwarding between WebSocket connections.
 func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targetName string) error {
 	var messageCount int
 
@@ -325,11 +346,14 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 	if deadlineErr := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); deadlineErr != nil {
 		p.logger.Debug("Failed to set initial read deadline (%s) for %s: %v", direction, targetName, deadlineErr)
 	}
+
 	src.SetPongHandler(func(string) error {
 		p.logger.Debug("Pong received (%s) for %s", direction, targetName)
+
 		if deadlineErr := src.SetReadDeadline(time.Now().Add(5 * time.Minute)); deadlineErr != nil {
 			p.logger.Debug("Failed to reset read deadline (%s) for %s: %v", direction, targetName, deadlineErr)
 		}
+
 		return nil
 	})
 
@@ -338,9 +362,12 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				p.logger.Error("Unexpected close error (%s) for %s: %v", direction, targetName, err)
+
 				return fmt.Errorf("unexpected close error (%s): %w", direction, err)
 			}
+
 			p.logger.Debug("Normal close for %s (%s) after %d messages", direction, targetName, messageCount)
+
 			return nil // Normal close
 		}
 
@@ -362,20 +389,22 @@ func (p *WebSocketProxy) proxyMessages(src, dst *websocket.Conn, direction, targ
 		if err != nil {
 			p.logger.Error("Write error (%s) for %s after %d messages: %v",
 				direction, targetName, messageCount, err)
+
 			return fmt.Errorf("write error (%s): %w", direction, err)
 		}
+
 		if p.session != nil {
 			p.session.UpdateLastUsed()
 		}
 	}
 }
 
-// CreateVMProxyConfig creates a proxy configuration for a VM VNC connection
+// CreateVMProxyConfig creates a proxy configuration for a VM VNC connection.
 func CreateVMProxyConfig(client *api.Client, vm *api.VM) (*ProxyConfig, error) {
 	return CreateVMProxyConfigWithLogger(client, vm, nil)
 }
 
-// CreateVMProxyConfigWithLogger creates a proxy configuration for a VM VNC connection with shared logger
+// CreateVMProxyConfigWithLogger creates a proxy configuration for a VM VNC connection with shared logger.
 func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger *logger.Logger) (*ProxyConfig, error) {
 	var configLogger *logger.Logger
 
@@ -384,6 +413,7 @@ func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger 
 	} else {
 		// Create a logger for proxy configuration
 		var err error
+
 		configLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
 		if err != nil {
 			configLogger = logger.NewSimpleLogger(logger.LevelInfo)
@@ -395,9 +425,11 @@ func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger 
 
 	// Get VNC proxy details from Proxmox API
 	configLogger.Debug("Requesting VNC proxy from Proxmox API for VM %s", vm.Name)
+
 	proxy, err := client.GetVNCProxyWithWebSocket(vm)
 	if err != nil {
 		configLogger.Error("Failed to get VNC proxy from API for VM %s: %v", vm.Name, err)
+
 		return nil, fmt.Errorf("failed to create VNC proxy: %w", err)
 	}
 
@@ -406,9 +438,11 @@ func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger 
 
 	// Extract hostname from client base URL
 	baseURL := client.GetBaseURL()
+
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		configLogger.Error("Failed to parse client base URL for VM %s: %v", vm.Name, err)
+
 		return nil, fmt.Errorf("failed to parse base URL: %w", err)
 	}
 
@@ -422,6 +456,7 @@ func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger 
 	password := proxy.Password
 	if password == "" && vm.Type == api.VMTypeLXC {
 		password = proxy.Ticket
+
 		configLogger.Debug("Using ticket as password for LXC container %s", vm.Name)
 	}
 
@@ -438,15 +473,16 @@ func CreateVMProxyConfigWithLogger(client *api.Client, vm *api.VM, sharedLogger 
 	}
 
 	configLogger.Info("VNC proxy configuration created successfully for VM %s", vm.Name)
+
 	return config, nil
 }
 
-// CreateNodeProxyConfig creates a proxy configuration for a node VNC shell connection
+// CreateNodeProxyConfig creates a proxy configuration for a node VNC shell connection.
 func CreateNodeProxyConfig(client *api.Client, nodeName string) (*ProxyConfig, error) {
 	return CreateNodeProxyConfigWithLogger(client, nodeName, nil)
 }
 
-// CreateNodeProxyConfigWithLogger creates a proxy configuration for a node VNC shell connection with shared logger
+// CreateNodeProxyConfigWithLogger creates a proxy configuration for a node VNC shell connection with shared logger.
 func CreateNodeProxyConfigWithLogger(client *api.Client, nodeName string, sharedLogger *logger.Logger) (*ProxyConfig, error) {
 	var configLogger *logger.Logger
 
@@ -455,6 +491,7 @@ func CreateNodeProxyConfigWithLogger(client *api.Client, nodeName string, shared
 	} else {
 		// Create a logger for proxy configuration
 		var err error
+
 		configLogger, err = logger.NewInternalLogger(logger.LevelDebug, "")
 		if err != nil {
 			configLogger = logger.NewSimpleLogger(logger.LevelInfo)
@@ -465,9 +502,11 @@ func CreateNodeProxyConfigWithLogger(client *api.Client, nodeName string, shared
 
 	// Get VNC shell proxy details from Proxmox API
 	configLogger.Debug("Requesting VNC shell proxy from Proxmox API for node %s", nodeName)
+
 	proxy, err := client.GetNodeVNCShellWithWebSocket(nodeName)
 	if err != nil {
 		configLogger.Error("Failed to get VNC shell proxy from API for node %s: %v", nodeName, err)
+
 		return nil, fmt.Errorf("failed to create node VNC shell: %w", err)
 	}
 
@@ -476,9 +515,11 @@ func CreateNodeProxyConfigWithLogger(client *api.Client, nodeName string, shared
 
 	// Extract hostname from client base URL
 	baseURL := client.GetBaseURL()
+
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		configLogger.Error("Failed to parse client base URL for node %s: %v", nodeName, err)
+
 		return nil, fmt.Errorf("failed to parse base URL: %w", err)
 	}
 
@@ -492,6 +533,7 @@ func CreateNodeProxyConfigWithLogger(client *api.Client, nodeName string, shared
 	password := proxy.Password
 	if password == "" {
 		password = proxy.Ticket
+
 		configLogger.Debug("Using ticket as password for node shell %s", nodeName)
 	}
 
@@ -508,19 +550,23 @@ func CreateNodeProxyConfigWithLogger(client *api.Client, nodeName string, shared
 	}
 
 	configLogger.Info("VNC proxy configuration created successfully for node %s", nodeName)
+
 	return config, nil
 }
 
-// getAuthTokenType returns a description of the authentication token type
+// getAuthTokenType returns a description of the authentication token type.
 func getAuthTokenType(token string) string {
 	if token == "" {
 		return "none"
 	}
+
 	if strings.HasPrefix(token, "PVEAPIToken") {
 		return "API token"
 	}
+
 	if strings.HasPrefix(token, "PVEAuthCookie=") {
 		return "auth cookie"
 	}
+
 	return "unknown"
 }

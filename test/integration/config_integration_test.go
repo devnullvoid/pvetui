@@ -13,7 +13,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/test/testutils"
 )
 
-// TestConfigIntegration_FileLoading tests loading configuration from YAML files
+// TestConfigIntegration_FileLoading tests loading configuration from YAML files.
 func TestConfigIntegration_FileLoading(t *testing.T) {
 	itc := testutils.NewIntegrationTestConfig(t)
 
@@ -25,10 +25,12 @@ func TestConfigIntegration_FileLoading(t *testing.T) {
 		"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
 	}
 	originalEnv := make(map[string]string)
+
 	for _, env := range envVars {
 		originalEnv[env] = os.Getenv(env)
 		os.Unsetenv(env)
 	}
+
 	defer func() {
 		for _, env := range envVars {
 			if val, exists := originalEnv[env]; exists && val != "" {
@@ -115,6 +117,7 @@ invalid: [unclosed
 			// If we expect an error and got one during file loading, that's expected
 			if tt.expectError && err != nil {
 				assert.Error(t, err)
+
 				return
 			}
 
@@ -125,6 +128,7 @@ invalid: [unclosed
 			err = cfg.Validate()
 			if tt.expectError {
 				assert.Error(t, err)
+
 				return
 			}
 
@@ -139,7 +143,7 @@ invalid: [unclosed
 	}
 }
 
-// TestConfigIntegration_EnvironmentVariables tests configuration from environment variables
+// TestConfigIntegration_EnvironmentVariables tests configuration from environment variables.
 func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 	// Save original environment
 	originalEnv := make(map[string]string)
@@ -262,6 +266,7 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 
 			if tt.expectError {
 				assert.Error(t, err)
+
 				return
 			}
 
@@ -275,7 +280,7 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 	}
 }
 
-// TestConfigIntegration_FileAndEnvironmentMerging tests merging file and environment configuration
+// TestConfigIntegration_FileAndEnvironmentMerging tests merging file and environment configuration.
 func TestConfigIntegration_FileAndEnvironmentMerging(t *testing.T) {
 	itc := testutils.NewIntegrationTestConfig(t)
 
@@ -287,10 +292,12 @@ func TestConfigIntegration_FileAndEnvironmentMerging(t *testing.T) {
 		"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
 	}
 	originalEnv := make(map[string]string)
+
 	for _, env := range envVars {
 		originalEnv[env] = os.Getenv(env)
 		os.Unsetenv(env)
 	}
+
 	defer func() {
 		for _, env := range envVars {
 			if val, exists := originalEnv[env]; exists && val != "" {
@@ -333,7 +340,7 @@ debug: false
 	require.NoError(t, err)
 }
 
-// TestConfigIntegration_AdapterCompatibility tests that config works with adapters
+// TestConfigIntegration_AdapterCompatibility tests that config works with adapters.
 func TestConfigIntegration_AdapterCompatibility(t *testing.T) {
 	itc := testutils.NewIntegrationTestConfig(t)
 
@@ -412,12 +419,13 @@ func TestConfigIntegration_AdapterCompatibility(t *testing.T) {
 
 		adapter := adapters.NewConfigAdapter(tokenCfg)
 		assert.True(t, adapter.IsUsingTokenAuth())
+
 		expectedToken := "PVEAPIToken=tokenuser@pve!mytoken=secret123"
 		assert.Equal(t, expectedToken, adapter.GetAPIToken())
 	})
 }
 
-// TestConfigIntegration_DefaultsAndValidation tests default setting and validation
+// TestConfigIntegration_DefaultsAndValidation tests default setting and validation.
 func TestConfigIntegration_DefaultsAndValidation(t *testing.T) {
 	t.Run("defaults_application", func(t *testing.T) {
 		cfg := &config.Config{}
@@ -502,6 +510,7 @@ func TestConfigIntegration_DefaultsAndValidation(t *testing.T) {
 
 				if tt.expectError {
 					assert.Error(t, err)
+
 					if tt.errorMsg != "" {
 						assert.Contains(t, err.Error(), tt.errorMsg)
 					}

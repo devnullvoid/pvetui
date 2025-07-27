@@ -19,7 +19,7 @@ import (
 //go:embed novnc
 var novncFiles embed.FS
 
-// Server represents an embedded HTTP server for serving noVNC client
+// Server represents an embedded HTTP server for serving noVNC client.
 type Server struct {
 	httpServer *http.Server
 	proxy      *WebSocketProxy
@@ -29,12 +29,12 @@ type Server struct {
 	logger     *logger.Logger
 }
 
-// NewServer creates a new embedded HTTP server for VNC connections
+// NewServer creates a new embedded HTTP server for VNC connections.
 func NewServer() *Server {
 	return NewServerWithLogger(nil)
 }
 
-// NewServerWithLogger creates a new embedded HTTP server with a shared logger
+// NewServerWithLogger creates a new embedded HTTP server with a shared logger.
 func NewServerWithLogger(sharedLogger *logger.Logger) *Server {
 	var serverLogger *logger.Logger
 
@@ -52,20 +52,22 @@ func NewServerWithLogger(sharedLogger *logger.Logger) *Server {
 	}
 }
 
-// StartVMVNCServer starts the embedded server for a VM VNC connection
+// StartVMVNCServer starts the embedded server for a VM VNC connection.
 func (s *Server) StartVMVNCServer(client *api.Client, vm *api.VM) (string, error) {
 	return s.StartVMVNCServerWithSession(client, vm, nil)
 }
 
-// StartVMVNCServerWithSession starts the embedded server for a VM VNC connection with session notifications
+// StartVMVNCServerWithSession starts the embedded server for a VM VNC connection with session notifications.
 func (s *Server) StartVMVNCServerWithSession(client *api.Client, vm *api.VM, session SessionNotifier) (string, error) {
 	s.logger.Info("Starting VM VNC server for: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
 	// Create proxy configuration
 	s.logger.Debug("Creating VNC proxy configuration for VM %s", vm.Name)
+
 	config, err := CreateVMProxyConfigWithLogger(client, vm, s.logger)
 	if err != nil {
 		s.logger.Error("Failed to create VM proxy config for %s: %v", vm.Name, err)
+
 		return "", fmt.Errorf("failed to create VM proxy config: %w", err)
 	}
 
@@ -77,8 +79,10 @@ func (s *Server) StartVMVNCServerWithSession(client *api.Client, vm *api.VM, ses
 
 	// Start HTTP server
 	s.logger.Debug("Starting HTTP server for VM %s", vm.Name)
+
 	if err := s.startHTTPServer(); err != nil {
 		s.logger.Error("Failed to start HTTP server for VM %s: %v", vm.Name, err)
+
 		return "", fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
@@ -93,20 +97,22 @@ func (s *Server) StartVMVNCServerWithSession(client *api.Client, vm *api.VM, ses
 	return vncURL, nil
 }
 
-// StartNodeVNCServer starts the embedded server for a node VNC shell connection
+// StartNodeVNCServer starts the embedded server for a node VNC shell connection.
 func (s *Server) StartNodeVNCServer(client *api.Client, nodeName string) (string, error) {
 	return s.StartNodeVNCServerWithSession(client, nodeName, nil)
 }
 
-// StartNodeVNCServerWithSession starts the embedded server for a node VNC shell connection with session notifications
+// StartNodeVNCServerWithSession starts the embedded server for a node VNC shell connection with session notifications.
 func (s *Server) StartNodeVNCServerWithSession(client *api.Client, nodeName string, session SessionNotifier) (string, error) {
 	s.logger.Info("Starting node VNC server for: %s", nodeName)
 
 	// Create proxy configuration
 	s.logger.Debug("Creating VNC proxy configuration for node %s", nodeName)
+
 	config, err := CreateNodeProxyConfigWithLogger(client, nodeName, s.logger)
 	if err != nil {
 		s.logger.Error("Failed to create node proxy config for %s: %v", nodeName, err)
+
 		return "", fmt.Errorf("failed to create node proxy config: %w", err)
 	}
 
@@ -118,8 +124,10 @@ func (s *Server) StartNodeVNCServerWithSession(client *api.Client, nodeName stri
 
 	// Start HTTP server
 	s.logger.Debug("Starting HTTP server for node %s", nodeName)
+
 	if err := s.startHTTPServer(); err != nil {
 		s.logger.Error("Failed to start HTTP server for node %s: %v", nodeName, err)
+
 		return "", fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
@@ -134,13 +142,14 @@ func (s *Server) StartNodeVNCServerWithSession(client *api.Client, nodeName stri
 	return vncURL, nil
 }
 
-// startHTTPServer starts the embedded HTTP server on an available port
+// startHTTPServer starts the embedded HTTP server on an available port.
 func (s *Server) startHTTPServer() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.running {
 		s.logger.Debug("HTTP server already running on port %d", s.port)
+
 		return nil // Already running
 	}
 
@@ -150,12 +159,15 @@ func (s *Server) startHTTPServer() error {
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		s.logger.Error("Failed to find available port: %v", err)
+
 		return fmt.Errorf("failed to find available port: %w", err)
 	}
+
 	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
 	if !ok {
 		return fmt.Errorf("failed to get TCP address from listener")
 	}
+
 	s.port = tcpAddr.Port
 	if err := listener.Close(); err != nil {
 		s.logger.Error("Failed to close listener: %v", err)
@@ -168,11 +180,14 @@ func (s *Server) startHTTPServer() error {
 
 	// Serve all noVNC client files from embedded filesystem
 	s.logger.Debug("Setting up embedded noVNC file server")
+
 	novncFS, err := fs.Sub(novncFiles, "novnc")
 	if err != nil {
 		s.logger.Error("Failed to create noVNC filesystem: %v", err)
+
 		return fmt.Errorf("failed to create noVNC filesystem: %w", err)
 	}
+
 	mux.Handle("/", http.FileServer(http.FS(novncFS)))
 
 	// WebSocket proxy endpoint
@@ -200,16 +215,18 @@ func (s *Server) startHTTPServer() error {
 
 	s.running = true
 	s.logger.Info("HTTP server started successfully on port %d", s.port)
+
 	return nil
 }
 
-// Stop stops the embedded HTTP server
+// Stop stops the embedded HTTP server.
 func (s *Server) Stop() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.running || s.httpServer == nil {
 		s.logger.Debug("HTTP server not running, no action needed")
+
 		return nil
 	}
 
@@ -230,21 +247,24 @@ func (s *Server) Stop() error {
 	s.proxy = nil
 
 	s.logger.Info("HTTP server stopped successfully")
+
 	return err
 }
 
-// GetPort returns the port the server is running on
+// GetPort returns the port the server is running on.
 func (s *Server) GetPort() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.logger.Debug("Requested server port: %d", s.port)
+
 	return s.port
 }
 
-// IsRunning returns whether the server is currently running
+// IsRunning returns whether the server is currently running.
 func (s *Server) IsRunning() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.logger.Debug("Requested server running status: %t", s.running)
+
 	return s.running
 }

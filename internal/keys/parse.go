@@ -32,7 +32,9 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 
 	parts := strings.Split(spec, "+")
 	base := strings.TrimSpace(parts[len(parts)-1])
+
 	var mods tcell.ModMask
+
 	for _, p := range parts[:len(parts)-1] {
 		switch strings.ToLower(strings.TrimSpace(p)) {
 		case "ctrl", "control":
@@ -107,10 +109,13 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 			r = u
 			mods |= tcell.ModShift
 		}
+
 		if unicode.IsUpper(r) {
 			mods |= tcell.ModShift
 		}
+
 		r = unicode.ToLower(r)
+
 		return tcell.KeyRune, r, mods, nil
 	}
 
@@ -120,6 +125,7 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 // Validate returns an error if the key specification is not recognized.
 func Validate(spec string) error {
 	_, _, _, err := Parse(spec)
+
 	return err
 }
 
@@ -128,6 +134,7 @@ func CanonicalID(key tcell.Key, r rune, mod tcell.ModMask) string {
 	if key == tcell.KeyRune {
 		r = unicode.ToLower(r)
 	}
+
 	return fmt.Sprintf("%d:%d:%d", key, r, mod)
 }
 
@@ -159,6 +166,7 @@ func IsReserved(key tcell.Key, r rune, mod tcell.ModMask) bool {
 			}
 		}
 	}
+
 	return false
 }
 
@@ -179,6 +187,7 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 		if unicode.IsUpper(r) {
 			mod |= tcell.ModShift
 		}
+
 		if _, ok := shiftedDigits[r]; ok {
 			mod |= tcell.ModShift
 		}
@@ -198,8 +207,10 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 		if u, ok := shiftedDigits[r]; ok {
 			r = u
 		}
+
 		r = unicode.ToLower(r)
 	}
+
 	return key, r, mod
 }
 
@@ -214,6 +225,7 @@ func ToChar(k tcell.Key) (rune, bool) {
 	case tcell.KeyCtrlM: // Enter
 		return 0, false
 	}
+
 	if k >= tcell.KeyCtrlA && k <= tcell.KeyCtrlZ {
 		return 'a' + rune(k-tcell.KeyCtrlA), true
 	}
@@ -230,5 +242,6 @@ func ToChar(k tcell.Key) (rune, bool) {
 	case tcell.KeyCtrlCarat:
 		return '^', true
 	}
+
 	return 0, false
 }

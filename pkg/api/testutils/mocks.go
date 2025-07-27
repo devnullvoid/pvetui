@@ -108,82 +108,95 @@ func (m *MockLogger) Error(format string, args ...interface{}) {
 	m.Called(format, args)
 }
 
-// MockCache is a mock implementation of the Cache interface
+// MockCache is a mock implementation of the Cache interface.
 type MockCache struct {
 	mock.Mock
 }
 
 func (m *MockCache) Get(key string, dest interface{}) (bool, error) {
 	args := m.Called(key, dest)
+
 	return args.Bool(0), args.Error(1)
 }
 
 func (m *MockCache) Set(key string, value interface{}, ttl time.Duration) error {
 	args := m.Called(key, value, ttl)
+
 	return args.Error(0)
 }
 
 func (m *MockCache) Delete(key string) error {
 	args := m.Called(key)
+
 	return args.Error(0)
 }
 
 func (m *MockCache) Clear() error {
 	args := m.Called()
+
 	return args.Error(0)
 }
 
-// MockConfig is a mock implementation of the Config interface
+// MockConfig is a mock implementation of the Config interface.
 type MockConfig struct {
 	mock.Mock
 }
 
 func (m *MockConfig) GetAddr() string {
 	args := m.Called()
+
 	return args.String(0)
 }
 
 func (m *MockConfig) GetUser() string {
 	args := m.Called()
+
 	return args.String(0)
 }
 
 func (m *MockConfig) GetPassword() string {
 	args := m.Called()
+
 	return args.String(0)
 }
 
 func (m *MockConfig) GetRealm() string {
 	args := m.Called()
+
 	return args.String(0)
 }
 
 func (m *MockConfig) GetTokenID() string {
 	args := m.Called()
+
 	return args.String(0)
 }
 
 func (m *MockConfig) GetTokenSecret() string {
 	args := m.Called()
+
 	return args.String(0)
 }
 
 func (m *MockConfig) GetInsecure() bool {
 	args := m.Called()
+
 	return args.Bool(0)
 }
 
 func (m *MockConfig) IsUsingTokenAuth() bool {
 	args := m.Called()
+
 	return args.Bool(0)
 }
 
 func (m *MockConfig) GetAPIToken() string {
 	args := m.Called()
+
 	return args.String(0)
 }
 
-// TestConfig is a simple test implementation of the Config interface
+// TestConfig is a simple test implementation of the Config interface.
 type TestConfig struct {
 	Addr        string
 	User        string
@@ -210,10 +223,11 @@ func (c *TestConfig) GetAPIToken() string {
 	if c.IsUsingTokenAuth() {
 		return "PVEAPIToken=" + c.User + "@" + c.Realm + "!" + c.TokenID + "=" + c.TokenSecret
 	}
+
 	return ""
 }
 
-// NewTestConfig creates a test configuration with sensible defaults
+// NewTestConfig creates a test configuration with sensible defaults.
 func NewTestConfig() *TestConfig {
 	return &TestConfig{
 		Addr:     "https://test.example.com:8006",
@@ -224,7 +238,7 @@ func NewTestConfig() *TestConfig {
 	}
 }
 
-// NewTestConfigWithToken creates a test configuration using token authentication
+// NewTestConfigWithToken creates a test configuration using token authentication.
 func NewTestConfigWithToken() *TestConfig {
 	return &TestConfig{
 		Addr:        "https://test.example.com:8006",
@@ -236,7 +250,7 @@ func NewTestConfigWithToken() *TestConfig {
 	}
 }
 
-// TestLogger is a simple test logger that captures log messages
+// TestLogger is a simple test logger that captures log messages.
 type TestLogger struct {
 	DebugMessages []string
 	InfoMessages  []string
@@ -261,7 +275,7 @@ func (l *TestLogger) Reset() {
 	l.ErrorMessages = nil
 }
 
-// NewTestLogger creates a new test logger
+// NewTestLogger creates a new test logger.
 func NewTestLogger() *TestLogger {
 	return &TestLogger{
 		DebugMessages: make([]string, 0),
@@ -270,7 +284,7 @@ func NewTestLogger() *TestLogger {
 	}
 }
 
-// InMemoryCache is a simple in-memory cache for testing
+// InMemoryCache is a simple in-memory cache for testing.
 type InMemoryCache struct {
 	data map[string]interface{}
 }
@@ -300,29 +314,33 @@ func (c *InMemoryCache) Get(key string, dest interface{}) (bool, error) {
 
 func (c *InMemoryCache) Set(key string, value interface{}, ttl time.Duration) error {
 	c.data[key] = value
+
 	return nil
 }
 
 func (c *InMemoryCache) Delete(key string) error {
 	delete(c.data, key)
+
 	return nil
 }
 
 func (c *InMemoryCache) Clear() error {
 	c.data = make(map[string]interface{})
+
 	return nil
 }
 
-// NewInMemoryCache creates a new in-memory cache for testing
+// NewInMemoryCache creates a new in-memory cache for testing.
 func NewInMemoryCache() *InMemoryCache {
 	return &InMemoryCache{
 		data: make(map[string]interface{}),
 	}
 }
 
-// AssertLogContains checks if a log message contains the expected text
+// AssertLogContains checks if a log message contains the expected text.
 func AssertLogContains(t *testing.T, logger *TestLogger, level string, expectedText string) {
 	var messages []string
+
 	switch level {
 	case "debug":
 		messages = logger.DebugMessages

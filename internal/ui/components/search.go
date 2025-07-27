@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	// "github.com/devnullvoid/proxmox-tui/pkg/config"
+	// "github.com/devnullvoid/proxmox-tui/pkg/config".
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -13,7 +13,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 )
 
-// activateSearch shows the search input field and sets up filtering
+// activateSearch shows the search input field and sets up filtering.
 func (a *App) activateSearch() {
 	// Get current page context
 	currentPage, _ := a.pages.GetFrontPage()
@@ -55,6 +55,7 @@ func (a *App) activateSearch() {
 		if a.mainLayout.GetItemCount() > 4 {
 			a.mainLayout.RemoveItem(a.searchInput)
 		}
+
 		if currentPage == api.PageNodes {
 			a.SetFocus(a.nodeList)
 		} else if currentPage == api.PageTasks {
@@ -77,12 +78,15 @@ func (a *App) activateSearch() {
 				if idx < 0 || idx >= len(models.GlobalState.FilteredNodes) {
 					idx = 0
 				}
+
 				state.SelectedIndex = idx
 			}
+
 			a.nodeList.SetCurrentItem(idx)
 			a.nodeDetails.Update(models.GlobalState.FilteredNodes[idx], a.client.Cluster.Nodes)
 		} else {
 			a.nodeDetails.Clear()
+
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
 				state.SelectedIndex = 0
 			}
@@ -102,12 +106,15 @@ func (a *App) activateSearch() {
 				if idx < 0 || idx >= len(models.GlobalState.FilteredVMs) {
 					idx = 0
 				}
+
 				state.SelectedIndex = idx
 			}
+
 			a.vmList.SetCurrentItem(idx)
 			a.vmDetails.Update(models.GlobalState.FilteredVMs[idx])
 		} else {
 			a.vmDetails.Clear()
+
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
 				state.SelectedIndex = 0
 			}
@@ -127,8 +134,10 @@ func (a *App) activateSearch() {
 				if idx < 0 || idx >= len(models.GlobalState.FilteredTasks) {
 					idx = 0
 				}
+
 				state.SelectedIndex = idx
 			}
+
 			a.tasksList.Select(idx+1, 0) // +1 because row 0 is header
 		} else {
 			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
@@ -168,9 +177,11 @@ func (a *App) activateSearch() {
 			// Per user request, Escape should clear the search filter
 			a.searchInput.SetText("")
 			removeSearchInput()
+
 			return nil
 		case tcell.KeyEnter:
 			removeSearchInput()
+
 			return nil
 		case tcell.KeyTab:
 			// Prevent Tab from propagating when search is active
@@ -203,7 +214,9 @@ func (a *App) restoreSearchUI(searchWasActive bool, nodeSearchState, vmSearchSta
 			} else if a.searchInput != nil {
 				// Search input was removed, re-add it if there's an active filter
 				currentPage, _ := a.pages.GetFrontPage()
+
 				var hasActiveFilter bool
+
 				if currentPage == api.PageNodes && nodeSearchState != nil && nodeSearchState.Filter != "" {
 					hasActiveFilter = true
 				} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.Filter != "" {

@@ -8,7 +8,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 )
 
-// FormatUptime formats the uptime in seconds to a human-readable format
+// FormatUptime formats the uptime in seconds to a human-readable format.
 func FormatUptime(uptime int) string {
 	if uptime <= 0 {
 		return "N/A"
@@ -29,7 +29,7 @@ func FormatUptime(uptime int) string {
 }
 
 // FormatBytes formats a byte count to a human-readable format with dynamic units
-// Always shows 2 decimal places and chooses the most appropriate unit (GB, TB, PB)
+// Always shows 2 decimal places and chooses the most appropriate unit (GB, TB, PB).
 func FormatBytes(bytes int64) string {
 	const (
 		GB = 1024 * 1024 * 1024
@@ -53,7 +53,7 @@ func FormatBytes(bytes int64) string {
 }
 
 // FormatBytesFloat converts float64 GB values to human-readable format
-// Input is assumed to be in GB, converts to appropriate units with 2 decimal places
+// Input is assumed to be in GB, converts to appropriate units with 2 decimal places.
 func FormatBytesFloat(gb float64) string {
 	const (
 		TB_IN_GB = 1024
@@ -74,7 +74,9 @@ func FormatBytesFloat(gb float64) string {
 // Uses theme-aware color tags.
 func FormatStatusIndicator(status string) string {
 	status = strings.ToLower(status)
+
 	var tag string
+
 	switch status {
 	case "running", "online":
 		tag = "[success]▲[-] "
@@ -83,6 +85,7 @@ func FormatStatusIndicator(status string) string {
 	default:
 		tag = "[warning]●[-] "
 	}
+
 	return theme.ReplaceSemanticTags(tag)
 }
 
@@ -92,8 +95,11 @@ func FormatPendingStatusIndicator(status string, isPending bool, operation strin
 	if !isPending {
 		return FormatStatusIndicator(status)
 	}
+
 	status = strings.ToLower(status)
+
 	var tag string
+
 	switch status {
 	case "running", "online":
 		tag = "[success::d]🗘[-::id] "
@@ -102,24 +108,27 @@ func FormatPendingStatusIndicator(status string, isPending bool, operation strin
 	default:
 		tag = "[warning::d]🗘[-::id] "
 	}
+
 	return theme.ReplaceSemanticTags(tag)
 }
 
 // CalculatePercentage safely calculates percentage from used and total values
-// Returns 0.0 if total is 0 to avoid division by zero
+// Returns 0.0 if total is 0 to avoid division by zero.
 func CalculatePercentage(used, total float64) float64 {
 	if total <= 0 {
 		return 0.0
 	}
+
 	return (used / total) * 100
 }
 
 // CalculatePercentageInt safely calculates percentage from used and total int64 values
-// Returns 0.0 if total is 0 to avoid division by zero
+// Returns 0.0 if total is 0 to avoid division by zero.
 func CalculatePercentageInt(used, total int64) float64 {
 	if total <= 0 {
 		return 0.0
 	}
+
 	return (float64(used) / float64(total)) * 100
 }
 

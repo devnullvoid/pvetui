@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Cluster represents aggregated Proxmox cluster metrics
+// Cluster represents aggregated Proxmox cluster metrics.
 type Cluster struct {
 	Name           string          `json:"name"`
 	Version        string          `json:"version"`
@@ -28,7 +28,7 @@ type Cluster struct {
 	lastUpdate time.Time
 }
 
-// ClusterTask represents a cluster task from the Proxmox API
+// ClusterTask represents a cluster task from the Proxmox API.
 type ClusterTask struct {
 	ID        string `json:"id"`
 	Node      string `json:"node"`
@@ -42,7 +42,7 @@ type ClusterTask struct {
 	EndTime   int64  `json:"endtime"`
 }
 
-// GetClusterStatus retrieves high-level cluster status and node list
+// GetClusterStatus retrieves high-level cluster status and node list.
 func (c *Client) GetClusterStatus() (*Cluster, error) {
 	cluster := &Cluster{
 		Nodes:          make([]*Node, 0),
@@ -70,6 +70,7 @@ func (c *Client) GetClusterStatus() (*Cluster, error) {
 	c.calculateClusterTotals(cluster)
 
 	c.Cluster = cluster
+
 	return cluster, nil
 }
 
@@ -110,6 +111,7 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 
 		// Count VMs that will be enriched
 		var runningVMCount int
+
 		for _, node := range cluster.Nodes {
 			if node.Online && node.VMs != nil {
 				for _, vm := range node.VMs {
@@ -119,6 +121,7 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 				}
 			}
 		}
+
 		c.logger.Debug("[BACKGROUND] Found %d running VMs to enrich", runningVMCount)
 
 		// Reset guestAgentChecked for all VMs before enrichment
@@ -144,14 +147,17 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 		// LXC containers don't have guest agents, so we skip them
 		// Only retry VMs that have guest agent enabled in their config
 		var retryCount int
+
 		for _, node := range cluster.Nodes {
 			if !node.Online || node.VMs == nil {
 				continue
 			}
+
 			for _, vm := range node.VMs {
 				// Only retry QEMU VMs that are running, have guest agent enabled, and don't have guest agent data
 				if vm.Status == VMStatusRunning && vm.Type == VMTypeQemu && vm.AgentEnabled && (!vm.AgentRunning || len(vm.NetInterfaces) == 0) {
 					retryCount++
+
 					c.logger.Debug("[BACKGROUND] Retrying enrichment for QEMU VM %s (%d) - agent running: %v, interfaces: %d",
 						vm.Name, vm.ID, vm.AgentRunning, len(vm.NetInterfaces))
 
@@ -159,8 +165,10 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 					err := c.GetVmStatus(vm)
 					if err != nil && strings.Contains(err.Error(), "guest agent is not running") {
 						c.logger.Debug("[BACKGROUND] Skipping further retries for VM %s: guest agent is not running", vm.Name)
+
 						continue
 					}
+
 					if err != nil {
 						c.logger.Debug("[BACKGROUND] Retry failed for VM %s: %v", vm.Name, err)
 					}
@@ -180,7 +188,7 @@ func (c *Client) FastGetClusterStatus(onEnrichmentComplete func()) (*Cluster, er
 	return cluster, nil
 }
 
-// getClusterBasicStatus retrieves basic cluster info and node list
+// getClusterBasicStatus retrieves basic cluster info and node list.
 func (c *Client) getClusterBasicStatus(cluster *Cluster) error {
 	var statusResp map[string]interface{}
 	if err := c.GetWithCache("/cluster/status", &statusResp, ClusterDataTTL); err != nil {
@@ -213,29 +221,34 @@ func (c *Client) getClusterBasicStatus(cluster *Cluster) error {
 			})
 		}
 	}
+
 	return nil
 }
 
-// enrichMissingNodeDetails selectively enriches nodes with data not available in cluster resources
+// enrichMissingNodeDetails selectively enriches nodes with data not available in cluster resources.
 func (c *Client) enrichMissingNodeDetails(cluster *Cluster) error {
 	var wg sync.WaitGroup
+
 	errChan := make(chan error, len(cluster.Nodes))
 	done := make(chan struct{})
 
 	// Start a goroutine to collect errors
 	var errors []error
+
 	go func() {
 		for err := range errChan {
 			if err != nil {
 				errors = append(errors, err)
 			}
 		}
+
 		close(done)
 	}()
 
 	// Process nodes concurrently, but only for missing details
 	for i := range cluster.Nodes {
 		wg.Add(1)
+
 		go func(node *Node) {
 			defer wg.Done()
 			errChan <- c.enrichNodeMissingDetails(node)
@@ -250,6 +263,7 @@ func (c *Client) enrichMissingNodeDetails(cluster *Cluster) error {
 	// Log individual node errors but don't fail unless ALL nodes are unreachable
 	if len(errors) > 0 {
 		c.logger.Debug("[CLUSTER] Node detail enrichment completed with %d errors out of %d nodes", len(errors), len(cluster.Nodes))
+
 		for _, err := range errors {
 			c.logger.Debug("[CLUSTER] Node detail error: %v", err)
 		}
@@ -267,11 +281,12 @@ func (c *Client) enrichMissingNodeDetails(cluster *Cluster) error {
 	return nil
 }
 
-// enrichNodeMissingDetails enriches a single node with details not available in cluster resources
+// enrichNodeMissingDetails enriches a single node with details not available in cluster resources.
 func (c *Client) enrichNodeMissingDetails(node *Node) error {
 	// If the node is already marked as offline, skip detailed metrics
 	if !node.Online {
 		c.logger.Debug("[CLUSTER] Skipping detail enrichment for offline node: %s", node.Name)
+
 		return nil
 	}
 
@@ -293,10 +308,11 @@ func (c *Client) enrichNodeMissingDetails(node *Node) error {
 	node.lastMetricsUpdate = time.Now()
 
 	c.logger.Debug("[CLUSTER] Successfully enriched missing details for node: %s", node.Name)
+
 	return nil
 }
 
-// processClusterResources handles storage and VM data from cluster resources
+// processClusterResources handles storage and VM data from cluster resources.
 func (c *Client) processClusterResources(cluster *Cluster) error {
 	var resourcesResp map[string]interface{}
 	if err := c.GetWithCache("/cluster/resources", &resourcesResp, ResourceDataTTL); err != nil {
@@ -341,6 +357,7 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 				if memUsed := getFloat(resource, "mem"); memUsed > 0 {
 					node.MemoryUsed = memUsed / 1073741824
 				}
+
 				if memMax := getFloat(resource, "maxmem"); memMax > 0 {
 					node.MemoryTotal = memMax / 1073741824
 				}
@@ -354,6 +371,7 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 				if diskUsed := getFloat(resource, "disk"); diskUsed > 0 {
 					node.UsedStorage = int64(diskUsed / 1073741824)
 				}
+
 				if diskMax := getFloat(resource, "maxdisk"); diskMax > 0 {
 					node.TotalStorage = int64(diskMax / 1073741824)
 				}
@@ -371,6 +389,7 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 			if !exists {
 				continue
 			}
+
 			storage := &Storage{
 				ID:         getString(resource, "id"),
 				Name:       getString(resource, "storage"),
@@ -397,6 +416,7 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 				if node.Storage[i].IsShared() == node.Storage[j].IsShared() {
 					return node.Storage[i].Name < node.Storage[j].Name
 				}
+
 				return !node.Storage[i].IsShared() && node.Storage[j].IsShared()
 			})
 
@@ -407,6 +427,7 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 			if !exists {
 				continue
 			}
+
 			node.VMs = append(node.VMs, &VM{
 				ID:        getInt(resource, "vmid"),
 				Name:      getString(resource, "name"),
@@ -432,13 +453,16 @@ func (c *Client) processClusterResources(cluster *Cluster) error {
 			})
 		}
 	}
+
 	return nil
 }
 
-// calculateClusterTotals aggregates node metrics for cluster summary
+// calculateClusterTotals aggregates node metrics for cluster summary.
 func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	var totalCPU, totalMem, usedMem float64
+
 	var onlineNodes int
+
 	var nodesWithMetrics int
 
 	for _, node := range cluster.Nodes {
@@ -473,6 +497,7 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	for _, node := range cluster.Nodes {
 		if node.Version != "" {
 			cluster.Version = fmt.Sprintf("Proxmox VE %s", node.Version)
+
 			break
 		}
 	}
@@ -481,7 +506,7 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 		onlineNodes, len(cluster.Nodes), nodesWithMetrics)
 }
 
-// GetClusterTasks retrieves recent cluster tasks
+// GetClusterTasks retrieves recent cluster tasks.
 func (c *Client) GetClusterTasks() ([]*ClusterTask, error) {
 	var result map[string]interface{}
 	if err := c.Get("/cluster/tasks", &result); err != nil {
@@ -494,6 +519,7 @@ func (c *Client) GetClusterTasks() ([]*ClusterTask, error) {
 	}
 
 	var tasks []*ClusterTask
+
 	for _, item := range data {
 		taskData, ok := item.(map[string]interface{})
 		if !ok {
@@ -515,6 +541,7 @@ func (c *Client) GetClusterTasks() ([]*ClusterTask, error) {
 		if startTime, ok := taskData["starttime"].(float64); ok {
 			task.StartTime = int64(startTime)
 		}
+
 		if endTime, ok := taskData["endtime"].(float64); ok {
 			task.EndTime = int64(endTime)
 		}

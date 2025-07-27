@@ -33,7 +33,10 @@ func TestMigrationOptions_Validation(t *testing.T) {
 			name: "valid options with online migration",
 			options: &MigrationOptions{
 				Target: "node2",
-				Online: func() *bool { b := true; return &b }(),
+				Online: func() *bool {
+					b := true
+					return &b
+				}(),
 			},
 			wantErr: false,
 		},
@@ -74,6 +77,7 @@ func TestMigrationOptions_Validation(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("Expected error for invalid options, but test expects no error")
 				}
+
 				return
 			}
 
@@ -85,12 +89,15 @@ func TestMigrationOptions_Validation(t *testing.T) {
 			// Test target node validation
 			if client.Cluster != nil {
 				targetExists := false
+
 				for _, node := range client.Cluster.Nodes {
 					if node != nil && node.Name == tt.options.Target {
 						targetExists = true
+
 						break
 					}
 				}
+
 				if !targetExists && !tt.wantErr {
 					t.Errorf("Target node '%s' not found in cluster, but test expects no error", tt.options.Target)
 				}
@@ -130,6 +137,7 @@ func TestMigrationOptions_OnlineDefault(t *testing.T) {
 
 			// Simulate the logic from MigrateVM function
 			var expectedDataOnline string
+
 			if options.Online != nil {
 				if *options.Online {
 					expectedDataOnline = "1"
@@ -153,7 +161,7 @@ func TestMigrationOptions_OnlineDefault(t *testing.T) {
 	}
 }
 
-// Test for RestartVM behavior - both LXC and QEMU use /status/reboot endpoint
+// Test for RestartVM behavior - both LXC and QEMU use /status/reboot endpoint.
 func TestRestartVM_VMTypeHandling(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -191,7 +199,6 @@ func TestRestartVM_VMTypeHandling(t *testing.T) {
 			if vm.Type != tt.vmType {
 				t.Errorf("Expected VM type %s, got %s", tt.vmType, vm.Type)
 			}
-
 			// Both LXC and QEMU now use the same /status/reboot endpoint
 			// Note: We can't test the actual RestartVM function here without
 			// mocking the HTTP client, but we can verify the VM properties

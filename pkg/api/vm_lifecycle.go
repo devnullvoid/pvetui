@@ -5,15 +5,17 @@ import (
 	"strings"
 )
 
-// StartVM starts a VM or container
+// StartVM starts a VM or container.
 func (c *Client) StartVM(vm *VM) error {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/start", vm.Node, vm.Type, vm.ID)
+
 	return c.Post(path, nil)
 }
 
-// StopVM stops a VM or container
+// StopVM stops a VM or container.
 func (c *Client) StopVM(vm *VM) error {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/stop", vm.Node, vm.Type, vm.ID)
+
 	return c.Post(path, nil)
 }
 
@@ -29,6 +31,7 @@ func (c *Client) StopVM(vm *VM) error {
 func (c *Client) RestartVM(vm *VM) error {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/reboot", vm.Node, vm.Type, vm.ID)
 	c.logger.Info("Rebooting %s %s (ID: %d) using /status/reboot endpoint", vm.Type, vm.Name, vm.ID)
+
 	return c.Post(path, nil)
 }
 
@@ -128,12 +131,15 @@ func (c *Client) MigrateVM(vm *VM, options *MigrationOptions) error {
 	// Validate target node exists
 	if c.Cluster != nil {
 		targetExists := false
+
 		for _, node := range c.Cluster.Nodes {
 			if node != nil && node.Name == options.Target {
 				targetExists = true
+
 				break
 			}
 		}
+
 		if !targetExists {
 			return fmt.Errorf("target node '%s' not found in cluster", options.Target)
 		}
@@ -199,20 +205,22 @@ func (c *Client) MigrateVM(vm *VM, options *MigrationOptions) error {
 	var response map[string]interface{}
 	if err := c.PostWithResponse(path, data, &response); err != nil {
 		c.logger.Error("Migration API call failed: %v", err)
+
 		return err
 	}
 
 	c.logger.Info("Migration API response: %+v", response)
+
 	return nil
 }
 
 // DeleteVM permanently deletes a VM or container
-// WARNING: This operation is irreversible and will destroy all VM data including disks
+// WARNING: This operation is irreversible and will destroy all VM data including disks.
 func (c *Client) DeleteVM(vm *VM) error {
 	return c.DeleteVMWithOptions(vm, nil)
 }
 
-// DeleteVMOptions contains options for deleting a VM
+// DeleteVMOptions contains options for deleting a VM.
 type DeleteVMOptions struct {
 	// Force deletion even if VM is running
 	Force bool `json:"force,omitempty"`
@@ -225,22 +233,26 @@ type DeleteVMOptions struct {
 }
 
 // DeleteVMWithOptions permanently deletes a VM or container with specific options
-// WARNING: This operation is irreversible and will destroy all VM data including disks
+// WARNING: This operation is irreversible and will destroy all VM data including disks.
 func (c *Client) DeleteVMWithOptions(vm *VM, options *DeleteVMOptions) error {
 	path := fmt.Sprintf("/nodes/%s/%s/%d", vm.Node, vm.Type, vm.ID)
 
 	// Build query parameters
 	params := make(map[string]interface{})
+
 	if options != nil {
 		if options.Force {
 			params["force"] = "1"
 		}
+
 		if options.SkipLock {
 			params["skiplock"] = "1"
 		}
+
 		if options.DestroyUnreferencedDisks {
 			params["destroy-unreferenced-disks"] = "1"
 		}
+
 		if options.Purge {
 			params["purge"] = "1"
 		}
@@ -252,6 +264,7 @@ func (c *Client) DeleteVMWithOptions(vm *VM, options *DeleteVMOptions) error {
 		for key, value := range params {
 			queryParts = append(queryParts, fmt.Sprintf("%s=%v", key, value))
 		}
+
 		path += "?" + strings.Join(queryParts, "&")
 	}
 

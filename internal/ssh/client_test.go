@@ -17,8 +17,10 @@ type mockExecutor struct {
 
 func (m *mockExecutor) CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
 	m.lastName = name
+
 	m.lastArgs = append([]string(nil), args...)
 	m.called++
+
 	return exec.CommandContext(ctx, "true")
 }
 
@@ -77,6 +79,7 @@ func TestExecuteLXCShellWith_NixOSContainer(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
+
 	expectedCmd := "sudo pct exec 102 -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'"
 	require.Equal(t, []string{"testuser@192.0.2.1", "-t", expectedCmd}, me.lastArgs)
 }
@@ -95,6 +98,7 @@ func TestExecuteLXCShellWith_NixContainer(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
+
 	expectedCmd := "sudo pct exec 103 -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'"
 	require.Equal(t, []string{"testuser@192.0.2.1", "-t", expectedCmd}, me.lastArgs)
 }
@@ -114,6 +118,7 @@ func TestExecuteLXCShellWithVM(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
+
 	expectedCmd := "sudo pct exec 104 -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'"
 	require.Equal(t, []string{"testuser@192.0.2.1", "-t", expectedCmd}, me.lastArgs)
 }

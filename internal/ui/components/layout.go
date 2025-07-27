@@ -7,7 +7,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// createMainLayout builds the main application layout
+// createMainLayout builds the main application layout.
 func (a *App) createMainLayout() *tview.Flex {
 	// Setup nodes page
 	nodesPage := tview.NewFlex().
@@ -36,7 +36,7 @@ func (a *App) createMainLayout() *tview.Flex {
 		AddItem(a.footer, 1, 0, false)
 }
 
-// setupComponentConnections wires up the interactions between components
+// setupComponentConnections wires up the interactions between components.
 func (a *App) setupComponentConnections() {
 	// Update cluster status
 	a.clusterStatus.Update(a.client.Cluster)
@@ -51,6 +51,7 @@ func (a *App) setupComponentConnections() {
 		// No filter, use original data
 		a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
 	}
+
 	a.nodeList.SetApp(a)
 	a.nodeList.SetNodeSelectedFunc(func(node *api.Node) {
 		a.nodeDetails.Update(node, a.client.Cluster.Nodes)

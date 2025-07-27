@@ -13,16 +13,17 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// TasksList encapsulates the tasks list panel
+// TasksList encapsulates the tasks list panel.
 type TasksList struct {
 	*tview.Table
+
 	tasks []*api.ClusterTask
 	app   *App
 }
 
 var _ TasksListComponent = (*TasksList)(nil)
 
-// NewTasksList creates a new tasks list panel
+// NewTasksList creates a new tasks list panel.
 func NewTasksList() *TasksList {
 	table := tview.NewTable()
 	table.SetBorders(false)
@@ -43,33 +44,34 @@ func NewTasksList() *TasksList {
 	return tl
 }
 
-// SetApp sets the application reference
+// SetApp sets the application reference.
 func (tl *TasksList) SetApp(app *App) {
 	tl.app = app
 }
 
-// SetTasks updates the tasks list with new data
+// SetTasks updates the tasks list with new data.
 func (tl *TasksList) SetTasks(tasks []*api.ClusterTask) {
 	tl.tasks = tasks
 	tl.updateTable()
 }
 
-// SetFilteredTasks updates the tasks list with filtered data
+// SetFilteredTasks updates the tasks list with filtered data.
 func (tl *TasksList) SetFilteredTasks(tasks []*api.ClusterTask) {
 	tl.tasks = tasks
 	tl.updateTable()
 }
 
-// GetSelectedTask returns the currently selected task
+// GetSelectedTask returns the currently selected task.
 func (tl *TasksList) GetSelectedTask() *api.ClusterTask {
 	row, _ := tl.GetSelection()
 	if row <= 0 || row > len(tl.tasks) {
 		return nil
 	}
+
 	return tl.tasks[row-1] // -1 because row 0 is the header
 }
 
-// Select wraps the table Select method to match the interface
+// Select wraps the table Select method to match the interface.
 func (tl *TasksList) Select(row, column int) *tview.Table {
 	return tl.Table.Select(row, column)
 }
@@ -80,19 +82,21 @@ func (tl *TasksList) noTasksCell() *tview.TableCell {
 		SetAlign(tview.AlignCenter)
 }
 
-// Clear clears the tasks list
+// Clear clears the tasks list.
 func (tl *TasksList) Clear() *tview.Table {
 	tl.Table.Clear()
 	tl.SetCell(0, 0, tl.noTasksCell())
+
 	return tl.Table
 }
 
-// updateTable refreshes the table content
+// updateTable refreshes the table content.
 func (tl *TasksList) updateTable() {
 	tl.Clear()
 
 	if len(tl.tasks) == 0 {
 		tl.SetCell(0, 0, tl.noTasksCell())
+
 		return
 	}
 
@@ -122,6 +126,7 @@ func (tl *TasksList) updateTable() {
 		if task.StartTime > 0 {
 			startTime = time.Unix(task.StartTime, 0).Format("01-02-2006 15:04:05")
 		}
+
 		tl.SetCell(row, 0, tview.NewTableCell(startTime).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
 
 		// Node (truncate if too long)
@@ -129,6 +134,7 @@ func (tl *TasksList) updateTable() {
 		if len(node) > 16 {
 			node = node[:13] + "..."
 		}
+
 		tl.SetCell(row, 1, tview.NewTableCell(node).SetTextColor(theme.Colors.Primary).SetAlign(tview.AlignLeft))
 
 		// Type (friendly name)
@@ -136,6 +142,7 @@ func (tl *TasksList) updateTable() {
 		if len(typeStr) > 16 {
 			typeStr = typeStr[:13] + "..."
 		}
+
 		tl.SetCell(row, 2, tview.NewTableCell(typeStr).SetTextColor(theme.Colors.Info).SetAlign(tview.AlignLeft))
 
 		// Status with color coding
@@ -147,6 +154,7 @@ func (tl *TasksList) updateTable() {
 		if len(user) > 18 {
 			user = user[:15] + "..."
 		}
+
 		tl.SetCell(row, 4, tview.NewTableCell(user).SetTextColor(theme.Colors.Tertiary).SetAlign(tview.AlignLeft))
 
 		// ID (truncate if too long)
@@ -154,10 +162,12 @@ func (tl *TasksList) updateTable() {
 		if len(id) > 24 {
 			id = id[:21] + "..."
 		}
+
 		tl.SetCell(row, 5, tview.NewTableCell(id).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
 
 		// Duration (friendly)
 		duration := "N/A"
+
 		if task.StartTime > 0 {
 			var endTime int64
 			if task.EndTime > 0 {
@@ -165,9 +175,11 @@ func (tl *TasksList) updateTable() {
 			} else {
 				endTime = time.Now().Unix()
 			}
+
 			durationTime := time.Duration(endTime-task.StartTime) * time.Second
 			duration = formatDuration(durationTime)
 		}
+
 		tl.SetCell(row, 6, tview.NewTableCell(duration).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
 	}
 
@@ -177,9 +189,10 @@ func (tl *TasksList) updateTable() {
 	}
 }
 
-// createStatusCell creates a colored status cell (theme-aware)
+// createStatusCell creates a colored status cell (theme-aware).
 func createStatusCell(status string) *tview.TableCell {
 	var color tcell.Color
+
 	switch strings.ToLower(status) {
 	case "ok", "success", "running":
 		color = theme.Colors.StatusRunning
@@ -192,12 +205,13 @@ func createStatusCell(status string) *tview.TableCell {
 	default:
 		color = theme.Colors.Primary
 	}
+
 	return tview.NewTableCell(status).
 		SetTextColor(color).
 		SetAlign(tview.AlignLeft)
 }
 
-// formatTaskType returns a friendly name for a task type
+// formatTaskType returns a friendly name for a task type.
 func formatTaskType(taskType string) string {
 	switch taskType {
 	case "qmstart":
@@ -309,17 +323,18 @@ func formatTaskType(taskType string) string {
 	}
 }
 
-// formatUser cleans up the user string for display
+// formatUser cleans up the user string for display.
 func formatUser(user string) string {
 	if len(user) > 4 {
 		if user[len(user)-4:] == "@pam" || user[len(user)-4:] == "@pve" {
 			return user[:len(user)-4]
 		}
 	}
+
 	return user
 }
 
-// formatDuration returns a friendly duration string
+// formatDuration returns a friendly duration string.
 func formatDuration(d time.Duration) string {
 	if d < time.Minute {
 		return fmt.Sprintf("%.0fs", d.Seconds())
@@ -330,7 +345,7 @@ func formatDuration(d time.Duration) string {
 	}
 }
 
-// setupKeyHandlers configures vi-style navigation
+// setupKeyHandlers configures vi-style navigation.
 func (tl *TasksList) setupKeyHandlers() {
 	tl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -342,6 +357,7 @@ func (tl *TasksList) setupKeyHandlers() {
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
 			}
 		}
+
 		return event
 	})
 }

@@ -17,6 +17,7 @@ import (
 // VMConfigPage is a modal/page for editing VM or LXC configuration.
 type VMConfigPage struct {
 	*tview.Form
+
 	app    *App
 	vm     *api.VM
 	config *api.VMConfig
@@ -48,6 +49,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 			page.config.Cores = v
 		}
 	})
+
 	if vm.Type == api.VMTypeQemu {
 		form.AddInputField("Sockets", strconv.Itoa(config.Sockets), 4, func(textToCheck string, lastChar rune) bool {
 			return lastChar >= '0' && lastChar <= '9'
@@ -57,6 +59,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 			}
 		})
 	}
+
 	form.AddInputField("Memory (MB)", strconv.FormatInt(config.Memory/1024/1024, 10), 8, func(textToCheck string, lastChar rune) bool {
 		return lastChar >= '0' && lastChar <= '9'
 	}, func(text string) {
@@ -75,6 +78,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	if config.OnBoot != nil {
 		onboot = *config.OnBoot
 	}
+
 	form.AddCheckbox("Start at boot", onboot, func(checked bool) {
 		page.config.OnBoot = &checked
 	})
@@ -97,6 +101,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	if vm.Type == api.VMTypeLXC {
 		guestType = "CT"
 	}
+
 	title := fmt.Sprintf("Edit Configuration: %s %d - %s", guestType, vm.ID, vm.Name)
 	form.SetBorder(true).SetTitle(title).SetTitleColor(theme.Colors.Primary)
 	// Set ESC key to cancel
@@ -105,8 +110,10 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 			if err := app.pages.RemovePage("vmConfig"); err != nil {
 				models.GetUILogger().Error("Failed to remove vmConfig page: %v", err)
 			}
+
 			return nil
 		}
+
 		return event
 	})
 	// // Set initial focus to the first field (Resize Storage Volume)
@@ -120,21 +127,27 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 
 	// Build list of storage devices (filter to only resizable volumes)
 	var deviceNames []string
+
 	deviceMap := make(map[string]*api.StorageDevice)
+
 	for _, dev := range vm.StorageDevices {
 		if dev.Size == "" {
 			continue // must have a size
 		}
+
 		if dev.Media == "cdrom" {
 			continue // skip CD-ROM/ISO
 		}
+
 		if strings.HasPrefix(dev.Device, "efidisk") || strings.HasPrefix(dev.Device, "scsihw") {
 			continue // skip EFI/controller
 		}
+
 		label := fmt.Sprintf("%s (%s, %s)", dev.Device, dev.Storage, dev.Size)
 		deviceNames = append(deviceNames, label)
 		deviceMap[label] = &dev
 	}
+
 	selectedDevice := ""
 	if len(deviceNames) > 0 {
 		selectedDevice = deviceNames[0]
@@ -147,6 +160,7 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 		if lastChar < '0' || lastChar > '9' {
 			return false
 		}
+
 		return true
 	}, nil)
 
@@ -154,21 +168,29 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 		amountField, ok := modal.GetFormItemByLabel("Expand by (GB)").(*tview.InputField)
 		if !ok {
 			app.showMessage("Failed to get amount field.")
+
 			return
 		}
+
 		amountStr := amountField.GetText()
+
 		amount, err := strconv.Atoi(amountStr)
 		if err != nil || amount <= 0 {
 			app.showMessage("Please enter a positive number of GB.")
+
 			return
 		}
+
 		if selectedDevice == "" {
 			app.showMessage("Please select a storage volume.")
+
 			return
 		}
+
 		dev := deviceMap[selectedDevice]
 		if dev == nil {
 			app.showMessage("Invalid storage device selected.")
+
 			return
 		}
 		// Format size string for Proxmox (e.g., '+10G')
@@ -181,6 +203,7 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 				} else {
 					app.showMessage("Resize operation started successfully.")
 					app.manualRefresh()
+
 					if err := app.pages.RemovePage("resizeStorage"); err != nil {
 						models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
 					}
@@ -200,8 +223,10 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 			if err := app.pages.RemovePage("resizeStorage"); err != nil {
 				models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
 			}
+
 			return nil
 		}
+
 		return event
 	})
 	app.pages.AddPage("resizeStorage", modal, true, true)

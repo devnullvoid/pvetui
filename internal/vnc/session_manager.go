@@ -35,7 +35,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// SessionType represents the type of VNC session
+// SessionType represents the type of VNC session.
 type SessionType string
 
 const (
@@ -44,7 +44,7 @@ const (
 	SessionTypeNode SessionType = "node"
 )
 
-// SessionState represents the current state of a VNC session
+// SessionState represents the current state of a VNC session.
 type SessionState int
 
 const (
@@ -101,16 +101,17 @@ func (s *VNCSession) UpdateLastUsed() {
 	s.LastUsed = time.Now()
 }
 
-// OnClientConnected is called when a client connects to this session
+// OnClientConnected is called when a client connects to this session.
 func (s *VNCSession) OnClientConnected() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
 	s.activeConnections++
 	s.State = SessionStateConnected
 	s.LastUsed = time.Now()
 }
 
-// OnClientDisconnected is called when a client disconnects from this session
+// OnClientDisconnected is called when a client disconnects from this session.
 func (s *VNCSession) OnClientDisconnected() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -129,17 +130,19 @@ func (s *VNCSession) OnClientDisconnected() {
 	}
 }
 
-// IsReusable returns true if this session can be reused for new connections
+// IsReusable returns true if this session can be reused for new connections.
 func (s *VNCSession) IsReusable() bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+
 	return s.State == SessionStateActive || s.State == SessionStateDisconnected
 }
 
-// GetConnectionCount returns the number of active connections to this session
+// GetConnectionCount returns the number of active connections to this session.
 func (s *VNCSession) GetConnectionCount() int {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+
 	return s.activeConnections
 }
 
@@ -148,6 +151,7 @@ func (s *VNCSession) GetConnectionCount() int {
 func (s *VNCSession) IsExpired(timeout time.Duration) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+
 	return time.Since(s.LastUsed) > timeout
 }
 
@@ -185,7 +189,7 @@ func (s *VNCSession) Shutdown() error {
 	return nil
 }
 
-// SessionCountCallback is called when the session count changes
+// SessionCountCallback is called when the session count changes.
 type SessionCountCallback func(count int)
 
 // SessionManager manages multiple concurrent VNC sessions with comprehensive
@@ -248,7 +252,7 @@ func NewSessionManager(client *api.Client) *SessionManager {
 	return NewSessionManagerWithLogger(client, nil)
 }
 
-// NewSessionManagerWithLogger creates a new VNC session manager with a shared logger
+// NewSessionManagerWithLogger creates a new VNC session manager with a shared logger.
 func NewSessionManagerWithLogger(client *api.Client, sharedLogger *logger.Logger) *SessionManager {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -285,7 +289,7 @@ func NewSessionManagerWithLogger(client *api.Client, sharedLogger *logger.Logger
 	return manager
 }
 
-// UpdateClient updates the session manager's client (used when switching profiles)
+// UpdateClient updates the session manager's client (used when switching profiles).
 func (sm *SessionManager) UpdateClient(client *api.Client) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -371,6 +375,7 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 	session.Server = server
 
 	var vncURL string
+
 	var err error
 
 	// Start the appropriate server based on session type
@@ -378,15 +383,18 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 	case SessionTypeVM, SessionTypeLXC:
 		// Find the VM in the cluster
 		var targetVM *api.VM
+
 		if sm.client.Cluster != nil {
 			for _, node := range sm.client.Cluster.Nodes {
 				if node.Name == nodeName {
 					for _, vm := range node.VMs {
 						if strconv.Itoa(vm.ID) == vmid {
 							targetVM = vm
+
 							break
 						}
 					}
+
 					break
 				}
 			}
@@ -437,6 +445,7 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 func (sm *SessionManager) GetSessionCount() int {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
+
 	return len(sm.sessions)
 }
 
@@ -472,7 +481,7 @@ func (sm *SessionManager) ListSessions() []*VNCSession {
 	return sessions
 }
 
-// CloseSession closes a specific session by ID
+// CloseSession closes a specific session by ID.
 func (sm *SessionManager) CloseSession(sessionID string) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -502,7 +511,7 @@ func (sm *SessionManager) CloseSession(sessionID string) error {
 	return err
 }
 
-// CloseAllSessions closes all active sessions
+// CloseAllSessions closes all active sessions.
 func (sm *SessionManager) CloseAllSessions() error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -512,6 +521,7 @@ func (sm *SessionManager) CloseAllSessions() error {
 	}
 
 	var errors []error
+
 	for sessionID, session := range sm.sessions {
 		if err := session.Shutdown(); err != nil {
 			errors = append(errors, fmt.Errorf("failed to shutdown session %s: %w", sessionID, err))
@@ -531,7 +541,7 @@ func (sm *SessionManager) CloseAllSessions() error {
 	return nil
 }
 
-// GetSessionByTarget finds a session by target information
+// GetSessionByTarget finds a session by target information.
 func (sm *SessionManager) GetSessionByTarget(sessionType SessionType, target string) (*VNCSession, bool) {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
@@ -545,7 +555,7 @@ func (sm *SessionManager) GetSessionByTarget(sessionType SessionType, target str
 	return nil, false
 }
 
-// CleanupInactiveSessions removes sessions that haven't been accessed recently
+// CleanupInactiveSessions removes sessions that haven't been accessed recently.
 func (sm *SessionManager) CleanupInactiveSessions(maxAge time.Duration) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -618,6 +628,7 @@ func (sm *SessionManager) Shutdown() error {
 
 	// Shut down all active sessions
 	var shutdownErrors []error
+
 	for sessionID, session := range sm.sessions {
 		if err := session.Shutdown(); err != nil {
 			shutdownErrors = append(shutdownErrors, fmt.Errorf("failed to shutdown session %s: %w", sessionID, err))
@@ -644,6 +655,7 @@ func (sm *SessionManager) findReusableSession(targetKey string) *VNCSession {
 			return session
 		}
 	}
+
 	return nil
 }
 
@@ -707,7 +719,7 @@ func (sm *SessionManager) cleanupExpiredSessions() {
 }
 
 // monitorSessionDisconnect monitors a session for client disconnections
-// and handles immediate cleanup when clients disconnect
+// and handles immediate cleanup when clients disconnect.
 func (sm *SessionManager) monitorSessionDisconnect(session *VNCSession) {
 	for {
 		select {

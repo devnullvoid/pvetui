@@ -13,9 +13,10 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// VMList encapsulates the VM list panel
+// VMList encapsulates the VM list panel.
 type VMList struct {
 	*tview.List
+
 	vms       []*api.VM
 	onSelect  func(*api.VM)
 	onChanged func(*api.VM)
@@ -24,7 +25,7 @@ type VMList struct {
 
 var _ VMListComponent = (*VMList)(nil)
 
-// NewVMList creates a new VM list component
+// NewVMList creates a new VM list component.
 func NewVMList() *VMList {
 	list := tview.NewList()
 	list.ShowSecondaryText(false)
@@ -38,12 +39,12 @@ func NewVMList() *VMList {
 	}
 }
 
-// SetCurrentItem wraps the list method to match the interface
+// SetCurrentItem wraps the list method to match the interface.
 func (vl *VMList) SetCurrentItem(index int) *tview.List {
 	return vl.List.SetCurrentItem(index)
 }
 
-// SetApp sets the parent app reference for focus management
+// SetApp sets the parent app reference for focus management.
 func (vl *VMList) SetApp(app *App) {
 	vl.app = app
 
@@ -51,7 +52,7 @@ func (vl *VMList) SetApp(app *App) {
 	vl.SetInputCapture(createNavigationInputCapture(vl.app, nil, vl.app.vmDetails))
 }
 
-// SetVMs updates the list with the provided VMs
+// SetVMs updates the list with the provided VMs.
 func (vl *VMList) SetVMs(vms []*api.VM) {
 	vl.Clear()
 	vl.vms = vms
@@ -65,6 +66,7 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 		if sortedVMs[i].Status == api.VMStatusRunning && sortedVMs[j].Status != api.VMStatusRunning {
 			return true
 		}
+
 		if sortedVMs[i].Status != api.VMStatusRunning && sortedVMs[j].Status == api.VMStatusRunning {
 			return false
 		}
@@ -109,21 +111,22 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 	}
 }
 
-// GetSelectedVM returns the currently selected VM
+// GetSelectedVM returns the currently selected VM.
 func (vl *VMList) GetSelectedVM() *api.VM {
 	idx := vl.GetCurrentItem()
 	if idx >= 0 && idx < len(vl.vms) {
 		return vl.vms[idx]
 	}
+
 	return nil
 }
 
-// GetVMs returns the internal sorted VMs slice
+// GetVMs returns the internal sorted VMs slice.
 func (vl *VMList) GetVMs() []*api.VM {
 	return vl.vms
 }
 
-// SetVMSelectedFunc sets the function to be called when a VM is selected
+// SetVMSelectedFunc sets the function to be called when a VM is selected.
 func (vl *VMList) SetVMSelectedFunc(handler func(*api.VM)) {
 	vl.onSelect = handler
 
@@ -136,7 +139,7 @@ func (vl *VMList) SetVMSelectedFunc(handler func(*api.VM)) {
 	})
 }
 
-// SetVMChangedFunc sets the function to be called when selection changes
+// SetVMChangedFunc sets the function to be called when selection changes.
 func (vl *VMList) SetVMChangedFunc(handler func(*api.VM)) {
 	vl.onChanged = handler
 

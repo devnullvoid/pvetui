@@ -26,6 +26,7 @@ func getString(data map[string]interface{}, key string) string {
 			return str
 		}
 	}
+
 	return ""
 }
 
@@ -57,6 +58,7 @@ func getFloat(data map[string]interface{}, key string) float64 {
 			}
 		}
 	}
+
 	return 0
 }
 
@@ -87,6 +89,7 @@ func getBool(data map[string]interface{}, key string) bool {
 			return v == "1" || strings.EqualFold(v, "true")
 		}
 	}
+
 	return false
 }
 
@@ -115,6 +118,7 @@ func getInt(data map[string]interface{}, key string) int {
 			}
 		}
 	}
+
 	return 0
 }
 
@@ -163,6 +167,7 @@ func FormatBytes(bytes int64) string {
 	if size == float64(int64(size)) {
 		return fmt.Sprintf("%.1f %s", size, units[unitIndex])
 	}
+
 	return fmt.Sprintf("%.1f %s", size, units[unitIndex])
 }
 
@@ -204,12 +209,15 @@ func FormatUptime(seconds int64) string {
 	if days > 0 {
 		parts = append(parts, fmt.Sprintf("%dd", days))
 	}
+
 	if hours > 0 {
 		parts = append(parts, fmt.Sprintf("%dh", hours))
 	}
+
 	if minutes > 0 {
 		parts = append(parts, fmt.Sprintf("%dm", minutes))
 	}
+
 	if secs > 0 {
 		parts = append(parts, fmt.Sprintf("%ds", secs))
 	}
@@ -340,6 +348,7 @@ func SafeFloatValue(value interface{}) float64 {
 			return f
 		}
 	}
+
 	return 0.0
 }
 
@@ -379,5 +388,6 @@ func SafeBoolValue(value interface{}) bool {
 	case float64:
 		return v != 0.0
 	}
+
 	return false
 }

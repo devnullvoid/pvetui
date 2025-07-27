@@ -12,6 +12,7 @@ func WaitForReturnWithCountdown(seconds int) {
 		fmt.Printf("\rReturning to TUI in %d seconds... (Press Enter to return immediately)", i)
 		time.Sleep(1 * time.Second)
 	}
+
 	fmt.Print("\r" + fmt.Sprintf("%*s", 80, " ") + "\r") // Clear the line
 }
 
@@ -39,6 +40,7 @@ func WaitForEnterToReturn(err error, successMsg, failureMsg string) {
 	}
 
 	fmt.Print("\nPress Enter to return to the TUI...")
+
 	if _, err := fmt.Scanln(); err != nil {
 		// Ignore scan errors as they're not critical for this function
 		// The user might have pressed Ctrl+C or similar

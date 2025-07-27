@@ -9,7 +9,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// ShowGlobalContextMenu displays the global context menu for app-wide actions
+// ShowGlobalContextMenu displays the global context menu for app-wide actions.
 func (a *App) ShowGlobalContextMenu() {
 	// Store last focused primitive
 	a.lastFocus = a.GetFocus()
@@ -25,6 +25,7 @@ func (a *App) ShowGlobalContextMenu() {
 
 	menu := NewContextMenu(" Global Actions ", menuItems, func(index int, action string) {
 		a.CloseContextMenu()
+
 		switch action {
 		case "Connection Profiles":
 			a.showConnectionProfilesDialog()
@@ -51,11 +52,14 @@ func (a *App) ShowGlobalContextMenu() {
 	menuList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || (event.Key() == tcell.KeyRune && event.Rune() == 'h') {
 			a.CloseContextMenu()
+
 			return nil
 		}
+
 		if oldCapture != nil {
 			return oldCapture(event)
 		}
+
 		return event
 	})
 
@@ -72,7 +76,7 @@ func (a *App) ShowGlobalContextMenu() {
 	a.SetFocus(menuList)
 }
 
-// showConnectionProfilesDialog displays a dialog for managing connection profiles
+// showConnectionProfilesDialog displays a dialog for managing connection profiles.
 func (a *App) showConnectionProfilesDialog() {
 	// Get current profiles
 	profiles := a.config.Profiles
@@ -100,6 +104,7 @@ func (a *App) showConnectionProfilesDialog() {
 
 	// Add buttons for each profile
 	buttons := make([]string, len(profileNames))
+
 	for i, name := range profileNames {
 		if name == a.config.DefaultProfile {
 			buttons[i] = name + " (Default)"
@@ -107,10 +112,12 @@ func (a *App) showConnectionProfilesDialog() {
 			buttons[i] = name
 		}
 	}
+
 	modal.AddButtons(buttons)
 
 	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 		a.pages.RemovePage("connectionProfiles")
+
 		if buttonIndex >= 0 && buttonIndex < len(profileNames) {
 			profileName := profileNames[buttonIndex]
 			if profileName == "Add New Profile" {
@@ -124,18 +131,19 @@ func (a *App) showConnectionProfilesDialog() {
 	a.pages.AddPage("connectionProfiles", modal, false, true)
 }
 
-// showAddProfileDialog displays a dialog for adding a new connection profile
+// showAddProfileDialog displays a dialog for adding a new connection profile.
 func (a *App) showAddProfileDialog() {
 	// This would be a more complex form dialog
 	// For now, just show a message
 	a.showMessage("Add Profile functionality coming soon!")
 }
 
-// applyConnectionProfile applies the selected connection profile
+// applyConnectionProfile applies the selected connection profile.
 func (a *App) applyConnectionProfile(profileName string) {
 	err := a.config.ApplyProfile(profileName)
 	if err != nil {
 		a.showMessage("Failed to apply profile: " + err.Error())
+
 		return
 	}
 
@@ -147,6 +155,7 @@ func (a *App) applyConnectionProfile(profileName string) {
 	client, err := api.NewClient(&a.config, api.WithLogger(models.GetUILogger()))
 	if err != nil {
 		a.showMessage("Failed to create API client: " + err.Error())
+
 		return
 	}
 
@@ -165,7 +174,7 @@ func (a *App) applyConnectionProfile(profileName string) {
 	a.showMessage("Profile '" + profileName + "' applied successfully!")
 }
 
-// showAboutDialog displays information about the application
+// showAboutDialog displays information about the application.
 func (a *App) showAboutDialog() {
 	aboutText := `Proxmox TUI
 

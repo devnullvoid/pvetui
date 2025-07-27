@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// VNCProxyResponse represents the response from a VNC proxy request
+// VNCProxyResponse represents the response from a VNC proxy request.
 type VNCProxyResponse struct {
 	Ticket   string `json:"ticket"`
 	Port     string `json:"port"`
@@ -15,16 +15,18 @@ type VNCProxyResponse struct {
 	Password string `json:"password,omitempty"` // One-time password for WebSocket connections
 }
 
-// GetVNCProxy creates a VNC proxy for a VM and returns connection details
+// GetVNCProxy creates a VNC proxy for a VM and returns connection details.
 func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
 	c.logger.Info("Creating VNC proxy for VM: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
 	if vm.Type != VMTypeQemu && vm.Type != VMTypeLXC {
 		c.logger.Error("VNC proxy not supported for VM type: %s", vm.Type)
+
 		return nil, fmt.Errorf("VNC proxy only available for QEMU VMs and LXC containers")
 	}
 
 	var res map[string]interface{}
+
 	path := fmt.Sprintf("/nodes/%s/%s/%d/vncproxy", vm.Node, vm.Type, vm.ID)
 
 	c.logger.Debug("VNC proxy API path for VM %s: %s", vm.Name, path)
@@ -38,6 +40,7 @@ func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
 
 	if err := c.PostWithResponse(path, data, &res); err != nil {
 		c.logger.Error("Failed to create VNC proxy for VM %s: %v", vm.Name, err)
+
 		return nil, fmt.Errorf("failed to create VNC proxy: %w", err)
 	}
 
@@ -46,6 +49,7 @@ func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
 	responseData, ok := res["data"].(map[string]interface{})
 	if !ok {
 		c.logger.Error("Unexpected VNC proxy response format for VM %s", vm.Name)
+
 		return nil, fmt.Errorf("unexpected VNC proxy response format")
 	}
 
@@ -75,19 +79,22 @@ func (c *Client) GetVNCProxy(vm *VM) (*VNCProxyResponse, error) {
 	}
 
 	c.logger.Info("VNC proxy created successfully for VM %s - Port: %s", vm.Name, response.Port)
+
 	return response, nil
 }
 
-// GetVNCProxyWithWebSocket creates a VNC proxy for a VM with WebSocket support and one-time password
+// GetVNCProxyWithWebSocket creates a VNC proxy for a VM with WebSocket support and one-time password.
 func (c *Client) GetVNCProxyWithWebSocket(vm *VM) (*VNCProxyResponse, error) {
 	c.logger.Info("Creating VNC proxy with WebSocket for VM: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
 	if vm.Type != VMTypeQemu && vm.Type != VMTypeLXC {
 		c.logger.Error("VNC proxy with WebSocket not supported for VM type: %s", vm.Type)
+
 		return nil, fmt.Errorf("VNC proxy only available for QEMU VMs and LXC containers")
 	}
 
 	var res map[string]interface{}
+
 	path := fmt.Sprintf("/nodes/%s/%s/%d/vncproxy", vm.Node, vm.Type, vm.ID)
 
 	c.logger.Debug("VNC proxy WebSocket API path for VM %s: %s", vm.Name, path)
@@ -100,6 +107,7 @@ func (c *Client) GetVNCProxyWithWebSocket(vm *VM) (*VNCProxyResponse, error) {
 		data = map[string]interface{}{
 			"websocket": 1,
 		}
+
 		c.logger.Debug("Using LXC-compatible parameters for VM %s (no generate-password)", vm.Name)
 	} else {
 		// QEMU VMs support both websocket and generate-password
@@ -107,6 +115,7 @@ func (c *Client) GetVNCProxyWithWebSocket(vm *VM) (*VNCProxyResponse, error) {
 			"websocket":         1,
 			"generate-password": 1,
 		}
+
 		c.logger.Debug("Using QEMU parameters for VM %s (with generate-password)", vm.Name)
 	}
 
@@ -114,6 +123,7 @@ func (c *Client) GetVNCProxyWithWebSocket(vm *VM) (*VNCProxyResponse, error) {
 
 	if err := c.PostWithResponse(path, data, &res); err != nil {
 		c.logger.Error("Failed to create VNC proxy with WebSocket for VM %s: %v", vm.Name, err)
+
 		return nil, fmt.Errorf("failed to create VNC proxy with WebSocket: %w", err)
 	}
 
@@ -122,6 +132,7 @@ func (c *Client) GetVNCProxyWithWebSocket(vm *VM) (*VNCProxyResponse, error) {
 	responseData, ok := res["data"].(map[string]interface{})
 	if !ok {
 		c.logger.Error("Unexpected VNC proxy WebSocket response format for VM %s", vm.Name)
+
 		return nil, fmt.Errorf("unexpected VNC proxy response format")
 	}
 
@@ -162,18 +173,21 @@ func (c *Client) GetVNCProxyWithWebSocket(vm *VM) (*VNCProxyResponse, error) {
 
 	c.logger.Info("VNC proxy with WebSocket created successfully for VM %s - Port: %s, Has Password: %t",
 		vm.Name, response.Port, response.Password != "")
+
 	return response, nil
 }
 
-// GenerateVNCURL creates a noVNC console URL for the given VM
+// GenerateVNCURL creates a noVNC console URL for the given VM.
 func (c *Client) GenerateVNCURL(vm *VM) (string, error) {
 	c.logger.Info("Generating VNC URL for VM: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
 	// Get VNC proxy details
 	c.logger.Debug("Requesting VNC proxy for URL generation for VM %s", vm.Name)
+
 	proxy, err := c.GetVNCProxy(vm)
 	if err != nil {
 		c.logger.Error("Failed to get VNC proxy for URL generation for VM %s: %v", vm.Name, err)
+
 		return "", err
 	}
 
@@ -191,6 +205,7 @@ func (c *Client) GenerateVNCURL(vm *VM) (string, error) {
 	if vm.Type == VMTypeLXC {
 		consoleType = "lxc"
 	}
+
 	c.logger.Debug("Console type for VM %s: %s", vm.Name, consoleType)
 
 	// Build the noVNC console URL using the working format from the forum post

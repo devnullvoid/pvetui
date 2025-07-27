@@ -10,12 +10,12 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
-// BadgerCache implements the Cache interface using Badger DB
+// BadgerCache implements the Cache interface using Badger DB.
 type BadgerCache struct {
 	db *badger.DB
 }
 
-// NewBadgerCache creates a new Badger-based cache
+// NewBadgerCache creates a new Badger-based cache.
 func NewBadgerCache(dir string) (*BadgerCache, error) {
 	// Ensure the directory exists
 	if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -30,6 +30,7 @@ func NewBadgerCache(dir string) (*BadgerCache, error) {
 			getCacheLogger().Debug("Failed to check if lock file is stale: %v", err)
 		} else if isStale {
 			getCacheLogger().Debug("Removing stale lock file")
+
 			if err := os.Remove(lockFilePath); err != nil {
 				return nil, fmt.Errorf("failed to remove stale lock file: %w", err)
 			}
@@ -52,6 +53,7 @@ func NewBadgerCache(dir string) (*BadgerCache, error) {
 		if os.IsExist(err) || isErrorTemporarilyUnavailable(err) {
 			return nil, fmt.Errorf("failed to open badger database (likely another process is using it): %w", err)
 		}
+
 		return nil, fmt.Errorf("failed to open badger database: %w", err)
 	}
 
@@ -59,6 +61,7 @@ func NewBadgerCache(dir string) (*BadgerCache, error) {
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
+
 		for range ticker.C {
 			err := db.RunValueLogGC(0.5) // Run GC if 50% or more space can be reclaimed
 			if err != nil && err != badger.ErrNoRewrite {
@@ -72,15 +75,16 @@ func NewBadgerCache(dir string) (*BadgerCache, error) {
 	}, nil
 }
 
-// isLockFileStale checks if the lock file exists but no process is using it
+// isLockFileStale checks if the lock file exists but no process is using it.
 func isLockFileStale(lockFilePath string) (bool, error) {
 	// This is a simple implementation and might not be completely reliable
 	// A more robust solution would involve parsing the lock file contents
 	_, err := os.Stat(lockFilePath)
+
 	return err == nil, nil
 }
 
-// isErrorTemporarilyUnavailable checks if an error is due to a resource being temporarily unavailable
+// isErrorTemporarilyUnavailable checks if an error is due to a resource being temporarily unavailable.
 func isErrorTemporarilyUnavailable(err error) bool {
 	if err == nil {
 		return false
@@ -97,15 +101,18 @@ func isErrorTemporarilyUnavailable(err error) bool {
 	return err.Error() == "resource temporarily unavailable"
 }
 
-// Get retrieves data from the cache
+// Get retrieves data from the cache.
 func (c *BadgerCache) Get(key string, dest interface{}) (bool, error) {
 	var found bool
+
 	err := c.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
 		if err == badger.ErrKeyNotFound {
 			getCacheLogger().Debug("Cache miss for: %s", key)
+
 			return nil
 		}
+
 		if err != nil {
 			return fmt.Errorf("badger get operation: %w", err)
 		}
@@ -126,6 +133,7 @@ func (c *BadgerCache) Get(key string, dest interface{}) (bool, error) {
 
 			// Item is valid
 			found = true
+
 			getCacheLogger().Debug("Cache hit for: %s", key)
 
 			// Unmarshal the data into the destination
@@ -151,7 +159,7 @@ func (c *BadgerCache) Get(key string, dest interface{}) (bool, error) {
 	return found, err
 }
 
-// Set stores data in the cache
+// Set stores data in the cache.
 func (c *BadgerCache) Set(key string, data interface{}, ttl time.Duration) error {
 	// Create cache item
 	item := &CacheItem{
@@ -175,10 +183,11 @@ func (c *BadgerCache) Set(key string, data interface{}, ttl time.Duration) error
 	}
 
 	getCacheLogger().Debug("Cached item: %s with TTL %v", key, ttl)
+
 	return nil
 }
 
-// Delete removes an item from the cache
+// Delete removes an item from the cache.
 func (c *BadgerCache) Delete(key string) error {
 	err := c.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete([]byte(key))
@@ -186,18 +195,22 @@ func (c *BadgerCache) Delete(key string) error {
 	if err != nil {
 		return fmt.Errorf("badger delete operation: %w", err)
 	}
+
 	getCacheLogger().Debug("Deleted cache item: %s", key)
+
 	return nil
 }
 
-// Clear removes all items from the cache
+// Clear removes all items from the cache.
 func (c *BadgerCache) Clear() error {
 	getCacheLogger().Debug("Clearing all cache items")
+
 	return c.db.DropAll()
 }
 
-// Close closes the badger database
+// Close closes the badger database.
 func (c *BadgerCache) Close() error {
 	getCacheLogger().Debug("Closing Badger database")
+
 	return c.db.Close()
 }

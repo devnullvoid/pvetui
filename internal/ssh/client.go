@@ -61,6 +61,7 @@ func NewSSHClient(host, user, password string, opts ...Option) (*SSHClient, erro
 	for _, opt := range opts {
 		opt(client)
 	}
+
 	return client, nil
 }
 
@@ -74,6 +75,7 @@ func (c *SSHClient) Shell() error {
 	if c == nil {
 		return fmt.Errorf("ssh client is nil")
 	}
+
 	return ExecuteNodeShellWith(context.Background(), c.executor, c.User, c.Host)
 }
 
@@ -126,6 +128,7 @@ func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nod
 	if err != nil {
 		return fmt.Errorf("failed to execute SSH command: %w", err)
 	}
+
 	return nil
 }
 
@@ -199,6 +202,7 @@ func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM) error {
 // Returns an error if the connection fails.
 func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int, vm *api.VM) error {
 	var sshArgs []string
+
 	var sessionType string
 
 	// Check if this is a NixOS container
@@ -241,6 +245,7 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 	if err != nil {
 		return fmt.Errorf("failed to execute %s shell command: %w", sessionType, err)
 	}
+
 	return nil
 }
 
@@ -299,5 +304,6 @@ func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmI
 	if err != nil {
 		return fmt.Errorf("failed to connect to VM via SSH: %w", err)
 	}
+
 	return nil
 }

@@ -20,33 +20,41 @@ func keyMatch(ev *tcell.EventKey, spec string) bool {
 		if config.DebugEnabled {
 			models.GetUILogger().Debug("invalid key spec %s: %v", spec, err)
 		}
+
 		return false
 	}
+
 	evKey, evRune, evMod := keys.NormalizeEvent(ev)
 
 	if evMod != mod {
 		return false
 	}
+
 	if key == tcell.KeyRune {
 		match := evKey == tcell.KeyRune && r != 0 && strings.EqualFold(string(evRune), string(r))
+
 		return match
 	}
+
 	match := evKey == key
+
 	return match
 }
 
-// createNavigationInputCapture creates a common input capture handler for navigation between components
+// createNavigationInputCapture creates a common input capture handler for navigation between components.
 func createNavigationInputCapture(app *App, leftTarget, rightTarget tview.Primitive) func(*tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyLeft:
 			if app != nil && leftTarget != nil {
 				app.SetFocus(leftTarget)
+
 				return nil
 			}
 		case tcell.KeyRight:
 			if app != nil && rightTarget != nil {
 				app.SetFocus(rightTarget)
+
 				return nil
 			}
 		case tcell.KeyRune:
@@ -54,11 +62,13 @@ func createNavigationInputCapture(app *App, leftTarget, rightTarget tview.Primit
 			case 'h': // VI-like left navigation
 				if app != nil && leftTarget != nil {
 					app.SetFocus(leftTarget)
+
 					return nil
 				}
 			case 'l': // VI-like right navigation
 				if app != nil && rightTarget != nil {
 					app.SetFocus(rightTarget)
+
 					return nil
 				}
 			case 'j': // VI-like down navigation
@@ -69,11 +79,12 @@ func createNavigationInputCapture(app *App, leftTarget, rightTarget tview.Primit
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
 			}
 		}
+
 		return event
 	}
 }
 
-// setupKeyboardHandlers configures global keyboard shortcuts
+// setupKeyboardHandlers configures global keyboard shortcuts.
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if config.DebugEnabled {
@@ -125,6 +136,7 @@ func (a *App) setupKeyboardHandlers() {
 				a.pages.SwitchToPage(api.PageNodes)
 				a.SetFocus(a.nodeList)
 			}
+
 			return nil
 		}
 
@@ -141,28 +153,37 @@ func (a *App) setupKeyboardHandlers() {
 				a.pages.SwitchToPage(api.PageTasks)
 				a.SetFocus(a.tasksList)
 			}
+
 			return nil
 		}
 
 		if keyMatch(event, a.config.KeyBindings.NodesPage) {
 			a.pages.SwitchToPage(api.PageNodes)
 			a.SetFocus(a.nodeList)
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.GuestsPage) {
 			a.pages.SwitchToPage(api.PageGuests)
 			a.SetFocus(a.vmList)
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.TasksPage) {
 			a.pages.SwitchToPage(api.PageTasks)
 			a.SetFocus(a.tasksList)
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.Refresh) {
 			a.manualRefresh()
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.Quit) {
 			// Check if there are active VNC sessions
 			sessionCount := a.vncService.GetActiveSessionCount()
@@ -182,13 +203,17 @@ func (a *App) setupKeyboardHandlers() {
 				// No active sessions, quit immediately
 				a.Stop()
 			}
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.Search) {
 			// Activate search
 			a.activateSearch()
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.Shell) {
 			// Open shell session based on current page
 			currentPage, _ := a.pages.GetFrontPage()
@@ -199,8 +224,10 @@ func (a *App) setupKeyboardHandlers() {
 				// Handle VM shell session
 				a.openVMShell()
 			}
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.Menu) {
 			// Open context menu based on current page
 			currentPage, _ := a.pages.GetFrontPage()
@@ -209,13 +236,17 @@ func (a *App) setupKeyboardHandlers() {
 			} else if currentPage == api.PageGuests {
 				a.ShowVMContextMenu()
 			}
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.GlobalMenu) {
 			// Open global context menu
 			a.ShowGlobalContextMenu()
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.Scripts) {
 			// Open community scripts installer - only available for nodes
 			currentPage, _ := a.pages.GetFrontPage()
@@ -228,13 +259,17 @@ func (a *App) setupKeyboardHandlers() {
 				// Community scripts are not available for individual VMs
 				a.showMessage("Community scripts can only be installed on nodes. Switch to the Nodes tab to install scripts.")
 			}
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.AutoRefresh) {
 			// Toggle auto-refresh
 			a.toggleAutoRefresh()
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.VNC) {
 			// Open VNC connection based on current page
 			currentPage, _ := a.pages.GetFrontPage()
@@ -245,8 +280,10 @@ func (a *App) setupKeyboardHandlers() {
 				// Handle VM VNC console session
 				a.openVMVNC()
 			}
+
 			return nil
 		}
+
 		if keyMatch(event, a.config.KeyBindings.Help) {
 			// Toggle help modal
 			if a.pages.HasPage("help") {
@@ -254,8 +291,10 @@ func (a *App) setupKeyboardHandlers() {
 			} else {
 				a.helpModal.Show()
 			}
+
 			return nil
 		}
+
 		return event
 	})
 }

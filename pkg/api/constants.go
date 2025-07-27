@@ -1,59 +1,59 @@
 package api
 
-// VM Types
+// VM Types.
 const (
 	VMTypeQemu = "qemu"
 	VMTypeLXC  = "lxc"
 )
 
-// VM Status
+// VM Status.
 const (
 	VMStatusRunning = "running"
 	VMStatusStopped = "stopped"
 )
 
-// IP Types
+// IP Types.
 const (
 	IPTypeIPv4 = "ipv4"
 	IPTypeIPv6 = "ipv6"
 )
 
-// Common strings
+// Common strings.
 const (
 	StringTrue = "true"
 	StringNA   = "N/A"
 )
 
-// HTTP Methods
+// HTTP Methods.
 const (
 	HTTPMethodPOST   = "POST"
 	HTTPMethodPUT    = "PUT"
 	HTTPMethodDELETE = "DELETE"
 )
 
-// API Endpoints
+// API Endpoints.
 const (
 	EndpointAccessTicket = "/access/ticket"
 )
 
-// Network interface names
+// Network interface names.
 const (
 	LoopbackInterface = "lo"
 )
 
-// Node types
+// Node types.
 const (
 	NodeType = "node"
 )
 
-// UI Pages
+// UI Pages.
 const (
 	PageNodes  = "Nodes"
 	PageGuests = "Guests"
 	PageTasks  = "Tasks"
 )
 
-// Menu actions
+// Menu actions.
 const (
 	ActionRefresh   = "Refresh"
 	ActionOpenShell = "Open Shell"

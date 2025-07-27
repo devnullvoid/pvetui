@@ -14,7 +14,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/test/testutils"
 )
 
-// TestCacheIntegration_BadgerCache tests the Badger cache implementation
+// TestCacheIntegration_BadgerCache tests the Badger cache implementation.
 func TestCacheIntegration_BadgerCache(t *testing.T) {
 	itc := testutils.NewIntegrationTestConfig(t)
 
@@ -45,7 +45,7 @@ func TestCacheIntegration_BadgerCache(t *testing.T) {
 	})
 }
 
-// TestCacheIntegration_InMemoryCache tests the in-memory cache implementation
+// TestCacheIntegration_InMemoryCache tests the in-memory cache implementation.
 func TestCacheIntegration_InMemoryCache(t *testing.T) {
 	// Create in-memory cache
 	memCache := cache.NewMemoryCache()
@@ -76,6 +76,7 @@ func TestCacheIntegration_InMemoryCache(t *testing.T) {
 
 		// Create new in-memory cache instance
 		newMemCache := cache.NewMemoryCache()
+
 		var result string
 		found, err := newMemCache.Get(key, &result)
 		require.NoError(t, err)
@@ -83,7 +84,7 @@ func TestCacheIntegration_InMemoryCache(t *testing.T) {
 	})
 }
 
-// testBasicCacheOperations tests basic cache operations for any cache implementation
+// testBasicCacheOperations tests basic cache operations for any cache implementation.
 func testBasicCacheOperations(t *testing.T, c interfaces.Cache) {
 	t.Run("set_and_get_string", func(t *testing.T) {
 		key := "test-string"
@@ -200,7 +201,7 @@ func testBasicCacheOperations(t *testing.T, c interfaces.Cache) {
 	})
 }
 
-// testCacheTTLExpiration tests TTL expiration behavior
+// testCacheTTLExpiration tests TTL expiration behavior.
 func testCacheTTLExpiration(t *testing.T, c interfaces.Cache) {
 	t.Run("short_ttl_expiration", func(t *testing.T) {
 		key := "ttl-test"
@@ -247,7 +248,7 @@ func testCacheTTLExpiration(t *testing.T, c interfaces.Cache) {
 	})
 }
 
-// testCacheComplexDataTypes tests caching of complex data structures
+// testCacheComplexDataTypes tests caching of complex data structures.
 func testCacheComplexDataTypes(t *testing.T, c interfaces.Cache) {
 	t.Run("map_data", func(t *testing.T) {
 		key := "map-test"
@@ -317,10 +318,11 @@ func testCacheComplexDataTypes(t *testing.T, c interfaces.Cache) {
 	})
 }
 
-// testCacheConcurrentAccess tests concurrent cache operations
+// testCacheConcurrentAccess tests concurrent cache operations.
 func testCacheConcurrentAccess(t *testing.T, c interfaces.Cache) {
 	t.Run("concurrent_set_get", func(t *testing.T) {
 		const numGoroutines = 10
+
 		const numOperations = 20
 
 		results := make(chan error, numGoroutines*numOperations*2) // *2 for set and get
@@ -346,6 +348,7 @@ func testCacheConcurrentAccess(t *testing.T, c interfaces.Cache) {
 
 		// Collect results
 		var errors []error
+
 		for i := 0; i < numGoroutines*numOperations*2; i++ {
 			if err := <-results; err != nil {
 				errors = append(errors, err)
@@ -386,14 +389,16 @@ func testCacheConcurrentAccess(t *testing.T, c interfaces.Cache) {
 			err := <-results
 			if err != nil && strings.Contains(err.Error(), "Writes are blocked") {
 				t.Logf("Ignoring expected badger error: %v", err)
+
 				continue
 			}
+
 			assert.NoError(t, err)
 		}
 	})
 }
 
-// testCachePersistence tests cache persistence (only for persistent caches like Badger)
+// testCachePersistence tests cache persistence (only for persistent caches like Badger).
 func testCachePersistence(t *testing.T, cacheDir string) {
 	key := "persistence-test"
 	value := "persisted-value"
@@ -414,6 +419,7 @@ func testCachePersistence(t *testing.T, cacheDir string) {
 	cache2, err := cache.NewBadgerCache(cacheDir)
 	if err != nil {
 		t.Logf("Skipping persistence test: %v", err)
+
 		return
 	}
 	defer cache2.Close()
@@ -426,7 +432,7 @@ func testCachePersistence(t *testing.T, cacheDir string) {
 	assert.Equal(t, value, result)
 }
 
-// TestCacheIntegration_ErrorHandling tests error handling scenarios
+// TestCacheIntegration_ErrorHandling tests error handling scenarios.
 func TestCacheIntegration_ErrorHandling(t *testing.T) {
 	t.Run("invalid_cache_directory", func(t *testing.T) {
 		// Try to create cache in invalid directory
@@ -468,7 +474,7 @@ func TestCacheIntegration_ErrorHandling(t *testing.T) {
 	})
 }
 
-// TestCacheIntegration_Performance tests cache performance characteristics
+// TestCacheIntegration_Performance tests cache performance characteristics.
 func TestCacheIntegration_Performance(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping performance tests in short mode")
@@ -493,23 +499,28 @@ func TestCacheIntegration_Performance(t *testing.T) {
 
 			// Benchmark Set operations
 			start := time.Now()
+
 			for i := 0; i < numOperations; i++ {
 				key := fmt.Sprintf("perf-test-%d", i)
 				value := fmt.Sprintf("value-%d", i)
 				err := c.Set(key, value, time.Hour)
 				require.NoError(t, err)
 			}
+
 			setDuration := time.Since(start)
 
 			// Benchmark Get operations
 			start = time.Now()
+
 			for i := 0; i < numOperations; i++ {
 				key := fmt.Sprintf("perf-test-%d", i)
+
 				var result string
 				found, err := c.Get(key, &result)
 				require.NoError(t, err)
 				assert.True(t, found)
 			}
+
 			getDuration := time.Since(start)
 
 			t.Logf("%s cache - Set %d items: %v (%.2f ops/sec)",

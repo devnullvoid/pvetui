@@ -12,9 +12,10 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// ClusterStatus encapsulates the cluster status panel
+// ClusterStatus encapsulates the cluster status panel.
 type ClusterStatus struct {
 	*tview.Flex
+
 	SummaryTable  *tview.Table
 	ResourceTable *tview.Table
 	app           *App
@@ -22,7 +23,7 @@ type ClusterStatus struct {
 
 var _ ClusterStatusComponent = (*ClusterStatus)(nil)
 
-// NewClusterStatus creates a new cluster status panel
+// NewClusterStatus creates a new cluster status panel.
 func NewClusterStatus() *ClusterStatus {
 	// Create container panel
 	panel := tview.NewFlex()
@@ -76,12 +77,12 @@ func NewClusterStatus() *ClusterStatus {
 	}
 }
 
-// SetApp sets the application reference
+// SetApp sets the application reference.
 func (cs *ClusterStatus) SetApp(app *App) {
 	cs.app = app
 }
 
-// Update populates both tables with current cluster data
+// Update populates both tables with current cluster data.
 func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	if cluster == nil {
 		return
@@ -96,6 +97,7 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	if parts := strings.Split(ver, "/"); len(parts) > 1 {
 		ver = parts[1]
 	}
+
 	cs.SummaryTable.SetCell(1, 0, tview.NewTableCell("Proxmox VE").SetTextColor(theme.Colors.HeaderText))
 	cs.SummaryTable.SetCell(1, 1, tview.NewTableCell(ver).SetTextColor(theme.Colors.Primary))
 
@@ -103,7 +105,9 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 
 	// Show different indicators based on node status with proper colors
 	var nodeStatusText string
+
 	var nodeStatusColor tcell.Color
+
 	if cluster.OnlineNodes == cluster.TotalNodes {
 		// All nodes online
 		nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)
@@ -122,8 +126,11 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 
 	// Quorate status
 	cs.SummaryTable.SetCell(3, 0, tview.NewTableCell("Quorate").SetTextColor(theme.Colors.HeaderText))
+
 	var quorateText string
+
 	var quorateColor tcell.Color
+
 	if cluster.Quorate {
 		quorateText = "Yes 🟢"
 		quorateColor = theme.Colors.StatusRunning
@@ -131,6 +138,7 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 		quorateText = "No  🔴"
 		quorateColor = theme.Colors.StatusStopped
 	}
+
 	cs.SummaryTable.SetCell(3, 1, tview.NewTableCell(quorateText).SetTextColor(quorateColor))
 
 	// Update resource table (headers are already set in NewClusterStatus)

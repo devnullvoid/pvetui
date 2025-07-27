@@ -55,17 +55,17 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
-// ConfigAdapter adapts our internal config to the API interface
+// ConfigAdapter adapts our internal config to the API interface.
 type ConfigAdapter struct {
 	*config.Config
 }
 
-// NewConfigAdapter creates a new config adapter
+// NewConfigAdapter creates a new config adapter.
 func NewConfigAdapter(cfg *config.Config) interfaces.Config {
 	return &ConfigAdapter{Config: cfg}
 }
 
-// LoggerAdapter adapts our internal logging to the API interface
+// LoggerAdapter adapts our internal logging to the API interface.
 type LoggerAdapter struct {
 	logger *logger.Logger
 }
@@ -97,6 +97,7 @@ func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 				if err := file.Close(); err != nil {
 					// Log error but continue - this is acceptable in cleanup code
 				}
+
 				if err := os.Remove(testFile); err != nil {
 					// Log error but continue
 				}
@@ -116,12 +117,13 @@ func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 	}
 }
 
-// NewSimpleLoggerAdapter creates a logger adapter with simple stdout logging
+// NewSimpleLoggerAdapter creates a logger adapter with simple stdout logging.
 func NewSimpleLoggerAdapter(debugEnabled bool) interfaces.Logger {
 	level := logger.LevelInfo
 	if debugEnabled {
 		level = logger.LevelDebug
 	}
+
 	return &LoggerAdapter{
 		logger: logger.NewSimpleLogger(level),
 	}
@@ -139,17 +141,17 @@ func (l *LoggerAdapter) Error(format string, args ...interface{}) {
 	l.logger.Error(format, args...)
 }
 
-// GetInternalLogger returns the internal logger instance for VNC service compatibility
+// GetInternalLogger returns the internal logger instance for VNC service compatibility.
 func (l *LoggerAdapter) GetInternalLogger() *logger.Logger {
 	return l.logger
 }
 
-// CacheAdapter adapts our internal cache to the API interface
+// CacheAdapter adapts our internal cache to the API interface.
 type CacheAdapter struct {
 	cache cache.Cache
 }
 
-// NewCacheAdapter creates a new cache adapter
+// NewCacheAdapter creates a new cache adapter.
 func NewCacheAdapter() interfaces.Cache {
 	return &CacheAdapter{
 		cache: cache.GetGlobalCache(),
