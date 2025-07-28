@@ -1,10 +1,7 @@
 package components
 
 import (
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -74,104 +71,6 @@ func (a *App) ShowGlobalContextMenu() {
 			AddItem(nil, 0, 1, false), 30, 1, true).
 		AddItem(nil, 0, 1, false), true, true)
 	a.SetFocus(menuList)
-}
-
-// showConnectionProfilesDialog displays a dialog for managing connection profiles.
-func (a *App) showConnectionProfilesDialog() {
-	// Get current profiles
-	profiles := a.config.Profiles
-	if profiles == nil {
-		profiles = make(map[string]config.ProfileConfig)
-	}
-
-	// Create profile list
-	profileNames := make([]string, 0, len(profiles))
-	for name := range profiles {
-		profileNames = append(profileNames, name)
-	}
-
-	// Add "Add New Profile" option
-	profileNames = append(profileNames, "Add New Profile")
-
-	// Create dialog
-	modal := tview.NewModal()
-	modal.SetText("Select a connection profile:")
-	modal.SetBackgroundColor(theme.Colors.Background)
-	modal.SetTextColor(theme.Colors.Primary)
-	modal.SetBorderColor(theme.Colors.Border)
-	modal.SetTitle("Connection Profiles")
-	modal.SetTitleColor(theme.Colors.Title)
-
-	// Add buttons for each profile
-	buttons := make([]string, len(profileNames))
-
-	for i, name := range profileNames {
-		if name == a.config.DefaultProfile {
-			buttons[i] = name + " (Default)"
-		} else {
-			buttons[i] = name
-		}
-	}
-
-	modal.AddButtons(buttons)
-
-	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-		a.pages.RemovePage("connectionProfiles")
-
-		if buttonIndex >= 0 && buttonIndex < len(profileNames) {
-			profileName := profileNames[buttonIndex]
-			if profileName == "Add New Profile" {
-				a.showAddProfileDialog()
-			} else {
-				a.applyConnectionProfile(profileName)
-			}
-		}
-	})
-
-	a.pages.AddPage("connectionProfiles", modal, false, true)
-}
-
-// showAddProfileDialog displays a dialog for adding a new connection profile.
-func (a *App) showAddProfileDialog() {
-	// This would be a more complex form dialog
-	// For now, just show a message
-	a.showMessage("Add Profile functionality coming soon!")
-}
-
-// applyConnectionProfile applies the selected connection profile.
-func (a *App) applyConnectionProfile(profileName string) {
-	err := a.config.ApplyProfile(profileName)
-	if err != nil {
-		a.showMessage("Failed to apply profile: " + err.Error())
-
-		return
-	}
-
-	// Note: We don't save the config file when switching profiles in the UI
-	// The default_profile should only be changed via the config wizard
-	// This allows temporary profile switching without affecting the saved config
-
-	// Recreate the API client with the new profile
-	client, err := api.NewClient(&a.config, api.WithLogger(models.GetUILogger()))
-	if err != nil {
-		a.showMessage("Failed to create API client: " + err.Error())
-
-		return
-	}
-
-	// Update the app's client
-	a.client = client
-
-	// Update the VNC service's client to use the new profile
-	a.vncService.UpdateClient(client)
-
-	// Update the header to show the active profile
-	a.updateHeaderWithActiveProfile()
-
-	// Refresh the data
-	a.manualRefresh()
-
-	a.showMessage("Profile '" + profileName + "' applied successfully!")
 }
 
 // showAboutDialog displays information about the application.

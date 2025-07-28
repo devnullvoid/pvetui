@@ -7,7 +7,7 @@ version: "2"
 # Options for analysis running
 run:
   timeout: 5m
-  go: "1.21"
+  go: "1.24"
   modules-download-mode: readonly
 
   # Include test files or not

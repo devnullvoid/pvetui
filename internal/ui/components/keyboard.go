@@ -104,7 +104,9 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("migration") ||
 			a.pages.HasPage("help") ||
 			a.pages.HasPage("vmConfig") ||
-			a.pages.HasPage("resizeStorage")
+			a.pages.HasPage("resizeStorage") ||
+			a.pages.HasPage("profileWizard") ||
+			a.pages.HasPage("profileName")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {
