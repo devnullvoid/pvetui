@@ -17,7 +17,7 @@ import (
 func (a *App) showMessage(message string) {
 	modal := tview.NewModal().
 		SetText(message).
-		SetBackgroundColor(theme.Colors.Background).
+		// SetBackgroundColor(theme.Colors.Background).
 		SetTextColor(theme.Colors.Primary).
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {

@@ -44,8 +44,11 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			profileName = strings.TrimSpace(text)
 		})
 	} else {
-		// For editing, show the profile name as a label
-		form.AddInputField("Profile Name", cfg.DefaultProfile, 20, nil, nil).SetFieldTextColor(theme.Colors.Secondary)
+		// For editing, allow renaming the profile
+		profileName = cfg.DefaultProfile // Start with current name
+		form.AddInputField("Profile Name", cfg.DefaultProfile, 20, nil, func(text string) {
+			profileName = strings.TrimSpace(text)
+		})
 	}
 
 	form.AddInputField("Proxmox API URL", cfg.Addr, 40, nil, func(text string) { cfg.Addr = strings.TrimSpace(text) })
@@ -59,14 +62,14 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	form.AddInputField("SSH Username", cfg.SSHUser, 20, nil, func(text string) { cfg.SSHUser = strings.TrimSpace(text) })
 
 	form.AddButton("Save", func() {
-		// Validate profile name for new profiles
-		if isNewProfile {
-			if profileName == "" {
-				showWizardModal(pages, form, a.Application, "error", "Profile name cannot be empty.", nil)
-				return
-			}
+		// Validate profile name for all profiles
+		if profileName == "" {
+			showWizardModal(pages, form, a.Application, "error", "Profile name cannot be empty.", nil)
+			return
+		}
 
-			// Check if profile already exists
+		// Check if profile already exists (for new profiles or renamed profiles)
+		if isNewProfile || profileName != cfg.DefaultProfile {
 			if a.config.Profiles != nil && a.config.Profiles[profileName] != (config.ProfileConfig{}) {
 				showWizardModal(pages, form, a.Application, "error", "Profile '"+profileName+"' already exists.", nil)
 				return
@@ -118,9 +121,16 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			}
 			a.config.Profiles[profileName] = profileConfig
 		} else {
-			// Update existing profile
+			// Handle profile renaming
 			existingProfileName := cfg.DefaultProfile
-			a.config.Profiles[existingProfileName] = profileConfig
+			if profileName != existingProfileName {
+				// Profile is being renamed - remove old name and add new name
+				delete(a.config.Profiles, existingProfileName)
+				a.config.Profiles[profileName] = profileConfig
+			} else {
+				// Profile name unchanged - just update the config
+				a.config.Profiles[existingProfileName] = profileConfig
+			}
 		}
 
 		// Save the config first
@@ -139,22 +149,22 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 					return
 				}
 
-				showWizardModal(pages, form, a.Application, "info", "Profile saved and re-encrypted with SOPS!", func() {
-					if isNewProfile {
-						resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
-					} else {
-						resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: cfg.DefaultProfile}
-					}
-				})
+				// showWizardModal(pages, form, a.Application, "info", "Profile saved and re-encrypted with SOPS!", func() {
+				if isNewProfile {
+					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
+				} else {
+					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: cfg.DefaultProfile}
+				}
+				// })
 			}
 			onNo := func() {
-				showWizardModal(pages, form, a.Application, "info", "Profile saved (unencrypted).", func() {
-					if isNewProfile {
-						resultChan <- WizardResult{Saved: true, ProfileName: profileName}
-					} else {
-						resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
-					}
-				})
+				// showWizardModal(pages, form, a.Application, "info", "Profile saved (unencrypted).", func() {
+				if isNewProfile {
+					resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+				} else {
+					resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
+				}
+				// })
 			}
 			confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
 			pages.AddPage("modal", confirm, false, true)

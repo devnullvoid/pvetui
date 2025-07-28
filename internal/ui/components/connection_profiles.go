@@ -1,6 +1,8 @@
 package components
 
 import (
+	"fmt"
+
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
@@ -99,6 +101,22 @@ func (a *App) showConnectionProfilesDialog() {
 						return nil
 					}
 				}
+			case 'd', 'D':
+				// Delete the currently selected profile
+				index := menuList.GetCurrentItem()
+				if index >= 0 && index < len(profileNames) {
+					profileName := profileNames[index]
+					if profileName != addNewProfileText {
+						// Don't allow deletion if it's the only profile
+						if len(profiles) <= 1 {
+							a.showMessage("Cannot delete the only profile. At least one profile must remain.")
+							return nil
+						}
+						a.CloseConnectionProfilesMenu()
+						a.showDeleteProfileDialog(profileName)
+						return nil
+					}
+				}
 			}
 		}
 
@@ -114,7 +132,7 @@ func (a *App) showConnectionProfilesDialog() {
 
 	// Create a custom layout with help text at the bottom
 	helpText := tview.NewTextView()
-	helpText.SetText("e:edit a:add s:switch")
+	helpText.SetText("e:edit a:add s:switch d:delete")
 	helpText.SetTextAlign(tview.AlignCenter)
 	helpText.SetDynamicColors(true)
 	helpText.SetTextColor(theme.Colors.Secondary)
@@ -296,21 +314,73 @@ func (a *App) applyConnectionProfile(profileName string) {
 	client, err := api.NewClient(&a.config, api.WithLogger(models.GetUILogger()))
 	if err != nil {
 		a.showMessage("Failed to create API client: " + err.Error())
-
 		return
 	}
 
-	// Update the app's client
 	a.client = client
 
-	// Update the VNC service's client to use the new profile
-	a.vncService.UpdateClient(client)
+	// Update VNC service with new connection details
+	if a.vncService != nil {
+		a.vncService.UpdateClient(client)
+	}
 
-	// Update the header to show the active profile
-	a.updateHeaderWithActiveProfile()
-
-	// Refresh the data
+	// Refresh data with new connection
 	a.manualRefresh()
 
-	a.showMessage("Profile '" + profileName + "' applied successfully!")
+	// Show success message
+	a.showMessage("Switched to profile '" + profileName + "' successfully!")
+}
+
+// showDeleteProfileDialog displays a confirmation dialog for deleting a profile.
+func (a *App) showDeleteProfileDialog(profileName string) {
+	// Store last focused primitive
+	a.lastFocus = a.GetFocus()
+
+	// Create confirmation dialog
+	message := fmt.Sprintf("Are you sure you want to delete profile '%s'?\n\nThis action cannot be undone.", profileName)
+
+	onConfirm := func() {
+		// Delete the profile
+		if a.config.Profiles != nil {
+			delete(a.config.Profiles, profileName)
+
+			// If this was the default profile, set the first remaining profile as default
+			if a.config.DefaultProfile == profileName {
+				for name := range a.config.Profiles {
+					a.config.DefaultProfile = name
+					break
+				}
+			}
+
+			// Save the config
+			configPath, found := config.FindDefaultConfigPath()
+			if !found {
+				configPath = config.GetDefaultConfigPath()
+			}
+
+			if err := SaveConfigToFile(&a.config, configPath); err != nil {
+				a.showMessage("Failed to save config after deletion: " + err.Error())
+				return
+			}
+
+			// Show success message
+			a.showMessage("Profile '" + profileName + "' deleted successfully!")
+		}
+
+		// Restore focus
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
+
+	onCancel := func() {
+		// Restore focus
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
+
+	confirm := CreateConfirmDialog("Delete Profile", message, onConfirm, onCancel)
+	a.pages.AddPage("deleteProfile", confirm, false, true)
+	a.SetFocus(confirm)
 }
