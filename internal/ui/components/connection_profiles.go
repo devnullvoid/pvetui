@@ -201,9 +201,10 @@ func (a *App) showAddProfileDialog() {
 		a.pages.RemovePage("profileWizard")
 
 		if result.Saved {
-			// Show immediate feedback
-			a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
-			// Note: showMessage will handle its own focus, no need to restore focus here
+			// Show immediate feedback using QueueUpdateDraw
+			a.Application.QueueUpdateDraw(func() {
+				a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
+			})
 		} else if result.Canceled {
 			// Restore focus to the last focused element when canceled
 			if a.lastFocus != nil {
@@ -265,9 +266,10 @@ func (a *App) showEditProfileDialog(profileName string) {
 		a.pages.RemovePage("profileWizard")
 
 		if result.Saved {
-			// Show immediate feedback
-			a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
-			// Note: showMessage will handle its own focus, no need to restore focus here
+			// Show immediate feedback using QueueUpdateDraw
+			a.Application.QueueUpdateDraw(func() {
+				a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
+			})
 		} else if result.Canceled {
 			// Restore focus to the last focused element when canceled
 			if a.lastFocus != nil {
