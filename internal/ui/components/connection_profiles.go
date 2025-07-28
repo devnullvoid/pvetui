@@ -359,12 +359,16 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 			}
 
 			if err := SaveConfigToFile(&a.config, configPath); err != nil {
-				a.showMessage("Failed to save config after deletion: " + err.Error())
+				a.Application.QueueUpdateDraw(func() {
+					a.showMessage("Failed to save config after deletion: " + err.Error())
+				})
 				return
 			}
 
-			// Show success message
-			a.showMessage("Profile '" + profileName + "' deleted successfully!")
+			// Show success message with proper focus
+			a.Application.QueueUpdateDraw(func() {
+				a.showMessage("Profile '" + profileName + "' deleted successfully!")
+			})
 		}
 
 		// Restore focus
