@@ -1,8 +1,6 @@
 package components
 
 import (
-	"strings"
-
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
@@ -203,19 +201,9 @@ func (a *App) showAddProfileDialog() {
 		a.pages.RemovePage("profileWizard")
 
 		if result.Saved {
-			// Extract the profile config from the wizard
-			profileConfig := config.ProfileConfig{
-				Addr:        tempConfig.Addr,
-				User:        tempConfig.User,
-				Password:    tempConfig.Password,
-				TokenID:     tempConfig.TokenID,
-				TokenSecret: tempConfig.TokenSecret,
-				Realm:       tempConfig.Realm,
-				ApiPath:     tempConfig.ApiPath,
-				Insecure:    tempConfig.Insecure,
-				SSHUser:     tempConfig.SSHUser,
-			}
-			a.showProfileNameDialog(profileConfig, true)
+			// Show immediate feedback
+			a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
+			// Note: showMessage will handle its own focus, no need to restore focus here
 		} else if result.Canceled {
 			// Restore focus to the last focused element when canceled
 			if a.lastFocus != nil {
@@ -277,31 +265,9 @@ func (a *App) showEditProfileDialog(profileName string) {
 		a.pages.RemovePage("profileWizard")
 
 		if result.Saved {
-			// Update the profile in the config
-			updatedProfile := config.ProfileConfig{
-				Addr:        tempConfig.Addr,
-				User:        tempConfig.User,
-				Password:    tempConfig.Password,
-				TokenID:     tempConfig.TokenID,
-				TokenSecret: tempConfig.TokenSecret,
-				Realm:       tempConfig.Realm,
-				ApiPath:     tempConfig.ApiPath,
-				Insecure:    tempConfig.Insecure,
-				SSHUser:     tempConfig.SSHUser,
-			}
-			a.config.Profiles[profileName] = updatedProfile
-
-			// Save the config using the same approach as main.go
-			configPath, found := config.FindDefaultConfigPath()
-			if !found {
-				configPath = config.GetDefaultConfigPath()
-			}
-			if err := SaveConfigToFile(&a.config, configPath); err != nil {
-				a.showMessage("Failed to save profile: " + err.Error())
-				return
-			}
-
-			a.showMessage("Profile '" + profileName + "' updated successfully!")
+			// Show immediate feedback
+			a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
+			// Note: showMessage will handle its own focus, no need to restore focus here
 		} else if result.Canceled {
 			// Restore focus to the last focused element when canceled
 			if a.lastFocus != nil {
@@ -309,60 +275,6 @@ func (a *App) showEditProfileDialog(profileName string) {
 			}
 		}
 	}()
-}
-
-// showProfileNameDialog prompts the user for a profile name when creating a new profile.
-func (a *App) showProfileNameDialog(profileConfig config.ProfileConfig, isNew bool) {
-	// Create a simple form for the profile name
-	form := tview.NewForm()
-	form.SetBorder(true)
-	form.SetTitle("Profile Name")
-	form.SetTitleColor(theme.Colors.Title)
-	form.SetBorderColor(theme.Colors.Border)
-
-	var profileName string
-	form.AddInputField("Profile Name", "", 20, nil, func(text string) {
-		profileName = strings.TrimSpace(text)
-	})
-
-	form.AddButton("Save", func() {
-		if profileName == "" {
-			a.showMessage("Profile name cannot be empty!")
-			return
-		}
-
-		// Check if profile already exists
-		if isNew && a.config.Profiles[profileName] != (config.ProfileConfig{}) {
-			a.showMessage("Profile '" + profileName + "' already exists!")
-			return
-		}
-
-		// Add the new profile to the config
-		if a.config.Profiles == nil {
-			a.config.Profiles = make(map[string]config.ProfileConfig)
-		}
-		a.config.Profiles[profileName] = profileConfig
-
-		// Save the config using the same approach as main.go
-		configPath, found := config.FindDefaultConfigPath()
-		if !found {
-			configPath = config.GetDefaultConfigPath()
-		}
-		if err := SaveConfigToFile(&a.config, configPath); err != nil {
-			a.showMessage("Failed to save profile: " + err.Error())
-			return
-		}
-
-		a.pages.RemovePage("profileName")
-		a.showMessage("Profile '" + profileName + "' created successfully!")
-	})
-
-	form.AddButton("Cancel", func() {
-		a.pages.RemovePage("profileName")
-	})
-
-	a.pages.AddPage("profileName", form, false, true)
-	a.SetFocus(form)
 }
 
 // applyConnectionProfile applies the selected connection profile.

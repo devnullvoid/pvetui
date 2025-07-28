@@ -1,6 +1,9 @@
 package components
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
@@ -15,6 +18,36 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	pages := tview.NewPages()
 	pages.AddPage("form", form, true, true)
 
+	// Detect if original config was SOPS-encrypted
+	configPath, found := config.FindDefaultConfigPath()
+	if !found {
+		configPath = config.GetDefaultConfigPath()
+	}
+	wasSOPS := false
+	if configPath != "" {
+		if data, err := os.ReadFile(configPath); err == nil {
+			wasSOPS = isSOPSEncrypted(configPath, data)
+		}
+	}
+	// Check for .sops.yaml in config dir or parents
+	sopsRuleExists := false
+	if configPath != "" {
+		sopsRuleExists = findSOPSRule(filepath.Dir(configPath))
+	}
+
+	// Add profile name field at the top (only for new profiles)
+	var profileName string
+	isNewProfile := cfg.DefaultProfile == "new_profile"
+
+	if isNewProfile {
+		form.AddInputField("Profile Name", "", 20, nil, func(text string) {
+			profileName = strings.TrimSpace(text)
+		})
+	} else {
+		// For editing, show the profile name as a label
+		form.AddInputField("Profile Name", cfg.DefaultProfile, 20, nil, nil).SetFieldTextColor(theme.Colors.Secondary)
+	}
+
 	form.AddInputField("Proxmox API URL", cfg.Addr, 40, nil, func(text string) { cfg.Addr = strings.TrimSpace(text) })
 	form.AddInputField("Username", cfg.User, 20, nil, func(text string) { cfg.User = strings.TrimSpace(text) })
 	form.AddPasswordField("Password", cfg.Password, 20, '*', func(text string) { cfg.Password = text })
@@ -26,6 +59,20 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	form.AddInputField("SSH Username", cfg.SSHUser, 20, nil, func(text string) { cfg.SSHUser = strings.TrimSpace(text) })
 
 	form.AddButton("Save", func() {
+		// Validate profile name for new profiles
+		if isNewProfile {
+			if profileName == "" {
+				showWizardModal(pages, form, a.Application, "error", "Profile name cannot be empty.", nil)
+				return
+			}
+
+			// Check if profile already exists
+			if a.config.Profiles != nil && a.config.Profiles[profileName] != (config.ProfileConfig{}) {
+				showWizardModal(pages, form, a.Application, "error", "Profile '"+profileName+"' already exists.", nil)
+				return
+			}
+		}
+
 		hasPassword := cfg.Password != ""
 		hasToken := cfg.TokenID != "" && cfg.TokenSecret != ""
 
@@ -51,8 +98,76 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			return
 		}
 
-		// Send saved result without stopping the app
-		resultChan <- WizardResult{Saved: true}
+		// Create the profile config
+		profileConfig := config.ProfileConfig{
+			Addr:        cfg.Addr,
+			User:        cfg.User,
+			Password:    cfg.Password,
+			TokenID:     cfg.TokenID,
+			TokenSecret: cfg.TokenSecret,
+			Realm:       cfg.Realm,
+			ApiPath:     cfg.ApiPath,
+			Insecure:    cfg.Insecure,
+			SSHUser:     cfg.SSHUser,
+		}
+
+		if isNewProfile {
+			// Add the new profile to the config
+			if a.config.Profiles == nil {
+				a.config.Profiles = make(map[string]config.ProfileConfig)
+			}
+			a.config.Profiles[profileName] = profileConfig
+		} else {
+			// Update existing profile
+			existingProfileName := cfg.DefaultProfile
+			a.config.Profiles[existingProfileName] = profileConfig
+		}
+
+		// Save the config first
+		if err := SaveConfigToFile(&a.config, configPath); err != nil {
+			showWizardModal(pages, form, a.Application, "error", "Failed to save profile: "+err.Error(), nil)
+			return
+		}
+
+		// If SOPS re-encryption is possible, prompt user
+		if wasSOPS && sopsRuleExists {
+			onYes := func() {
+				cmd := exec.Command("sops", "-e", "-i", configPath)
+				err := cmd.Run()
+				if err != nil {
+					showWizardModal(pages, form, a.Application, "error", "SOPS re-encryption failed: "+err.Error(), nil)
+					return
+				}
+
+				showWizardModal(pages, form, a.Application, "info", "Profile saved and re-encrypted with SOPS!", func() {
+					if isNewProfile {
+						resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
+					} else {
+						resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: cfg.DefaultProfile}
+					}
+				})
+			}
+			onNo := func() {
+				showWizardModal(pages, form, a.Application, "info", "Profile saved (unencrypted).", func() {
+					if isNewProfile {
+						resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+					} else {
+						resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
+					}
+				})
+			}
+			confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
+			pages.AddPage("modal", confirm, false, true)
+			pages.SwitchToPage("modal")
+			return
+		}
+
+		// Send saved result
+		if isNewProfile {
+			resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+		} else {
+			resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
+		}
 	})
 
 	form.AddButton("Cancel", func() {

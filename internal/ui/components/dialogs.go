@@ -22,9 +22,14 @@ func (a *App) showMessage(message string) {
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("message")
+			// Restore focus to the last focused element
+			if a.lastFocus != nil {
+				a.SetFocus(a.lastFocus)
+			}
 		})
 
 	a.pages.AddPage("message", modal, false, true)
+	a.SetFocus(modal)
 }
 
 // showConfirmationDialog displays a confirmation dialog with Yes/No options.
@@ -44,6 +49,7 @@ func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 		})
 
 	a.pages.AddPage("confirmation", modal, false, true)
+	a.SetFocus(modal)
 }
 
 // openScriptSelector opens the script selector dialog.
