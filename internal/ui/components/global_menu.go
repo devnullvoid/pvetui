@@ -21,7 +21,10 @@ func (a *App) ShowGlobalContextMenu() {
 		"Quit",
 	}
 
-	menu := NewContextMenu(" Global Actions ", menuItems, func(index int, action string) {
+	// Define custom shortcuts for global menu
+	shortcuts := []rune{'p', 'r', 'a', '?', 'i', 'q'}
+
+	menu := NewContextMenuWithShortcuts(" Global Actions ", menuItems, shortcuts, func(index int, action string) {
 		a.CloseContextMenu()
 
 		switch action {
@@ -52,7 +55,6 @@ func (a *App) ShowGlobalContextMenu() {
 	menuList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || (event.Key() == tcell.KeyRune && event.Rune() == 'h') {
 			a.CloseContextMenu()
-
 			return nil
 		}
 

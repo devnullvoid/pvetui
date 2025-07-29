@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/devnullvoid/proxmox-tui/internal/logger"
 )
 
 //go:embed config.tpl.yml
@@ -97,7 +99,10 @@ func IsSOPSEncrypted(path string, data []byte) bool {
 	hasEnc := contains(content, "ENC[")
 
 	if DebugEnabled {
-		fmt.Printf("SOPS detection for %s: hasSops=%v, hasEnc=%v\n", path, hasSops, hasEnc)
+		// Use global logger for debug output to avoid UI corruption
+		if globalLogger := logger.GetGlobalLogger(); globalLogger != nil {
+			globalLogger.Debug("SOPS detection for %s: hasSops=%v, hasEnc=%v", path, hasSops, hasEnc)
+		}
 	}
 
 	return hasSops || hasEnc

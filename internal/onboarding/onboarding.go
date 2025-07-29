@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
 )
 
@@ -58,6 +59,7 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 			_ = cfg.MergeWithFile(path)
 			cfg.SetDefaults()
 			config.DebugEnabled = cfg.Debug
+			logger.SetDebugEnabled(cfg.Debug)
 			return nil // Signal to continue with main app
 		}
 	}

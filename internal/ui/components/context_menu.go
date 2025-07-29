@@ -12,6 +12,7 @@ type ContextMenu struct {
 	app       *App
 	onAction  func(index int, action string)
 	menuItems []string
+	shortcuts []rune
 	title     string
 }
 
@@ -19,6 +20,16 @@ type ContextMenu struct {
 func NewContextMenu(title string, actions []string, onAction func(index int, action string)) *ContextMenu {
 	return &ContextMenu{
 		menuItems: actions,
+		title:     title,
+		onAction:  onAction,
+	}
+}
+
+// NewContextMenuWithShortcuts creates a new context menu component with custom shortcuts.
+func NewContextMenuWithShortcuts(title string, actions []string, shortcuts []rune, onAction func(index int, action string)) *ContextMenu {
+	return &ContextMenu{
+		menuItems: actions,
+		shortcuts: shortcuts,
 		title:     title,
 		onAction:  onAction,
 	}
@@ -38,7 +49,13 @@ func (cm *ContextMenu) Show() *tview.List {
 	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
 
 	for i, action := range cm.menuItems {
-		list.AddItem(action, "", rune('1'+i), nil)
+		var shortcut rune
+		if i < len(cm.shortcuts) {
+			shortcut = cm.shortcuts[i]
+		} else {
+			shortcut = rune('1' + i)
+		}
+		list.AddItem(action, "", shortcut, nil)
 	}
 
 	list.SetHighlightFullLine(true)

@@ -141,7 +141,7 @@ func (c *Config) GetProfileNames() []string {
 
 // HasProfiles returns true if the configuration has any profiles defined.
 func (c *Config) HasProfiles() bool {
-	return c.Profiles != nil && len(c.Profiles) > 0
+	return c.Profiles != nil
 }
 
 // GetActiveProfile returns the name of the currently active profile.

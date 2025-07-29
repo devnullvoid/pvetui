@@ -12,6 +12,7 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/internal/app"
 	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/internal/onboarding"
 	"github.com/devnullvoid/proxmox-tui/internal/profile"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
@@ -98,6 +99,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	// Set defaults and validate
 	cfg.SetDefaults()
 	config.DebugEnabled = cfg.Debug
+	logger.SetDebugEnabled(cfg.Debug)
 
 	// Handle validation errors with onboarding
 	if err := cfg.Validate(); err != nil {
