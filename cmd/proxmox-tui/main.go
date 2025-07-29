@@ -12,19 +12,17 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/devnullvoid/proxmox-tui/internal/version"
 	"github.com/rivo/tview"
 )
 
-var (
-	version    = "dev"
-	buildDate  = "unknown"
-	commitHash = "unknown"
-)
-
 func printVersion() {
-	fmt.Printf("proxmox-tui version %s\n", version)
-	fmt.Printf("Build date: %s\n", buildDate)
-	fmt.Printf("Commit: %s\n", commitHash)
+	info := version.GetBuildInfo()
+	fmt.Printf("proxmox-tui version %s\n", info.Version)
+	fmt.Printf("Build date: %s\n", info.BuildDate)
+	fmt.Printf("Commit: %s\n", info.Commit)
+	fmt.Printf("Go version: %s\n", info.GoVersion)
+	fmt.Printf("OS/Arch: %s/%s\n", info.OS, info.Arch)
 }
 
 func resolveConfigPath(flagPath string) string {

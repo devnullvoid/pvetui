@@ -28,7 +28,11 @@ help: ## Show this help message
 # Go targets
 build: ## Build the application binary
 	@printf "$(GREEN)Building $(APP_NAME)...$(NC)\n"
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo -o ./bin/$(APP_NAME) ./cmd/proxmox-tui
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo \
+		-ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) \
+		-X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+		-X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+		-o ./bin/$(APP_NAME) ./cmd/proxmox-tui
 
 test: ## Run unit tests
 	@printf "$(GREEN)Running unit tests...$(NC)\n"
@@ -234,12 +238,12 @@ release-dry-run-no-github: ## Preview release changes without GitHub (usage: mak
 release-build: ## Build release binaries for multiple platforms
 	@printf "$(GREEN)Building release binaries...$(NC)\n"
 	@mkdir -p dist
-	GOOS=linux GOARCH=amd64 go build -o dist/$(APP_NAME)-linux-amd64 ./cmd/proxmox-tui
-	GOOS=linux GOARCH=arm64 go build -o dist/$(APP_NAME)-linux-arm64 ./cmd/proxmox-tui
-	GOOS=darwin GOARCH=amd64 go build -o dist/$(APP_NAME)-darwin-amd64 ./cmd/proxmox-tui
-	GOOS=darwin GOARCH=arm64 go build -o dist/$(APP_NAME)-darwin-arm64 ./cmd/proxmox-tui
-	GOOS=windows GOARCH=amd64 go build -o dist/$(APP_NAME)-windows-amd64.exe ./cmd/proxmox-tui
-	GOOS=windows GOARCH=arm64 go build -o dist/$(APP_NAME)-windows-arm64.exe ./cmd/proxmox-tui
+	GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-amd64 ./cmd/proxmox-tui
+	GOOS=linux GOARCH=arm64 go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-arm64 ./cmd/proxmox-tui
+	GOOS=darwin GOARCH=amd64 go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-darwin-amd64 ./cmd/proxmox-tui
+	GOOS=darwin GOARCH=arm64 go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-darwin-arm64 ./cmd/proxmox-tui
+	GOOS=windows GOARCH=amd64 go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-amd64.exe ./cmd/proxmox-tui
+	GOOS=windows GOARCH=arm64 go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-arm64.exe ./cmd/proxmox-tui
 
 # Utility targets
 version: ## Show version information

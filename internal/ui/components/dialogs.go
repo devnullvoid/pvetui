@@ -10,6 +10,7 @@ import (
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/devnullvoid/proxmox-tui/internal/version"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
@@ -410,4 +411,45 @@ type FormField struct {
 	Label        string
 	DefaultValue string
 	MaxLength    int
+}
+
+// CreateAboutDialog creates an about dialog with version information and links.
+func CreateAboutDialog(versionInfo *version.BuildInfo, onClose func()) *tview.Modal {
+	// Format build date for display
+	buildDateDisplay := versionInfo.BuildDate
+	if buildDateDisplay != "unknown" {
+		if parsed, err := time.Parse(time.RFC3339, buildDateDisplay); err == nil {
+			buildDateDisplay = parsed.Format("2006-01-02 15:04:05 UTC")
+		}
+	}
+
+	// Create about text with dynamic information
+	aboutText := fmt.Sprintf(`Proxmox TUI
+
+A terminal user interface for Proxmox VE
+
+Version: %s
+Build Date: %s
+Commit: %s
+Go Version: %s
+OS/Arch: %s/%s
+
+Copyright © %s %s
+Licensed under the %s
+
+GitHub: %s
+Releases: %s`,
+		versionInfo.Version,
+		buildDateDisplay,
+		versionInfo.Commit,
+		versionInfo.GoVersion,
+		versionInfo.OS,
+		versionInfo.Arch,
+		version.GetCopyrightYearRange(),
+		version.Author,
+		version.License,
+		version.GetGitHubURL(),
+		version.GetGitHubReleaseURL())
+
+	return createBaseModal("About", aboutText, theme.Colors.Primary, onClose)
 }

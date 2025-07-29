@@ -1,7 +1,7 @@
 package components
 
 import (
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/devnullvoid/proxmox-tui/internal/version"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -78,28 +78,11 @@ func (a *App) ShowGlobalContextMenu() {
 
 // showAboutDialog displays information about the application.
 func (a *App) showAboutDialog() {
-	aboutText := `Proxmox TUI
+	// Get version information
+	versionInfo := version.GetBuildInfo()
 
-A terminal user interface for Proxmox VE
-
-Features:
-• Node and VM management
-• VNC console access
-• SSH shell access
-• Community scripts
-• Connection profiles
-
-Version: 1.24.5`
-
-	modal := tview.NewModal()
-	modal.SetText(aboutText)
-	modal.SetBackgroundColor(theme.Colors.Background)
-	modal.SetTextColor(theme.Colors.Primary)
-	modal.SetBorderColor(theme.Colors.Border)
-	modal.SetTitle("About")
-	modal.SetTitleColor(theme.Colors.Title)
-	modal.AddButtons([]string{"OK"})
-	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+	// Create about dialog using the reusable function
+	modal := CreateAboutDialog(versionInfo, func() {
 		a.pages.RemovePage("about")
 	})
 
