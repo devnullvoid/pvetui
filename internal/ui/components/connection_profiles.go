@@ -30,10 +30,7 @@ func (a *App) showConnectionProfilesDialog() {
 		profileNames = append(profileNames, name)
 	}
 
-	// Add "Add New Profile" option
-	profileNames = append(profileNames, addNewProfileText)
-
-	// Create menu items with proper display names
+	// Add the "Add New Profile" option
 	menuItems := make([]string, len(profileNames))
 	for i, name := range profileNames {
 		if name == addNewProfileText {
@@ -47,6 +44,10 @@ func (a *App) showConnectionProfilesDialog() {
 			menuItems[i] = displayName
 		}
 	}
+
+	// Add the "Add New Profile" option
+	menuItems = append(menuItems, addNewProfileText)
+	profileNames = append(profileNames, addNewProfileText)
 
 	// Create the context menu
 	menu := NewContextMenu(" Connection Profiles ", menuItems, func(index int, action string) {
@@ -63,6 +64,9 @@ func (a *App) showConnectionProfilesDialog() {
 	menu.SetApp(a)
 
 	menuList := menu.Show()
+
+	// Remove the menu's own border since we'll create our own
+	menuList.SetBorder(false)
 
 	// Add input capture for additional actions
 	oldCapture := menuList.GetInputCapture()
@@ -82,22 +86,6 @@ func (a *App) showConnectionProfilesDialog() {
 					if profileName != addNewProfileText {
 						a.CloseConnectionProfilesMenu()
 						a.showEditProfileDialog(profileName)
-						return nil
-					}
-				}
-			case 'a', 'A':
-				// Add new profile
-				a.CloseConnectionProfilesMenu()
-				a.showAddProfileDialog()
-				return nil
-			case 's', 'S':
-				// Switch to the currently selected profile
-				index := menuList.GetCurrentItem()
-				if index >= 0 && index < len(profileNames) {
-					profileName := profileNames[index]
-					if profileName != addNewProfileText {
-						a.CloseConnectionProfilesMenu()
-						a.applyConnectionProfile(profileName)
 						return nil
 					}
 				}
@@ -130,24 +118,31 @@ func (a *App) showConnectionProfilesDialog() {
 	a.contextMenu = menuList
 	a.isMenuOpen = true
 
-	// Create a custom layout with help text at the bottom
+	// Create help text
 	helpText := tview.NewTextView()
-	helpText.SetText("e:edit a:add s:switch d:delete")
+	helpText.SetText("e:edit d:delete")
 	helpText.SetTextAlign(tview.AlignCenter)
 	helpText.SetDynamicColors(true)
 	helpText.SetTextColor(theme.Colors.Secondary)
 
 	// Create the layout with menu and help text
 	layout := tview.NewFlex().SetDirection(tview.FlexRow)
-	layout.AddItem(menuList, len(menuItems)+2, 1, true) // +2 for border
+	layout.AddItem(menuList, len(menuItems)+1, 1, true) // +1 for border
 	layout.AddItem(helpText, 1, 0, false)               // Help text at bottom
+
+	// Create a frame that acts as our bordered container
+	frame := tview.NewFrame(layout)
+	frame.SetBorder(true)
+	frame.SetTitle(" Connection Profiles ")
+	frame.SetTitleColor(theme.Colors.Primary)
+	frame.SetBorderColor(theme.Colors.Border)
 
 	// Use the same layout as the global context menu
 	a.pages.AddPage("contextMenu", tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(layout, len(menuItems)+3, 1, true). // +3 for border + help text
+			AddItem(frame, len(menuItems)+6, 1, true). // +6 for border + help text + extra space for full text
 			AddItem(nil, 0, 1, false), 30, 1, true).
 		AddItem(nil, 0, 1, false), true, true)
 	a.SetFocus(menuList)

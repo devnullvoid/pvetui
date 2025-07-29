@@ -18,6 +18,7 @@ func (a *App) ShowGlobalContextMenu() {
 		"Toggle Auto-Refresh",
 		"Help",
 		"About",
+		"Quit",
 	}
 
 	menu := NewContextMenu(" Global Actions ", menuItems, func(index int, action string) {
@@ -38,6 +39,8 @@ func (a *App) ShowGlobalContextMenu() {
 			}
 		case "About":
 			a.showAboutDialog()
+		case "Quit":
+			a.Application.Stop()
 		}
 	})
 	menu.SetApp(a)
