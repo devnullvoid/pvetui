@@ -106,7 +106,9 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("vmConfig") ||
 			a.pages.HasPage("resizeStorage") ||
 			a.pages.HasPage("profileWizard") ||
-			a.pages.HasPage("profileName")
+			a.pages.HasPage("profileName") ||
+			a.pages.HasPage("contextMenu") ||
+			a.pages.HasPage("about")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {
@@ -122,6 +124,17 @@ func (a *App) setupKeyboardHandlers() {
 		// If context menu is open, let it handle keys
 		if a.isMenuOpen && a.contextMenu != nil {
 			return event
+		}
+
+		// Smart Escape handling
+		if event.Key() == tcell.KeyEscape {
+			// If any modal is active, let it handle Escape (close modal)
+			if modalActive {
+				return event
+			}
+			// If no modal is active, open global menu
+			a.ShowGlobalContextMenu()
+			return nil
 		}
 
 		// Handle configured switch view shortcut

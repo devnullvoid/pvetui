@@ -134,7 +134,7 @@ func (a *App) showConnectionProfilesDialog() {
 	frame := tview.NewFrame(layout)
 	frame.SetBorder(true)
 	frame.SetTitle(" Connection Profiles ")
-	frame.SetTitleColor(theme.Colors.Primary)
+	// frame.SetTitleColor(theme.Colors.Title)
 	frame.SetBorderColor(theme.Colors.Border)
 
 	// Use the same layout as the global context menu
