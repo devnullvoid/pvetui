@@ -93,27 +93,49 @@ func TestIsDevBuild(t *testing.T) {
 	_ = isDev
 }
 
+func TestGitHubUserConstant(t *testing.T) {
+	if GitHubUser == "" {
+		t.Error("GitHubUser constant should not be empty")
+	}
+
+	if GitHubUser != "devnullvoid" {
+		t.Errorf("GitHubUser constant should be 'devnullvoid', got: %s", GitHubUser)
+	}
+}
+
+func TestProjectNameConstant(t *testing.T) {
+	if ProjectName == "" {
+		t.Error("ProjectName constant should not be empty")
+	}
+
+	if ProjectName != "proxmox-tui" {
+		t.Errorf("ProjectName constant should be 'proxmox-tui', got: %s", ProjectName)
+	}
+}
+
 func TestGetGitHubURL(t *testing.T) {
 	url := GetGitHubURL()
+	expectedURL := fmt.Sprintf("https://github.com/%s/%s", GitHubUser, ProjectName)
 
 	if url == "" {
 		t.Error("GetGitHubURL() should not return empty string")
 	}
 
-	if url != "https://github.com/devnullvoid/proxmox-tui" {
-		t.Errorf("GetGitHubURL() returned unexpected URL: %s", url)
+	if url != expectedURL {
+		t.Errorf("GetGitHubURL() returned unexpected URL: %s, expected: %s", url, expectedURL)
 	}
 }
 
 func TestGetGitHubReleaseURL(t *testing.T) {
 	url := GetGitHubReleaseURL()
+	expectedURL := fmt.Sprintf("https://github.com/%s/%s/releases", GitHubUser, ProjectName)
 
 	if url == "" {
 		t.Error("GetGitHubReleaseURL() should not return empty string")
 	}
 
-	if url != "https://github.com/devnullvoid/proxmox-tui/releases" {
-		t.Errorf("GetGitHubReleaseURL() returned unexpected URL: %s", url)
+	if url != expectedURL {
+		t.Errorf("GetGitHubReleaseURL() returned unexpected URL: %s, expected: %s", url, expectedURL)
 	}
 }
 
@@ -122,8 +144,8 @@ func TestAuthorConstant(t *testing.T) {
 		t.Error("Author constant should not be empty")
 	}
 
-	if Author != "devnullvoid" {
-		t.Errorf("Author constant should be 'devnullvoid', got: %s", Author)
+	if Author != "Jon Rogers" {
+		t.Errorf("Author constant should be 'Jon Rogers', got: %s", Author)
 	}
 }
 
@@ -137,20 +159,6 @@ func TestLicenseConstant(t *testing.T) {
 	}
 }
 
-func TestGetCopyrightYear(t *testing.T) {
-	year := GetCopyrightYear()
-	currentYear := time.Now().Year()
-
-	if year != currentYear {
-		t.Errorf("GetCopyrightYear() returned %d, expected %d", year, currentYear)
-	}
-
-	// Year should be reasonable (not in the past or too far in the future)
-	if year < 2020 || year > 2030 {
-		t.Errorf("GetCopyrightYear() returned unreasonable year: %d", year)
-	}
-}
-
 func TestGetCopyrightYearRange(t *testing.T) {
 	yearRange := GetCopyrightYearRange()
 	currentYear := time.Now().Year()
@@ -160,9 +168,9 @@ func TestGetCopyrightYearRange(t *testing.T) {
 		t.Errorf("GetCopyrightYearRange() should contain current year %d, got: %s", currentYear, yearRange)
 	}
 
-	// Should be in expected format (either "2024" or "2024-2025")
-	if !strings.Contains(yearRange, "2024") {
-		t.Errorf("GetCopyrightYearRange() should contain start year 2024, got: %s", yearRange)
+	// Should be in expected format (either "2025" or "2025-2026")
+	if !strings.Contains(yearRange, "2025") {
+		t.Errorf("GetCopyrightYearRange() should contain start year 2025, got: %s", yearRange)
 	}
 
 	// Should not be empty

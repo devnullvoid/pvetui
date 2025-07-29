@@ -63,28 +63,25 @@ func IsDevBuild() bool {
 
 // GetGitHubURL returns the GitHub repository URL
 func GetGitHubURL() string {
-	return "https://github.com/devnullvoid/proxmox-tui"
+	return fmt.Sprintf("https://github.com/%s/%s", GitHubUser, ProjectName)
 }
 
 // GetGitHubReleaseURL returns the GitHub releases URL
 func GetGitHubReleaseURL() string {
-	return "https://github.com/devnullvoid/proxmox-tui/releases"
+	return fmt.Sprintf("https://github.com/%s/%s/releases", GitHubUser, ProjectName)
 }
 
 // Project constants
 const (
-	Author  = "devnullvoid"
-	License = "MIT License"
+	Author      = "Jon Rogers"
+	License     = "MIT License"
+	GitHubUser  = "devnullvoid"
+	ProjectName = "proxmox-tui"
 )
 
-// GetCopyrightYear returns the current year for copyright
-func GetCopyrightYear() int {
-	return time.Now().Year()
-}
-
-// GetCopyrightYearRange returns a copyright year range (e.g., "2024-2025")
+// GetCopyrightYearRange returns a copyright year range (e.g., "2025-2026")
 func GetCopyrightYearRange() string {
-	startYear := 2024 // Project start year
+	startYear := 2025 // Project start year
 	currentYear := time.Now().Year()
 
 	if currentYear == startYear {
