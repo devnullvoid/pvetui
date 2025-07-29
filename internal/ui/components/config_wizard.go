@@ -98,41 +98,16 @@ func FilepathBase(path string) string {
 	return parts[len(parts)-1]
 }
 
-// isSOPSEncrypted checks if a config file appears to be SOPS encrypted (local copy of config.isSOPSEncrypted).
+// isSOPSEncrypted checks if a config file appears to be SOPS encrypted.
 func isSOPSEncrypted(path string, data []byte) bool {
-	if strings.HasSuffix(path, ".enc.yaml") || strings.HasSuffix(path, ".enc.yml") ||
-		strings.HasSuffix(path, ".sops.yaml") || strings.HasSuffix(path, ".sops.yml") {
-		return true
-	}
-
-	var m map[string]any
-	if err := yaml.Unmarshal(data, &m); err == nil {
-		if _, ok := m["sops"]; ok {
-			return true
-		}
-	}
-
-	return false
+	// Use the config package's SOPS detection logic
+	return config.IsSOPSEncrypted(path, data)
 }
 
 // findSOPSRule walks up parent directories to find a .sops.yaml, returns true if found.
 func findSOPSRule(startDir string) bool {
-	dir := startDir
-
-	for {
-		if _, err := os.Stat(filepath.Join(dir, ".sops.yaml")); err == nil {
-			return true
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-
-		dir = parent
-	}
-
-	return false
+	// Use the config package's SOPS rule detection logic
+	return config.FindSOPSRule(startDir)
 }
 
 // Add WizardResult struct.
@@ -287,4 +262,34 @@ func SaveConfigToFile(cfg *config.Config, path string) error {
 	}
 
 	return os.WriteFile(path, data, 0o600)
+}
+
+// LaunchConfigWizard launches the configuration wizard and returns the result.
+func LaunchConfigWizard(cfg *config.Config, configPath string, activeProfile string) WizardResult {
+	tviewApp := tview.NewApplication()
+	resultChan := make(chan WizardResult, 1)
+	wizard := NewConfigWizardPage(tviewApp, cfg, configPath, func(c *config.Config) error {
+		// Minimal fix: if editing a profile, update the profile map with the edited legacy fields
+		if activeProfile != "" && c.Profiles != nil {
+			c.Profiles[activeProfile] = config.ProfileConfig{
+				Addr:        c.Addr,
+				User:        c.User,
+				Password:    c.Password,
+				TokenID:     c.TokenID,
+				TokenSecret: c.TokenSecret,
+				Realm:       c.Realm,
+				ApiPath:     c.ApiPath,
+				Insecure:    c.Insecure,
+				SSHUser:     c.SSHUser,
+			}
+		}
+
+		return SaveConfigToFile(c, configPath)
+	}, func() {
+		tviewApp.Stop()
+	}, resultChan)
+	tviewApp.SetRoot(wizard, true)
+	_ = tviewApp.Run()
+
+	return <-resultChan
 }

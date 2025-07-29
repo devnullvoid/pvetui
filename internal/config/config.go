@@ -68,13 +68,10 @@
 package config
 
 import (
-	"embed"
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/keys"
@@ -82,27 +79,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed config.tpl.yml
-var templateFS embed.FS
-
 // DebugEnabled is a global flag to enable debug logging throughout the application.
 //
 // This variable is set during configuration parsing and used by various
 // components to determine whether to emit debug-level log messages.
 var DebugEnabled bool
-
-// ProfileConfig holds a single connection profile's settings.
-type ProfileConfig struct {
-	Addr        string `yaml:"addr"`
-	User        string `yaml:"user"`
-	Password    string `yaml:"password"`
-	TokenID     string `yaml:"token_id"`
-	TokenSecret string `yaml:"token_secret"`
-	Realm       string `yaml:"realm"`
-	ApiPath     string `yaml:"api_path"`
-	Insecure    bool   `yaml:"insecure"`
-	SSHUser     string `yaml:"ssh_user"`
-}
 
 // Config represents the complete application configuration, including multiple profiles.
 type Config struct {
@@ -123,59 +104,6 @@ type Config struct {
 	ApiPath     string `yaml:"api_path"`
 	Insecure    bool   `yaml:"insecure"`
 	SSHUser     string `yaml:"ssh_user"`
-}
-
-// ApplyProfile copies the selected profile's fields into the legacy fields for compatibility.
-func (c *Config) ApplyProfile(profileName string) error {
-	if c.Profiles == nil {
-		return errors.New("no profiles defined in config")
-	}
-
-	p, ok := c.Profiles[profileName]
-	if !ok {
-		return fmt.Errorf("profile '%s' not found", profileName)
-	}
-
-	c.Addr = p.Addr
-	c.User = p.User
-	c.Password = p.Password
-	c.TokenID = p.TokenID
-	c.TokenSecret = p.TokenSecret
-	c.Realm = p.Realm
-	c.ApiPath = p.ApiPath
-	c.Insecure = p.Insecure
-	c.SSHUser = p.SSHUser
-	c.DefaultProfile = profileName // Update the default profile field
-
-	return nil
-}
-
-// MigrateLegacyToProfiles migrates old single-profile configs to the new profiles structure.
-func (c *Config) MigrateLegacyToProfiles() bool {
-	if len(c.Profiles) > 0 {
-		return false // Already migrated
-	}
-
-	if c.Addr == "" && c.User == "" {
-		return false // Nothing to migrate
-	}
-
-	c.Profiles = map[string]ProfileConfig{
-		"default": {
-			Addr:        c.Addr,
-			User:        c.User,
-			Password:    c.Password,
-			TokenID:     c.TokenID,
-			TokenSecret: c.TokenSecret,
-			Realm:       c.Realm,
-			ApiPath:     c.ApiPath,
-			Insecure:    c.Insecure,
-			SSHUser:     c.SSHUser,
-		},
-	}
-	c.DefaultProfile = "default"
-
-	return true
 }
 
 // KeyBindings defines customizable key mappings for common actions.
@@ -283,141 +211,6 @@ func ValidateKeyBindings(kb KeyBindings) error {
 	return nil
 }
 
-// isSOPSEncrypted checks if a config file appears to be SOPS encrypted.
-func isSOPSEncrypted(path string, data []byte) bool {
-	if strings.HasSuffix(path, ".enc.yaml") || strings.HasSuffix(path, ".enc.yml") ||
-		strings.HasSuffix(path, ".sops.yaml") || strings.HasSuffix(path, ".sops.yml") {
-		if DebugEnabled {
-			log.Printf("Detected SOPS encryption via filename: %s", path)
-		}
-
-		return true
-	}
-
-	var m map[string]any
-	if err := yaml.Unmarshal(data, &m); err == nil {
-		if _, ok := m["sops"]; ok {
-			if DebugEnabled {
-				log.Printf("Detected SOPS encryption via metadata: %s", path)
-			}
-
-			return true
-		}
-	}
-
-	return false
-}
-
-// getXDGCacheDir returns the XDG-compliant cache directory for the application.
-//
-// This function follows the XDG Base Directory Specification for determining
-// the appropriate cache directory:
-//  1. Uses $XDG_CACHE_HOME/proxmox-tui if XDG_CACHE_HOME is set
-//  2. Falls back to $HOME/.cache/proxmox-tui if HOME is available
-//  3. Uses system temp directory as final fallback
-//
-// The returned directory may not exist yet - callers should create it as needed.
-//
-// Returns the absolute path to the cache directory.
-func getXDGCacheDir() string {
-	// Check XDG_CACHE_HOME first
-	if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
-		return filepath.Join(xdgCache, "proxmox-tui")
-	}
-
-	// Fallback to $HOME/.cache/proxmox-tui
-	if homeDir, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(homeDir, ".cache", "proxmox-tui")
-	}
-
-	// Final fallback to temp directory
-	return filepath.Join(os.TempDir(), "proxmox-tui-cache")
-}
-
-// getXDGConfigDir returns the XDG-compliant configuration directory for the application.
-//
-// This function follows the XDG Base Directory Specification for determining
-// the appropriate configuration directory:
-//  1. Uses $XDG_CONFIG_HOME/proxmox-tui if XDG_CONFIG_HOME is set
-//  2. Falls back to $HOME/.config/proxmox-tui if HOME is available
-//  3. Uses current directory as final fallback
-//
-// The returned directory may not exist yet - callers should create it as needed.
-//
-// Returns the absolute path to the configuration directory.
-func getXDGConfigDir() string {
-	// Check XDG_CONFIG_HOME first
-	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		return filepath.Join(xdgConfig, "proxmox-tui")
-	}
-
-	// Fallback to $HOME/.config/proxmox-tui
-	if homeDir, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(homeDir, ".config", "proxmox-tui")
-	}
-
-	// Final fallback to current directory
-	return "."
-}
-
-// GetDefaultConfigPath returns the full, absolute path for the default
-// configuration file (config.yml). This is the target location for the generated
-// config file on first run.
-//
-// It follows the XDG Base Directory Specification.
-func GetDefaultConfigPath() string {
-	return filepath.Join(getXDGConfigDir(), "config.yml")
-}
-
-// CreateDefaultConfigFile creates the XDG config directory and populates it with
-// the default config.tpl.yml template.
-func CreateDefaultConfigFile() (string, error) {
-	configDir := getXDGConfigDir()
-	if err := os.MkdirAll(configDir, 0o750); err != nil {
-		return "", fmt.Errorf("failed to create config directory %s: %w", configDir, err)
-	}
-
-	// Read the template file from embedded filesystem
-	templateData, err := templateFS.ReadFile("config.tpl.yml")
-	if err != nil {
-		return "", fmt.Errorf("failed to read embedded template: %w", err)
-	}
-
-	configPath := GetDefaultConfigPath()
-	if err := os.WriteFile(configPath, templateData, 0o600); err != nil {
-		return "", fmt.Errorf("failed to write config file to %s: %w", configPath, err)
-	}
-
-	return configPath, nil
-}
-
-// FindDefaultConfigPath searches for the default configuration file in the XDG
-// config directory, checking for "config.yml" and "config.yaml".
-//
-// It follows the XDG Base Directory Specification to locate the configuration
-// directory. If a configuration file is found, its path and `true` are returned.
-// Otherwise, an empty string and `false` are returned.
-//
-// Returns the path to the found configuration file and a boolean indicating
-// whether it was found.
-func FindDefaultConfigPath() (string, bool) {
-	configDir := getXDGConfigDir()
-
-	// Check for config.yml first
-	ymlPath := filepath.Join(configDir, "config.yml")
-	if _, err := os.Stat(ymlPath); err == nil {
-		return ymlPath, true
-	}
-
-	// Then check for config.yaml
-	yamlPath := filepath.Join(configDir, "config.yaml")
-	if _, err := os.Stat(yamlPath); err == nil {
-		return yamlPath, true
-	}
-
-	return "", false
-}
-
 // NewConfig creates a new Config instance populated with values from environment variables.
 //
 // This function reads all supported environment variables and creates a Config
@@ -498,7 +291,7 @@ func (c *Config) MergeWithFile(path string) error {
 		return err
 	}
 
-	if isSOPSEncrypted(path, data) {
+	if IsSOPSEncrypted(path, data) {
 		decrypted, derr := decrypt.File(path, "yaml")
 		if derr != nil {
 			return derr
