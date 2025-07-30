@@ -1,0 +1,67 @@
+package components
+
+import (
+	"fmt"
+
+	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+)
+
+// Run starts the application.
+func (a *App) Run() error {
+	uiLogger := models.GetUILogger()
+	uiLogger.Debug("Starting application")
+
+	a.startAutoRefresh()
+
+	defer func() {
+		a.stopAutoRefresh()
+		a.cancel()
+	}()
+
+	if err := a.Application.Run(); err != nil {
+		uiLogger.Error("Application run failed: %v", err)
+
+		return err
+	}
+
+	uiLogger.Debug("Application stopped normally")
+	// Clean up VNC sessions on exit
+	uiLogger.Debug("Cleaning up VNC sessions on application exit")
+
+	if closeErr := a.vncService.CloseAllSessions(); closeErr != nil {
+		uiLogger.Error("Failed to close VNC sessions on exit: %v", closeErr)
+	}
+
+	return nil
+}
+
+// updateHeaderWithActiveProfile updates the header to show the current active profile.
+func (a *App) updateHeaderWithActiveProfile() {
+	profileName := a.config.DefaultProfile
+
+	if profileName == "" {
+		a.header.ShowActiveProfile("")
+	} else {
+		a.header.ShowActiveProfile(profileName)
+	}
+}
+
+// showQuitConfirmation displays a confirmation dialog before quitting the app.
+func (a *App) showQuitConfirmation() {
+	sessionCount := a.vncService.GetActiveSessionCount()
+	if sessionCount > 0 {
+		var message string
+		if sessionCount == 1 {
+			message = "There is 1 active VNC session that will be disconnected.\n\nAre you sure you want to quit?"
+		} else {
+			message = fmt.Sprintf("There are %d active VNC sessions that will be disconnected.\n\nAre you sure you want to quit?", sessionCount)
+		}
+		a.showConfirmationDialog(message, func() {
+			a.Application.Stop()
+		})
+	} else {
+		a.showConfirmationDialog("Are you sure you want to quit?", func() {
+			a.Application.Stop()
+		})
+	}
+}
