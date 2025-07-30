@@ -1,6 +1,8 @@
 package components
 
 import (
+	"fmt"
+
 	"github.com/devnullvoid/proxmox-tui/internal/version"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -43,7 +45,26 @@ func (a *App) ShowGlobalContextMenu() {
 		case "About":
 			a.showAboutDialog()
 		case "Quit":
-			a.Application.Stop()
+			// Check if there are active VNC sessions
+			sessionCount := a.vncService.GetActiveSessionCount()
+			if sessionCount > 0 {
+				// Show confirmation dialog with session count
+				var message string
+				if sessionCount == 1 {
+					message = "There is 1 active VNC session that will be disconnected.\n\nAre you sure you want to quit?"
+				} else {
+					message = fmt.Sprintf("There are %d active VNC sessions that will be disconnected.\n\nAre you sure you want to quit?", sessionCount)
+				}
+
+				a.showConfirmationDialog(message, func() {
+					a.Application.Stop()
+				})
+			} else {
+				// No active sessions, show general quit confirmation
+				a.showConfirmationDialog("Are you sure you want to quit?", func() {
+					a.Application.Stop()
+				})
+			}
 		}
 	})
 	menu.SetApp(a)
