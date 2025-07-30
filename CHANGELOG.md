@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Connection Profile Management**: Added comprehensive profile management system for multiple Proxmox connections
+  - Profile switching, editing, and persistence with validation
+  - Automatic migration from legacy single-connection config
+- **Global Menu**: Added comprehensive global menu with intuitive letter-based shortcuts
+- **Quit Confirmation**: Added consistent quit confirmation dialog for both hotkey and menu with VNC session awareness
 - **Flexible Theming System**: Added comprehensive theming support with automatic terminal emulator adaptation
   - **Semantic Color Constants**: Centralized color management with semantic meaning across themes
   - **Terminal Theme Adaptation**: Automatic adaptation to popular terminal themes (Dracula, Nord, Solarized, etc.)
@@ -29,8 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports both password and token authentication, and SOPS/age-encrypted configs with opt-in re-encryption.
   - All onboarding and config editing flows now use consistent, user-friendly modals and prompts.
 
+### Changed
+- **Major Code Refactoring**: Comprehensive refactoring to improve code organization and maintainability
+  - Split large UI component files into focused, single-responsibility modules
+  - Improved separation of concerns across all UI components
+  - Enhanced maintainability and testability while preserving all functionality
+- **Logger Architecture Improvements**: Enhanced logging system with better error handling and circular import resolution
+- **Configuration Package Split**: Modularized configuration management with separate profile and file operation modules
+
 ### Fixed
-- Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
+- **SOPS Encryption Detection**: Fixed critical bug where SOPS encrypted config files were not being detected
+- **Theme Application**: Fixed theme configuration not being applied during bootstrap
+- **Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
 
 ## [0.9.0] - 2025-07-16
 
