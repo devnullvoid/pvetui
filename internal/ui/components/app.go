@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rivo/tview"
@@ -325,5 +326,25 @@ func (a *App) updateHeaderWithActiveProfile() {
 		a.header.ShowActiveProfile("")
 	} else {
 		a.header.ShowActiveProfile(profileName)
+	}
+}
+
+// showQuitConfirmation displays a confirmation dialog before quitting the app.
+func (a *App) showQuitConfirmation() {
+	sessionCount := a.vncService.GetActiveSessionCount()
+	if sessionCount > 0 {
+		var message string
+		if sessionCount == 1 {
+			message = "There is 1 active VNC session that will be disconnected.\n\nAre you sure you want to quit?"
+		} else {
+			message = fmt.Sprintf("There are %d active VNC sessions that will be disconnected.\n\nAre you sure you want to quit?", sessionCount)
+		}
+		a.showConfirmationDialog(message, func() {
+			a.Application.Stop()
+		})
+	} else {
+		a.showConfirmationDialog("Are you sure you want to quit?", func() {
+			a.Application.Stop()
+		})
 	}
 }
