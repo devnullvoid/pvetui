@@ -45,8 +45,6 @@
 package adapters
 
 import (
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/cache"
@@ -72,9 +70,8 @@ type LoggerAdapter struct {
 
 // NewLoggerAdapter creates a new logger adapter with the given configuration.
 //
-// This function attempts to create a file-based logger using the provided cache
-// directory. If the cache directory is invalid or inaccessible, it falls back
-// to a simple stdout logger to avoid creating log files in unexpected locations.
+// NewLoggerAdapter creates a logger adapter using the global logger system.
+// This ensures consistent logging behavior across the application.
 //
 // Parameters:
 //   - cfg: Configuration containing debug settings and cache directory
@@ -87,31 +84,23 @@ func NewLoggerAdapter(cfg *config.Config) interfaces.Logger {
 		level = logger.LevelDebug
 	}
 
-	// Validate cache directory before attempting to use it
-	if cfg.CacheDir != "" {
-		// Test if we can create the directory and write to it
-		if err := os.MkdirAll(cfg.CacheDir, 0o750); err == nil {
-			// Test write access by creating a temporary file
-			testFile := filepath.Join(cfg.CacheDir, ".write_test")
-			if file, err := os.Create(testFile); err == nil {
-				if err := file.Close(); err != nil {
-					// Log error but continue - this is acceptable in cleanup code
-				}
-
-				if err := os.Remove(testFile); err != nil {
-					// Log error but continue
-				}
-
-				// Cache directory is valid, use file-based logging
-				internalLogger, err := logger.NewInternalLogger(level, cfg.CacheDir)
-				if err == nil {
-					return &LoggerAdapter{logger: internalLogger}
-				}
-			}
+	// Initialize global logger with validation
+	if err := logger.InitGlobalLoggerWithValidation(level, cfg.CacheDir); err != nil {
+		// If initialization fails, create a simple logger as fallback
+		return &LoggerAdapter{
+			logger: logger.NewSimpleLogger(level),
 		}
 	}
 
-	// Fallback to simple logger if cache directory is invalid or inaccessible
+	// Get the global logger instance
+	globalLogger := logger.GetGlobalLogger()
+
+	// Convert to concrete logger for the adapter
+	if concreteLogger, ok := globalLogger.(*logger.Logger); ok {
+		return &LoggerAdapter{logger: concreteLogger}
+	}
+
+	// Fallback to simple logger if global logger is not the expected type
 	return &LoggerAdapter{
 		logger: logger.NewSimpleLogger(level),
 	}

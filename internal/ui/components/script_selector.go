@@ -72,6 +72,10 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	return s
 }
 
+// =============================================================================
+// LAYOUT AND INITIALIZATION
+// =============================================================================
+
 // createLayout creates the main layout for the script selector.
 func (s *ScriptSelector) createLayout() {
 	// Create the category list
@@ -189,115 +193,125 @@ func (s *ScriptSelector) createLayout() {
 	s.Pages.AddPage("script-selector", s.layout, true, true)
 }
 
-// startLoadingAnimation starts the loading animation.
-func (s *ScriptSelector) startLoadingAnimation() {
-	if s.animationTicker != nil {
-		return // Already running
+// =============================================================================
+// SCRIPT FETCHING AND MANAGEMENT
+// =============================================================================
+
+// formatScriptInfo formats the script information for display.
+func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
+	var sb strings.Builder
+
+	labelColor := theme.ColorToTag(theme.Colors.Warning)
+	sb.WriteString(fmt.Sprintf("[%s]Name:[-] %s\n\n", labelColor, script.Name))
+	sb.WriteString(fmt.Sprintf("[%s]Description:[-] %s\n\n", labelColor, script.Description))
+
+	if script.Type == scriptTypeCT {
+		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Container Template\n", labelColor))
+	} else if script.Type == scriptTypeVM {
+		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Virtual Machine\n", labelColor))
+	} else {
+		sb.WriteString(fmt.Sprintf("[%s]Type:[-] %s\n", labelColor, script.Type))
 	}
 
-	spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	spinnerIndex := 0
-
-	s.animationTicker = time.NewTicker(100 * time.Millisecond)
-
-	go func() {
-		defer func() {
-			if s.animationTicker != nil {
-				s.animationTicker.Stop()
-			}
-		}()
-
-		for range s.animationTicker.C {
-			if !s.isLoading {
-				return
-			}
-
-			spinner := spinners[spinnerIndex%len(spinners)]
-			spinnerIndex++
-
-			// Use a non-blocking update to prevent deadlocks
-			go s.app.QueueUpdateDraw(func() {
-				if s.loadingText != nil && s.isLoading {
-					spinnerColor := theme.ColorToTag(theme.Colors.Warning)
-					whiteColor := theme.ColorToTag(theme.Colors.Primary)
-					grayColor := theme.ColorToTag(theme.Colors.Secondary)
-					s.loadingText.SetText(fmt.Sprintf("[%s]Loading Scripts...[%s]\n\n%s Fetching scripts from GitHub\n\nThis may take a moment\n\n[%s]Press Backspace or Escape to cancel[%s]", spinnerColor, whiteColor, spinner, grayColor, whiteColor))
-				}
-			})
-		}
-	}()
-}
-
-// stopLoadingAnimation stops the loading animation.
-func (s *ScriptSelector) stopLoadingAnimation() {
-	if s.animationTicker != nil {
-		s.animationTicker.Stop()
-		s.animationTicker = nil
+	if script.ScriptPath != "" {
+		sb.WriteString(fmt.Sprintf("[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath))
 	}
+
+	if script.Website != "" {
+		sb.WriteString(fmt.Sprintf("[%s]Website:[-] %s\n", labelColor, script.Website))
+	}
+
+	if script.Documentation != "" {
+		sb.WriteString(fmt.Sprintf("[%s]Documentation:[-] %s\n", labelColor, script.Documentation))
+	}
+
+	if script.DateCreated != "" {
+		sb.WriteString(fmt.Sprintf("[%s]Date Created:[-] %s\n", labelColor, script.DateCreated))
+	}
+
+	sb.WriteString(fmt.Sprintf("\n[%s]Target Node:[-] %s\n", labelColor, s.node.Name))
+
+	if s.vm != nil {
+		sb.WriteString(fmt.Sprintf("[%s]Context:[-] VM %s\n", labelColor, s.vm.Name))
+	}
+
+	sb.WriteString(fmt.Sprintf("\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor))
+
+	if script.Type == scriptTypeCT {
+		sb.WriteString(" This will create a new LXC container.")
+	} else if script.Type == scriptTypeVM {
+		sb.WriteString(" This will create a new virtual machine.")
+	}
+
+	return sb.String()
 }
 
-// createLoadingPage creates a loading indicator page.
-func (s *ScriptSelector) createLoadingPage() *tview.Flex {
-	// Create animated loading text
-	s.loadingText = tview.NewTextView()
-	s.loadingText.SetDynamicColors(true)
-	s.loadingText.SetTextAlign(tview.AlignCenter)
+// installScript installs the selected script.
+func (s *ScriptSelector) installScript(script scripts.Script) {
+	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
+	s.app.Suspend(func() {
+		// Install the script interactively
+		fmt.Printf("Installing %s...\n", script.Name)
 
-	spinnerColor := theme.ColorToTag(theme.Colors.Warning)
-	whiteColor := theme.ColorToTag(theme.Colors.Primary)
-	grayColor := theme.ColorToTag(theme.Colors.Secondary)
-	// In createLoadingPage and loading animation, use spinner only if defined
-	loadingMsg := fmt.Sprintf("[%s]Loading Scripts...[%s]\n\n⏳ Fetching scripts from GitHub\n\nThis may take a moment\n\n[%s]Press Backspace or Escape to cancel[%s]", spinnerColor, whiteColor, grayColor, whiteColor)
-	s.loadingText.SetText(loadingMsg)
-
-	// Set up input capture to allow canceling the loading
-	s.loadingText.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 || event.Key() == tcell.KeyEscape {
-			// Cancel loading and go back to categories
-			s.stopLoadingAnimation()
-			s.isLoading = false
-			s.app.header.StopLoading()
-			s.pages.SwitchToPage("categories")
-			s.app.SetFocus(s.categoryList)
-
-			return nil
-		} else if event.Key() == tcell.KeyRune {
-			// Handle VI-like navigation
-			switch event.Rune() {
-			case 'h': // VI-like left navigation - go back to categories
-				s.stopLoadingAnimation()
-				s.isLoading = false
-				s.app.header.StopLoading()
-				s.pages.SwitchToPage("categories")
-				s.app.SetFocus(s.categoryList)
-
-				return nil
-			}
+		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
+		if err != nil {
+			fmt.Printf("\nScript installation failed: %v\n", err)
 		}
-
-		return event
+		// No waiting inside suspend block - let it complete naturally like working shell functions
 	})
 
-	// Create the loading page layout
-	return tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(nil, 0, 1, false).           // Top padding
-		AddItem(s.loadingText, 8, 0, false). // Loading message (increased height)
-		AddItem(nil, 0, 1, false)            // Bottom padding
+	// Fix for tview suspend/resume issue - sync the application after suspend
+	s.app.Sync()
+	// Don't do any UI operations immediately after suspend/resume - let it fully restore first
 }
 
-// createResponsiveLayout creates a layout that adapts to terminal size.
-func (s *ScriptSelector) createResponsiveLayout() *tview.Flex {
-	// Create a responsive layout using proportional sizing with better ratios
-	return tview.NewFlex().
-		SetDirection(tview.FlexColumn).
-		AddItem(nil, 0, 1, false). // Left padding (flexible)
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).    // Top padding (flexible, smaller)
-			AddItem(s.pages, 0, 8, true). // Main content (takes most space)
-			AddItem(nil, 0, 1, false),    // Bottom padding (flexible, smaller)
-						0, 6, true). // Main column (wider than before)
-		AddItem(nil, 0, 1, false) // Right padding (flexible)
+// onSearchChanged is called when the search input changes.
+func (s *ScriptSelector) onSearchChanged(text string) {
+	// If search is empty, show all scripts
+	if text == "" {
+		s.filteredScripts = s.scripts
+	} else {
+		// Filter scripts based on search text
+		s.filteredScripts = []scripts.Script{}
+		searchLower := strings.ToLower(text)
+
+		for _, script := range s.scripts {
+			// Search in name, description, and type
+			if strings.Contains(strings.ToLower(script.Name), searchLower) ||
+				strings.Contains(strings.ToLower(script.Description), searchLower) ||
+				strings.Contains(strings.ToLower(script.Type), searchLower) {
+				s.filteredScripts = append(s.filteredScripts, script)
+			}
+		}
+	}
+
+	// Update the script list
+	s.scriptList.Clear()
+
+	for _, script := range s.filteredScripts {
+		// Add more detailed information in the secondary text
+		var secondaryText string
+		if script.Type == scriptTypeCT {
+			secondaryText = fmt.Sprintf("Container: %s", script.Description)
+		} else if script.Type == scriptTypeVM {
+			secondaryText = fmt.Sprintf("VM: %s", script.Description)
+		} else {
+			secondaryText = script.Description
+		}
+
+		// Truncate description if too long
+		if len(secondaryText) > 100 {
+			secondaryText = secondaryText[:99] + "..."
+		}
+
+		// Add item without selection function - we handle Enter manually
+		s.scriptList.AddItem(script.Name, secondaryText, 0, nil) // Remove shortcut label
+	}
+
+	// If we're in search mode and there are results, reset selection to first item
+	if s.searchActive && len(s.filteredScripts) > 0 {
+		s.scriptList.SetCurrentItem(0)
+	}
 }
 
 // fetchScriptsForCategory fetches scripts for the selected category.
@@ -474,6 +488,10 @@ func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
 	}
 }
 
+// =============================================================================
+// UI DISPLAY FUNCTIONS
+// =============================================================================
+
 // showScriptInfo displays the script information in a page (not modal).
 func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 	// Create a text view for the script information
@@ -548,75 +566,16 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 	s.app.SetFocus(textView)
 }
 
-// formatScriptInfo formats the script information for display.
-func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
-	var sb strings.Builder
-
-	labelColor := theme.ColorToTag(theme.Colors.Warning)
-	sb.WriteString(fmt.Sprintf("[%s]Name:[-] %s\n\n", labelColor, script.Name))
-	sb.WriteString(fmt.Sprintf("[%s]Description:[-] %s\n\n", labelColor, script.Description))
-
-	if script.Type == scriptTypeCT {
-		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Container Template\n", labelColor))
-	} else if script.Type == scriptTypeVM {
-		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Virtual Machine\n", labelColor))
-	} else {
-		sb.WriteString(fmt.Sprintf("[%s]Type:[-] %s\n", labelColor, script.Type))
-	}
-
-	if script.ScriptPath != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath))
-	}
-
-	if script.Website != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Website:[-] %s\n", labelColor, script.Website))
-	}
-
-	if script.Documentation != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Documentation:[-] %s\n", labelColor, script.Documentation))
-	}
-
-	if script.DateCreated != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Date Created:[-] %s\n", labelColor, script.DateCreated))
-	}
-
-	sb.WriteString(fmt.Sprintf("\n[%s]Target Node:[-] %s\n", labelColor, s.node.Name))
-
-	if s.vm != nil {
-		sb.WriteString(fmt.Sprintf("[%s]Context:[-] VM %s\n", labelColor, s.vm.Name))
-	}
-
-	sb.WriteString(fmt.Sprintf("\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor))
-
-	if script.Type == scriptTypeCT {
-		sb.WriteString(" This will create a new LXC container.")
-	} else if script.Type == scriptTypeVM {
-		sb.WriteString(" This will create a new virtual machine.")
-	}
-
-	return sb.String()
-}
-
-// installScript installs the selected script.
-func (s *ScriptSelector) installScript(script scripts.Script) {
-	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
-	s.app.Suspend(func() {
-		// Install the script interactively
-		fmt.Printf("Installing %s...\n", script.Name)
-
-		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
-		if err != nil {
-			fmt.Printf("\nScript installation failed: %v\n", err)
-		}
-		// No waiting inside suspend block - let it complete naturally like working shell functions
-	})
-
-	// Fix for tview suspend/resume issue - sync the application after suspend
-	s.app.Sync()
-	// Don't do any UI operations immediately after suspend/resume - let it fully restore first
-}
+// =============================================================================
+// INSTALLATION AND ACTIONS
+// =============================================================================
 
 // Hide closes the script selector page.
+// =============================================================================
+// PUBLIC INTERFACE
+// =============================================================================
+
+// Hide hides the script selector.
 func (s *ScriptSelector) Hide() {
 	// Stop loading animation and indicator if running
 	s.stopLoadingAnimation()
@@ -704,53 +663,4 @@ func (s *ScriptSelector) Show() {
 		// Let arrow keys pass through for navigation
 		return event
 	})
-}
-
-// onSearchChanged is called when the search input changes.
-func (s *ScriptSelector) onSearchChanged(text string) {
-	// If search is empty, show all scripts
-	if text == "" {
-		s.filteredScripts = s.scripts
-	} else {
-		// Filter scripts based on search text
-		s.filteredScripts = []scripts.Script{}
-		searchLower := strings.ToLower(text)
-
-		for _, script := range s.scripts {
-			// Search in name, description, and type
-			if strings.Contains(strings.ToLower(script.Name), searchLower) ||
-				strings.Contains(strings.ToLower(script.Description), searchLower) ||
-				strings.Contains(strings.ToLower(script.Type), searchLower) {
-				s.filteredScripts = append(s.filteredScripts, script)
-			}
-		}
-	}
-
-	// Update the script list
-	s.scriptList.Clear()
-
-	for _, script := range s.filteredScripts {
-		// Add more detailed information in the secondary text
-		var secondaryText string
-		if script.Type == scriptTypeCT {
-			secondaryText = fmt.Sprintf("Container: %s", script.Description)
-		} else if script.Type == scriptTypeVM {
-			secondaryText = fmt.Sprintf("VM: %s", script.Description)
-		} else {
-			secondaryText = script.Description
-		}
-
-		// Truncate description if too long
-		if len(secondaryText) > 100 {
-			secondaryText = secondaryText[:99] + "..."
-		}
-
-		// Add item without selection function - we handle Enter manually
-		s.scriptList.AddItem(script.Name, secondaryText, 0, nil) // Remove shortcut label
-	}
-
-	// If we're in search mode and there are results, reset selection to first item
-	if s.searchActive && len(s.filteredScripts) > 0 {
-		s.scriptList.SetCurrentItem(0)
-	}
 }

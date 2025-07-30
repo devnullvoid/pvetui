@@ -243,6 +243,7 @@ func InitGlobalLogger(level Level, cacheDir string) error {
 	globalLoggerOnce.Do(func() {
 		globalCacheDir = cacheDir
 
+		// Try to create internal logger with file output
 		globalLogger, err = NewInternalLogger(level, cacheDir)
 		if err != nil {
 			// Fallback to simple logger if file logging fails
@@ -251,6 +252,36 @@ func InitGlobalLogger(level Level, cacheDir string) error {
 	})
 
 	return err
+}
+
+// InitGlobalLoggerWithValidation initializes the global logger with cache directory validation
+// This is a convenience function that validates the cache directory before initializing.
+func InitGlobalLoggerWithValidation(level Level, cacheDir string) error {
+	// Validate cache directory if provided
+	if cacheDir != "" {
+		if err := os.MkdirAll(cacheDir, 0o750); err != nil {
+			// If we can't create the directory, fall back to simple logger
+			globalLoggerOnce.Do(func() {
+				globalLogger = NewSimpleLogger(level)
+			})
+			return fmt.Errorf("failed to create cache directory: %w", err)
+		}
+
+		// Test write access by creating a temporary file
+		testFile := filepath.Join(cacheDir, ".write_test")
+		if file, err := os.Create(testFile); err == nil {
+			file.Close()
+			os.Remove(testFile) // Clean up test file
+		} else {
+			// If we can't write to the directory, fall back to simple logger
+			globalLoggerOnce.Do(func() {
+				globalLogger = NewSimpleLogger(level)
+			})
+			return fmt.Errorf("cache directory not writable: %w", err)
+		}
+	}
+
+	return InitGlobalLogger(level, cacheDir)
 }
 
 // GetGlobalLogger returns the global logger instance

@@ -7,7 +7,6 @@ import (
 
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
@@ -68,13 +67,8 @@ func GetUILogger() interfaces.Logger {
 	if uiLogger != nil {
 		return uiLogger
 	}
-	// Fallback to simple logger if not set
-	level := logger.LevelInfo
-	if config.DebugEnabled {
-		level = logger.LevelDebug
-	}
-
-	return logger.NewSimpleLogger(level)
+	// Fallback to global logger if not set
+	return logger.GetGlobalLogger()
 }
 
 // GetSearchState returns the search state for a given component.

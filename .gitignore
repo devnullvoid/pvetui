@@ -35,3 +35,5 @@ Thumbs.db
 /docs/*.png
 /docs/*.svg
 /docs/*.webm
+
+REFACTORING_PROGRESS.md
