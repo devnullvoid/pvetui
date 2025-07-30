@@ -2,7 +2,6 @@ package components
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -220,7 +219,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// Disk IO summary
-	vd.SetCell(row, 0, tview.NewTableCell("🗄️ Disk IO").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell("️↔️ Disk IO").SetTextColor(theme.Colors.HeaderText))
 
 	if vm.DiskRead > 0 || vm.DiskWrite > 0 {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("Read: %s, Write: %s", utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(theme.Colors.Primary))
@@ -514,136 +513,4 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 1, tview.NewTableCell(autoStartText).SetTextColor(autoStartColor))
 
 	vd.ScrollToBeginning()
-}
-
-// getFriendlyFilesystemName returns a user-friendly name for a filesystem.
-func getFriendlyFilesystemName(fs api.Filesystem) string {
-	// Try to extract a meaningful name from the mount point
-	if fs.Mountpoint != "" {
-		// Remove leading slash and common prefixes
-		name := strings.TrimPrefix(fs.Mountpoint, "/")
-		name = strings.TrimPrefix(name, "mnt/")
-		name = strings.TrimPrefix(name, "media/")
-
-		// If we have a reasonable name, use it
-		if name != "" && name != "mnt" && name != "media" {
-			return name
-		}
-	}
-
-	// Fall back to the filesystem type
-	if fs.Type != "" {
-		return fs.Type
-	}
-
-	// Last resort
-	return "Unknown"
-}
-
-// sanitizeDescription cleans up VM description text for display.
-func sanitizeDescription(desc string) string {
-	// Remove common HTML-like tags and excessive whitespace
-	desc = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(desc, "")
-	desc = regexp.MustCompile(`\s+`).ReplaceAllString(desc, " ")
-	desc = strings.TrimSpace(desc)
-
-	// Limit length to avoid cluttering the display
-	if len(desc) > 100 {
-		desc = desc[:97] + "..."
-	}
-
-	return desc
-}
-
-// mergeNetworkInterfaces combines configured networks with guest agent interfaces
-// Returns enhanced network information with both config and runtime data.
-type EnhancedNetworkInterface struct {
-	// From configuration
-	Interface    string
-	Model        string
-	MACAddr      string
-	Bridge       string
-	VLAN         string
-	Rate         string
-	ConfiguredIP string
-	Gateway      string
-	Firewall     bool
-
-	// From guest agent
-	RuntimeName   string
-	RuntimeIPs    []string
-	IsUp          bool
-	HasGuestAgent bool
-	IsGuestOnly   bool // True if this interface is only visible via guest agent
-}
-
-func mergeNetworkInterfaces(configuredNets []api.ConfiguredNetwork, guestInterfaces []api.NetworkInterface) []EnhancedNetworkInterface {
-	var enhanced []EnhancedNetworkInterface
-
-	// Create a map of guest interfaces by MAC for quick lookup
-	guestByMAC := make(map[string]api.NetworkInterface)
-
-	for _, iface := range guestInterfaces {
-		if iface.MACAddress != "" {
-			guestByMAC[strings.ToUpper(iface.MACAddress)] = iface
-		}
-	}
-
-	// Process configured networks first (these are authoritative)
-	for _, configured := range configuredNets {
-		enhancedNet := EnhancedNetworkInterface{
-			Interface:    configured.Interface,
-			Model:        configured.Model,
-			MACAddr:      configured.MACAddr,
-			Bridge:       configured.Bridge,
-			VLAN:         configured.VLAN,
-			Rate:         configured.Rate,
-			ConfiguredIP: configured.IP,
-			Gateway:      configured.Gateway,
-			Firewall:     configured.Firewall,
-		}
-
-		// Try to find matching guest interface by MAC
-		if configured.MACAddr != "" {
-			if guest, found := guestByMAC[strings.ToUpper(configured.MACAddr)]; found {
-				enhancedNet.RuntimeName = guest.Name
-				// Convert IPAddress slice to string slice
-				for _, ip := range guest.IPAddresses {
-					enhancedNet.RuntimeIPs = append(enhancedNet.RuntimeIPs, ip.Address)
-				}
-				// Determine if interface is up based on having IP addresses
-				enhancedNet.IsUp = len(guest.IPAddresses) > 0
-				enhancedNet.HasGuestAgent = true
-				// Remove from map so we don't show it again
-				delete(guestByMAC, strings.ToUpper(configured.MACAddr))
-			}
-		}
-
-		enhanced = append(enhanced, enhancedNet)
-	}
-
-	// Add any remaining guest interfaces that didn't match configured ones
-	for _, guest := range guestByMAC {
-		if guest.IsLoopback {
-			continue // Skip loopback interfaces
-		}
-
-		enhancedNet := EnhancedNetworkInterface{
-			RuntimeName:   guest.Name,
-			MACAddr:       guest.MACAddress,
-			HasGuestAgent: true,
-			IsGuestOnly:   true, // Flag to indicate this is guest-agent only
-		}
-
-		// Convert IPAddress slice to string slice
-		for _, ip := range guest.IPAddresses {
-			enhancedNet.RuntimeIPs = append(enhancedNet.RuntimeIPs, ip.Address)
-		}
-
-		enhancedNet.IsUp = len(guest.IPAddresses) > 0
-
-		enhanced = append(enhanced, enhancedNet)
-	}
-
-	return enhanced
 }
