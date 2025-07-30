@@ -8,6 +8,19 @@ import (
 	"github.com/rivo/tview"
 )
 
+// VM menu action constants
+const (
+	vmActionOpenShell  = "Open Shell"
+	vmActionOpenVNC    = "Open VNC Console"
+	vmActionEditConfig = "Edit Configuration"
+	vmActionRefresh    = "Refresh"
+	vmActionStart      = "Start"
+	vmActionShutdown   = "Shutdown"
+	vmActionRestart    = "Restart"
+	vmActionMigrate    = "Migrate"
+	vmActionDelete     = "Delete"
+)
+
 // ShowVMContextMenu displays the context menu for VM actions.
 func (a *App) ShowVMContextMenu() {
 	vm := a.vmList.GetSelectedVM()
@@ -20,33 +33,36 @@ func (a *App) ShowVMContextMenu() {
 
 	// Create menu items based on VM state
 	menuItems := []string{
-		"Open Shell",
-		"Edit Configuration",
-		"Refresh",
+		vmActionOpenShell,
+		vmActionEditConfig,
+		vmActionRefresh,
 	}
 
 	if (vm.Type == api.VMTypeQemu || vm.Type == api.VMTypeLXC) && vm.Status == api.VMStatusRunning {
-		menuItems = append(menuItems[:1], append([]string{"Open VNC Console"}, menuItems[1:]...)...)
+		menuItems = append(menuItems[:1], append([]string{vmActionOpenVNC}, menuItems[1:]...)...)
 	}
 
 	if vm.Status == api.VMStatusRunning {
-		menuItems = append(menuItems, "Shutdown", "Restart")
+		menuItems = append(menuItems, vmActionShutdown, vmActionRestart)
 	} else if vm.Status == api.VMStatusStopped {
-		menuItems = append(menuItems, "Start")
+		menuItems = append(menuItems, vmActionStart)
 	}
 
-	menuItems = append(menuItems, "Migrate")
-	menuItems = append(menuItems, "Delete")
+	menuItems = append(menuItems, vmActionMigrate)
+	menuItems = append(menuItems, vmActionDelete)
 
-	menu := NewContextMenu(" Guest Actions ", menuItems, func(index int, action string) {
+	// Generate letter shortcuts based on menu items
+	shortcuts := generateVMShortcuts(menuItems)
+
+	menu := NewContextMenuWithShortcuts(" Guest Actions ", menuItems, shortcuts, func(index int, action string) {
 		a.CloseContextMenu()
 
 		switch action {
-		case "Open Shell":
+		case vmActionOpenShell:
 			a.openVMShell()
-		case "Open VNC Console":
+		case vmActionOpenVNC:
 			a.openVMVNC()
-		case "Edit Configuration":
+		case vmActionEditConfig:
 			go func() {
 				cfg, err := a.client.GetVMConfig(vm)
 				a.QueueUpdateDraw(func() {
@@ -63,32 +79,32 @@ func (a *App) ShowVMContextMenu() {
 					a.SetFocus(page)
 				})
 			}()
-		case "Refresh":
+		case vmActionRefresh:
 			a.refreshVMData(vm)
-		case "Start":
+		case vmActionStart:
 			a.showConfirmationDialog(
 				fmt.Sprintf("Are you sure you want to start VM '%s' (ID: %d)?", vm.Name, vm.ID),
 				func() {
 					a.performVMOperation(vm, a.client.StartVM, "Starting")
 				},
 			)
-		case "Shutdown":
+		case vmActionShutdown:
 			a.showConfirmationDialog(
 				fmt.Sprintf("Are you sure you want to shutdown VM '%s' (ID: %d)?", vm.Name, vm.ID),
 				func() {
 					a.performVMOperation(vm, a.client.StopVM, "Shutting down")
 				},
 			)
-		case "Restart":
+		case vmActionRestart:
 			a.showConfirmationDialog(
 				fmt.Sprintf("Are you sure you want to restart VM '%s' (ID: %d)?", vm.Name, vm.ID),
 				func() {
 					a.performVMOperation(vm, a.client.RestartVM, "Restarting")
 				},
 			)
-		case "Migrate":
+		case vmActionMigrate:
 			a.showMigrationDialog(vm)
-		case "Delete":
+		case vmActionDelete:
 			if vm.Status == api.VMStatusRunning {
 				a.showDeleteRunningVMDialog(vm)
 			} else {
@@ -132,4 +148,38 @@ func (a *App) ShowVMContextMenu() {
 			AddItem(nil, 0, 1, false), 30, 1, true).
 		AddItem(nil, 0, 1, false), true, true)
 	a.SetFocus(menuList)
+}
+
+// generateVMShortcuts generates letter shortcuts for VM menu items.
+func generateVMShortcuts(menuItems []string) []rune {
+	shortcuts := make([]rune, len(menuItems))
+
+	// Define shortcuts based on menu item names
+	for i, item := range menuItems {
+		switch item {
+		case vmActionOpenShell:
+			shortcuts[i] = 's'
+		case vmActionOpenVNC:
+			shortcuts[i] = 'v'
+		case vmActionEditConfig:
+			shortcuts[i] = 'e'
+		case vmActionRefresh:
+			shortcuts[i] = 'r'
+		case vmActionStart:
+			shortcuts[i] = 't'
+		case vmActionShutdown:
+			shortcuts[i] = 'd'
+		case vmActionRestart:
+			shortcuts[i] = 'a'
+		case vmActionMigrate:
+			shortcuts[i] = 'm'
+		case vmActionDelete:
+			shortcuts[i] = 'x'
+		default:
+			// Fallback to number if no specific shortcut defined
+			shortcuts[i] = rune('1' + i)
+		}
+	}
+
+	return shortcuts
 }

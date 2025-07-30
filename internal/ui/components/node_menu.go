@@ -5,6 +5,14 @@ import (
 	"github.com/rivo/tview"
 )
 
+// Node menu action constants
+const (
+	nodeActionOpenShell = "Open Shell"
+	nodeActionOpenVNC   = "Open VNC Console"
+	nodeActionInstall   = "Install Community Script"
+	nodeActionRefresh   = "Refresh"
+)
+
 // ShowNodeContextMenu displays the context menu for node actions.
 func (a *App) ShowNodeContextMenu() {
 	node := a.nodeList.GetSelectedNode()
@@ -17,26 +25,29 @@ func (a *App) ShowNodeContextMenu() {
 
 	// Create menu items based on node state
 	menuItems := []string{
-		"Open Shell",
-		"Open VNC Console",
+		nodeActionOpenShell,
+		nodeActionOpenVNC,
 		// "View Logs",
-		"Install Community Script",
-		"Refresh",
+		nodeActionInstall,
+		nodeActionRefresh,
 	}
 
-	menu := NewContextMenu(" Node Actions ", menuItems, func(index int, action string) {
+	// Define letter shortcuts for node actions
+	shortcuts := []rune{'s', 'v', 'i', 'r'}
+
+	menu := NewContextMenuWithShortcuts(" Node Actions ", menuItems, shortcuts, func(index int, action string) {
 		a.CloseContextMenu()
 
 		switch action {
-		case "Open Shell":
+		case nodeActionOpenShell:
 			a.openNodeShell()
-		case "Open VNC Console":
+		case nodeActionOpenVNC:
 			a.openNodeVNC()
 		// case "View Logs":
 		// 	a.showMessage("Viewing logs for node: " + node.Name)
-		case "Install Community Script":
+		case nodeActionInstall:
 			a.openScriptSelector(node, nil)
-		case "Refresh":
+		case nodeActionRefresh:
 			a.refreshNodeData(node)
 		}
 	})
