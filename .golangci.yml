@@ -62,6 +62,7 @@ linters:
     - thelper
     - unparam
     - goprintffuncname
+    - gocritic
 
   # Disable linters that are too strict for our use case
   disable:
@@ -125,6 +126,12 @@ linters:
       max-issues-per-linter: 0
       # Sets the maximum number of issues reported per file
       max-issues-per-file: 0
+
+    gocritic:
+      # Enable elseif rule to detect if-else chains that should be switches
+      enabled-tags:
+        - diagnostic
+        - style
 
 # Issues configuration
 issues:

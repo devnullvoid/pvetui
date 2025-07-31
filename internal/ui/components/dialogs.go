@@ -43,7 +43,7 @@ func (a *App) showMessage(message string) {
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	modal := tview.NewModal().
 		SetText(message).
-		SetBackgroundColor(theme.Colors.Background).
+		// SetBackgroundColor(theme.Colors.Background).
 		SetTextColor(theme.Colors.Primary).
 		AddButtons([]string{"Yes", "No"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
@@ -114,9 +114,10 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 
 	// Show migration mode info (read-only)
 	var modeInfo string
-	if vm.Type == api.VMTypeLXC {
+	switch vm.Type {
+	case api.VMTypeLXC:
 		modeInfo = "Mode: restart"
-	} else if vm.Type == api.VMTypeQemu {
+	case api.VMTypeQemu:
 		if vm.Status == api.VMStatusRunning {
 			modeInfo = "Mode: online"
 		} else {
@@ -148,10 +149,11 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 			}
 
 			// Set mode based on VM type and status
-			if vm.Type == api.VMTypeLXC {
+			switch vm.Type {
+			case api.VMTypeLXC:
 				// LXC migration is always "restart" style by default - no parameters needed
 				// LXC containers don't support live migration
-			} else if vm.Type == api.VMTypeQemu {
+			case api.VMTypeQemu:
 				// QEMU: online for running VMs, offline for stopped VMs
 				online := vm.Status == api.VMStatusRunning
 				options.Online = &online

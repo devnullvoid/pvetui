@@ -224,8 +224,8 @@ func (sm *SnapshotManager) deleteSnapshot() {
 
 	sm.performSnapshotOperation(
 		"Delete",
-		fmt.Sprintf("❌ Failed to delete snapshot %s", snapshot.Name),
-		fmt.Sprintf("✅ Successfully deleted snapshot %s", snapshot.Name),
+		fmt.Sprintf("Failed to delete snapshot %s", snapshot.Name),
+		fmt.Sprintf("Successfully deleted snapshot %s", snapshot.Name),
 		func() error {
 			return sm.operations.DeleteSnapshot(snapshot.Name)
 		},
@@ -242,8 +242,8 @@ func (sm *SnapshotManager) rollbackSnapshot() {
 
 	sm.performSnapshotOperation(
 		"Rollback",
-		fmt.Sprintf("❌ Failed to rollback to snapshot %s", snapshot.Name),
-		fmt.Sprintf("✅ Successfully rolled back to snapshot %s", snapshot.Name),
+		fmt.Sprintf("Failed to rollback to snapshot %s", snapshot.Name),
+		fmt.Sprintf("Successfully rolled back to snapshot %s", snapshot.Name),
 		func() error {
 			return sm.operations.RollbackToSnapshot(snapshot.Name)
 		},

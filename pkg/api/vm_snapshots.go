@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -80,17 +82,103 @@ func (c *Client) CreateSnapshot(vm *VM, name string, options *SnapshotOptions) e
 
 	c.logger.Info("Creating snapshot '%s' for %s %s (ID: %d)", name, vm.Type, vm.Name, vm.ID)
 
+	// Use direct HTTP client to get raw response
 	var result map[string]interface{}
-	if err := c.PostWithResponse(path, data, &result); err != nil {
+	err := c.httpClient.Post(context.Background(), path, data, &result)
+	if err != nil {
+		c.logger.Debug("CreateSnapshot HTTP error: %v", err)
+		// Check if the error contains the response body
+		if strings.Contains(err.Error(), "failed to parse response JSON") {
+			// Extract the response body from the error message
+			// The error format is: "failed to parse response JSON: <response body>"
+			parts := strings.SplitN(err.Error(), "failed to parse response JSON: ", 2)
+			if len(parts) == 2 {
+				responseBody := parts[1]
+				c.logger.Debug("CreateSnapshot response body: %s", responseBody)
+				// Check if the response contains an error message
+				if strings.Contains(responseBody, "snapshot feature is not available") ||
+					strings.Contains(responseBody, "error") ||
+					strings.Contains(responseBody, "failed") {
+					errorMsg := fmt.Sprintf("snapshot creation failed: %s", strings.TrimSpace(responseBody))
+					c.logger.Debug("CreateSnapshot returning error: %s", errorMsg)
+					return errors.New(errorMsg)
+				}
+			}
+		}
+		c.logger.Debug("CreateSnapshot returning original error: %v", err)
 		return err
 	}
 
+	c.logger.Debug("CreateSnapshot successful HTTP response, checking result: %+v", result)
+
 	// Check for API-level errors in the response
 	if errMsg, ok := result["error"].(string); ok && errMsg != "" {
+		c.logger.Debug("CreateSnapshot found error in result: %s", errMsg)
 		return fmt.Errorf("snapshot creation failed: %s", errMsg)
 	}
 
+	// Check if the response contains a UPID (task ID) - this means the operation was queued
+	if upid, ok := result["data"].(string); ok && strings.HasPrefix(upid, "UPID:") {
+		c.logger.Debug("CreateSnapshot task queued with UPID: %s", upid)
+		// Poll for task completion
+		return c.waitForTaskCompletion(upid, "snapshot creation")
+	}
+
+	// Check if the response contains error messages in the data field
+	if data, ok := result["data"].(string); ok {
+		c.logger.Debug("CreateSnapshot response data: %s", data)
+		if strings.Contains(data, "snapshot feature is not available") ||
+			strings.Contains(data, "error") ||
+			strings.Contains(data, "failed") {
+			errorMsg := fmt.Sprintf("snapshot creation failed: %s", strings.TrimSpace(data))
+			c.logger.Debug("CreateSnapshot returning error from data: %s", errorMsg)
+			return errors.New(errorMsg)
+		}
+	}
+
+	c.logger.Debug("CreateSnapshot operation completed successfully")
 	return nil
+}
+
+// waitForTaskCompletion polls for task completion and returns an error if the task failed.
+func (c *Client) waitForTaskCompletion(upid string, operationName string) error {
+	c.logger.Debug("Waiting for task completion: %s", upid)
+
+	// Poll for up to 2 minutes
+	maxWait := 2 * time.Minute
+	pollInterval := 2 * time.Second
+	start := time.Now()
+
+	for time.Since(start) < maxWait {
+		tasks, err := c.GetClusterTasks()
+		if err != nil {
+			c.logger.Debug("Failed to get cluster tasks: %v", err)
+			time.Sleep(pollInterval)
+			continue
+		}
+
+		// Find our task
+		for _, task := range tasks {
+			if task.UPID == upid {
+				c.logger.Debug("Found task %s, status: %s", upid, task.Status)
+
+				// Check if task is complete
+				if task.Status == "OK" {
+					c.logger.Debug("Task %s completed successfully", upid)
+					return nil
+				} else if task.Status == "ERROR" || strings.Contains(task.Status, "error") || strings.Contains(task.Status, "not available") {
+					c.logger.Debug("Task %s failed with status: %s", upid, task.Status)
+					return fmt.Errorf("%s failed: %s", operationName, task.Status)
+				}
+				// Task is still running, continue polling
+				break
+			}
+		}
+
+		time.Sleep(pollInterval)
+	}
+
+	return fmt.Errorf("%s timed out waiting for task %s", operationName, upid)
 }
 
 // DeleteSnapshot deletes a snapshot from a VM or container.
@@ -100,7 +188,21 @@ func (c *Client) DeleteSnapshot(vm *VM, snapshotName string) error {
 	c.logger.Info("Deleting snapshot '%s' from %s %s (ID: %d)", snapshotName, vm.Type, vm.Name, vm.ID)
 
 	var result map[string]interface{}
-	if err := c.httpClient.Delete(context.Background(), path, &result); err != nil {
+	err := c.httpClient.Delete(context.Background(), path, &result)
+	if err != nil {
+		// Check if the error contains the response body
+		if strings.Contains(err.Error(), "failed to parse response JSON") {
+			// Extract the response body from the error message
+			parts := strings.SplitN(err.Error(), "failed to parse response JSON: ", 2)
+			if len(parts) == 2 {
+				responseBody := parts[1]
+				// Check if the response contains an error message
+				if strings.Contains(responseBody, "error") ||
+					strings.Contains(responseBody, "failed") {
+					return fmt.Errorf("snapshot deletion failed: %s", strings.TrimSpace(responseBody))
+				}
+			}
+		}
 		return err
 	}
 
@@ -119,7 +221,21 @@ func (c *Client) RollbackToSnapshot(vm *VM, snapshotName string) error {
 	c.logger.Info("Rolling back %s %s (ID: %d) to snapshot '%s'", vm.Type, vm.Name, vm.ID, snapshotName)
 
 	var result map[string]interface{}
-	if err := c.PostWithResponse(path, nil, &result); err != nil {
+	err := c.httpClient.Post(context.Background(), path, nil, &result)
+	if err != nil {
+		// Check if the error contains the response body
+		if strings.Contains(err.Error(), "failed to parse response JSON") {
+			// Extract the response body from the error message
+			parts := strings.SplitN(err.Error(), "failed to parse response JSON: ", 2)
+			if len(parts) == 2 {
+				responseBody := parts[1]
+				// Check if the response contains an error message
+				if strings.Contains(responseBody, "error") ||
+					strings.Contains(responseBody, "failed") {
+					return fmt.Errorf("snapshot rollback failed: %s", strings.TrimSpace(responseBody))
+				}
+			}
+		}
 		return err
 	}
 
