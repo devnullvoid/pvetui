@@ -18,12 +18,8 @@ type Snapshot struct {
 type SnapshotOptions struct {
 	// Description for the snapshot
 	Description string `json:"description,omitempty"`
-	// Whether to include VM state (memory dump)
+	// Whether to include VM state (memory dump) - QEMU only
 	VMState bool `json:"vmstate,omitempty"`
-	// Whether to include configuration
-	Config bool `json:"config,omitempty"`
-	// Whether to include disk state
-	Disk bool `json:"disk,omitempty"`
 }
 
 // GetSnapshots retrieves all snapshots for a VM or container.
@@ -78,12 +74,6 @@ func (c *Client) CreateSnapshot(vm *VM, name string, options *SnapshotOptions) e
 		}
 		if options.VMState && vm.Type == VMTypeQemu {
 			data["vmstate"] = "1"
-		}
-		if options.Config {
-			data["config"] = "1"
-		}
-		if options.Disk {
-			data["disk"] = "1"
 		}
 	}
 
