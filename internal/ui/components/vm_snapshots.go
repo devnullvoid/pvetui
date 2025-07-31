@@ -277,6 +277,9 @@ func (sm *SnapshotManager) performSnapshotOperation(
 			sm.app.SetFocus(sm.app.lastFocus)
 		}
 
+		// Show loading indicator
+		sm.app.header.ShowLoading(fmt.Sprintf("%s snapshot '%s'", operationName, snapshot.Name))
+
 		// Perform operation in goroutine
 		go func() {
 			err := operation()

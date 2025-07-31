@@ -59,6 +59,9 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 		sf.app.pages.RemovePage("createSnapshot")
 		onSuccess() // Restore focus to snapshot manager
 
+		// Show loading indicator
+		sf.app.header.ShowLoading(fmt.Sprintf("Creating snapshot '%s'", name))
+
 		// Perform async operation
 		go func() {
 			operations := NewSnapshotOperations(sf.app, sf.vm)
