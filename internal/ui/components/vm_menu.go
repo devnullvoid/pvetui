@@ -182,7 +182,7 @@ func generateVMShortcuts(menuItems []string) []rune {
 		case vmActionDelete:
 			shortcuts[i] = 'x'
 		case vmActionSnapshots:
-			shortcuts[i] = 'z'
+			shortcuts[i] = 'n'
 		default:
 			// Fallback to number if no specific shortcut defined
 			shortcuts[i] = rune('1' + i)

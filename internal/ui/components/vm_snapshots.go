@@ -9,24 +9,20 @@ import (
 	"github.com/rivo/tview"
 )
 
-// Constants for snapshot management
-const (
-	currentSnapshotName = "current"
-)
-
 // SnapshotManager manages the snapshot interface for VMs and containers.
 type SnapshotManager struct {
 	*tview.Flex
-	vm           *api.VM
-	app          *App
-	snapshotList *tview.Table
-	infoText     *tview.TextView
-	loading      bool
-	createBtn    *tview.Button
-	deleteBtn    *tview.Button
-	rollbackBtn  *tview.Button
-	backBtn      *tview.Button
-	snapshots    []api.Snapshot // Store loaded snapshots
+	vm            *api.VM
+	app           *App
+	snapshotTable *SnapshotTable
+	infoText      *tview.TextView
+	loading       bool
+	createBtn     *tview.Button
+	deleteBtn     *tview.Button
+	rollbackBtn   *tview.Button
+	backBtn       *tview.Button
+	operations    *SnapshotOperations
+	form          *SnapshotForm
 }
 
 // NewSnapshotManager creates a new snapshot manager for the given VM.
@@ -36,16 +32,10 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 		app: app,
 	}
 
-	// Create snapshot list table
-	sm.snapshotList = tview.NewTable().
-		SetSelectable(true, false).
-		SetFixed(1, 0).
-		SetDoneFunc(func(key tcell.Key) {
-			// Go back to VM list when Escape is pressed
-			if key == tcell.KeyEsc {
-				sm.goBack()
-			}
-		})
+	// Create components
+	sm.snapshotTable = NewSnapshotTable(app, vm)
+	sm.operations = NewSnapshotOperations(app, vm)
+	sm.form = NewSnapshotForm(app, vm)
 
 	// Create info text
 	sm.infoText = tview.NewTextView().
@@ -63,13 +53,10 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 	// Create layout
 	sm.Flex = tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(sm.createHeader(), 5, 0, false). // Increased height from 3 to 5
-		AddItem(sm.snapshotList, 0, 1, true).
+		AddItem(sm.createHeader(), 5, 0, false).
+		AddItem(sm.snapshotTable, 0, 1, true).
 		AddItem(sm.infoText, 3, 0, false).
 		AddItem(helpBar, 1, 0, false)
-
-	// Set up table headers
-	sm.setupTableHeaders()
 
 	// Load snapshots
 	sm.loadSnapshots()
@@ -90,7 +77,7 @@ func (sm *SnapshotManager) setupKeyboardNavigation() {
 		case tcell.KeyTab:
 			// Handle Tab navigation between table and buttons
 			currentFocus := sm.app.GetFocus()
-			if currentFocus == sm.snapshotList {
+			if currentFocus == sm.snapshotTable {
 				// From table to first button
 				sm.app.SetFocus(sm.createBtn)
 				return nil
@@ -108,7 +95,7 @@ func (sm *SnapshotManager) setupKeyboardNavigation() {
 				return nil
 			} else if currentFocus == sm.backBtn {
 				// From back button back to table
-				sm.app.SetFocus(sm.snapshotList)
+				sm.app.SetFocus(sm.snapshotTable)
 				return nil
 			}
 		case tcell.KeyRune:
@@ -131,13 +118,13 @@ func (sm *SnapshotManager) setupKeyboardNavigation() {
 	})
 }
 
-// goBack returns to the VM list.
+// goBack returns to the previous screen.
 func (sm *SnapshotManager) goBack() {
 	sm.app.pages.RemovePage("snapshots")
 	sm.app.SetFocus(sm.app.vmList)
 }
 
-// createHeader creates the header for the snapshot manager.
+// createHeader creates the header with title and buttons.
 func (sm *SnapshotManager) createHeader() *tview.Flex {
 	title := tview.NewTextView().
 		SetText(fmt.Sprintf("Snapshots for %s %s (ID: %d)", sm.vm.Type, sm.vm.Name, sm.vm.ID)).
@@ -159,44 +146,21 @@ func (sm *SnapshotManager) createHeader() *tview.Flex {
 
 	buttons := tview.NewFlex().
 		AddItem(tview.NewBox(), 0, 1, false).
-		AddItem(sm.createBtn, 18, 0, false).
+		AddItem(sm.createBtn, 20, 0, false).
 		AddItem(tview.NewBox(), 2, 0, false).
-		AddItem(sm.deleteBtn, 12, 0, false).
+		AddItem(sm.deleteBtn, 15, 0, false).
 		AddItem(tview.NewBox(), 2, 0, false).
-		AddItem(sm.rollbackBtn, 12, 0, false).
+		AddItem(sm.rollbackBtn, 15, 0, false).
 		AddItem(tview.NewBox(), 2, 0, false).
-		AddItem(sm.backBtn, 10, 0, false).
+		AddItem(sm.backBtn, 12, 0, false).
 		AddItem(tview.NewBox(), 0, 1, false)
 
 	header := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(title, 2, 0, false).
-		AddItem(buttons, 2, 0, false)
+		AddItem(buttons, 3, 0, false)
 
 	return header
-}
-
-// setupTableHeaders sets up the table headers.
-func (sm *SnapshotManager) setupTableHeaders() {
-	var headers []string
-	var colors []tcell.Color
-
-	if sm.vm.Type == api.VMTypeQemu {
-		headers = []string{"Name", "RAM", "Date/Status", "Description"}
-		colors = []tcell.Color{theme.Colors.HeaderText, theme.Colors.HeaderText, theme.Colors.HeaderText, theme.Colors.HeaderText}
-	} else {
-		headers = []string{"Name", "Date/Status", "Description"}
-		colors = []tcell.Color{theme.Colors.HeaderText, theme.Colors.HeaderText, theme.Colors.HeaderText}
-	}
-
-	for i, header := range headers {
-		cell := tview.NewTableCell(header).
-			SetTextColor(colors[i]).
-			SetAlign(tview.AlignLeft).
-			SetSelectable(false).
-			SetExpansion(1)
-		sm.snapshotList.SetCell(0, i, cell)
-	}
 }
 
 // loadSnapshots loads and displays snapshots for the VM.
@@ -205,7 +169,7 @@ func (sm *SnapshotManager) loadSnapshots() {
 	sm.updateInfoText("Loading snapshots...")
 
 	go func() {
-		snapshots, err := sm.app.client.GetSnapshots(sm.vm)
+		snapshots, err := sm.operations.GetSnapshots()
 		sm.app.QueueUpdateDraw(func() {
 			sm.loading = false
 			if err != nil {
@@ -220,75 +184,15 @@ func (sm *SnapshotManager) loadSnapshots() {
 
 // displaySnapshots displays the snapshots in the table.
 func (sm *SnapshotManager) displaySnapshots(snapshots []api.Snapshot) {
-	// Store snapshots for later access
-	sm.snapshots = snapshots
-
-	// Clear existing rows (keep headers)
-	for row := 1; row < sm.snapshotList.GetRowCount(); row++ {
-		for col := 0; col < sm.snapshotList.GetColumnCount(); col++ {
-			sm.snapshotList.SetCell(row, col, nil)
-		}
-	}
+	sm.snapshotTable.DisplaySnapshots(snapshots)
 
 	if len(snapshots) == 0 {
 		sm.updateInfoText("No snapshots found for this VM.")
 		return
 	}
 
-	// Add snapshot rows
-	for i, snapshot := range snapshots {
-		row := i + 1
-
-		// Handle "current" as "NOW" like the web UI
-		displayName := snapshot.Name
-		if snapshot.Name == currentSnapshotName {
-			displayName = "NOW"
-		}
-
-		// Use different color for "NOW" to indicate it's not a real snapshot
-		nameColor := theme.Colors.Primary
-		if snapshot.Name == currentSnapshotName {
-			nameColor = theme.Colors.Secondary // Dimmed color for current state
-		}
-
-		sm.snapshotList.SetCell(row, 0, tview.NewTableCell(displayName).SetTextColor(nameColor))
-
-		// Handle different column layouts for QEMU vs LXC
-		if sm.vm.Type == api.VMTypeQemu {
-			// QEMU: Name, RAM, Date/Status, Description
-			ramText := ""
-			if snapshot.VMState {
-				ramText = "Yes"
-			}
-			sm.snapshotList.SetCell(row, 1, tview.NewTableCell(ramText).SetTextColor(theme.Colors.Primary))
-
-			dateText := ""
-			if !snapshot.SnapTime.IsZero() {
-				dateText = snapshot.SnapTime.Format("2006-01-02 15:04:05")
-			}
-			sm.snapshotList.SetCell(row, 2, tview.NewTableCell(dateText).SetTextColor(theme.Colors.Primary))
-
-			sm.snapshotList.SetCell(row, 3, tview.NewTableCell(snapshot.Description).SetTextColor(theme.Colors.Primary))
-		} else {
-			// LXC: Name, Date/Status, Description
-			dateText := ""
-			if !snapshot.SnapTime.IsZero() {
-				dateText = snapshot.SnapTime.Format("2006-01-02 15:04:05")
-			}
-			sm.snapshotList.SetCell(row, 1, tview.NewTableCell(dateText).SetTextColor(theme.Colors.Primary))
-
-			sm.snapshotList.SetCell(row, 2, tview.NewTableCell(snapshot.Description).SetTextColor(theme.Colors.Primary))
-		}
-	}
-
 	// Count real snapshots (excluding "current")
-	realSnapshotCount := 0
-	for _, snapshot := range snapshots {
-		if snapshot.Name != currentSnapshotName {
-			realSnapshotCount++
-		}
-	}
-
+	realSnapshotCount := sm.snapshotTable.GetSnapshotCount()
 	sm.updateInfoText(fmt.Sprintf("✅ Loaded %d snapshots", realSnapshotCount))
 }
 
@@ -297,104 +201,48 @@ func (sm *SnapshotManager) updateInfoText(text string) {
 	sm.infoText.SetText(text)
 }
 
-// getSelectedSnapshot gets the currently selected snapshot.
-func (sm *SnapshotManager) getSelectedSnapshot() *api.Snapshot {
-	row, _ := sm.snapshotList.GetSelection()
-	if row <= 0 || row >= sm.snapshotList.GetRowCount() {
-		return nil
-	}
-
-	// Get the snapshot name from the first column
-	nameCell := sm.snapshotList.GetCell(row, 0)
-	if nameCell == nil {
-		return nil
-	}
-
-	// Convert "NOW" back to "current" for API calls
-	snapshotName := nameCell.Text
-	if snapshotName == "NOW" {
-		snapshotName = currentSnapshotName
-	}
-
-	// Find the snapshot in our list
-	for _, snapshot := range sm.snapshots {
-		if snapshot.Name == snapshotName {
-			return &snapshot
-		}
-	}
-
-	return nil
-}
-
 // createSnapshot shows the create snapshot dialog.
 func (sm *SnapshotManager) createSnapshot() {
-	// Create form items first
-	nameField := tview.NewInputField().SetLabel("Snapshot Name").SetFieldWidth(20)
-	descField := tview.NewInputField().SetLabel("Description").SetFieldWidth(40)
+	sm.form.ShowCreateForm(func() {
+		sm.app.SetFocus(sm)
+		sm.loadSnapshots() // Reload snapshots
+	})
+}
 
-	form := tview.NewForm().
-		AddFormItem(nameField).
-		AddFormItem(descField)
-
-	// Only show VM State for QEMU guests
-	var vmStateCheck *tview.Checkbox
-	if sm.vm.Type == api.VMTypeQemu {
-		vmStateCheck = tview.NewCheckbox().SetLabel("Include VM State (RAM)").SetChecked(true)
-		form.AddFormItem(vmStateCheck)
+// deleteSnapshot deletes the selected snapshot.
+func (sm *SnapshotManager) deleteSnapshot() {
+	snapshot := sm.snapshotTable.GetSelectedSnapshot()
+	if snapshot == nil {
+		sm.updateInfoText("❌ No snapshot selected.")
+		return
 	}
 
-	form.AddButton("Create", func() {
-		name := nameField.GetText()
-		description := descField.GetText()
-		vmState := false
-		if sm.vm.Type == api.VMTypeQemu && vmStateCheck != nil {
-			vmState = vmStateCheck.IsChecked()
-		}
+	sm.performSnapshotOperation(
+		"Delete",
+		fmt.Sprintf("❌ Failed to delete snapshot %s", snapshot.Name),
+		fmt.Sprintf("✅ Successfully deleted snapshot %s", snapshot.Name),
+		func() error {
+			return sm.operations.DeleteSnapshot(snapshot.Name)
+		},
+	)
+}
 
-		if name == "" {
-			sm.app.showMessage("❌ Snapshot name is required")
-			return
-		}
+// rollbackSnapshot rolls back to the selected snapshot.
+func (sm *SnapshotManager) rollbackSnapshot() {
+	snapshot := sm.snapshotTable.GetSelectedSnapshot()
+	if snapshot == nil {
+		sm.updateInfoText("❌ No snapshot selected.")
+		return
+	}
 
-		options := &api.SnapshotOptions{
-			Description: description,
-			VMState:     vmState,
-		}
-
-		sm.app.pages.RemovePage("createSnapshot")
-		sm.app.SetFocus(sm)
-
-		go func() {
-			err := sm.app.client.CreateSnapshot(sm.vm, name, options)
-			sm.app.QueueUpdateDraw(func() {
-				if err != nil {
-					sm.app.showMessage(fmt.Sprintf("❌ Failed to create snapshot: %v", err))
-				} else {
-					sm.app.showMessage("✅ Snapshot created successfully")
-					sm.loadSnapshots() // Reload snapshots
-				}
-			})
-		}()
-	}).
-		AddButton("Cancel", func() {
-			sm.app.pages.RemovePage("createSnapshot")
-			sm.app.SetFocus(sm)
-		})
-
-	form.SetBorder(true).SetTitle(" Create Snapshot ").SetTitleAlign(tview.AlignCenter)
-
-	// Add keyboard input capture for Escape key
-	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
-			sm.app.pages.RemovePage("createSnapshot")
-			sm.app.SetFocus(sm)
-			return nil
-		}
-		return event
-	})
-
-	sm.app.pages.AddPage("createSnapshot", form, true, true)
-	sm.app.SetFocus(form)
+	sm.performSnapshotOperation(
+		"Rollback",
+		fmt.Sprintf("❌ Failed to rollback to snapshot %s", snapshot.Name),
+		fmt.Sprintf("✅ Successfully rolled back to snapshot %s", snapshot.Name),
+		func() error {
+			return sm.operations.RollbackToSnapshot(snapshot.Name)
+		},
+	)
 }
 
 // performSnapshotOperation performs a snapshot operation with confirmation and error handling.
@@ -404,7 +252,7 @@ func (sm *SnapshotManager) performSnapshotOperation(
 	successMessage string,
 	operation func() error,
 ) {
-	snapshot := sm.getSelectedSnapshot()
+	snapshot := sm.snapshotTable.GetSelectedSnapshot()
 	if snapshot == nil {
 		sm.app.showMessage(fmt.Sprintf("❌ Please select a snapshot to %s", operationName))
 		return
@@ -424,54 +272,6 @@ func (sm *SnapshotManager) performSnapshotOperation(
 					}
 				})
 			}()
-		},
-	)
-}
-
-// deleteSnapshot deletes the selected snapshot.
-func (sm *SnapshotManager) deleteSnapshot() {
-	snapshot := sm.getSelectedSnapshot()
-	if snapshot == nil {
-		sm.updateInfoText("❌ No snapshot selected.")
-		return
-	}
-
-	// Prevent deleting "current" (NOW) as it's not a real snapshot
-	if snapshot.Name == currentSnapshotName {
-		sm.updateInfoText("❌ Cannot delete current state (NOW).")
-		return
-	}
-
-	sm.performSnapshotOperation(
-		"Delete",
-		fmt.Sprintf("❌ Failed to delete snapshot %s", snapshot.Name),
-		fmt.Sprintf("✅ Successfully deleted snapshot %s", snapshot.Name),
-		func() error {
-			return sm.app.client.DeleteSnapshot(sm.vm, snapshot.Name)
-		},
-	)
-}
-
-// rollbackSnapshot rolls back to the selected snapshot.
-func (sm *SnapshotManager) rollbackSnapshot() {
-	snapshot := sm.getSelectedSnapshot()
-	if snapshot == nil {
-		sm.updateInfoText("❌ No snapshot selected.")
-		return
-	}
-
-	// Prevent rolling back to "current" (NOW) as it's not a real snapshot
-	if snapshot.Name == currentSnapshotName {
-		sm.updateInfoText("❌ Cannot rollback to current state (NOW).")
-		return
-	}
-
-	sm.performSnapshotOperation(
-		"Rollback",
-		fmt.Sprintf("❌ Failed to rollback to snapshot %s", snapshot.Name),
-		fmt.Sprintf("✅ Successfully rolled back to snapshot %s", snapshot.Name),
-		func() error {
-			return sm.app.client.RollbackToSnapshot(sm.vm, snapshot.Name)
 		},
 	)
 }
