@@ -40,23 +40,16 @@ func (a *App) showMessage(message string) {
 }
 
 // showConfirmationDialog displays a confirmation dialog with Yes/No options.
+// DEPRECATED: Use CreateConfirmDialog instead for consistency.
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {
-	modal := tview.NewModal().
-		SetText(message).
-		// SetBackgroundColor(theme.Colors.Background).
-		SetTextColor(theme.Colors.Primary).
-		AddButtons([]string{"Yes", "No"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			a.pages.RemovePage("confirmation")
-
-			if buttonIndex == 0 {
-				// Yes was selected
-				onConfirm()
-			}
-		})
-
-	a.pages.AddPage("confirmation", modal, false, true)
-	a.SetFocus(modal)
+	confirm := CreateConfirmDialog("Confirm", message, func() {
+		a.pages.RemovePage("confirmation")
+		onConfirm()
+	}, func() {
+		a.pages.RemovePage("confirmation")
+	})
+	a.pages.AddPage("confirmation", confirm, false, true)
+	a.SetFocus(confirm)
 }
 
 // openScriptSelector opens the script selector dialog.

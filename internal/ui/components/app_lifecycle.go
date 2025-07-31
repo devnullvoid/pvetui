@@ -56,12 +56,22 @@ func (a *App) showQuitConfirmation() {
 		} else {
 			message = fmt.Sprintf("There are %d active VNC sessions that will be disconnected.\n\nAre you sure you want to quit?", sessionCount)
 		}
-		a.showConfirmationDialog(message, func() {
+		confirm := CreateConfirmDialog("Quit Application", message, func() {
+			a.pages.RemovePage("confirmation")
 			a.Application.Stop()
+		}, func() {
+			a.pages.RemovePage("confirmation")
 		})
+		a.pages.AddPage("confirmation", confirm, false, true)
+		a.SetFocus(confirm)
 	} else {
-		a.showConfirmationDialog("Are you sure you want to quit?", func() {
+		confirm := CreateConfirmDialog("Quit Application", "Are you sure you want to quit?", func() {
+			a.pages.RemovePage("confirmation")
 			a.Application.Stop()
+		}, func() {
+			a.pages.RemovePage("confirmation")
 		})
+		a.pages.AddPage("confirmation", confirm, false, true)
+		a.SetFocus(confirm)
 	}
 }

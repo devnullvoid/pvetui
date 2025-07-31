@@ -52,6 +52,23 @@ func CreateConfirmDialog(title, message string, onConfirm, onCancel func()) *tvi
 		}
 	})
 
+	// Add keyboard shortcuts for Y/N keys
+	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Rune() {
+		case 'y', 'Y':
+			if onConfirm != nil {
+				onConfirm()
+			}
+			return nil
+		case 'n', 'N':
+			if onCancel != nil {
+				onCancel()
+			}
+			return nil
+		}
+		return event
+	})
+
 	return modal
 }
 
