@@ -107,7 +107,9 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("profileWizard") ||
 			a.pages.HasPage("profileName") ||
 			a.pages.HasPage("contextMenu") ||
-			a.pages.HasPage("about")
+			a.pages.HasPage("about") ||
+			a.pages.HasPage("snapshots") ||
+			a.pages.HasPage("createSnapshot")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {

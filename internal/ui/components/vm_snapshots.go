@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 
+	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -16,6 +17,11 @@ type SnapshotManager struct {
 	snapshotList *tview.Table
 	infoText     *tview.TextView
 	loading      bool
+	createBtn    *tview.Box
+	deleteBtn    *tview.Box
+	rollbackBtn  *tview.Box
+	backBtn      *tview.Box
+	snapshots    []api.Snapshot // Store loaded snapshots
 }
 
 // NewSnapshotManager creates a new snapshot manager for the given VM.
@@ -30,7 +36,10 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 		SetSelectable(true, false).
 		SetFixed(1, 0).
 		SetDoneFunc(func(key tcell.Key) {
-			app.SetFocus(app.vmList)
+			// Go back to VM list when Escape is pressed
+			if key == tcell.KeyEsc {
+				sm.goBack()
+			}
 		})
 
 	// Create info text
@@ -39,12 +48,20 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 		SetTextAlign(tview.AlignLeft).
 		SetWrap(true)
 
+	// Create footer/help bar
+	helpText := sm.getHelpText()
+	helpBar := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetText(helpText)
+
 	// Create layout
 	sm.Flex = tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(sm.createHeader(), 3, 0, false).
 		AddItem(sm.snapshotList, 0, 1, true).
-		AddItem(sm.infoText, 5, 0, false)
+		AddItem(sm.infoText, 3, 0, false).
+		AddItem(helpBar, 1, 0, false)
 
 	// Set up table headers
 	sm.setupTableHeaders()
@@ -52,7 +69,43 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 	// Load snapshots
 	sm.loadSnapshots()
 
+	// Set up keyboard navigation
+	sm.setupKeyboardNavigation()
+
 	return sm
+}
+
+// setupKeyboardNavigation sets up keyboard shortcuts for the snapshot manager.
+func (sm *SnapshotManager) setupKeyboardNavigation() {
+	sm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEsc:
+			sm.goBack()
+			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'c', 'C':
+				sm.createSnapshot()
+				return nil
+			case 'd', 'D':
+				sm.deleteSnapshot()
+				return nil
+			case 'r', 'R':
+				sm.rollbackSnapshot()
+				return nil
+			case 'b', 'B':
+				sm.goBack()
+				return nil
+			}
+		}
+		return event
+	})
+}
+
+// goBack returns to the VM list.
+func (sm *SnapshotManager) goBack() {
+	sm.app.pages.RemovePage("snapshots")
+	sm.app.SetFocus(sm.app.vmList)
 }
 
 // createHeader creates the header for the snapshot manager.
@@ -62,13 +115,36 @@ func (sm *SnapshotManager) createHeader() *tview.Flex {
 		SetTextAlign(tview.AlignCenter).
 		SetDynamicColors(true)
 
+	// Create buttons
+	sm.createBtn = tview.NewButton("Take Snapshot (C)").
+		SetSelectedFunc(sm.createSnapshot).
+		SetBorder(true).
+		SetBorderColor(tcell.ColorBlue)
+
+	sm.deleteBtn = tview.NewButton("Remove (D)").
+		SetSelectedFunc(sm.deleteSnapshot).
+		SetBorder(true).
+		SetBorderColor(tcell.ColorRed)
+
+	sm.rollbackBtn = tview.NewButton("Rollback (R)").
+		SetSelectedFunc(sm.rollbackSnapshot).
+		SetBorder(true).
+		SetBorderColor(tcell.ColorYellow)
+
+	sm.backBtn = tview.NewButton("Back (B)").
+		SetSelectedFunc(sm.goBack).
+		SetBorder(true).
+		SetBorderColor(tcell.ColorGray)
+
 	buttons := tview.NewFlex().
 		AddItem(tview.NewBox(), 0, 1, false).
-		AddItem(sm.createButton("Create", sm.createSnapshot), 12, 0, false).
-		AddItem(tview.NewBox(), 1, 0, false).
-		AddItem(sm.createButton("Delete", sm.deleteSnapshot), 12, 0, false).
-		AddItem(tview.NewBox(), 1, 0, false).
-		AddItem(sm.createButton("Rollback", sm.rollbackSnapshot), 12, 0, false).
+		AddItem(sm.createBtn, 15, 0, false).
+		AddItem(tview.NewBox(), 2, 0, false).
+		AddItem(sm.deleteBtn, 15, 0, false).
+		AddItem(tview.NewBox(), 2, 0, false).
+		AddItem(sm.rollbackBtn, 15, 0, false).
+		AddItem(tview.NewBox(), 2, 0, false).
+		AddItem(sm.backBtn, 12, 0, false).
 		AddItem(tview.NewBox(), 0, 1, false)
 
 	header := tview.NewFlex().
@@ -79,20 +155,18 @@ func (sm *SnapshotManager) createHeader() *tview.Flex {
 	return header
 }
 
-// createButton creates a button for the header.
-func (sm *SnapshotManager) createButton(text string, action func()) *tview.Box {
-	button := tview.NewButton(text).
-		SetSelectedFunc(action).
-		SetBorder(true).
-		SetBorderColor(tcell.ColorBlue)
-
-	return button
-}
-
 // setupTableHeaders sets up the table headers.
 func (sm *SnapshotManager) setupTableHeaders() {
-	headers := []string{"Name", "Description", "Created", "Size", "Type", "Children"}
-	colors := []tcell.Color{tcell.ColorYellow, tcell.ColorYellow, tcell.ColorYellow, tcell.ColorYellow, tcell.ColorYellow, tcell.ColorYellow}
+	var headers []string
+	var colors []tcell.Color
+
+	if sm.vm.Type == api.VMTypeQemu {
+		headers = []string{"Name", "RAM", "Date/Status", "Description"}
+		colors = []tcell.Color{tcell.ColorYellow, tcell.ColorYellow, tcell.ColorYellow, tcell.ColorYellow}
+	} else {
+		headers = []string{"Name", "Date/Status", "Description"}
+		colors = []tcell.Color{tcell.ColorYellow, tcell.ColorYellow, tcell.ColorYellow}
+	}
 
 	for i, header := range headers {
 		cell := tview.NewTableCell(header).
@@ -125,6 +199,9 @@ func (sm *SnapshotManager) loadSnapshots() {
 
 // displaySnapshots displays the snapshots in the table.
 func (sm *SnapshotManager) displaySnapshots(snapshots []api.Snapshot) {
+	// Store snapshots for later access
+	sm.snapshots = snapshots
+
 	// Clear existing rows (keep headers)
 	for row := 1; row < sm.snapshotList.GetRowCount(); row++ {
 		for col := 0; col < sm.snapshotList.GetColumnCount(); col++ {
@@ -140,33 +217,41 @@ func (sm *SnapshotManager) displaySnapshots(snapshots []api.Snapshot) {
 	// Add snapshot rows
 	for i, snapshot := range snapshots {
 		row := i + 1
-		sm.snapshotList.SetCell(row, 0, tview.NewTableCell(snapshot.Name).SetTextColor(tcell.ColorWhite))
-		sm.snapshotList.SetCell(row, 1, tview.NewTableCell(snapshot.Description).SetTextColor(tcell.ColorWhite))
-		sm.snapshotList.SetCell(row, 2, tview.NewTableCell(snapshot.Timestamp.Format("2006-01-02 15:04:05")).SetTextColor(tcell.ColorWhite))
-		sm.snapshotList.SetCell(row, 3, tview.NewTableCell(api.FormatBytes(snapshot.Size)).SetTextColor(tcell.ColorWhite))
 
-		// Show snapshot type
-		typeText := ""
-		if snapshot.VMState {
-			typeText += "VM"
+		// Handle "current" as "NOW" like the web UI
+		displayName := snapshot.Name
+		if snapshot.Name == "current" {
+			displayName = "NOW"
 		}
-		if snapshot.Config {
-			if typeText != "" {
-				typeText += "+"
-			}
-			typeText += "Config"
-		}
-		if snapshot.Disk {
-			if typeText != "" {
-				typeText += "+"
-			}
-			typeText += "Disk"
-		}
-		sm.snapshotList.SetCell(row, 4, tview.NewTableCell(typeText).SetTextColor(tcell.ColorWhite))
 
-		// Show children count
-		childrenText := fmt.Sprintf("%d", len(snapshot.Children))
-		sm.snapshotList.SetCell(row, 5, tview.NewTableCell(childrenText).SetTextColor(tcell.ColorWhite))
+		sm.snapshotList.SetCell(row, 0, tview.NewTableCell(displayName).SetTextColor(tcell.ColorWhite))
+
+		// Handle different column layouts for QEMU vs LXC
+		if sm.vm.Type == api.VMTypeQemu {
+			// QEMU: Name, RAM, Date/Status, Description
+			ramText := ""
+			if snapshot.VMState {
+				ramText = "Yes"
+			}
+			sm.snapshotList.SetCell(row, 1, tview.NewTableCell(ramText).SetTextColor(tcell.ColorWhite))
+
+			dateText := ""
+			if !snapshot.SnapTime.IsZero() {
+				dateText = snapshot.SnapTime.Format("2006-01-02 15:04:05")
+			}
+			sm.snapshotList.SetCell(row, 2, tview.NewTableCell(dateText).SetTextColor(tcell.ColorWhite))
+
+			sm.snapshotList.SetCell(row, 3, tview.NewTableCell(snapshot.Description).SetTextColor(tcell.ColorWhite))
+		} else {
+			// LXC: Name, Date/Status, Description
+			dateText := ""
+			if !snapshot.SnapTime.IsZero() {
+				dateText = snapshot.SnapTime.Format("2006-01-02 15:04:05")
+			}
+			sm.snapshotList.SetCell(row, 1, tview.NewTableCell(dateText).SetTextColor(tcell.ColorWhite))
+
+			sm.snapshotList.SetCell(row, 2, tview.NewTableCell(snapshot.Description).SetTextColor(tcell.ColorWhite))
+		}
 	}
 
 	sm.updateInfoText(fmt.Sprintf("✅ Loaded %d snapshots", len(snapshots)))
@@ -184,17 +269,26 @@ func (sm *SnapshotManager) getSelectedSnapshot() *api.Snapshot {
 		return nil
 	}
 
-	// Get snapshot name from first column
-	cell := sm.snapshotList.GetCell(row, 0)
-	if cell == nil {
+	// Get the snapshot name from the first column
+	nameCell := sm.snapshotList.GetCell(row, 0)
+	if nameCell == nil {
 		return nil
 	}
 
-	snapshotName := cell.Text
-	// Find the snapshot in the loaded data
-	// Note: This is a simplified approach. In a real implementation,
-	// you'd want to store the snapshots in the struct for better access.
-	return &api.Snapshot{Name: snapshotName}
+	// Convert "NOW" back to "current" for API calls
+	snapshotName := nameCell.Text
+	if snapshotName == "NOW" {
+		snapshotName = "current"
+	}
+
+	// Find the snapshot in our list
+	for _, snapshot := range sm.snapshots {
+		if snapshot.Name == snapshotName {
+			return &snapshot
+		}
+	}
+
+	return nil
 }
 
 // createSnapshot shows the create snapshot dialog.
@@ -202,23 +296,31 @@ func (sm *SnapshotManager) createSnapshot() {
 	// Create form items first
 	nameField := tview.NewInputField().SetLabel("Snapshot Name").SetFieldWidth(20)
 	descField := tview.NewInputField().SetLabel("Description").SetFieldWidth(40)
-	vmStateCheck := tview.NewCheckbox().SetLabel("Include VM State").SetChecked(true)
 	configCheck := tview.NewCheckbox().SetLabel("Include Configuration").SetChecked(true)
 	diskCheck := tview.NewCheckbox().SetLabel("Include Disk State").SetChecked(true)
 
-	// Create the form
 	form := tview.NewForm().
 		AddFormItem(nameField).
-		AddFormItem(descField).
-		AddFormItem(vmStateCheck).
-		AddFormItem(configCheck).
+		AddFormItem(descField)
+
+	// Only show VM State for QEMU guests
+	var vmStateCheck *tview.Checkbox
+	if sm.vm.Type == api.VMTypeQemu {
+		vmStateCheck = tview.NewCheckbox().SetLabel("Include VM State").SetChecked(true)
+		form.AddFormItem(vmStateCheck)
+	}
+
+	form.AddFormItem(configCheck).
 		AddFormItem(diskCheck).
 		AddButton("Create", func() {
 			name := nameField.GetText()
 			description := descField.GetText()
-			vmState := vmStateCheck.IsChecked()
 			config := configCheck.IsChecked()
 			disk := diskCheck.IsChecked()
+			vmState := false
+			if sm.vm.Type == api.VMTypeQemu && vmStateCheck != nil {
+				vmState = vmStateCheck.IsChecked()
+			}
 
 			if name == "" {
 				sm.app.showMessage("❌ Snapshot name is required")
@@ -312,4 +414,12 @@ func (sm *SnapshotManager) rollbackSnapshot() {
 			return sm.app.client.RollbackToSnapshot(sm.vm, snapshot.Name)
 		},
 	)
+}
+
+// getHelpText returns the help/footer text for the snapshot manager.
+func (sm *SnapshotManager) getHelpText() string {
+	if sm.vm.Type == api.VMTypeQemu {
+		return theme.ReplaceSemanticTags("[info]C[-]reate  [info]D[-]elete  [info]R[-]ollback  [info]B[-]ack  [info]↑/↓[-] Navigate  [info]Enter[-] Select")
+	}
+	return theme.ReplaceSemanticTags("[info]C[-]reate  [info]D[-]elete  [info]R[-]ollback  [info]B[-]ack  [info]↑/↓[-] Navigate  [info]Enter[-] Select")
 }

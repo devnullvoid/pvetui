@@ -9,13 +9,9 @@ import (
 type Snapshot struct {
 	Name        string    `json:"name"`        // Snapshot name
 	Description string    `json:"description"` // Snapshot description
-	Timestamp   time.Time `json:"timestamp"`   // Creation timestamp
-	Size        int64     `json:"size"`        // Snapshot size in bytes
+	SnapTime    time.Time `json:"snaptime"`    // Creation timestamp (from API)
 	Parent      string    `json:"parent"`      // Parent snapshot name (if any)
-	Children    []string  `json:"children"`    // Child snapshot names
-	VMState     bool      `json:"vmstate"`     // Whether VM state is included
-	Config      bool      `json:"config"`      // Whether config is included
-	Disk        bool      `json:"disk"`        // Whether disk state is included
+	VMState     bool      `json:"vmstate"`     // Whether VM state is included (QEMU only)
 }
 
 // SnapshotOptions contains options for creating snapshots.
@@ -47,28 +43,18 @@ func (c *Client) GetSnapshots(vm *VM) ([]Snapshot, error) {
 	var snapshots []Snapshot
 	for _, item := range data {
 		if snapshotData, ok := item.(map[string]interface{}); ok {
+			name := getString(snapshotData, "name")
+
 			snapshot := Snapshot{
-				Name:        getString(snapshotData, "name"),
+				Name:        name,
 				Description: getString(snapshotData, "description"),
-				Size:        int64(getInt(snapshotData, "size")),
 				Parent:      getString(snapshotData, "parent"),
 				VMState:     getBool(snapshotData, "vmstate"),
-				Config:      getBool(snapshotData, "config"),
-				Disk:        getBool(snapshotData, "disk"),
 			}
 
-			// Parse timestamp
-			if timestamp, ok := snapshotData["timestamp"].(float64); ok {
-				snapshot.Timestamp = time.Unix(int64(timestamp), 0)
-			}
-
-			// Parse children array
-			if children, ok := snapshotData["children"].([]interface{}); ok {
-				for _, child := range children {
-					if childName, ok := child.(string); ok {
-						snapshot.Children = append(snapshot.Children, childName)
-					}
-				}
+			// Parse snaptime
+			if snaptime, ok := snapshotData["snaptime"].(float64); ok {
+				snapshot.SnapTime = time.Unix(int64(snaptime), 0)
 			}
 
 			snapshots = append(snapshots, snapshot)
@@ -90,7 +76,7 @@ func (c *Client) CreateSnapshot(vm *VM, name string, options *SnapshotOptions) e
 		if options.Description != "" {
 			data["description"] = options.Description
 		}
-		if options.VMState {
+		if options.VMState && vm.Type == VMTypeQemu {
 			data["vmstate"] = "1"
 		}
 		if options.Config {
