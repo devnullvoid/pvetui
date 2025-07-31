@@ -39,6 +39,8 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 	// Create components
 	sm.snapshotTable = NewSnapshotTable(app, vm)
 	sm.operations = NewSnapshotOperations(app, vm)
+	// Set the table title with VM info
+	sm.snapshotTable.SetTitle(fmt.Sprintf(" Snapshots for %s %s (ID: %d) ", sm.vm.Type, sm.vm.Name, sm.vm.ID))
 	sm.form = NewSnapshotForm(app, vm)
 
 	// Create info text
@@ -47,20 +49,15 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 		SetTextAlign(tview.AlignLeft).
 		SetWrap(true)
 
-	// Create footer/help bar
-	helpText := sm.getHelpText()
-	helpBar := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter).
-		SetText(helpText)
+	// Create header
+	header := sm.createHeader()
 
 	// Create layout
 	sm.Flex = tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(sm.createHeader(), 2, 0, false).
+		AddItem(header, 3, 0, false).
 		AddItem(sm.snapshotTable, 0, 1, true).
-		AddItem(sm.infoText, 3, 0, false).
-		AddItem(helpBar, 1, 0, false)
+		AddItem(sm.infoText, 1, 0, false)
 
 	// Add border to the entire snapshot manager
 	sm.SetBorder(true)
@@ -134,13 +131,8 @@ func (sm *SnapshotManager) goBack() {
 	sm.app.SetFocus(sm.app.vmList)
 }
 
-// createHeader creates the header with title and buttons.
+// createHeader creates the header with buttons only.
 func (sm *SnapshotManager) createHeader() *tview.Flex {
-	title := tview.NewTextView().
-		SetText(fmt.Sprintf("Snapshots for %s %s (ID: %d)", sm.vm.Type, sm.vm.Name, sm.vm.ID)).
-		SetTextAlign(tview.AlignCenter).
-		SetDynamicColors(true)
-
 	// Create buttons with proper styling
 	sm.createBtn = tview.NewButton("Take Snapshot (C)").
 		SetSelectedFunc(sm.createSnapshot)
@@ -167,8 +159,9 @@ func (sm *SnapshotManager) createHeader() *tview.Flex {
 
 	header := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(title, 1, 0, false).
-		AddItem(buttons, 1, 0, false)
+		AddItem(tview.NewBox(), 1, 0, false). // Space above buttons
+		AddItem(buttons, 1, 0, false).
+		AddItem(tview.NewBox(), 1, 0, false) // Space below buttons
 
 	return header
 }
@@ -322,12 +315,4 @@ func (sm *SnapshotManager) pollForSnapshotUpdates(successMessage string) {
 		sm.loadSnapshots()
 		sm.app.header.ShowSuccess(successMessage)
 	})
-}
-
-// getHelpText returns the help/footer text for the snapshot manager.
-func (sm *SnapshotManager) getHelpText() string {
-	if sm.vm.Type == api.VMTypeQemu {
-		return theme.ReplaceSemanticTags("[info]C[-]reate  [info]D[-]elete  [info]R[-]ollback  [info]B[-]ack  [info]↑/↓[-] Navigate  [info]Enter[-] Select")
-	}
-	return theme.ReplaceSemanticTags("[info]C[-]reate  [info]D[-]elete  [info]R[-]ollback  [info]B[-]ack  [info]↑/↓[-] Navigate  [info]Enter[-] Select")
 }

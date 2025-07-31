@@ -33,6 +33,11 @@ func NewSnapshotTable(app *App, vm *api.VM) *SnapshotTable {
 			}
 		})
 
+	st.SetBorder(true)
+	st.SetBorderColor(theme.Colors.Border)
+	st.SetTitle(" Snapshots for " + vm.Name + " (" + vm.Type + ") ")
+	st.SetTitleColor(theme.Colors.Title)
+
 	st.setupTableHeaders()
 	return st
 }
