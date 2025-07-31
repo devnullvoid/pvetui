@@ -57,10 +57,16 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 	// Create layout
 	sm.Flex = tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(sm.createHeader(), 3, 0, false).
+		AddItem(sm.createHeader(), 2, 0, false).
 		AddItem(sm.snapshotTable, 0, 1, true).
 		AddItem(sm.infoText, 3, 0, false).
 		AddItem(helpBar, 1, 0, false)
+
+	// Add border to the entire snapshot manager
+	sm.SetBorder(true)
+	sm.SetBorderColor(theme.Colors.Border)
+	sm.SetTitle(" Snapshot Manager ")
+	sm.SetTitleColor(theme.Colors.Title)
 
 	// Load snapshots
 	sm.loadSnapshots()
@@ -161,7 +167,7 @@ func (sm *SnapshotManager) createHeader() *tview.Flex {
 
 	header := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(title, 2, 0, false).
+		AddItem(title, 1, 0, false).
 		AddItem(buttons, 1, 0, false)
 
 	return header
