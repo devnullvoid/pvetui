@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -170,7 +171,7 @@ func (sm *SnapshotManager) loadSnapshots() {
 
 	go func() {
 		snapshots, err := sm.operations.GetSnapshots()
-		sm.app.QueueUpdateDraw(func() {
+		sm.app.Application.QueueUpdateDraw(func() {
 			sm.loading = false
 			if err != nil {
 				sm.updateInfoText(fmt.Sprintf("❌ Error loading snapshots: %v", err))
@@ -281,6 +282,8 @@ func (sm *SnapshotManager) performSnapshotOperation(
 					sm.app.header.ShowError(fmt.Sprintf("%s: %v", errorMessage, err))
 				})
 			} else {
+				// Add a small delay to allow backend data to update
+				time.Sleep(500 * time.Millisecond)
 				sm.app.Application.QueueUpdateDraw(func() {
 					sm.loadSnapshots()
 				})
