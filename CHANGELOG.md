@@ -43,9 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration Package Split**: Modularized configuration management with separate profile and file operation modules
 
 ### Fixed
-- **SOPS Encryption Detection**: Fixed critical bug where SOPS encrypted config files were not being detected
-- **Theme Application**: Fixed theme configuration not being applied during bootstrap
-- **Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
+- Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
 
 ## [0.9.0] - 2025-07-16
 
