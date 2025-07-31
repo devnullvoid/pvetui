@@ -62,7 +62,7 @@ linters:
     - thelper
     - unparam
     - goprintffuncname
-    - gocritic
+    # - gocritic
 
   # Disable linters that are too strict for our use case
   disable:

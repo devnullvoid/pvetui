@@ -211,6 +211,25 @@ func (c *Client) DeleteSnapshot(vm *VM, snapshotName string) error {
 		return fmt.Errorf("snapshot deletion failed: %s", errMsg)
 	}
 
+	// Check if the response contains a UPID (task ID) - this means the operation was queued
+	if upid, ok := result["data"].(string); ok && strings.HasPrefix(upid, "UPID:") {
+		c.logger.Debug("DeleteSnapshot task queued with UPID: %s", upid)
+		// Poll for task completion
+		return c.waitForTaskCompletion(upid, "snapshot deletion")
+	}
+
+	// Check if the response contains error messages in the data field
+	if data, ok := result["data"].(string); ok {
+		c.logger.Debug("DeleteSnapshot response data: %s", data)
+		if strings.Contains(data, "error") ||
+			strings.Contains(data, "failed") {
+			errorMsg := fmt.Sprintf("snapshot deletion failed: %s", strings.TrimSpace(data))
+			c.logger.Debug("DeleteSnapshot returning error from data: %s", errorMsg)
+			return errors.New(errorMsg)
+		}
+	}
+
+	c.logger.Debug("DeleteSnapshot operation completed successfully")
 	return nil
 }
 
@@ -244,5 +263,24 @@ func (c *Client) RollbackToSnapshot(vm *VM, snapshotName string) error {
 		return fmt.Errorf("snapshot rollback failed: %s", errMsg)
 	}
 
+	// Check if the response contains a UPID (task ID) - this means the operation was queued
+	if upid, ok := result["data"].(string); ok && strings.HasPrefix(upid, "UPID:") {
+		c.logger.Debug("RollbackToSnapshot task queued with UPID: %s", upid)
+		// Poll for task completion
+		return c.waitForTaskCompletion(upid, "snapshot rollback")
+	}
+
+	// Check if the response contains error messages in the data field
+	if data, ok := result["data"].(string); ok {
+		c.logger.Debug("RollbackToSnapshot response data: %s", data)
+		if strings.Contains(data, "error") ||
+			strings.Contains(data, "failed") {
+			errorMsg := fmt.Sprintf("snapshot rollback failed: %s", strings.TrimSpace(data))
+			c.logger.Debug("RollbackToSnapshot returning error from data: %s", errorMsg)
+			return errors.New(errorMsg)
+		}
+	}
+
+	c.logger.Debug("RollbackToSnapshot operation completed successfully")
 	return nil
 }

@@ -2,7 +2,6 @@ package components
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -286,14 +285,8 @@ func (sm *SnapshotManager) performSnapshotOperation(
 					sm.app.header.ShowError(fmt.Sprintf("%s: %v", errorMessage, err))
 				})
 			} else {
-				// Add a small delay to allow backend data to update
-				time.Sleep(500 * time.Millisecond)
-				sm.app.Application.QueueUpdateDraw(func() {
-					sm.loadSnapshots()
-				})
-				sm.app.Application.QueueUpdateDraw(func() {
-					sm.app.header.ShowSuccess(successMessage)
-				})
+				// Poll for snapshot list updates
+				sm.pollForSnapshotUpdates(successMessage)
 			}
 		}()
 	}
@@ -311,6 +304,15 @@ func (sm *SnapshotManager) performSnapshotOperation(
 	confirm := CreateConfirmDialog(operationName, message, onConfirm, onCancel)
 	sm.app.pages.AddPage("confirmation", confirm, false, true)
 	sm.app.SetFocus(confirm)
+}
+
+// pollForSnapshotUpdates handles snapshot list updates after operations.
+func (sm *SnapshotManager) pollForSnapshotUpdates(successMessage string) {
+	// Since the API already polls for task completion, we can show success immediately
+	sm.app.Application.QueueUpdateDraw(func() {
+		sm.loadSnapshots()
+		sm.app.header.ShowSuccess(successMessage)
+	})
 }
 
 // getHelpText returns the help/footer text for the snapshot manager.

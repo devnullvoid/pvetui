@@ -10,8 +10,9 @@ import (
 
 // SnapshotForm manages the create snapshot form.
 type SnapshotForm struct {
-	app *App
-	vm  *api.VM
+	app               *App
+	vm                *api.VM
+	onSuccessCallback func()
 }
 
 // NewSnapshotForm creates a new snapshot form handler.
@@ -24,6 +25,8 @@ func NewSnapshotForm(app *App, vm *api.VM) *SnapshotForm {
 
 // ShowCreateForm displays the create snapshot form.
 func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
+	// Store the success callback for later use
+	sf.onSuccessCallback = onSuccess
 	// Create form items first
 	nameField := tview.NewInputField().SetLabel("Snapshot Name").SetFieldWidth(20)
 	descField := tview.NewInputField().SetLabel("Description").SetFieldWidth(40)
@@ -65,11 +68,8 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 					sf.app.header.ShowError(fmt.Sprintf("Failed to create snapshot: %v", err))
 				})
 			} else {
-				sf.app.Application.QueueUpdateDraw(func() {
-					sf.app.header.ShowSuccess("Snapshot created successfully")
-					// Reload snapshots after successful creation
-					onSuccess()
-				})
+				// Use the same polling method as delete/rollback
+				sf.pollForSnapshotUpdates("Snapshot created successfully")
 			}
 		}()
 	}).
@@ -92,4 +92,16 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 
 	sf.app.pages.AddPage("createSnapshot", form, true, true)
 	sf.app.SetFocus(form)
+}
+
+// pollForSnapshotUpdates handles snapshot list updates after operations.
+func (sf *SnapshotForm) pollForSnapshotUpdates(successMessage string) {
+	// Since the API already polls for task completion, we can show success immediately
+	sf.app.Application.QueueUpdateDraw(func() {
+		sf.app.header.ShowSuccess(successMessage)
+		// Call the success callback to reload snapshots
+		if sf.onSuccessCallback != nil {
+			sf.onSuccessCallback()
+		}
+	})
 }
