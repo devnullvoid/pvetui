@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Snapshot Management**: Added comprehensive snapshot management for VMs and containers
+  - Full CRUD operations: create, delete, and rollback snapshots
+  - Proper API integration with Proxmox snapshot endpoints
+  - QEMU vs LXC support with VM state handling (QEMU only)
+  - Theme-consistent UI with proper keyboard navigation
+  - Escape key support for all dialogs and forms
+  - Proper handling of 'current' state display as 'NOW'
+  - Comprehensive error handling and user feedback
 - **Connection Profile Management**: Added comprehensive profile management system for multiple Proxmox connections
   - Profile switching, editing, and persistence with validation
   - Automatic migration from legacy single-connection config
