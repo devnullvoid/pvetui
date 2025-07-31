@@ -13,6 +13,7 @@ const (
 	vmActionOpenShell  = "Open Shell"
 	vmActionOpenVNC    = "Open VNC Console"
 	vmActionEditConfig = "Edit Configuration"
+	vmActionSnapshots  = "Manage Snapshots"
 	vmActionRefresh    = "Refresh"
 	vmActionStart      = "Start"
 	vmActionShutdown   = "Shutdown"
@@ -35,6 +36,7 @@ func (a *App) ShowVMContextMenu() {
 	menuItems := []string{
 		vmActionOpenShell,
 		vmActionEditConfig,
+		vmActionSnapshots,
 		vmActionRefresh,
 	}
 
@@ -79,6 +81,10 @@ func (a *App) ShowVMContextMenu() {
 					a.SetFocus(page)
 				})
 			}()
+		case vmActionSnapshots:
+			snapshotManager := NewSnapshotManager(a, vm)
+			a.pages.AddPage("snapshots", snapshotManager, true, true)
+			a.SetFocus(snapshotManager)
 		case vmActionRefresh:
 			a.refreshVMData(vm)
 		case vmActionStart:
