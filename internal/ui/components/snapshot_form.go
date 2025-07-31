@@ -52,20 +52,25 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 			return
 		}
 
+		// Remove form and restore focus immediately
 		sf.app.pages.RemovePage("createSnapshot")
-		onSuccess()
+		onSuccess() // Restore focus to snapshot manager
 
+		// Perform async operation
 		go func() {
 			operations := NewSnapshotOperations(sf.app, sf.vm)
 			err := operations.CreateSnapshot(name, description, vmState)
-			sf.app.QueueUpdateDraw(func() {
-				if err != nil {
-					sf.app.showMessage(fmt.Sprintf("❌ Failed to create snapshot: %v", err))
-				} else {
-					sf.app.showMessage("✅ Snapshot created successfully")
-					onSuccess() // Reload snapshots
-				}
-			})
+			if err != nil {
+				sf.app.Application.QueueUpdateDraw(func() {
+					sf.app.header.ShowError(fmt.Sprintf("Failed to create snapshot: %v", err))
+				})
+			} else {
+				sf.app.Application.QueueUpdateDraw(func() {
+					sf.app.header.ShowSuccess("Snapshot created successfully")
+					// Reload snapshots after successful creation
+					onSuccess()
+				})
+			}
 		}()
 	}).
 		AddButton("Cancel", func() {

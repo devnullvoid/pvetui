@@ -72,6 +72,8 @@ func (st *SnapshotTable) DisplaySnapshots(snapshots []api.Snapshot) {
 	}
 
 	if len(snapshots) == 0 {
+		// Reset selection to header row when no snapshots
+		st.Select(0, 0)
 		return
 	}
 
@@ -120,6 +122,9 @@ func (st *SnapshotTable) DisplaySnapshots(snapshots []api.Snapshot) {
 			st.SetCell(row, 2, tview.NewTableCell(snapshot.Description).SetTextColor(theme.Colors.Primary))
 		}
 	}
+
+	// Set selection to first snapshot row after refresh
+	st.Select(1, 0)
 }
 
 // GetSelectedSnapshot gets the currently selected snapshot.

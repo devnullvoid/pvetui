@@ -135,7 +135,7 @@ func (sm *SnapshotManager) createHeader() *tview.Flex {
 	sm.createBtn = tview.NewButton("Take Snapshot (C)").
 		SetSelectedFunc(sm.createSnapshot)
 
-	sm.deleteBtn = tview.NewButton("Remove (D)").
+	sm.deleteBtn = tview.NewButton("Delete (D)").
 		SetSelectedFunc(sm.deleteSnapshot)
 
 	sm.rollbackBtn = tview.NewButton("Rollback (R)").
@@ -258,22 +258,52 @@ func (sm *SnapshotManager) performSnapshotOperation(
 		return
 	}
 
-	sm.app.showConfirmationDialog(
-		fmt.Sprintf("Are you sure you want to %s snapshot '%s'?\n\nThis action cannot be undone.", operationName, snapshot.Name),
-		func() {
-			go func() {
-				err := operation()
-				sm.app.QueueUpdateDraw(func() {
-					if err != nil {
-						sm.app.showMessage(fmt.Sprintf("❌ %s: %v", errorMessage, err))
-					} else {
-						sm.app.showMessage(fmt.Sprintf("✅ %s", successMessage))
-						sm.loadSnapshots() // Reload snapshots
-					}
+	// Store current focus
+	sm.app.lastFocus = sm.app.GetFocus()
+
+	// Create confirmation dialog
+	message := fmt.Sprintf("Are you sure you want to %s snapshot '%s'?\n\nThis action cannot be undone.", operationName, snapshot.Name)
+
+	onConfirm := func() {
+		// Remove the confirmation dialog
+		sm.app.pages.RemovePage("confirmation")
+
+		// Restore focus
+		if sm.app.lastFocus != nil {
+			sm.app.SetFocus(sm.app.lastFocus)
+		}
+
+		// Perform operation in goroutine
+		go func() {
+			err := operation()
+			if err != nil {
+				sm.app.Application.QueueUpdateDraw(func() {
+					sm.app.header.ShowError(fmt.Sprintf("%s: %v", errorMessage, err))
 				})
-			}()
-		},
-	)
+			} else {
+				sm.app.Application.QueueUpdateDraw(func() {
+					sm.loadSnapshots()
+				})
+				sm.app.Application.QueueUpdateDraw(func() {
+					sm.app.header.ShowSuccess(successMessage)
+				})
+			}
+		}()
+	}
+
+	onCancel := func() {
+		// Remove the confirmation dialog
+		sm.app.pages.RemovePage("confirmation")
+
+		// Restore focus
+		if sm.app.lastFocus != nil {
+			sm.app.SetFocus(sm.app.lastFocus)
+		}
+	}
+
+	confirm := CreateConfirmDialog(operationName, message, onConfirm, onCancel)
+	sm.app.pages.AddPage("confirmation", confirm, false, true)
+	sm.app.SetFocus(confirm)
 }
 
 // getHelpText returns the help/footer text for the snapshot manager.

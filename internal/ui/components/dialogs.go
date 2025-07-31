@@ -15,6 +15,9 @@ import (
 
 // showMessage displays a message to the user.
 func (a *App) showMessage(message string) {
+	// Save current focus before showing modal
+	a.lastFocus = a.GetFocus()
+
 	modal := tview.NewModal().
 		SetText(message).
 		// SetBackgroundColor(theme.Colors.Background).
@@ -29,7 +32,11 @@ func (a *App) showMessage(message string) {
 		})
 
 	a.pages.AddPage("message", modal, false, true)
-	a.SetFocus(modal)
+
+	// Ensure modal gets focus in the next update cycle
+	a.QueueUpdateDraw(func() {
+		a.SetFocus(modal)
+	})
 }
 
 // showConfirmationDialog displays a confirmation dialog with Yes/No options.
