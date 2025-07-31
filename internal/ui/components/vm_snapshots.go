@@ -10,6 +10,10 @@ import (
 	"github.com/rivo/tview"
 )
 
+const (
+	CurrentSnapshotName = "current"
+)
+
 // SnapshotManager manages the snapshot interface for VMs and containers.
 type SnapshotManager struct {
 	*tview.Flex
@@ -54,7 +58,7 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 	// Create layout
 	sm.Flex = tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(sm.createHeader(), 5, 0, false).
+		AddItem(sm.createHeader(), 3, 0, false).
 		AddItem(sm.snapshotTable, 0, 1, true).
 		AddItem(sm.infoText, 3, 0, false).
 		AddItem(helpBar, 1, 0, false)
@@ -159,7 +163,7 @@ func (sm *SnapshotManager) createHeader() *tview.Flex {
 	header := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(title, 2, 0, false).
-		AddItem(buttons, 3, 0, false)
+		AddItem(buttons, 1, 0, false)
 
 	return header
 }

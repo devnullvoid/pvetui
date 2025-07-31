@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -79,7 +80,17 @@ func (c *Client) CreateSnapshot(vm *VM, name string, options *SnapshotOptions) e
 
 	c.logger.Info("Creating snapshot '%s' for %s %s (ID: %d)", name, vm.Type, vm.Name, vm.ID)
 
-	return c.Post(path, data)
+	var result map[string]interface{}
+	if err := c.PostWithResponse(path, data, &result); err != nil {
+		return err
+	}
+
+	// Check for API-level errors in the response
+	if errMsg, ok := result["error"].(string); ok && errMsg != "" {
+		return fmt.Errorf("snapshot creation failed: %s", errMsg)
+	}
+
+	return nil
 }
 
 // DeleteSnapshot deletes a snapshot from a VM or container.
@@ -88,7 +99,17 @@ func (c *Client) DeleteSnapshot(vm *VM, snapshotName string) error {
 
 	c.logger.Info("Deleting snapshot '%s' from %s %s (ID: %d)", snapshotName, vm.Type, vm.Name, vm.ID)
 
-	return c.Delete(path)
+	var result map[string]interface{}
+	if err := c.httpClient.Delete(context.Background(), path, &result); err != nil {
+		return err
+	}
+
+	// Check for API-level errors in the response
+	if errMsg, ok := result["error"].(string); ok && errMsg != "" {
+		return fmt.Errorf("snapshot deletion failed: %s", errMsg)
+	}
+
+	return nil
 }
 
 // RollbackToSnapshot rolls back a VM or container to a specific snapshot.
@@ -97,5 +118,15 @@ func (c *Client) RollbackToSnapshot(vm *VM, snapshotName string) error {
 
 	c.logger.Info("Rolling back %s %s (ID: %d) to snapshot '%s'", vm.Type, vm.Name, vm.ID, snapshotName)
 
-	return c.Post(path, nil)
+	var result map[string]interface{}
+	if err := c.PostWithResponse(path, nil, &result); err != nil {
+		return err
+	}
+
+	// Check for API-level errors in the response
+	if errMsg, ok := result["error"].(string); ok && errMsg != "" {
+		return fmt.Errorf("snapshot rollback failed: %s", errMsg)
+	}
+
+	return nil
 }
