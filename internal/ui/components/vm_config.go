@@ -84,14 +84,25 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	})
 	// Save/Cancel buttons
 	form.AddButton("Save", func() {
-		err := page.saveFn(page.config)
-		if err != nil {
-			app.showMessage(fmt.Sprintf("Failed to save config: %v", err))
-		} else {
-			app.showMessage("Configuration updated successfully.")
-			app.manualRefresh()
-			app.pages.RemovePage("vmConfig")
-		}
+		// Show loading indicator
+		app.header.ShowLoading(fmt.Sprintf("Saving configuration for %s...", vm.Name))
+
+		// Run save operation in goroutine to avoid blocking UI
+		go func() {
+			err := page.saveFn(page.config)
+
+			app.QueueUpdateDraw(func() {
+				if err != nil {
+					app.header.ShowError(fmt.Sprintf("Failed to save config: %v", err))
+				} else {
+					app.header.ShowSuccess("Configuration updated successfully.")
+					// Remove the config page first
+					app.pages.RemovePage("vmConfig")
+					// Then refresh data
+					app.manualRefresh()
+				}
+			})
+		}()
 	})
 	form.AddButton("Cancel", func() {
 		app.pages.RemovePage("vmConfig")
@@ -199,14 +210,15 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 			err := app.client.ResizeVMStorage(vm, dev.Device, sizeStr)
 			app.QueueUpdateDraw(func() {
 				if err != nil {
-					app.showMessage(fmt.Sprintf("Resize failed: %v", err))
+					app.header.ShowError(fmt.Sprintf("Resize failed: %v", err))
 				} else {
-					app.showMessage("Resize operation started successfully.")
-					app.manualRefresh()
-
+					app.header.ShowSuccess("Resize operation started successfully.")
+					// Remove the modal first
 					if err := app.pages.RemovePage("resizeStorage"); err != nil {
 						models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
 					}
+					// Then refresh data
+					app.manualRefresh()
 				}
 			})
 		}()

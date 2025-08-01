@@ -10,36 +10,52 @@ import (
 
 // applyConnectionProfile applies the selected connection profile.
 func (a *App) applyConnectionProfile(profileName string) {
-	err := a.config.ApplyProfile(profileName)
-	if err != nil {
-		a.showMessage("Failed to apply profile: " + err.Error())
+	// Show loading indicator
+	a.header.ShowLoading(fmt.Sprintf("Switching to profile '%s'...", profileName))
 
-		return
-	}
+	// Run profile switching in goroutine to avoid blocking UI
+	go func() {
+		err := a.config.ApplyProfile(profileName)
+		if err != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError("Failed to apply profile: " + err.Error())
+			})
+			return
+		}
 
-	// Note: We don't save the config file when switching profiles in the UI
-	// The default_profile should only be changed via the config wizard
-	// This allows temporary profile switching without affecting the saved config
+		// Note: We don't save the config file when switching profiles in the UI
+		// The default_profile should only be changed via the config wizard
+		// This allows temporary profile switching without affecting the saved config
 
-	// Recreate the API client with the new profile
-	client, err := api.NewClient(&a.config, api.WithLogger(models.GetUILogger()))
-	if err != nil {
-		a.showMessage("Failed to create API client: " + err.Error())
-		return
-	}
+		// Recreate the API client with the new profile
+		client, err := api.NewClient(&a.config, api.WithLogger(models.GetUILogger()))
+		if err != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError("Failed to create API client: " + err.Error())
+			})
+			return
+		}
 
-	a.client = client
+		a.QueueUpdateDraw(func() {
+			a.client = client
 
-	// Update VNC service with new connection details
-	if a.vncService != nil {
-		a.vncService.UpdateClient(client)
-	}
+			// Update VNC service with new connection details
+			if a.vncService != nil {
+				a.vncService.UpdateClient(client)
+			}
 
-	// Refresh data with new connection
-	a.manualRefresh()
+			// Update the header to show the new active profile
+			a.header.ShowActiveProfile(profileName)
+		})
 
-	// Show success message
-	a.showMessage("Switched to profile '" + profileName + "' successfully!")
+		// Show success message
+		a.QueueUpdateDraw(func() {
+			a.header.ShowSuccess("Switched to profile '" + profileName + "' successfully!")
+		})
+
+		// Then refresh data with new connection (this will update the UI)
+		a.manualRefresh()
+	}()
 }
 
 // showDeleteProfileDialog displays a confirmation dialog for deleting a profile.
@@ -71,14 +87,14 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 
 			if err := SaveConfigToFile(&a.config, configPath); err != nil {
 				a.Application.QueueUpdateDraw(func() {
-					a.showMessage("Failed to save config after deletion: " + err.Error())
+					a.header.ShowError("Failed to save config after deletion: " + err.Error())
 				})
 				return
 			}
 
 			// Show success message with proper focus
 			a.Application.QueueUpdateDraw(func() {
-				a.showMessage("Profile '" + profileName + "' deleted successfully!")
+				a.header.ShowSuccess("Profile '" + profileName + "' deleted successfully!")
 			})
 		}
 
