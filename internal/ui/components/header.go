@@ -118,6 +118,11 @@ func (h *Header) ShowActiveProfile(profileName string) {
 	h.SetText(h.formatProfileText(profileName))
 }
 
+// GetCurrentProfile returns the currently connected profile name.
+func (h *Header) GetCurrentProfile() string {
+	return h.currentProfile
+}
+
 // restoreProfile simply restores the profile display without stopping loading.
 func (h *Header) restoreProfile() {
 	h.SetText(h.formatProfileText(h.currentProfile))

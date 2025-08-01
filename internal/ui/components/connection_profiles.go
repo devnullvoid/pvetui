@@ -32,10 +32,18 @@ func (a *App) showConnectionProfilesDialog() {
 		if name == addNewProfileText {
 			menuItems[i] = "➕ " + name
 		} else {
-			// Show if it's the default profile
+			// Show star for default profile, and indicate if connected
 			displayName := name
-			if name == a.config.DefaultProfile {
-				displayName = "⭐ " + name + " (Default)"
+			isDefault := name == a.config.DefaultProfile
+			isConnected := name == a.header.GetCurrentProfile()
+
+			if isConnected {
+				// Connected profile gets priority - show as connected
+				displayName = "⚡ " + name
+			}
+			if isDefault {
+				// Default profile (when not connected) shows as default
+				displayName = displayName + " ⭐"
 			}
 			menuItems[i] = displayName
 		}
@@ -101,6 +109,17 @@ func (a *App) showConnectionProfilesDialog() {
 						return nil
 					}
 				}
+			case 's', 'S':
+				// Set the currently selected profile as default
+				index := menuList.GetCurrentItem()
+				if index >= 0 && index < len(profileNames) {
+					profileName := profileNames[index]
+					if profileName != addNewProfileText {
+						a.CloseConnectionProfilesMenu()
+						a.setDefaultProfile(profileName)
+						return nil
+					}
+				}
 			}
 		}
 
@@ -116,7 +135,7 @@ func (a *App) showConnectionProfilesDialog() {
 
 	// Create help text
 	helpText := tview.NewTextView()
-	helpText.SetText("e:edit d:delete")
+	helpText.SetText("e:edit d:delete s:default")
 	helpText.SetTextAlign(tview.AlignCenter)
 	helpText.SetDynamicColors(true)
 	helpText.SetTextColor(theme.Colors.Secondary)
@@ -210,9 +229,9 @@ func (a *App) showAddProfileDialog() {
 		a.pages.RemovePage("profileWizard")
 
 		if result.Saved {
-			// Show immediate feedback using QueueUpdateDraw
+			// Show immediate feedback using header notification
 			a.Application.QueueUpdateDraw(func() {
-				a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
+				a.header.ShowSuccess("Profile '" + result.ProfileName + "' saved successfully!")
 			})
 		} else if result.Canceled {
 			// Restore focus to the last focused element when canceled
@@ -275,9 +294,9 @@ func (a *App) showEditProfileDialog(profileName string) {
 		a.pages.RemovePage("profileWizard")
 
 		if result.Saved {
-			// Show immediate feedback using QueueUpdateDraw
+			// Show immediate feedback using header notification
 			a.Application.QueueUpdateDraw(func() {
-				a.showMessage("Profile '" + result.ProfileName + "' saved successfully!")
+				a.header.ShowSuccess("Profile '" + result.ProfileName + "' saved successfully!")
 			})
 		} else if result.Canceled {
 			// Restore focus to the last focused element when canceled
