@@ -49,9 +49,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced maintainability and testability while preserving all functionality
 - **Logger Architecture Improvements**: Enhanced logging system with better error handling and circular import resolution
 - **Configuration Package Split**: Modularized configuration management with separate profile and file operation modules
+- **UI Simplification**: Removed redundant Global menu hotkey from footer display since Esc opens the global menu
 
 ### Fixed
 - Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
+- **FormButton Theming**: Fixed FormButton styling to use proper theme colors instead of hardcoded tview.Styles colors, ensuring consistent appearance with other UI elements
+- **FormButton Refactoring**: Refactored FormButton to embed a real tview.Button, providing proper button styling, behavior, and theme consistency
+- **FormButton Sizing**: Fixed FormButton to properly size and center the button instead of taking up the entire width
+- **FormButton Alignment**: Added configurable positioning options (center, left, right, custom) for FormButton alignment within forms
 
 ## [0.9.0] - 2025-07-16
 

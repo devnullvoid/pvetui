@@ -72,7 +72,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.Shell, Desc: "Open SSH shell (node/guest)"},
 		{Key: keys.VNC, Desc: "Open VNC console (node/guest)"},
 		{Key: keys.Menu, Desc: "Open context menu"},
-		{Key: keys.GlobalMenu, Desc: "Open global menu"},
+		{Key: "Esc", Desc: "Open global menu"},
 		{Key: keys.Scripts, Desc: "Install community scripts (nodes)"},
 		{Key: keys.Refresh, Desc: "Manual refresh"},
 		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},
@@ -81,6 +81,8 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Cat: "[warning]Tips & Usage[-]"},
 		{Desc: fmt.Sprintf("• Use search ([primary]%s[-]) to quickly find nodes or guests.", keys.Search)},
 		{Desc: fmt.Sprintf("• The context menu ([primary]%s[-]) provides quick access to actions.", keys.Menu)},
+		{Desc: "• Press [primary]Esc[-] to open the global menu for app-wide actions."},
+		{Desc: "• The 'g' key is still available for global menu if configured in key_bindings."},
 		{Desc: "• VNC opens in your default web browser."},
 		{Desc: "• SSH sessions suspend the UI until the session is closed."},
 	}

@@ -35,10 +35,10 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		saveFn: saveFn,
 	}
 
-	// Add Resize Storage Volume button as a FormButton at the top
+	// Add Resize Storage Volume button as a FormButton at the top (left-aligned)
 	resizeBtn := NewFormButton("Resize Storage Volume", func() {
 		showResizeStorageModal(app, vm)
-	})
+	}).SetAlignment(AlignLeft)
 	form.AddFormItem(resizeBtn)
 	// Restore to simple vertical layout for Cores, Sockets, Memory (MB)
 	form.SetHorizontal(false)
