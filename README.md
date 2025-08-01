@@ -126,7 +126,7 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 | `h j k l` | Navigate | `Alt+1/2/3` | Switch views |
 | `Enter` | Select | `[ ]` | Previous/Next view |
 | `s` | SSH Shell | `v` | VNC Console |
-| `m` | Context Menu | `c` | Community Scripts |
+| `m` | Context Menu | `g` | Global Menu |
 | `/` | Search | `a` | Auto-refresh |
 | `?` | Help | `q` | Quit |
 

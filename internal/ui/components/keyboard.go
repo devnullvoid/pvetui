@@ -245,22 +245,6 @@ func (a *App) setupKeyboardHandlers() {
 			return nil
 		}
 
-		if keyMatch(event, a.config.KeyBindings.Scripts) {
-			// Open community scripts installer - only available for nodes
-			currentPage, _ := a.pages.GetFrontPage()
-			if currentPage == api.PageNodes {
-				node := a.nodeList.GetSelectedNode()
-				if node != nil {
-					a.openScriptSelector(node, nil)
-				}
-			} else if currentPage == api.PageGuests {
-				// Community scripts are not available for individual VMs
-				a.showMessage("Community scripts can only be installed on nodes. Switch to the Nodes tab to install scripts.")
-			}
-
-			return nil
-		}
-
 		if keyMatch(event, a.config.KeyBindings.AutoRefresh) {
 			// Toggle auto-refresh
 			a.toggleAutoRefresh()

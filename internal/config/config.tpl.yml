@@ -33,7 +33,6 @@ key_bindings:
   menu: m
   shell: s
   vnc: v
-  scripts: c
   refresh: "Ctrl+r"
   auto_refresh: a
   search: "/"

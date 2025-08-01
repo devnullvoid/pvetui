@@ -119,7 +119,6 @@ type KeyBindings struct {
 	GlobalMenu        string `yaml:"global_menu"`  // Open global context menu
 	Shell             string `yaml:"shell"`        // Open shell session
 	VNC               string `yaml:"vnc"`          // Open VNC console
-	Scripts           string `yaml:"scripts"`      // Install community scripts
 	Refresh           string `yaml:"refresh"`      // Manual refresh
 	AutoRefresh       string `yaml:"auto_refresh"` // Toggle auto-refresh
 	Search            string `yaml:"search"`       // Activate search
@@ -142,15 +141,14 @@ func DefaultKeyBindings() KeyBindings {
 	return KeyBindings{
 		SwitchView:        "]",
 		SwitchViewReverse: "[",
-		NodesPage:         "F1",
-		GuestsPage:        "F2",
-		TasksPage:         "F3",
+		NodesPage:         "Alt+1",
+		GuestsPage:        "Alt+2",
+		TasksPage:         "Alt+3",
 		Menu:              "m",
 		GlobalMenu:        "g",
 		Shell:             "s",
 		VNC:               "v",
-		Scripts:           "c",
-		Refresh:           "F5",
+		Refresh:           "Ctrl+r",
 		AutoRefresh:       "a",
 		Search:            "/",
 		Help:              "?",
@@ -170,7 +168,6 @@ func keyBindingsToMap(kb KeyBindings) map[string]string {
 		"global_menu":         kb.GlobalMenu,
 		"shell":               kb.Shell,
 		"vnc":                 kb.VNC,
-		"scripts":             kb.Scripts,
 		"refresh":             kb.Refresh,
 		"auto_refresh":        kb.AutoRefresh,
 		"search":              kb.Search,
@@ -435,10 +432,6 @@ func (c *Config) MergeWithFile(path string) error {
 			c.KeyBindings.VNC = kb.VNC
 		}
 
-		if kb.Scripts != "" {
-			c.KeyBindings.Scripts = kb.Scripts
-		}
-
 		if kb.Refresh != "" {
 			c.KeyBindings.Refresh = kb.Refresh
 		}
@@ -574,10 +567,6 @@ func (c *Config) SetDefaults() {
 
 	if c.KeyBindings.VNC == "" {
 		c.KeyBindings.VNC = defaults.VNC
-	}
-
-	if c.KeyBindings.Scripts == "" {
-		c.KeyBindings.Scripts = defaults.Scripts
 	}
 
 	if c.KeyBindings.Refresh == "" {
