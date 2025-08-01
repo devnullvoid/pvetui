@@ -245,8 +245,35 @@ func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
 	// Clear the cache first to ensure fresh data
 	c.ClearAPICache()
 
-	// Now get fresh data
-	return c.GetClusterStatus()
+	// Create a fresh cluster with minimal cache TTL for resources
+	cluster := &Cluster{
+		Nodes:          make([]*Node, 0),
+		StorageManager: NewStorageManager(),
+		lastUpdate:     time.Now(),
+	}
+
+	// 1. Get basic cluster status
+	if err := c.getClusterBasicStatus(cluster); err != nil {
+		return nil, err
+	}
+
+	// 2. Get cluster resources without cache (TTL = 0)
+	if err := c.processClusterResourcesWithCache(cluster, 0); err != nil {
+		return nil, err
+	}
+
+	// 3. Enrich VMs with detailed status information
+	if err := c.EnrichVMs(cluster); err != nil {
+		// Log error but continue
+		c.logger.Debug("[CLUSTER] Error enriching VM data: %v", err)
+	}
+
+	// 4. Calculate cluster-wide totals
+	c.calculateClusterTotals(cluster)
+
+	c.Cluster = cluster
+
+	return cluster, nil
 }
 
 // RefreshNodeData refreshes data for a specific node by clearing its cache entries and fetching fresh data.
@@ -305,11 +332,6 @@ func (c *Client) RefreshNodeData(nodeName string) (*Node, error) {
 		// Preserve IP address (comes from cluster status, not node status)
 		if originalNode.IP != "" {
 			freshNode.IP = originalNode.IP
-		}
-
-		// Preserve VMs list
-		if originalNode.VMs != nil {
-			freshNode.VMs = originalNode.VMs
 		}
 
 		// Preserve storage info

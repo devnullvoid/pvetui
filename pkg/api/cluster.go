@@ -314,9 +314,22 @@ func (c *Client) enrichNodeMissingDetails(node *Node) error {
 
 // processClusterResources handles storage and VM data from cluster resources.
 func (c *Client) processClusterResources(cluster *Cluster) error {
+	return c.processClusterResourcesWithCache(cluster, ResourceDataTTL)
+}
+
+// processClusterResourcesWithCache processes cluster resources with specified cache TTL
+func (c *Client) processClusterResourcesWithCache(cluster *Cluster, ttl time.Duration) error {
 	var resourcesResp map[string]interface{}
-	if err := c.GetWithCache("/cluster/resources", &resourcesResp, ResourceDataTTL); err != nil {
-		return fmt.Errorf("failed to get cluster resources: %w", err)
+	if ttl == 0 {
+		// Use non-cached call for fresh data
+		if err := c.Get("/cluster/resources", &resourcesResp); err != nil {
+			return fmt.Errorf("failed to get cluster resources: %w", err)
+		}
+	} else {
+		// Use cached call with specified TTL
+		if err := c.GetWithCache("/cluster/resources", &resourcesResp, ttl); err != nil {
+			return fmt.Errorf("failed to get cluster resources: %w", err)
+		}
 	}
 
 	resourcesData, ok := resourcesResp["data"].([]interface{})
