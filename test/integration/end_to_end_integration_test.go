@@ -279,10 +279,20 @@ password: "testpass"
 		// Step 3: Validation should fail
 		err = cfg.Validate()
 		assert.Error(t, err)
+		// After migration, the error message changes to profile-based format
 		assert.Contains(t, err.Error(), "address required")
 
 		// Step 4: Fix configuration and retry
-		cfg.Addr = "https://fixed.example.com:8006"
+		// After migration, we need to fix the profile instead of legacy fields
+		if len(cfg.Profiles) > 0 {
+			// Profile-based config - fix the default profile
+			defaultProfile := cfg.Profiles["default"]
+			defaultProfile.Addr = "https://fixed.example.com:8006"
+			cfg.Profiles["default"] = defaultProfile
+		} else {
+			// Legacy config - fix legacy fields
+			cfg.Addr = "https://fixed.example.com:8006"
+		}
 		err = cfg.Validate()
 		assert.NoError(t, err)
 	})

@@ -462,6 +462,11 @@ func (c *Config) MergeWithFile(path string) error {
 		c.CacheDir = fileConfig.CacheDir
 	}
 
+	// Migrate legacy configuration to profile-based if needed
+	if migrated := c.MigrateLegacyToProfiles(); migrated {
+		fmt.Printf("🔄 Migrated legacy configuration to profile-based format\n")
+	}
+
 	// Merge key bindings if provided
 	if kb := fileConfig.KeyBindings; kb != struct {
 		SwitchView        string `yaml:"switch_view"`

@@ -54,7 +54,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 		c.TokenID != "" || c.TokenSecret != "" || c.Realm != "" ||
 		c.ApiPath != "" || c.SSHUser != ""
 
-	if !hasLegacyFields || c.Profiles != nil {
+	if !hasLegacyFields || len(c.Profiles) > 0 {
 		return false
 	}
 

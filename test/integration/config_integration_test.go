@@ -134,10 +134,10 @@ invalid: [unclosed
 
 			require.NoError(t, err)
 
-			// Check expected values
-			assert.Equal(t, tt.expectedAddr, cfg.Addr)
-			assert.Equal(t, tt.expectedUser, cfg.User)
-			assert.Equal(t, tt.expectedRealm, cfg.Realm)
+			// Check expected values (use getter methods to handle both legacy and profile-based configs)
+			assert.Equal(t, tt.expectedAddr, cfg.GetAddr())
+			assert.Equal(t, tt.expectedUser, cfg.GetUser())
+			assert.Equal(t, tt.expectedRealm, cfg.GetRealm())
 			assert.Equal(t, tt.expectedDebug, cfg.Debug)
 		})
 	}
@@ -187,12 +187,12 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 			},
 			expectError: false,
 			validate: func(t *testing.T, cfg *config.Config) {
-				assert.Equal(t, "https://env.example.com:8006", cfg.Addr)
-				assert.Equal(t, "envuser", cfg.User)
-				assert.Equal(t, "envpass", cfg.Password)
-				assert.Equal(t, "pam", cfg.Realm)
+				assert.Equal(t, "https://env.example.com:8006", cfg.GetAddr())
+				assert.Equal(t, "envuser", cfg.GetUser())
+				assert.Equal(t, "envpass", cfg.GetPassword())
+				assert.Equal(t, "pam", cfg.GetRealm())
 				assert.True(t, cfg.Debug)
-				assert.True(t, cfg.Insecure)
+				assert.True(t, cfg.GetInsecure())
 				assert.False(t, cfg.IsUsingTokenAuth())
 			},
 		},
@@ -208,11 +208,11 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 			},
 			expectError: false,
 			validate: func(t *testing.T, cfg *config.Config) {
-				assert.Equal(t, "https://token.example.com:8006", cfg.Addr)
-				assert.Equal(t, "tokenuser", cfg.User)
-				assert.Equal(t, "mytoken", cfg.TokenID)
-				assert.Equal(t, "secret123", cfg.TokenSecret)
-				assert.Equal(t, "pve", cfg.Realm)
+				assert.Equal(t, "https://token.example.com:8006", cfg.GetAddr())
+				assert.Equal(t, "tokenuser", cfg.GetUser())
+				assert.Equal(t, "mytoken", cfg.GetTokenID())
+				assert.Equal(t, "secret123", cfg.GetTokenSecret())
+				assert.Equal(t, "pve", cfg.GetRealm())
 				assert.False(t, cfg.Debug)
 				assert.True(t, cfg.IsUsingTokenAuth())
 				expectedToken := "PVEAPIToken=tokenuser@pve!mytoken=secret123"
@@ -330,10 +330,10 @@ debug: false
 	require.NoError(t, err)
 
 	// File should take precedence over environment
-	assert.Equal(t, "https://file.example.com:8006", cfg.Addr) // From file (overrides env)
-	assert.Equal(t, "fileuser", cfg.User)                      // From file
-	assert.Equal(t, "filepass", cfg.Password)                  // From file
-	assert.False(t, cfg.Debug)                                 // From file (overrides env)
+	assert.Equal(t, "https://file.example.com:8006", cfg.GetAddr()) // From file (overrides env)
+	assert.Equal(t, "fileuser", cfg.GetUser())                      // From file
+	assert.Equal(t, "filepass", cfg.GetPassword())                  // From file
+	assert.False(t, cfg.Debug)                                      // From file (overrides env)
 
 	// Validate the merged configuration
 	err = cfg.Validate()
@@ -362,13 +362,13 @@ func TestConfigIntegration_AdapterCompatibility(t *testing.T) {
 		require.NotNil(t, adapter)
 
 		// Test all interface methods
-		assert.Equal(t, cfg.Addr, adapter.GetAddr())
-		assert.Equal(t, cfg.User, adapter.GetUser())
-		assert.Equal(t, cfg.Password, adapter.GetPassword())
-		assert.Equal(t, cfg.Realm, adapter.GetRealm())
-		assert.Equal(t, cfg.TokenID, adapter.GetTokenID())
-		assert.Equal(t, cfg.TokenSecret, adapter.GetTokenSecret())
-		assert.Equal(t, cfg.Insecure, adapter.GetInsecure())
+		assert.Equal(t, cfg.GetAddr(), adapter.GetAddr())
+		assert.Equal(t, cfg.GetUser(), adapter.GetUser())
+		assert.Equal(t, cfg.GetPassword(), adapter.GetPassword())
+		assert.Equal(t, cfg.GetRealm(), adapter.GetRealm())
+		assert.Equal(t, cfg.GetTokenID(), adapter.GetTokenID())
+		assert.Equal(t, cfg.GetTokenSecret(), adapter.GetTokenSecret())
+		assert.Equal(t, cfg.GetInsecure(), adapter.GetInsecure())
 		assert.Equal(t, cfg.IsUsingTokenAuth(), adapter.IsUsingTokenAuth())
 		assert.Equal(t, cfg.GetAPIToken(), adapter.GetAPIToken())
 	})

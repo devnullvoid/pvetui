@@ -349,11 +349,23 @@ invalid: yaml: content:
 				assert.NoError(t, err)
 
 				if tt.expectedConfig != nil {
-					assert.Equal(t, tt.expectedConfig.Addr, tt.initialConfig.Addr)
-					assert.Equal(t, tt.expectedConfig.User, tt.initialConfig.User)
-					assert.Equal(t, tt.expectedConfig.Password, tt.initialConfig.Password)
+					// After migration, check profile-based values instead of legacy fields
+					if len(tt.initialConfig.Profiles) > 0 {
+						// Check profile-based configuration
+						defaultProfile, exists := tt.initialConfig.Profiles["default"]
+						assert.True(t, exists, "Default profile should exist after migration")
+						assert.Equal(t, tt.expectedConfig.Addr, defaultProfile.Addr)
+						assert.Equal(t, tt.expectedConfig.User, defaultProfile.User)
+						assert.Equal(t, tt.expectedConfig.Password, defaultProfile.Password)
+						assert.Equal(t, tt.expectedConfig.Insecure, defaultProfile.Insecure)
+					} else {
+						// Check legacy fields (if no migration occurred)
+						assert.Equal(t, tt.expectedConfig.Addr, tt.initialConfig.Addr)
+						assert.Equal(t, tt.expectedConfig.User, tt.initialConfig.User)
+						assert.Equal(t, tt.expectedConfig.Password, tt.initialConfig.Password)
+						assert.Equal(t, tt.expectedConfig.Insecure, tt.initialConfig.Insecure)
+					}
 					assert.Equal(t, tt.expectedConfig.Debug, tt.initialConfig.Debug)
-					assert.Equal(t, tt.expectedConfig.Insecure, tt.initialConfig.Insecure)
 				}
 			}
 		})
@@ -541,7 +553,7 @@ func TestConfig_ProfileBasedConfiguration(t *testing.T) {
 				DefaultProfile: "default",
 			},
 			expectError: true,
-			errorMsg:    "default profile 'default' not found",
+			errorMsg:    "proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file",
 		},
 	}
 
@@ -619,6 +631,143 @@ debug: true
 
 	// Check global settings
 	assert.True(t, initialConfig.Debug)
+}
+
+func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
+	// Test that legacy configuration gets migrated to profile-based
+	cfg := &Config{
+		Addr:     "https://test.example.com:8006",
+		User:     "testuser",
+		Password: "testpass",
+		Realm:    "pam",
+		Insecure: true,
+		SSHUser:  "sshuser",
+	}
+
+	// Initially should have no profiles
+	assert.Equal(t, 0, len(cfg.Profiles))
+	assert.Equal(t, "", cfg.DefaultProfile)
+
+	// Migrate should succeed
+	migrated := cfg.MigrateLegacyToProfiles()
+	assert.True(t, migrated)
+
+	// Should now have a default profile
+	assert.Equal(t, "default", cfg.DefaultProfile)
+	assert.Equal(t, 1, len(cfg.Profiles))
+
+	// Check that the default profile has the legacy values
+	defaultProfile, exists := cfg.Profiles["default"]
+	assert.True(t, exists)
+	assert.Equal(t, "https://test.example.com:8006", defaultProfile.Addr)
+	assert.Equal(t, "testuser", defaultProfile.User)
+	assert.Equal(t, "testpass", defaultProfile.Password)
+	assert.Equal(t, "pam", defaultProfile.Realm)
+	assert.True(t, defaultProfile.Insecure)
+	assert.Equal(t, "sshuser", defaultProfile.SSHUser)
+
+	// Legacy fields should be cleared
+	assert.Equal(t, "", cfg.Addr)
+	assert.Equal(t, "", cfg.User)
+	assert.Equal(t, "", cfg.Password)
+	assert.Equal(t, "", cfg.Realm)
+	assert.False(t, cfg.Insecure)
+	assert.Equal(t, "", cfg.SSHUser)
+}
+
+func TestConfig_MigrateLegacyToProfiles_NoLegacyFields(t *testing.T) {
+	// Test that migration doesn't happen when no legacy fields are present
+	cfg := &Config{
+		Profiles:       make(map[string]ProfileConfig),
+		DefaultProfile: "existing",
+	}
+
+	// Should not migrate when no legacy fields
+	migrated := cfg.MigrateLegacyToProfiles()
+	assert.False(t, migrated)
+
+	// Should not have changed
+	assert.Equal(t, "existing", cfg.DefaultProfile)
+	assert.Equal(t, 0, len(cfg.Profiles))
+}
+
+func TestConfig_MigrateLegacyToProfiles_AlreadyHasProfiles(t *testing.T) {
+	// Test that migration doesn't happen when profiles already exist
+	cfg := &Config{
+		Addr:     "https://legacy.example.com:8006",
+		User:     "legacyuser",
+		Password: "legacypass",
+		Profiles: map[string]ProfileConfig{
+			"existing": {
+				Addr: "https://existing.example.com:8006",
+				User: "existinguser",
+			},
+		},
+		DefaultProfile: "existing",
+	}
+
+	// Should not migrate when profiles already exist
+	migrated := cfg.MigrateLegacyToProfiles()
+	assert.False(t, migrated)
+
+	// Should not have changed
+	assert.Equal(t, "existing", cfg.DefaultProfile)
+	assert.Equal(t, 1, len(cfg.Profiles))
+	assert.Equal(t, "https://legacy.example.com:8006", cfg.Addr) // Legacy fields preserved
+}
+
+func TestConfig_MergeWithFile_MigratesLegacyConfig(t *testing.T) {
+	// Test that loading a legacy config file automatically migrates it
+	legacyConfigContent := `
+addr: "https://legacy.example.com:8006"
+user: "legacyuser"
+password: "legacypass"
+realm: "pam"
+insecure: true
+ssh_user: "sshuser"
+debug: true
+cache_dir: "/tmp/test-cache"
+`
+
+	// Create temporary config file
+	tempDir := t.TempDir()
+	configFile := filepath.Join(tempDir, "legacy-config.yml")
+	err := os.WriteFile(configFile, []byte(legacyConfigContent), 0o644)
+	require.NoError(t, err)
+
+	// Load the legacy config
+	cfg := NewConfig()
+	err = cfg.MergeWithFile(configFile)
+	require.NoError(t, err)
+
+	// Should now have a default profile with the legacy values
+	assert.Equal(t, "default", cfg.DefaultProfile)
+	assert.Equal(t, 1, len(cfg.Profiles))
+
+	defaultProfile, exists := cfg.Profiles["default"]
+	assert.True(t, exists)
+	assert.Equal(t, "https://legacy.example.com:8006", defaultProfile.Addr)
+	assert.Equal(t, "legacyuser", defaultProfile.User)
+	assert.Equal(t, "legacypass", defaultProfile.Password)
+	assert.Equal(t, "pam", defaultProfile.Realm)
+	assert.True(t, defaultProfile.Insecure)
+	assert.Equal(t, "sshuser", defaultProfile.SSHUser)
+
+	// Legacy fields should be cleared
+	assert.Equal(t, "", cfg.Addr)
+	assert.Equal(t, "", cfg.User)
+	assert.Equal(t, "", cfg.Password)
+	assert.Equal(t, "", cfg.Realm)
+	assert.False(t, cfg.Insecure)
+	assert.Equal(t, "", cfg.SSHUser)
+
+	// Global settings should be preserved
+	assert.True(t, cfg.Debug)
+	assert.Equal(t, "/tmp/test-cache", cfg.CacheDir)
+
+	// Should validate successfully
+	err = cfg.Validate()
+	assert.NoError(t, err)
 }
 
 // Helper function to clear all Proxmox environment variables.
