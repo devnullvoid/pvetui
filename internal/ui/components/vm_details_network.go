@@ -6,8 +6,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
-// mergeNetworkInterfaces combines configured networks with guest agent interfaces
-// Returns enhanced network information with both config and runtime data.
+// EnhancedNetworkInterface represents enhanced network information with both config and runtime data.
 type EnhancedNetworkInterface struct {
 	// From configuration
 	Interface    string

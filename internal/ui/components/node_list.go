@@ -117,7 +117,7 @@ func (nl *NodeList) GetNodes() []*api.Node {
 	return nl.nodes
 }
 
-// SetSelectedFunc sets the function to be called when a node is selected.
+// SetNodeSelectedFunc sets the function to be called when a node is selected.
 func (nl *NodeList) SetNodeSelectedFunc(handler func(*api.Node)) {
 	nl.onSelect = handler
 
@@ -130,7 +130,7 @@ func (nl *NodeList) SetNodeSelectedFunc(handler func(*api.Node)) {
 	})
 }
 
-// SetChangedFunc sets the function to be called when selection changes.
+// SetNodeChangedFunc sets the function to be called when selection changes.
 func (nl *NodeList) SetNodeChangedFunc(handler func(*api.Node)) {
 	nl.onChanged = handler
 

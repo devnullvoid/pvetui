@@ -152,7 +152,9 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 		return nil, fmt.Errorf("failed to fetch script metadata list: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Check for GitHub API rate limiting
 	if resp.StatusCode == 403 && resp.Header.Get("X-RateLimit-Remaining") == "0" {
@@ -238,7 +240,9 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 		return nil, fmt.Errorf("failed to fetch script metadata: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Check for GitHub API rate limiting
 	if resp.StatusCode == 403 && resp.Header.Get("X-RateLimit-Remaining") == "0" {

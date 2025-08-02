@@ -110,7 +110,7 @@ func findSOPSRule(startDir string) bool {
 	return config.FindSOPSRule(startDir)
 }
 
-// Add WizardResult struct.
+// WizardResult represents the result of a configuration wizard operation.
 type WizardResult struct {
 	Saved         bool
 	SopsEncrypted bool
@@ -118,7 +118,7 @@ type WizardResult struct {
 	ProfileName   string
 }
 
-// Update NewConfigWizardPage to accept a resultChan chan<- WizardResult.
+// NewConfigWizardPage creates a new configuration wizard page.
 func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath string, saveFn func(*config.Config) error, cancelFn func(), resultChan chan<- WizardResult) tview.Primitive {
 	// Detect if original config was SOPS-encrypted
 	wasSOPS := false

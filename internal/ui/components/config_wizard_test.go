@@ -69,7 +69,7 @@ func TestConfigWizardValidation(t *testing.T) {
 func TestFindSOPSRule(t *testing.T) {
 	dir := t.TempDir()
 	subdir := filepath.Join(dir, "sub")
-	os.Mkdir(subdir, 0o755)
+	_ = os.Mkdir(subdir, 0o755)
 	// No .sops.yaml
 	if findSOPSRule(subdir) {
 		t.Error("expected false when no .sops.yaml present")
@@ -80,7 +80,7 @@ func TestFindSOPSRule(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f.Close()
+	_ = f.Close()
 
 	if !findSOPSRule(subdir) {
 		t.Error("expected true when .sops.yaml present in parent")

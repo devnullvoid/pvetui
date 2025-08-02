@@ -305,7 +305,9 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 	if err != nil {
 		return nil, fmt.Errorf("authentication request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	am.logger.Debug("Authentication response status: %d %s", resp.StatusCode, resp.Status)
 

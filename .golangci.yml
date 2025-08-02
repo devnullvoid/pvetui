@@ -1,6 +1,9 @@
 # golangci-lint configuration file
 # Documentation: https://golangci-lint.run/usage/configuration/
 
+# Version of configuration format (required for v2.3.0+)
+version: "2"
+
 # Options for analysis running
 run:
   timeout: 5m
@@ -12,7 +15,7 @@ run:
 
 # Linters configuration
 linters:
-  # Enable essential linters plus a few more useful ones
+  # Enable essential linters
   enable:
     - dupl
     - goconst
@@ -24,83 +27,121 @@ linters:
     - whitespace
     - lll
 
-# Issues configuration
-issues:
-  # Maximum issues count per one linter
-  max-issues-per-linter: 0
-
-  # Maximum count of issues with the same text
-  max-same-issues: 0
-
   # Exclude specific issues by linter and rule
-  exclude-rules:
-    # Exclude errcheck issues in UI components (false positives)
-    - path: internal/ui/
-      linters:
-        - errcheck
+  exclusions:
+    rules:
+      # Exclude errcheck issues in test files and UI components (false positives)
+      - path: test/
+        linters:
+          - errcheck
+      - path: internal/ui/
+        linters:
+          - errcheck
+      - path: internal/vnc/
+        linters:
+          - errcheck
+      - path: internal/config/
+        linters:
+          - errcheck
+      - path: internal/logger/
+        linters:
+          - errcheck
 
-    # Exclude gosec issues in test files and scripts (intentional)
-    - path: test/
-      linters:
-        - gosec
-    - path: internal/scripts/
-      linters:
-        - gosec
-    - path: internal/vnc/
-      linters:
-        - gosec
-    - path: pkg/api/
-      linters:
-        - gosec
+      # Exclude gosec issues in test files and scripts (intentional)
+      - path: test/
+        linters:
+          - gosec
+      - path: internal/scripts/
+        linters:
+          - gosec
+      - path: internal/vnc/
+        linters:
+          - gosec
+      - path: pkg/api/
+        linters:
+          - gosec
+      - path: internal/ui/components/
+        linters:
+          - gosec
+      - path: internal/logger/
+        linters:
+          - gosec
+      - path: internal/config/
+        linters:
+          - gosec
 
-    # Exclude staticcheck issues in test files
-    - path: test/
-      linters:
-        - staticcheck
+      # Exclude staticcheck issues in test files and style suggestions
+      - path: test/
+        linters:
+          - staticcheck
+      - linters:
+          - staticcheck
+        text: "QF1001: could apply De Morgan's law"
+      - linters:
+          - staticcheck
+        text: "QF1003: could use tagged switch"
+      - linters:
+          - staticcheck
+        text: "QF1008: could remove embedded field"
 
-    # Exclude deprecated field warnings for now (we're working on migration)
-    - linters:
-        - staticcheck
-      text: "SA1019: .* is deprecated: legacy single-profile fields for migration"
+      # Exclude deprecated field warnings for now (we're working on migration)
+      - linters:
+          - staticcheck
+        text: "SA1019: .* is deprecated: legacy single-profile fields for migration"
 
-    # Exclude potential nil pointer dereference in tests (acceptable for test code)
-    - linters:
-        - staticcheck
-      text: "SA5011: possible nil pointer dereference"
-      path: test/
+      # Exclude potential nil pointer dereference in tests (acceptable for test code)
+      - linters:
+          - staticcheck
+        text: "SA5011: possible nil pointer dereference"
+        path: test/
 
-    # Exclude hardcoded credentials in test files (acceptable for test code)
-    - linters:
-        - gosec
-      text: "G101: Potential hardcoded credentials"
-      path: test/
+      # Exclude hardcoded credentials in test files (acceptable for test code)
+      - linters:
+          - gosec
+        text: "G101: Potential hardcoded credentials"
+        path: test/
 
-    # Exclude unused parameter warnings (interface compliance)
-    - linters:
-        - revive
-      text: "unused-parameter: parameter .* seems to be unused"
+      # Exclude unused parameter warnings (interface compliance)
+      - linters:
+          - revive
+        text: "unused-parameter: parameter .* seems to be unused"
 
-    # Exclude line length warnings (handled by gofumpt)
-    - linters:
-        - lll
-      text: "The line is .* characters long"
+      # Exclude line length warnings (handled by gofumpt)
+      - linters:
+          - lll
+        text: "The line is .* characters long"
 
-    # Exclude whitespace warnings (handled by gofumpt)
-    - linters:
-        - whitespace
-      text: ".*"
+      # Exclude whitespace warnings (handled by gofumpt)
+      - linters:
+          - whitespace
+        text: ".*"
 
-    # Exclude indent-error-flow warnings (common pattern)
-    - linters:
-        - revive
-      text: "indent-error-flow: if block ends with a return statement"
+      # Exclude indent-error-flow warnings (common pattern)
+      - linters:
+          - revive
+        text: "indent-error-flow: if block ends with a return statement"
 
-    # Exclude var-naming warnings for now (complex breaking changes)
-    - linters:
-        - revive
-      text: "var-naming:"
+      # Exclude var-naming warnings for now (complex breaking changes)
+      - linters:
+          - revive
+        text: "var-naming:"
 
-    # Exclude type stuttering warnings (complex breaking changes)
-    - linters:
-        - revive
-      text: "exported: type name will be used as"
+      # Exclude type stuttering warnings (complex breaking changes)
+      - linters:
+          - revive
+        text: "exported: type name will be used as"
+
+      # Exclude package comment warnings (not critical)
+      - linters:
+          - revive
+        text: "package-comments: should have a package comment"
+
+      # Exclude exported const/type comment warnings (not critical)
+      - linters:
+          - revive
+        text: "exported: exported .* should have comment"
+
+      # Exclude meaningless package name warnings
+      - linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"

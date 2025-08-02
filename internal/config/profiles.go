@@ -93,7 +93,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	return true
 }
 
-// ValidateProfile validates a single profile configuration.
+// Validate validates a single profile configuration.
 func (p *ProfileConfig) Validate() error {
 	if p.Addr == "" {
 		return fmt.Errorf("profile address is required")

@@ -270,8 +270,8 @@ func InitGlobalLoggerWithValidation(level Level, cacheDir string) error {
 		// Test write access by creating a temporary file
 		testFile := filepath.Join(cacheDir, ".write_test")
 		if file, err := os.Create(testFile); err == nil {
-			file.Close()
-			os.Remove(testFile) // Clean up test file
+			_ = file.Close()
+			_ = os.Remove(testFile) // Clean up test file
 		} else {
 			// If we can't write to the directory, fall back to simple logger
 			globalLoggerOnce.Do(func() {

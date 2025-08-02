@@ -507,7 +507,7 @@ func (c *Config) GetAPIToken() string {
 	return fmt.Sprintf("PVEAPIToken=%s@%s!%s=%s", c.User, c.Realm, c.TokenID, c.TokenSecret)
 }
 
-// Getter methods for API client compatibility.
+// GetAddr returns the configured server address.
 func (c *Config) GetAddr() string        { return c.Addr }
 func (c *Config) GetUser() string        { return c.User }
 func (c *Config) GetPassword() string    { return c.Password }
