@@ -88,11 +88,27 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 				configPath = config.GetDefaultConfigPath()
 			}
 
+			// Check if the original config was SOPS encrypted BEFORE saving
+			wasSOPS := false
+			if data, err := os.ReadFile(configPath); err == nil {
+				wasSOPS = config.IsSOPSEncrypted(configPath, data)
+			}
+
 			if err := SaveConfigToFile(&a.config, configPath); err != nil {
 				a.Application.QueueUpdateDraw(func() {
 					a.header.ShowError("Failed to save config after deletion: " + err.Error())
 				})
 				return
+			}
+
+			// Re-encrypt if the original was SOPS encrypted
+			if wasSOPS {
+				if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
+					a.Application.QueueUpdateDraw(func() {
+						a.header.ShowError("Failed to re-encrypt config after deletion: " + err.Error())
+					})
+					return
+				}
 			}
 
 			// Show success message with proper focus
@@ -150,35 +166,31 @@ func (a *App) setDefaultProfile(profileName string) {
 		configPath = config.GetDefaultConfigPath()
 	}
 
+	// Check if the original config was SOPS encrypted BEFORE saving
+	wasSOPS := false
+	if data, err := os.ReadFile(configPath); err == nil {
+		wasSOPS = config.IsSOPSEncrypted(configPath, data)
+	}
+
 	if err := SaveConfigToFile(&a.config, configPath); err != nil {
 		a.header.ShowError(fmt.Sprintf("Failed to save config: %v", err))
 		return
 	}
 
-	// Check if the original config was SOPS encrypted and re-encrypt if needed
-	if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
-		a.header.ShowError(fmt.Sprintf("Failed to re-encrypt config: %v", err))
-		return
+	// Re-encrypt if the original was SOPS encrypted
+	if wasSOPS {
+		if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
+			a.header.ShowError(fmt.Sprintf("Failed to re-encrypt config: %v", err))
+			return
+		}
 	}
 
 	// Show success message
 	a.header.ShowSuccess(fmt.Sprintf("Default profile changed from '%s' to '%s'.", oldDefault, profileName))
 }
 
-// reEncryptConfigIfNeeded checks if the config was originally SOPS encrypted and re-encrypts it if needed.
+// reEncryptConfigIfNeeded re-encrypts the config file with SOPS.
 func (a *App) reEncryptConfigIfNeeded(configPath string) error {
-	// Read the original file to check if it was SOPS encrypted
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	// Check if the original was SOPS encrypted
-	wasSOPS := config.IsSOPSEncrypted(configPath, data)
-	if !wasSOPS {
-		return nil // Not encrypted, no need to re-encrypt
-	}
-
 	// Check if SOPS rule exists
 	sopsRuleExists := config.FindSOPSRule(filepath.Dir(configPath))
 	if !sopsRuleExists {

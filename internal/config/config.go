@@ -79,6 +79,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	defaultRealm   = "pam"
+	defaultApiPath = "/api2/json"
+)
+
 // DebugEnabled is a global flag to enable debug logging throughout the application.
 //
 // This variable is set during configuration parsing and used by various
@@ -241,13 +246,33 @@ func ValidateKeyBindings(kb KeyBindings) error {
 //		log.Fatal("Invalid config:", err)
 //	}
 func NewConfig() *Config {
-	return &Config{
+	config := &Config{
 		Profiles:       make(map[string]ProfileConfig),
 		DefaultProfile: "default",
-		Debug:          strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
-		CacheDir:       os.Getenv("PROXMOX_CACHE_DIR"),
-		KeyBindings:    DefaultKeyBindings(),
+		// Read environment variables for legacy fields
+		Addr:        os.Getenv("PROXMOX_ADDR"),
+		User:        os.Getenv("PROXMOX_USER"),
+		Password:    os.Getenv("PROXMOX_PASSWORD"),
+		TokenID:     os.Getenv("PROXMOX_TOKEN_ID"),
+		TokenSecret: os.Getenv("PROXMOX_TOKEN_SECRET"),
+		Realm:       os.Getenv("PROXMOX_REALM"),
+		ApiPath:     os.Getenv("PROXMOX_API_PATH"),
+		Insecure:    strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true",
+		SSHUser:     os.Getenv("PROXMOX_SSH_USER"),
+		Debug:       strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
+		CacheDir:    os.Getenv("PROXMOX_CACHE_DIR"),
+		KeyBindings: DefaultKeyBindings(),
 	}
+
+	// Set default values for Realm and ApiPath only
+	if config.Realm == "" {
+		config.Realm = defaultRealm
+	}
+	if config.ApiPath == "" {
+		config.ApiPath = defaultApiPath
+	}
+
+	return config
 }
 
 var (
@@ -344,29 +369,88 @@ func (c *Config) MergeWithFile(path string) error {
 
 	// Load profiles and default_profile
 	if fileConfig.Profiles != nil {
-		c.Profiles = fileConfig.Profiles
+		// Initialize profiles map if it doesn't exist
+		if c.Profiles == nil {
+			c.Profiles = make(map[string]ProfileConfig)
+		}
+
+		// Merge profiles from file into existing profiles
+		for name, fileProfile := range fileConfig.Profiles {
+			// Get existing profile or create new one
+			existingProfile, exists := c.Profiles[name]
+			if !exists {
+				// If profile doesn't exist, just add it
+				c.Profiles[name] = fileProfile
+			} else {
+				// Merge fields from file profile into existing profile
+				if fileProfile.Addr != "" {
+					existingProfile.Addr = fileProfile.Addr
+				}
+				if fileProfile.User != "" {
+					existingProfile.User = fileProfile.User
+				}
+				if fileProfile.Password != "" {
+					existingProfile.Password = fileProfile.Password
+				}
+				if fileProfile.TokenID != "" {
+					existingProfile.TokenID = fileProfile.TokenID
+				}
+				if fileProfile.TokenSecret != "" {
+					existingProfile.TokenSecret = fileProfile.TokenSecret
+				}
+				if fileProfile.Realm != "" {
+					existingProfile.Realm = fileProfile.Realm
+				}
+				if fileProfile.ApiPath != "" {
+					existingProfile.ApiPath = fileProfile.ApiPath
+				}
+				if fileProfile.Insecure {
+					existingProfile.Insecure = fileProfile.Insecure
+				}
+				if fileProfile.SSHUser != "" {
+					existingProfile.SSHUser = fileProfile.SSHUser
+				}
+
+				c.Profiles[name] = existingProfile
+			}
+		}
 	}
 
 	if fileConfig.DefaultProfile != "" {
 		c.DefaultProfile = fileConfig.DefaultProfile
 	}
 
-	// Migrate legacy fields if no profiles are present
+	// Merge legacy fields if no profiles are present
 	if len(c.Profiles) == 0 && (fileConfig.Addr != "" || fileConfig.User != "") {
-		c.Addr = fileConfig.Addr
-		c.User = fileConfig.User
-		c.Password = fileConfig.Password
-		c.TokenID = fileConfig.TokenID
-		c.TokenSecret = fileConfig.TokenSecret
-		c.Realm = fileConfig.Realm
-		c.ApiPath = fileConfig.ApiPath
+		if fileConfig.Addr != "" {
+			c.Addr = fileConfig.Addr
+		}
+		if fileConfig.User != "" {
+			c.User = fileConfig.User
+		}
+		if fileConfig.Password != "" {
+			c.Password = fileConfig.Password
+		}
+		if fileConfig.TokenID != "" {
+			c.TokenID = fileConfig.TokenID
+		}
+		if fileConfig.TokenSecret != "" {
+			c.TokenSecret = fileConfig.TokenSecret
+		}
+		if fileConfig.Realm != "" {
+			c.Realm = fileConfig.Realm
+		}
+		if fileConfig.ApiPath != "" {
+			c.ApiPath = fileConfig.ApiPath
+		}
 
 		if fileConfig.Insecure != nil {
 			c.Insecure = *fileConfig.Insecure
 		}
 
-		c.SSHUser = fileConfig.SSHUser
-		c.MigrateLegacyToProfiles()
+		if fileConfig.SSHUser != "" {
+			c.SSHUser = fileConfig.SSHUser
+		}
 	}
 
 	// Merge global settings
@@ -465,24 +549,57 @@ func (c *Config) MergeWithFile(path string) error {
 }
 
 func (c *Config) Validate() error {
-	if c.Addr == "" {
-		return errors.New("proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
-	}
+	// Check if using profile-based configuration
+	if c.DefaultProfile != "" {
+		// Validate profile-based configuration
 
-	if c.User == "" {
-		return errors.New("proxmox username required: set via -user flag, PROXMOX_USER env var, or config file")
-	}
+		// Check if default profile exists
+		defaultProfile, exists := c.Profiles[c.DefaultProfile]
+		if !exists {
+			return fmt.Errorf("default profile '%s' not found", c.DefaultProfile)
+		}
 
-	// Check that either password or token authentication is provided
-	hasPassword := c.Password != ""
-	hasToken := c.TokenID != "" && c.TokenSecret != ""
+		// Validate the default profile
+		if defaultProfile.Addr == "" {
+			return errors.New("proxmox address required in default profile")
+		}
 
-	if !hasPassword && !hasToken {
-		return errors.New("authentication required: provide either password (-password flag, PROXMOX_PASSWORD env var) or API token (-token-id/-token-secret flags, PROXMOX_TOKEN_ID/PROXMOX_TOKEN_SECRET env vars, or config file)")
-	}
+		if defaultProfile.User == "" {
+			return errors.New("proxmox username required in default profile")
+		}
 
-	if hasPassword && hasToken {
-		return errors.New("conflicting authentication methods: provide either password or API token, not both")
+		// Check that either password or token authentication is provided
+		hasPassword := defaultProfile.Password != ""
+		hasToken := defaultProfile.TokenID != "" && defaultProfile.TokenSecret != ""
+
+		if !hasPassword && !hasToken {
+			return errors.New("authentication required in default profile: provide either password or API token")
+		}
+
+		if hasPassword && hasToken {
+			return errors.New("conflicting authentication methods in default profile: provide either password or API token, not both")
+		}
+	} else {
+		// Validate legacy configuration
+		if c.Addr == "" {
+			return errors.New("proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
+		}
+
+		if c.User == "" {
+			return errors.New("proxmox username required: set via -user flag, PROXMOX_USER env var, or config file")
+		}
+
+		// Check that either password or token authentication is provided
+		hasPassword := c.Password != ""
+		hasToken := c.TokenID != "" && c.TokenSecret != ""
+
+		if !hasPassword && !hasToken {
+			return errors.New("authentication required: provide either password (-password flag, PROXMOX_PASSWORD env var) or API token (-token-id/-token-secret flags, PROXMOX_TOKEN_ID/PROXMOX_TOKEN_SECRET env vars, or config file)")
+		}
+
+		if hasPassword && hasToken {
+			return errors.New("conflicting authentication methods: provide either password or API token, not both")
+		}
 	}
 
 	if err := ValidateKeyBindings(c.KeyBindings); err != nil {
@@ -508,13 +625,74 @@ func (c *Config) GetAPIToken() string {
 }
 
 // GetAddr returns the configured server address.
-func (c *Config) GetAddr() string        { return c.Addr }
-func (c *Config) GetUser() string        { return c.User }
-func (c *Config) GetPassword() string    { return c.Password }
-func (c *Config) GetRealm() string       { return c.Realm }
-func (c *Config) GetTokenID() string     { return c.TokenID }
-func (c *Config) GetTokenSecret() string { return c.TokenSecret }
-func (c *Config) GetInsecure() bool      { return c.Insecure }
+func (c *Config) GetAddr() string {
+	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
+		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+			return profile.Addr
+		}
+	}
+	return c.Addr
+}
+
+// GetUser returns the configured username.
+func (c *Config) GetUser() string {
+	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
+		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+			return profile.User
+		}
+	}
+	return c.User
+}
+
+// GetPassword returns the configured password.
+func (c *Config) GetPassword() string {
+	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
+		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+			return profile.Password
+		}
+	}
+	return c.Password
+}
+
+// GetRealm returns the configured realm.
+func (c *Config) GetRealm() string {
+	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
+		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+			return profile.Realm
+		}
+	}
+	return c.Realm
+}
+
+// GetTokenID returns the configured token ID.
+func (c *Config) GetTokenID() string {
+	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
+		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+			return profile.TokenID
+		}
+	}
+	return c.TokenID
+}
+
+// GetTokenSecret returns the configured token secret.
+func (c *Config) GetTokenSecret() string {
+	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
+		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+			return profile.TokenSecret
+		}
+	}
+	return c.TokenSecret
+}
+
+// GetInsecure returns the configured insecure flag.
+func (c *Config) GetInsecure() bool {
+	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
+		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+			return profile.Insecure
+		}
+	}
+	return c.Insecure
+}
 
 // SetDefaults sets default values for unspecified configuration options.
 func (c *Config) SetDefaults() {

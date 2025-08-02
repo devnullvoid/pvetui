@@ -483,6 +483,144 @@ func TestValidateKeyBindings(t *testing.T) {
 	})
 }
 
+func TestConfig_ProfileBasedConfiguration(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      *Config
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid profile-based config with password auth",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"default": {
+						Addr:     "https://proxmox.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+					},
+				},
+				DefaultProfile: "default",
+			},
+			expectError: false,
+		},
+		{
+			name: "valid profile-based config with token auth",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"default": {
+						Addr:        "https://proxmox.example.com:8006",
+						User:        "testuser",
+						TokenID:     "testtoken",
+						TokenSecret: "testsecret",
+					},
+				},
+				DefaultProfile: "default",
+			},
+			expectError: false,
+		},
+		{
+			name: "missing default profile",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"profile1": {
+						Addr:     "https://proxmox.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+					},
+				},
+				DefaultProfile: "nonexistent",
+			},
+			expectError: true,
+			errorMsg:    "default profile 'nonexistent' not found",
+		},
+		{
+			name: "empty profiles map",
+			config: &Config{
+				Profiles:       map[string]ProfileConfig{},
+				DefaultProfile: "default",
+			},
+			expectError: true,
+			errorMsg:    "default profile 'default' not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestConfig_MergeWithFile_ProfileBased(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir := t.TempDir()
+
+	// Test merging with profile-based configuration
+	initialConfig := &Config{
+		Profiles: map[string]ProfileConfig{
+			"default": {
+				Addr: "https://initial.example.com:8006",
+				User: "initialuser",
+			},
+		},
+		DefaultProfile: "default",
+	}
+
+	fileContent := `
+profiles:
+  default:
+    addr: "https://merged.example.com:8006"
+    password: "mergedpass"
+  secondary:
+    addr: "https://secondary.example.com:8006"
+    user: "secondaryuser"
+    password: "secondarypass"
+default_profile: "default"
+debug: true
+`
+
+	// Create temporary file
+	file, err := os.CreateTemp(tempDir, "config-*.yml")
+	require.NoError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString(fileContent)
+	require.NoError(t, err)
+	file.Close()
+
+	// Test merge
+	err = initialConfig.MergeWithFile(file.Name())
+	assert.NoError(t, err)
+
+	// Verify profiles were merged correctly
+	assert.Len(t, initialConfig.Profiles, 2)
+
+	// Check default profile
+	defaultProfile, exists := initialConfig.Profiles["default"]
+	assert.True(t, exists)
+	assert.Equal(t, "https://merged.example.com:8006", defaultProfile.Addr)
+	assert.Equal(t, "initialuser", defaultProfile.User) // Should keep initial value
+	assert.Equal(t, "mergedpass", defaultProfile.Password)
+
+	// Check secondary profile
+	secondaryProfile, exists := initialConfig.Profiles["secondary"]
+	assert.True(t, exists)
+	assert.Equal(t, "https://secondary.example.com:8006", secondaryProfile.Addr)
+	assert.Equal(t, "secondaryuser", secondaryProfile.User)
+	assert.Equal(t, "secondarypass", secondaryProfile.Password)
+
+	// Check global settings
+	assert.True(t, initialConfig.Debug)
+}
+
 // Helper function to clear all Proxmox environment variables.
 func clearProxmoxEnvVars() {
 	envVars := []string{
