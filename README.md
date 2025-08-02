@@ -36,6 +36,8 @@
 
 - **Lightning Fast**: Intelligent caching for responsive performance
 - **Complete Management**: VMs, containers, nodes, and cluster resources
+- **Multi-Profile Support**: Manage multiple Proxmox connections with profile switching
+- **Automatic Migration**: Legacy configs seamlessly migrate to modern profile-based format
 - **Secure Authentication**: API tokens or password-based auth with automatic renewal
 - **Integrated Shells**: SSH directly to nodes, VMs, and containers
 - **VNC Console Access**: Embedded noVNC client with automatic authentication
@@ -76,30 +78,77 @@ go build -o proxmox-tui ./cmd/proxmox-tui
 ### First Run & Interactive Config Wizard
 - On first run, the app will offer to create and edit a config file in a user-friendly TUI wizard
 - Launch the wizard anytime with `--config-wizard`
+- Create and manage multiple connection profiles with validation
 - Edit, validate, and save your config (supports SOPS-encrypted files)
-- Only one authentication method (password or token) is allowed
+- Only one authentication method (password or token) per profile is allowed
 - All errors and confirmations are shown in clear, interactive modals
 
-### Manual Configuration
-```yaml
-# Connection
-addr: "https://your-proxmox-host:8006"
-insecure: false
+### Configuration Formats
 
-# Authentication (choose one)
+Proxmox TUI supports both **legacy single-profile** and **modern multi-profile** configuration formats. Legacy configurations are automatically migrated to the modern format.
+
+#### Modern Multi-Profile Configuration (Recommended)
+```yaml
+profiles:
+  default:
+    addr: "https://your-proxmox-host:8006"
+    user: "your-user"
+    realm: "pam"
+    # Choose one authentication method:
+    password: "your-password"           # Method 1: Password auth
+    # OR
+    token_id: "your-token-id"          # Method 2: API token (recommended)
+    token_secret: "your-secret"
+    insecure: false
+    ssh_user: "your-ssh-user"
+
+  work:
+    addr: "https://work-proxmox:8006"
+    user: "workuser"
+    token_id: "worktoken"
+    token_secret: "worksecret"
+    realm: "pam"
+    insecure: false
+    ssh_user: "workuser"
+
+default_profile: "default"
+debug: false
+```
+
+#### Legacy Single-Profile Configuration (Auto-migrated)
+```yaml
+# Legacy format - automatically migrated to profile-based format
+addr: "https://your-proxmox-host:8006"
 user: "your-user"
 realm: "pam"
-
-# Method 1: Password auth
 password: "your-password"
 # OR
-token_id: "your-token-id"      # Method 2: API token (recommended)
+token_id: "your-token-id"
 token_secret: "your-secret"
-
-# Optional
+insecure: false
 ssh_user: "your-ssh-user"
 debug: false
 ```
+
+### Automatic Legacy Migration
+
+Proxmox TUI automatically migrates legacy single-profile configurations to the modern multi-profile format:
+
+- **Seamless Migration**: Legacy configs are automatically converted to use the "default" profile
+- **Backward Compatibility**: Existing legacy configs continue to work without changes
+- **Profile Manager Ready**: Migrated configs can be managed through the built-in profile manager
+- **Migration Status**: The app displays `🔄 Migrated legacy configuration to profile-based format` when migration occurs
+
+### Profile Management
+
+The built-in profile manager allows you to:
+- **Switch between profiles** (e.g., home, work, development)
+- **Add new profiles** with different Proxmox connections
+- **Edit existing profiles** with validation
+- **Delete profiles** with confirmation
+- **Set default profile** for automatic connection
+
+Access the profile manager through the global menu (`g` key) or context menus.
 
 ### API Token Setup (Recommended)
 1. In Proxmox web interface: **Datacenter → Permissions → API Tokens**
