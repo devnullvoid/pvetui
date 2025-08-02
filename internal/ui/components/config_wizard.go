@@ -137,39 +137,176 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	form := tview.NewForm().SetHorizontal(false)
 	pages := tview.NewPages()
 	pages.AddPage("form", form, true, true)
-	form.AddInputField("Proxmox API URL", cfg.Addr, 40, nil, func(text string) { cfg.Addr = strings.TrimSpace(text) })
-	form.AddInputField("Username", cfg.User, 20, nil, func(text string) { cfg.User = strings.TrimSpace(text) })
-	form.AddPasswordField("Password", cfg.Password, 20, '*', func(text string) { cfg.Password = text })
-	form.AddInputField("API Token ID", cfg.TokenID, 20, nil, func(text string) { cfg.TokenID = strings.TrimSpace(text) })
-	form.AddPasswordField("API Token Secret", cfg.TokenSecret, 20, '*', func(text string) { cfg.TokenSecret = text })
-	form.AddInputField("Realm", cfg.Realm, 10, nil, func(text string) { cfg.Realm = strings.TrimSpace(text) })
-	form.AddInputField("API Path", cfg.ApiPath, 20, nil, func(text string) { cfg.ApiPath = strings.TrimSpace(text) })
-	form.AddCheckbox("Skip TLS Verification", cfg.Insecure, func(checked bool) { cfg.Insecure = checked })
-	form.AddInputField("SSH Username", cfg.SSHUser, 20, nil, func(text string) { cfg.SSHUser = strings.TrimSpace(text) })
+
+	// Determine which data to use for form fields
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser string
+	var insecure bool
+
+	// If we have profiles and a default profile, use profile data
+	if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+			addr = profile.Addr
+			user = profile.User
+			password = profile.Password
+			tokenID = profile.TokenID
+			tokenSecret = profile.TokenSecret
+			realm = profile.Realm
+			apiPath = profile.ApiPath
+			insecure = profile.Insecure
+			sshUser = profile.SSHUser
+		}
+	} else {
+		// Use legacy fields
+		addr = cfg.Addr
+		user = cfg.User
+		password = cfg.Password
+		tokenID = cfg.TokenID
+		tokenSecret = cfg.TokenSecret
+		realm = cfg.Realm
+		apiPath = cfg.ApiPath
+		insecure = cfg.Insecure
+		sshUser = cfg.SSHUser
+	}
+
+	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			// Update profile
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Addr = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			// Update legacy field
+			cfg.Addr = strings.TrimSpace(text)
+		}
+	})
+	form.AddInputField("Username", user, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.User = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.User = strings.TrimSpace(text)
+		}
+	})
+	form.AddPasswordField("Password", password, 20, '*', func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Password = text
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.Password = text
+		}
+	})
+	form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.TokenID = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.TokenID = strings.TrimSpace(text)
+		}
+	})
+	form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.TokenSecret = text
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.TokenSecret = text
+		}
+	})
+	form.AddInputField("Realm", realm, 10, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Realm = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.Realm = strings.TrimSpace(text)
+		}
+	})
+	form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.ApiPath = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.ApiPath = strings.TrimSpace(text)
+		}
+	})
+	form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Insecure = checked
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.Insecure = checked
+		}
+	})
+	form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHUser = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHUser = strings.TrimSpace(text)
+		}
+	})
 	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
 	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
 	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
 	form.AddButton("Save", func() {
-		hasPassword := cfg.Password != ""
-		hasToken := cfg.TokenID != "" && cfg.TokenSecret != ""
+		// Determine which data to validate based on whether we're using profiles
+		var hasPassword, hasToken bool
+
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			// Validate profile data
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				hasPassword = profile.Password != ""
+				hasToken = profile.TokenID != "" && profile.TokenSecret != ""
+			}
+		} else {
+			// Validate legacy data
+			hasPassword = cfg.Password != ""
+			hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
+		}
 
 		if hasPassword && hasToken {
 			showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
-
 			return
 		}
 
 		if !hasPassword && !hasToken {
 			showWizardModal(pages, form, app, "error", "You must provide either a password or a token for authentication.", nil)
-
 			return
 		}
 
-		if hasPassword {
-			cfg.TokenID = ""
-			cfg.TokenSecret = ""
-		} else if hasToken {
-			cfg.Password = ""
+		// Clear conflicting auth method
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				if hasPassword {
+					profile.TokenID = ""
+					profile.TokenSecret = ""
+				} else if hasToken {
+					profile.Password = ""
+				}
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			if hasPassword {
+				cfg.TokenID = ""
+				cfg.TokenSecret = ""
+			} else if hasToken {
+				cfg.Password = ""
+			}
 		}
 
 		if err := cfg.Validate(); err != nil {
@@ -269,21 +406,7 @@ func LaunchConfigWizard(cfg *config.Config, configPath string, activeProfile str
 	tviewApp := tview.NewApplication()
 	resultChan := make(chan WizardResult, 1)
 	wizard := NewConfigWizardPage(tviewApp, cfg, configPath, func(c *config.Config) error {
-		// Minimal fix: if editing a profile, update the profile map with the edited legacy fields
-		if activeProfile != "" && c.Profiles != nil {
-			c.Profiles[activeProfile] = config.ProfileConfig{
-				Addr:        c.Addr,
-				User:        c.User,
-				Password:    c.Password,
-				TokenID:     c.TokenID,
-				TokenSecret: c.TokenSecret,
-				Realm:       c.Realm,
-				ApiPath:     c.ApiPath,
-				Insecure:    c.Insecure,
-				SSHUser:     c.SSHUser,
-			}
-		}
-
+		// The form now handles profile updates directly
 		return SaveConfigToFile(c, configPath)
 	}, func() {
 		tviewApp.Stop()
