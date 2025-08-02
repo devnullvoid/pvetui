@@ -76,11 +76,14 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 
 			return nil
 		} else if event.Key() == tcell.KeyTab {
-			// Tab between buttons in the script info dialog
-			if s.app.GetFocus() == installButton {
-				s.app.SetFocus(cancelButton)
-			} else {
+			// Tab between textview and buttons in the script info dialog
+			currentFocus := s.app.GetFocus()
+			if currentFocus == textView {
 				s.app.SetFocus(installButton)
+			} else if currentFocus == installButton {
+				s.app.SetFocus(cancelButton)
+			} else if currentFocus == cancelButton {
+				s.app.SetFocus(textView)
 			}
 
 			return nil
