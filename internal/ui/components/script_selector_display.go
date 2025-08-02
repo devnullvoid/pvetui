@@ -20,7 +20,7 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 	textView.SetWrap(true)
 	textView.SetBorder(true)
 	textView.SetTitle(fmt.Sprintf(" %s - Script Details ", script.Name))
-	textView.SetTitleColor(theme.Colors.Primary)
+	textView.SetTitleColor(theme.Colors.Title)
 	textView.SetBorderColor(theme.Colors.Border)
 	textView.SetText(s.formatScriptInfo(script))
 
@@ -37,20 +37,36 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 			s.app.SetFocus(s.scriptList)
 		})
 
-	// Create button container
+	// Create spacers with proper background for centering
+	leftSpacer := tview.NewBox().SetBackgroundColor(theme.Colors.Background)
+	middleSpacer := tview.NewBox().SetBackgroundColor(theme.Colors.Background)
+	rightSpacer := tview.NewBox().SetBackgroundColor(theme.Colors.Background)
+
+	// Create button container with centered buttons
 	buttonContainer := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
-		AddItem(nil, 0, 1, false).
+		AddItem(leftSpacer, 0, 1, false).
 		AddItem(installButton, 12, 0, true).
-		AddItem(nil, 2, 0, false).
+		AddItem(middleSpacer, 2, 0, false).
 		AddItem(cancelButton, 12, 0, false).
-		AddItem(nil, 0, 1, false)
+		AddItem(rightSpacer, 0, 1, false)
+
+	// Create vertical spacers for button padding
+	topSpacer := tview.NewBox().SetBackgroundColor(theme.Colors.Background)
+	bottomSpacer := tview.NewBox().SetBackgroundColor(theme.Colors.Background)
 
 	// Create the main layout
 	layout := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(textView, 0, 1, true).
-		AddItem(buttonContainer, 3, 0, false)
+		AddItem(topSpacer, 1, 0, false).
+		AddItem(buttonContainer, 3, 0, false).
+		AddItem(bottomSpacer, 1, 0, false)
+
+	// layout.SetBorder(true)
+	// layout.SetBorderColor(theme.Colors.Border)
+	// layout.SetTitle(" Script Details ")
+	// layout.SetTitleColor(theme.Colors.Primary)
 
 	// Set up input capture for navigation
 	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

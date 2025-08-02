@@ -56,7 +56,8 @@
 Set Width 1400
 Set Height 800
 Set Padding 10
-Set Theme "Dracula+"
+# Set Theme "Dracula+"
+Set Theme "Catppuccin Mocha"
 Set FontFamily "Monaspace Krypton"
 Set TypingSpeed 100ms
 Set Shell bash

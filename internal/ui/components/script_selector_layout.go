@@ -132,7 +132,7 @@ func (s *ScriptSelector) createLoadingPage() *tview.Flex {
 	s.loadingText = tview.NewTextView().
 		SetTextAlign(tview.AlignCenter).
 		SetDynamicColors(true).
-		SetText("Loading scripts...")
+		SetText("⠋ Fetching scripts from GitHub, please wait...")
 
 	// Create loading page layout
 	loadingPage := tview.NewFlex().

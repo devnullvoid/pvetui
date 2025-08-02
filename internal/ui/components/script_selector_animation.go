@@ -7,24 +7,21 @@ import (
 // startLoadingAnimation starts the loading animation.
 func (s *ScriptSelector) startLoadingAnimation() {
 	// Create a ticker for animation updates
-	s.animationTicker = time.NewTicker(500 * time.Millisecond)
+	s.animationTicker = time.NewTicker(100 * time.Millisecond) // Match header timing
 
 	// Start animation in a goroutine
 	go func() {
-		animationFrames := []string{
-			"Loading scripts...",
-			"Loading scripts..",
-			"Loading scripts.",
-			"Loading scripts",
-		}
-		frameIndex := 0
+		// Use the same spinner as the header
+		spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		index := 0
 
 		for range s.animationTicker.C {
 			// Update the loading text on the main thread
 			s.app.QueueUpdateDraw(func() {
 				if s.loadingText != nil {
-					s.loadingText.SetText(animationFrames[frameIndex])
-					frameIndex = (frameIndex + 1) % len(animationFrames)
+					spinnerChar := spinner[index]
+					s.loadingText.SetText(spinnerChar + " Fetching scripts from GitHub, please wait...")
+					index = (index + 1) % len(spinner)
 				}
 			})
 		}

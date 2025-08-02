@@ -36,14 +36,13 @@ Type "jj"
 Sleep 100ms
 Type "l"
 Sleep 100ms
-Type "jjjjjjh"
+Type "jjjjjjjjjh"
 Sleep 500ms
 Type "m"
 Sleep 1s
 Type "jj"
 Enter
 Sleep 1s
-Tab@300ms 4
 Enter
 Sleep 1s
 Escape@300ms 2
@@ -51,7 +50,10 @@ Sleep 500ms
 Type "]"
 Sleep 2s
 Type@200ms "jjjj"
+Escape
+Sleep 500ms
 Type "q"
+Enter
 Sleep 200ms
 Output docs/demo.webm
 Output docs/demo.gif
