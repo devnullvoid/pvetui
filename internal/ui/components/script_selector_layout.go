@@ -68,13 +68,13 @@ func (s *ScriptSelector) createLayout() {
 		AddItem(nil, 0, 1, false)
 
 	// Create script page header with instructions
-	headerText := tview.NewTextView().
-		SetText("Select a Script to Install (/ or Tab = Search, Backspace = Back, Escape = Clear Search)").
-		SetTextAlign(tview.AlignCenter)
+	// headerText := tview.NewTextView().
+	// 	SetText("Select a Script to Install (/ = Search, Backspace = Back, Escape = Clear Search)").
+	// 	SetTextAlign(tview.AlignCenter)
 
 	scriptPage := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(headerText, 1, 0, false).
+		// AddItem(headerText, 1, 0, false).
 		AddItem(s.searchInput, 1, 0, false).
 		AddItem(s.scriptList, 0, 1, true).
 		AddItem(backButtonContainer, 1, 0, false)
@@ -117,7 +117,7 @@ func (s *ScriptSelector) createLayout() {
 	// Set border and title on the pages component
 	s.pages.SetBorder(true).
 		SetTitle(" Script Selection ").
-		SetTitleColor(theme.Colors.Primary)
+		SetTitleColor(theme.Colors.Title)
 
 	// Create the main layout
 	s.layout = s.createResponsiveLayout()
