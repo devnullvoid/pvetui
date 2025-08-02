@@ -138,6 +138,30 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	pages := tview.NewPages()
 	pages.AddPage("form", form, true, true)
 
+	// Add profile name field at the top
+	var profileName string
+	var isDefaultProfile bool
+
+	// Determine if this is a new profile or editing existing
+	isNewProfile := len(cfg.Profiles) == 0 || cfg.DefaultProfile == ""
+
+	if isNewProfile {
+		form.AddInputField("Profile Name", "", 20, nil, func(text string) {
+			profileName = strings.TrimSpace(text)
+		})
+	} else {
+		// For editing existing profile, start with current name
+		profileName = cfg.DefaultProfile
+		form.AddInputField("Profile Name", cfg.DefaultProfile, 20, nil, func(text string) {
+			profileName = strings.TrimSpace(text)
+		})
+	}
+
+	// Add checkbox for default profile
+	form.AddCheckbox("Set as Default Profile", isNewProfile || cfg.DefaultProfile == profileName, func(checked bool) {
+		isDefaultProfile = checked
+	})
+
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser string
 	var insecure bool
@@ -264,6 +288,20 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
 	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
 	form.AddButton("Save", func() {
+		// Validate profile name
+		if profileName == "" {
+			showWizardModal(pages, form, app, "error", "Profile name cannot be empty.", nil)
+			return
+		}
+
+		// Check if profile already exists (for new profiles or renamed profiles)
+		if isNewProfile || profileName != cfg.DefaultProfile {
+			if cfg.Profiles != nil && cfg.Profiles[profileName] != (config.ProfileConfig{}) {
+				showWizardModal(pages, form, app, "error", "Profile '"+profileName+"' already exists.", nil)
+				return
+			}
+		}
+
 		// Determine which data to validate based on whether we're using profiles
 		var hasPassword, hasToken bool
 
@@ -309,16 +347,83 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			}
 		}
 
+		// Handle profile creation/updating
+		if isNewProfile {
+			// Create new profile
+			if cfg.Profiles == nil {
+				cfg.Profiles = make(map[string]config.ProfileConfig)
+			}
+
+			// Create profile from current form data
+			newProfile := config.ProfileConfig{
+				Addr:        strings.TrimSpace(addr),
+				User:        strings.TrimSpace(user),
+				Password:    password,
+				TokenID:     strings.TrimSpace(tokenID),
+				TokenSecret: tokenSecret,
+				Realm:       strings.TrimSpace(realm),
+				ApiPath:     strings.TrimSpace(apiPath),
+				Insecure:    insecure,
+				SSHUser:     strings.TrimSpace(sshUser),
+			}
+
+			// Clear conflicting auth method in new profile
+			if hasPassword {
+				newProfile.TokenID = ""
+				newProfile.TokenSecret = ""
+			} else if hasToken {
+				newProfile.Password = ""
+			}
+
+			cfg.Profiles[profileName] = newProfile
+
+			// Set as default if requested
+			if isDefaultProfile {
+				cfg.DefaultProfile = profileName
+			}
+		} else {
+			// Update existing profile
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				// Handle profile renaming
+				if profileName != cfg.DefaultProfile {
+					// Store the old profile name before deleting
+					oldProfileName := cfg.DefaultProfile
+
+					// Remove old profile name
+					delete(cfg.Profiles, cfg.DefaultProfile)
+
+					// Update default profile if we're renaming the current default
+					if cfg.DefaultProfile == oldProfileName {
+						cfg.DefaultProfile = profileName
+					}
+				}
+
+				// The profile data has already been updated by the form field handlers
+				// Just clear conflicting auth method if needed
+				if hasPassword {
+					profile.TokenID = ""
+					profile.TokenSecret = ""
+				} else if hasToken {
+					profile.Password = ""
+				}
+
+				cfg.Profiles[profileName] = profile
+			}
+
+			// Update default profile setting
+			if isDefaultProfile {
+				cfg.DefaultProfile = profileName
+			}
+		}
+
 		if err := cfg.Validate(); err != nil {
 			showWizardModal(pages, form, app, "error", "Validation error: "+err.Error(), nil)
-
 			return
 		}
 		// Save config first
 		saveErr := saveFn(cfg)
 		if saveErr != nil {
 			showWizardModal(pages, form, app, "error", "Failed to save config: "+saveErr.Error(), nil)
-
 			return
 		}
 		// If SOPS re-encryption is possible, prompt user
@@ -329,33 +434,28 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				err := cmd.Run()
 				if err != nil {
 					showWizardModal(pages, form, app, "error", "SOPS re-encryption failed: "+err.Error(), nil)
-
 					return
 				}
 
 				showWizardModal(pages, form, app, "info", "Configuration saved and re-encrypted with SOPS!", func() {
-					resultChan <- WizardResult{Saved: true, SopsEncrypted: true}
-
+					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
 					app.Stop()
 				})
 			}
 			onNo := func() {
 				showWizardModal(pages, form, app, "info", "Configuration saved (unencrypted).", func() {
-					resultChan <- WizardResult{Saved: true}
-
+					resultChan <- WizardResult{Saved: true, ProfileName: profileName}
 					app.Stop()
 				})
 			}
 			confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
 			pages.AddPage("modal", confirm, false, true)
 			pages.SwitchToPage("modal")
-
 			return
 		}
 
 		showWizardModal(pages, form, app, "info", "Configuration saved successfully!", func() {
-			resultChan <- WizardResult{Saved: true}
-
+			resultChan <- WizardResult{Saved: true, ProfileName: profileName}
 			app.Stop()
 		})
 	})
@@ -364,7 +464,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			cancelFn()
 		}
 		resultChan <- WizardResult{Canceled: true}
-
 		app.Stop()
 	})
 	form.SetBorder(true).SetTitle("Proxmox TUI - Config Wizard").SetTitleColor(theme.Colors.Primary)
@@ -374,12 +473,9 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				cancelFn()
 			}
 			resultChan <- WizardResult{Canceled: true}
-
 			app.Stop()
-
 			return nil
 		}
-
 		return event
 	})
 
