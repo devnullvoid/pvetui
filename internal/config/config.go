@@ -550,7 +550,7 @@ func (c *Config) MergeWithFile(path string) error {
 
 func (c *Config) Validate() error {
 	// Check if using profile-based configuration
-	if c.DefaultProfile != "" {
+	if c.DefaultProfile != "" && len(c.Profiles) > 0 {
 		// Validate profile-based configuration
 
 		// Check if default profile exists
