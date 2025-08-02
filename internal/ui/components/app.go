@@ -20,6 +20,7 @@ type App struct {
 
 	client        *api.Client
 	config        config.Config
+	configPath    string
 	vncService    *vnc.Service
 	pages         *tview.Pages
 	header        HeaderComponent
@@ -49,7 +50,7 @@ type App struct {
 }
 
 // NewApp creates a new application instance with all UI components.
-func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
+func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string) *App {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Creating new App instance")
 
@@ -67,6 +68,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config) *App {
 		Application:        tview.NewApplication(),
 		client:             client,
 		config:             *cfg,
+		configPath:         configPath,
 		vncService:         vnc.NewServiceWithLogger(client, vncLogger),
 		pages:              tview.NewPages(),
 		autoRefreshEnabled: false,

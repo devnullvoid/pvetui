@@ -136,7 +136,7 @@ func StartApplication(result *BootstrapResult) error {
 	theme.ApplyToTview()
 
 	appOpts := app.Options{NoCache: result.NoCache}
-	if err := app.RunWithStartupVerification(result.Config, appOpts); err != nil {
+	if err := app.RunWithStartupVerification(result.Config, result.ConfigPath, appOpts); err != nil {
 		return handleStartupError(err, result.Config)
 	}
 

@@ -259,24 +259,17 @@ func (a *App) showEditProfileDialog(profileName string) {
 		return
 	}
 
-	// Create a temporary config for the wizard
+	// Create a temporary config for the wizard with proper profile structure
 	tempConfig := &config.Config{
-		Profiles:       a.config.Profiles,
+		Profiles:       make(map[string]config.ProfileConfig),
 		DefaultProfile: profileName,
-		// Use the legacy fields for the wizard
-		Addr:        profile.Addr,
-		User:        profile.User,
-		Password:    profile.Password,
-		TokenID:     profile.TokenID,
-		TokenSecret: profile.TokenSecret,
-		Realm:       profile.Realm,
-		ApiPath:     profile.ApiPath,
-		Insecure:    profile.Insecure,
-		SSHUser:     profile.SSHUser,
-		Debug:       a.config.Debug,
-		CacheDir:    a.config.CacheDir,
-		Theme:       a.config.Theme,
+		Debug:          a.config.Debug,
+		CacheDir:       a.config.CacheDir,
+		Theme:          a.config.Theme,
 	}
+
+	// Copy the profile data into the temporary config's profiles map
+	tempConfig.Profiles[profileName] = profile
 
 	// Create a channel for the wizard result
 	resultChan := make(chan WizardResult, 1)

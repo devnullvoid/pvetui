@@ -18,10 +18,15 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	pages := tview.NewPages()
 	pages.AddPage("form", form, true, true)
 
-	// Detect if original config was SOPS-encrypted
-	configPath, found := config.FindDefaultConfigPath()
-	if !found {
-		configPath = config.GetDefaultConfigPath()
+	// Use the app's actual config path instead of hardcoding the default path
+	configPath := a.configPath
+	if configPath == "" {
+		// Fallback to default path if no path is stored
+		var found bool
+		configPath, found = config.FindDefaultConfigPath()
+		if !found {
+			configPath = config.GetDefaultConfigPath()
+		}
 	}
 	wasSOPS := false
 	if configPath != "" {
@@ -51,15 +56,128 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		})
 	}
 
-	form.AddInputField("Proxmox API URL", cfg.Addr, 40, nil, func(text string) { cfg.Addr = strings.TrimSpace(text) })
-	form.AddInputField("Username", cfg.User, 20, nil, func(text string) { cfg.User = strings.TrimSpace(text) })
-	form.AddPasswordField("Password", cfg.Password, 20, '*', func(text string) { cfg.Password = text })
-	form.AddInputField("API Token ID", cfg.TokenID, 20, nil, func(text string) { cfg.TokenID = strings.TrimSpace(text) })
-	form.AddPasswordField("API Token Secret", cfg.TokenSecret, 20, '*', func(text string) { cfg.TokenSecret = text })
-	form.AddInputField("Realm", cfg.Realm, 10, nil, func(text string) { cfg.Realm = strings.TrimSpace(text) })
-	form.AddInputField("API Path", cfg.ApiPath, 20, nil, func(text string) { cfg.ApiPath = strings.TrimSpace(text) })
-	form.AddCheckbox("Skip TLS Verification", cfg.Insecure, func(checked bool) { cfg.Insecure = checked })
-	form.AddInputField("SSH Username", cfg.SSHUser, 20, nil, func(text string) { cfg.SSHUser = strings.TrimSpace(text) })
+	// Determine which data to use for form fields
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser string
+	var insecure bool
+
+	// If we have profiles and a default profile, use profile data
+	if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+			addr = profile.Addr
+			user = profile.User
+			password = profile.Password
+			tokenID = profile.TokenID
+			tokenSecret = profile.TokenSecret
+			realm = profile.Realm
+			apiPath = profile.ApiPath
+			insecure = profile.Insecure
+			sshUser = profile.SSHUser
+		}
+	} else {
+		// Use legacy fields
+		addr = cfg.Addr
+		user = cfg.User
+		password = cfg.Password
+		tokenID = cfg.TokenID
+		tokenSecret = cfg.TokenSecret
+		realm = cfg.Realm
+		apiPath = cfg.ApiPath
+		insecure = cfg.Insecure
+		sshUser = cfg.SSHUser
+	}
+
+	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			// Update profile
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Addr = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			// Update legacy field
+			cfg.Addr = strings.TrimSpace(text)
+		}
+	})
+	form.AddInputField("Username", user, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.User = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.User = strings.TrimSpace(text)
+		}
+	})
+	form.AddPasswordField("Password", password, 20, '*', func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Password = text
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.Password = text
+		}
+	})
+	form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.TokenID = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.TokenID = strings.TrimSpace(text)
+		}
+	})
+	form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.TokenSecret = text
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.TokenSecret = text
+		}
+	})
+	form.AddInputField("Realm", realm, 10, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Realm = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.Realm = strings.TrimSpace(text)
+		}
+	})
+	form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.ApiPath = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.ApiPath = strings.TrimSpace(text)
+		}
+	})
+	form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.Insecure = checked
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.Insecure = checked
+		}
+	})
+	form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHUser = strings.TrimSpace(text)
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHUser = strings.TrimSpace(text)
+		}
+	})
 
 	form.AddButton("Save", func() {
 		// Validate profile name for all profiles
@@ -76,8 +194,20 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			}
 		}
 
-		hasPassword := cfg.Password != ""
-		hasToken := cfg.TokenID != "" && cfg.TokenSecret != ""
+		// Determine which data to validate based on whether we're using profiles
+		var hasPassword, hasToken bool
+
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			// Validate profile data
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				hasPassword = profile.Password != ""
+				hasToken = profile.TokenID != "" && profile.TokenSecret != ""
+			}
+		} else {
+			// Validate legacy data
+			hasPassword = cfg.Password != ""
+			hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
+		}
 
 		if hasPassword && hasToken {
 			showWizardModal(pages, form, a.Application, "error", "Please choose either password authentication or token authentication, not both.", nil)
@@ -89,11 +219,24 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			return
 		}
 
-		if hasPassword {
-			cfg.TokenID = ""
-			cfg.TokenSecret = ""
-		} else if hasToken {
-			cfg.Password = ""
+		// Clear conflicting auth method
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				if hasPassword {
+					profile.TokenID = ""
+					profile.TokenSecret = ""
+				} else if hasToken {
+					profile.Password = ""
+				}
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			if hasPassword {
+				cfg.TokenID = ""
+				cfg.TokenSecret = ""
+			} else if hasToken {
+				cfg.Password = ""
+			}
 		}
 
 		if err := cfg.Validate(); err != nil {
@@ -101,39 +244,29 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			return
 		}
 
-		// Create the profile config
-		profileConfig := config.ProfileConfig{
-			Addr:        cfg.Addr,
-			User:        cfg.User,
-			Password:    cfg.Password,
-			TokenID:     cfg.TokenID,
-			TokenSecret: cfg.TokenSecret,
-			Realm:       cfg.Realm,
-			ApiPath:     cfg.ApiPath,
-			Insecure:    cfg.Insecure,
-			SSHUser:     cfg.SSHUser,
-		}
-
-		if isNewProfile {
-			// Add the new profile to the config
+		// Update main config with the edited profile and save that
+		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+			// Ensure main config has profiles map
 			if a.config.Profiles == nil {
 				a.config.Profiles = make(map[string]config.ProfileConfig)
 			}
-			a.config.Profiles[profileName] = profileConfig
-		} else {
+
 			// Handle profile renaming
-			existingProfileName := cfg.DefaultProfile
-			if profileName != existingProfileName {
-				// Profile is being renamed - remove old name and add new name
-				delete(a.config.Profiles, existingProfileName)
-				a.config.Profiles[profileName] = profileConfig
-			} else {
-				// Profile name unchanged - just update the config
-				a.config.Profiles[existingProfileName] = profileConfig
+			if !isNewProfile && profileName != cfg.DefaultProfile {
+				oldProfileName := cfg.DefaultProfile
+				delete(a.config.Profiles, oldProfileName)
+
+				// Update default profile if we're renaming the current default
+				if a.config.DefaultProfile == oldProfileName {
+					a.config.DefaultProfile = profileName
+				}
 			}
+
+			// Add or update the profile
+			a.config.Profiles[profileName] = profile
 		}
 
-		// Save the config first
+		// Save the main config (which has all profiles)
 		if err := SaveConfigToFile(&a.config, configPath); err != nil {
 			showWizardModal(pages, form, a.Application, "error", "Failed to save profile: "+err.Error(), nil)
 			return

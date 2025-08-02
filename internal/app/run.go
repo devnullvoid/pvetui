@@ -21,7 +21,7 @@ type Options struct {
 }
 
 // RunWithStartupVerification constructs the API client, performs connectivity verification with user feedback, and starts the TUI.
-func RunWithStartupVerification(cfg *config.Config, opts Options) error {
+func RunWithStartupVerification(cfg *config.Config, configPath string, opts Options) error {
 	// Initialize logger first (but don't output startup messages in debug mode)
 	level := logger.LevelInfo
 	if cfg.Debug {
@@ -107,5 +107,5 @@ func RunWithStartupVerification(cfg *config.Config, opts Options) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	return ui.RunApp(ctx, client, cfg)
+	return ui.RunApp(ctx, client, cfg, configPath)
 }
