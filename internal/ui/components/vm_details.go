@@ -280,9 +280,8 @@ func (vd *VMDetails) Update(vm *api.VM) {
 				func() string {
 					if fs.Type != "" {
 						return " [" + fs.Type + "]"
-					} else {
-						return ""
 					}
+					return ""
 				}(),
 			)).SetTextColor(usageColor))
 

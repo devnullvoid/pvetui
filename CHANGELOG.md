@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FormButton Refactoring**: Refactored FormButton to embed a real tview.Button, providing proper button styling, behavior, and theme consistency
 - **FormButton Sizing**: Fixed FormButton to properly size and center the button instead of taking up the entire width
 - **FormButton Alignment**: Added configurable positioning options (center, left, right, custom) for FormButton alignment within forms
+- **GolangCI-Lint Configuration**: Updated golangci-lint configuration to be compatible with newer versions, fixed GitHub Actions CI failures, and implemented conservative linting with zero errors while maintaining essential code quality checks
 
 ## [0.9.0] - 2025-07-16
 

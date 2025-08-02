@@ -380,6 +380,7 @@ func TestConfig_MergeWithEncryptedFile(t *testing.T) {
 	plainPath := filepath.Join(tempDir, "plain.yaml")
 	require.NoError(t, os.WriteFile(plainPath, []byte("addr: https://enc.example.com\nuser: encuser\n"), 0o600))
 
+	// nolint:gosec // This is test code with controlled input
 	cmd := exec.Command("sops", "--encrypt", "--input-type", "yaml", "--output-type", "yaml", "--age", id.Recipient().String(), plainPath)
 
 	out, err := cmd.CombinedOutput()

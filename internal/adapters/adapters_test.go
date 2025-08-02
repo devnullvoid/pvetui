@@ -52,6 +52,7 @@ func TestConfigAdapter_TokenAuth(t *testing.T) {
 
 	assert.True(t, adapter.IsUsingTokenAuth())
 
+	// nolint:gosec // This is test code with controlled test data
 	expectedToken := "PVEAPIToken=testuser@pam!testtoken=testsecret"
 	assert.Equal(t, expectedToken, adapter.GetAPIToken())
 }

@@ -160,9 +160,9 @@ func formatUser(user string) string {
 func formatDuration(d time.Duration) string {
 	if d < time.Minute {
 		return fmt.Sprintf("%.0fs", d.Seconds())
-	} else if d < time.Hour {
-		return fmt.Sprintf("%.1fm", d.Minutes())
-	} else {
-		return fmt.Sprintf("%.1fh", d.Hours())
 	}
+	if d < time.Hour {
+		return fmt.Sprintf("%.1fm", d.Minutes())
+	}
+	return fmt.Sprintf("%.1fh", d.Hours())
 }

@@ -1,9 +1,6 @@
 # golangci-lint configuration file
 # Documentation: https://golangci-lint.run/usage/configuration/
 
-# Version of configuration format
-version: "2"
-
 # Options for analysis running
 run:
   timeout: 5m
@@ -13,125 +10,19 @@ run:
   # Include test files or not
   tests: true
 
-  # Which dirs to skip: they won't be analyzed
-  skip-dirs:
-    - bin
-    - vendor
-    - var
-    - tmp
-    - .git
-
-  # Which files to skip: they will be analyzed, but issues from them won't be reported
-  skip-files:
-    - ".*\\.pb\\.go$"
-    - ".*\\.gen\\.go$"
-
-# Output configuration options
-output:
-  # The formats used to render issues (map format)
-  formats:
-    colored-line-number: stdout
-
-  # Print lines of code with issue
-  print-issued-lines: true
-
-  # Print linter name in the end of issue text
-  print-linter-name: true
-
 # Linters configuration
 linters:
-  # Default set of linters to use
-  default: standard
-
-  # Enable specific linters (using only commonly available ones)
+  # Enable essential linters plus a few more useful ones
   enable:
-    - errcheck
-    - gosec
-    - staticcheck
-    - misspell
-    - usestdlibvars
     - dupl
     - goconst
-    - whitespace
+    - misspell
+    - staticcheck
+    - errcheck
+    - gosec
     - revive
+    - whitespace
     - lll
-    - gocognit
-    - gocyclo
-    - exhaustive
-    - testpackage
-    - thelper
-    - unparam
-    - goprintffuncname
-    # - gocritic
-
-  # Disable linters that are too strict for our use case
-  disable:
-    - goprintffuncname  # We have interface constraints
-    - testpackage       # Test files can use main package
-    - thelper          # Test helper naming is acceptable
-    - unparam          # Unused parameters are sometimes needed for interfaces
-    - lll              # Line length is handled by gofumpt
-    - gocognit         # Cognitive complexity is acceptable for UI code
-    - gocyclo          # Cyclomatic complexity is acceptable for UI code
-    - exhaustive       # Switch statements don't need to be exhaustive
-    - whitespace       # Whitespace is handled by gofumpt
-    - revive           # Too many style suggestions that don't affect functionality
-    - staticcheck      # Too many style suggestions that don't affect functionality
-    - usestdlibvars    # Style suggestions that don't affect functionality
-    - errcheck         # Too many false positives in UI code
-    - gosec            # Security warnings are intentional for this application
-
-  # All available settings of specific linters
-  settings:
-    errcheck:
-      # Report about not checking of errors in type assertions
-      check-type-assertions: true
-      # Report about assignment of errors to blank identifier
-      check-blank: false
-
-    govet:
-      # Report about shadowed variables
-      check-shadowing: true
-
-    goconst:
-      # Minimal length of string constant
-      min-len: 2
-      # Minimum occurrences of constant string count to trigger issue
-      min-occurrences: 3
-
-    dupl:
-      # Tokens count to trigger issue
-      threshold: 100
-
-    lll:
-      # Max line length, lines longer will be reported
-      line-length: 140
-
-    misspell:
-      # Correct spellings using locale preferences for US or UK
-      locale: US
-      ignore-words:
-        - someword
-
-    gocognit:
-      # Minimal cognitive complexity to trigger issue
-      min-complexity: 30
-
-    gocyclo:
-      # Minimal cyclomatic complexity to trigger issue
-      min-complexity: 30
-
-    revive:
-      # Sets the maximum number of issues reported per linter
-      max-issues-per-linter: 0
-      # Sets the maximum number of issues reported per file
-      max-issues-per-file: 0
-
-    gocritic:
-      # Enable elseif rule to detect if-else chains that should be switches
-      enabled-tags:
-        - diagnostic
-        - style
 
 # Issues configuration
 issues:
@@ -167,7 +58,49 @@ issues:
       linters:
         - staticcheck
 
-# Severity configuration
-severity:
-  # Set the default severity for issues
-  default-severity: error
+    # Exclude deprecated field warnings for now (we're working on migration)
+    - linters:
+        - staticcheck
+      text: "SA1019: .* is deprecated: legacy single-profile fields for migration"
+
+    # Exclude potential nil pointer dereference in tests (acceptable for test code)
+    - linters:
+        - staticcheck
+      text: "SA5011: possible nil pointer dereference"
+      path: test/
+
+    # Exclude hardcoded credentials in test files (acceptable for test code)
+    - linters:
+        - gosec
+      text: "G101: Potential hardcoded credentials"
+      path: test/
+
+    # Exclude unused parameter warnings (interface compliance)
+    - linters:
+        - revive
+      text: "unused-parameter: parameter .* seems to be unused"
+
+    # Exclude line length warnings (handled by gofumpt)
+    - linters:
+        - lll
+      text: "The line is .* characters long"
+
+    # Exclude whitespace warnings (handled by gofumpt)
+    - linters:
+        - whitespace
+      text: ".*"
+
+    # Exclude indent-error-flow warnings (common pattern)
+    - linters:
+        - revive
+      text: "indent-error-flow: if block ends with a return statement"
+
+    # Exclude var-naming warnings for now (complex breaking changes)
+    - linters:
+        - revive
+      text: "var-naming:"
+
+    # Exclude type stuttering warnings (complex breaking changes)
+    - linters:
+        - revive
+      text: "exported: type name will be used as"

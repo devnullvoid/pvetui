@@ -21,11 +21,11 @@ func FormatUptime(uptime int) string {
 
 	if days > 0 {
 		return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
-	} else if hours > 0 {
-		return fmt.Sprintf("%dh %dm", hours, minutes)
-	} else {
-		return fmt.Sprintf("%dm", minutes)
 	}
+	if hours > 0 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	}
+	return fmt.Sprintf("%dm", minutes)
 }
 
 // FormatBytes formats a byte count to a human-readable format with dynamic units
@@ -56,15 +56,15 @@ func FormatBytes(bytes int64) string {
 // Input is assumed to be in GB, converts to appropriate units with 2 decimal places.
 func FormatBytesFloat(gb float64) string {
 	const (
-		TB_IN_GB = 1024
-		PB_IN_GB = 1024 * 1024
+		TbInGb = 1024
+		PbInGb = 1024 * 1024
 	)
 
 	switch {
-	case gb >= PB_IN_GB:
-		return fmt.Sprintf("%.2f PB", gb/PB_IN_GB)
-	case gb >= TB_IN_GB:
-		return fmt.Sprintf("%.2f TB", gb/TB_IN_GB)
+	case gb >= PbInGb:
+		return fmt.Sprintf("%.2f PB", gb/PbInGb)
+	case gb >= TbInGb:
+		return fmt.Sprintf("%.2f TB", gb/TbInGb)
 	default:
 		return fmt.Sprintf("%.2f GB", gb)
 	}

@@ -22,6 +22,7 @@ func WaitForEnter() {
 	if _, err := fmt.Scanln(); err != nil {
 		// Ignore scan errors as they're not critical for this function
 		// The user might have pressed Ctrl+C or similar
+		_ = err // Explicitly ignore the error to avoid empty branch
 	}
 
 	// Add a small delay and countdown for better UX
@@ -44,6 +45,6 @@ func WaitForEnterToReturn(err error, successMsg, failureMsg string) {
 	if _, err := fmt.Scanln(); err != nil {
 		// Ignore scan errors as they're not critical for this function
 		// The user might have pressed Ctrl+C or similar
-		_ = err // Explicitly ignore the error
+		_ = err // Explicitly ignore the error to avoid empty branch
 	}
 }
