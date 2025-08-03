@@ -130,7 +130,7 @@ Access the profile manager through the global menu.
 
 ### API Token Setup (Recommended)
 1. In Proxmox web interface: **Datacenter → Permissions → API Tokens**
-2. Click **Add** → Set user (e.g., `root@pam`) → Enter token ID
+2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
 
 ### Encrypted Configuration
@@ -161,7 +161,7 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 | `/` | Search | `a` | Auto-refresh |
 | `?` | Help | `q` | Quit |
 
-*See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for detailed customization options*
+*See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for detailed customization options (including macOS `Opt` key support)*
 
 ## Theming
 

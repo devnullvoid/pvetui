@@ -85,14 +85,14 @@ Access the profile manager through the global menu (`g` key) or context menus.
 ### API Token Authentication (Recommended)
 
 1. In Proxmox web interface: **Datacenter → Permissions → API Tokens**
-2. Click **Add** → Set user (e.g., `root@pam`) → Enter token ID
+2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
 
 ```yaml
 profiles:
   default:
     addr: "https://your-proxmox-host:8006"
-    user: "root@pam"
+    user: "root"
     token_id: "your-token-id"
     token_secret: "your-secret"
     realm: "pam"
@@ -106,7 +106,7 @@ profiles:
 profiles:
   default:
     addr: "https://your-proxmox-host:8006"
-    user: "root@pam"
+    user: "root"
     password: "your-password"
     realm: "pam"
     insecure: false
@@ -158,11 +158,13 @@ key_bindings:
   quit: "q"
 ```
 
+**Note**: On macOS, you can use `Opt` instead of `Alt` for modifier keys (e.g., `Opt+1` instead of `Alt+1`).
+
 ### Supported Key Formats
 
 - **Single characters**: `m`, `s`, `v`, `q`
 - **Function keys**: `F1`, `F2`, etc.
-- **Modifier combinations**: `Ctrl+r`, `Alt+1`, `Ctrl+Shift+a`
+- **Modifier combinations**: `Ctrl+r`, `Alt+1` (or `Opt+1` on macOS), `Ctrl+Shift+a`
 - **Special keys**: `Enter`, `Escape`, `Tab`, `Backspace`
 
 ### Reserved Keys
@@ -278,8 +280,8 @@ profiles:
 Proxmox TUI looks for configuration files in the following order:
 
 1. File specified with `-config` flag
-2. `~/.config/proxmox-tui/config.yml`
-3. `~/.proxmox-tui.yml`
+2. `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
+3. `./config.yml` (current directory)
 
 ## First Run & Interactive Config Wizard
 
