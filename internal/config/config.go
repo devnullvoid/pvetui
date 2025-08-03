@@ -288,12 +288,6 @@ func ParseConfigFlags() {
 	_ = configFs.Parse(os.Args[1:]) // Parse just the --config flag first, ignore errors
 }
 
-// ParseFlags adds command-line flag definitions to a Config object.
-// DEPRECATED: Flags are now handled in bootstrap.ParseFlags()
-func (c *Config) ParseFlags() {
-	// This method is deprecated - flags are now handled in bootstrap
-}
-
 func (c *Config) MergeWithFile(path string) error {
 	if path == "" {
 		return nil

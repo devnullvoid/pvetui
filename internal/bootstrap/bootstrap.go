@@ -27,6 +27,18 @@ type BootstrapOptions struct {
 	NoCache      bool
 	Version      bool
 	ConfigWizard bool
+	// Flag values for config overrides
+	FlagAddr        string
+	FlagUser        string
+	FlagPassword    string
+	FlagTokenID     string
+	FlagTokenSecret string
+	FlagRealm       string
+	FlagInsecure    bool
+	FlagApiPath     string
+	FlagSSHUser     string
+	FlagDebug       bool
+	FlagCacheDir    string
 }
 
 // BootstrapResult contains the result of the bootstrap process.
@@ -55,28 +67,31 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&configWizard, "w", false, "Short for --config-wizard")
 
 	// Config flags (these will be applied to the config object later)
-	flag.String("addr", "", "Proxmox API URL (env PROXMOX_ADDR)")
-	flag.String("a", "", "Short for --addr")
-	flag.String("user", "", "Proxmox username (env PROXMOX_USER)")
-	flag.String("u", "", "Short for --user")
-	flag.String("password", "", "Proxmox password (env PROXMOX_PASSWORD)")
-	flag.String("pass", "", "Short for --password")
-	flag.String("token-id", "", "Proxmox API token ID (env PROXMOX_TOKEN_ID)")
-	flag.String("tid", "", "Short for --token-id")
-	flag.String("token-secret", "", "Proxmox API token secret (env PROXMOX_TOKEN_SECRET)")
-	flag.String("ts", "", "Short for --token-secret")
-	flag.String("realm", "", "Proxmox realm (env PROXMOX_REALM)")
-	flag.String("r", "", "Short for --realm")
-	flag.Bool("insecure", false, "Skip TLS verification (env PROXMOX_INSECURE)")
-	flag.Bool("i", false, "Short for --insecure")
-	flag.String("api-path", "", "Proxmox API path (env PROXMOX_API_PATH)")
-	flag.String("ap", "", "Short for --api-path")
-	flag.String("ssh-user", "", "SSH username (env PROXMOX_SSH_USER)")
-	flag.String("su", "", "Short for --ssh-user")
-	flag.Bool("debug", false, "Enable debug logging (env PROXMOX_DEBUG)")
-	flag.Bool("d", false, "Short for --debug")
-	flag.String("cache-dir", "", "Cache directory path (env PROXMOX_CACHE_DIR)")
-	flag.String("cd", "", "Short for --cache-dir")
+	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagCacheDir string
+	var flagInsecure, flagDebug bool
+
+	flag.StringVar(&flagAddr, "addr", "", "Proxmox API URL (env PROXMOX_ADDR)")
+	flag.StringVar(&flagAddr, "a", "", "Short for --addr")
+	flag.StringVar(&flagUser, "user", "", "Proxmox username (env PROXMOX_USER)")
+	flag.StringVar(&flagUser, "u", "", "Short for --user")
+	flag.StringVar(&flagPassword, "password", "", "Proxmox password (env PROXMOX_PASSWORD)")
+	flag.StringVar(&flagPassword, "pass", "", "Short for --password")
+	flag.StringVar(&flagTokenID, "token-id", "", "Proxmox API token ID (env PROXMOX_TOKEN_ID)")
+	flag.StringVar(&flagTokenID, "tid", "", "Short for --token-id")
+	flag.StringVar(&flagTokenSecret, "token-secret", "", "Proxmox API token secret (env PROXMOX_TOKEN_SECRET)")
+	flag.StringVar(&flagTokenSecret, "ts", "", "Short for --token-secret")
+	flag.StringVar(&flagRealm, "realm", "", "Proxmox realm (env PROXMOX_REALM)")
+	flag.StringVar(&flagRealm, "r", "", "Short for --realm")
+	flag.BoolVar(&flagInsecure, "insecure", false, "Skip TLS verification (env PROXMOX_INSECURE)")
+	flag.BoolVar(&flagInsecure, "i", false, "Short for --insecure")
+	flag.StringVar(&flagApiPath, "api-path", "", "Proxmox API path (env PROXMOX_API_PATH)")
+	flag.StringVar(&flagApiPath, "ap", "", "Short for --api-path")
+	flag.StringVar(&flagSSHUser, "ssh-user", "", "SSH username (env PROXMOX_SSH_USER)")
+	flag.StringVar(&flagSSHUser, "su", "", "Short for --ssh-user")
+	flag.BoolVar(&flagDebug, "debug", false, "Enable debug logging (env PROXMOX_DEBUG)")
+	flag.BoolVar(&flagDebug, "d", false, "Short for --debug")
+	flag.StringVar(&flagCacheDir, "cache-dir", "", "Cache directory path (env PROXMOX_CACHE_DIR)")
+	flag.StringVar(&flagCacheDir, "cd", "", "Short for --cache-dir")
 
 	flag.Parse()
 
@@ -86,6 +101,18 @@ func ParseFlags() BootstrapOptions {
 		NoCache:      noCache,
 		Version:      version,
 		ConfigWizard: configWizard,
+		// Store flag values for later use
+		FlagAddr:        flagAddr,
+		FlagUser:        flagUser,
+		FlagPassword:    flagPassword,
+		FlagTokenID:     flagTokenID,
+		FlagTokenSecret: flagTokenSecret,
+		FlagRealm:       flagRealm,
+		FlagInsecure:    flagInsecure,
+		FlagApiPath:     flagApiPath,
+		FlagSSHUser:     flagSSHUser,
+		FlagDebug:       flagDebug,
+		FlagCacheDir:    flagCacheDir,
 	}
 }
 
@@ -99,8 +126,6 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 
 	// Initialize configuration
 	cfg := config.NewConfig()
-	// Apply command line flags to config
-	applyFlagsToConfig(cfg)
 
 	// Resolve configuration path
 	configPath := resolveConfigPath(opts.ConfigPath)
@@ -120,6 +145,43 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	if selectedProfile != "" {
 		if err := cfg.ApplyProfile(selectedProfile); err != nil {
 			return nil, fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
+		}
+	}
+
+	// Apply command line flags to config (overrides env vars, config file, and profile)
+	applyFlagsToConfig(cfg, opts)
+
+	// Update the active profile with flag values so GetAddr() returns the correct values
+	if selectedProfile != "" && len(cfg.Profiles) > 0 {
+		if profile, exists := cfg.Profiles[selectedProfile]; exists {
+			if opts.FlagAddr != "" {
+				profile.Addr = opts.FlagAddr
+			}
+			if opts.FlagUser != "" {
+				profile.User = opts.FlagUser
+			}
+			if opts.FlagPassword != "" {
+				profile.Password = opts.FlagPassword
+			}
+			if opts.FlagTokenID != "" {
+				profile.TokenID = opts.FlagTokenID
+			}
+			if opts.FlagTokenSecret != "" {
+				profile.TokenSecret = opts.FlagTokenSecret
+			}
+			if opts.FlagRealm != "" {
+				profile.Realm = opts.FlagRealm
+			}
+			if opts.FlagInsecure {
+				profile.Insecure = true
+			}
+			if opts.FlagApiPath != "" {
+				profile.ApiPath = opts.FlagApiPath
+			}
+			if opts.FlagSSHUser != "" {
+				profile.SSHUser = opts.FlagSSHUser
+			}
+			cfg.Profiles[selectedProfile] = profile
 		}
 	}
 
@@ -153,40 +215,40 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 }
 
 // applyFlagsToConfig applies command line flags to the config object
-func applyFlagsToConfig(cfg *config.Config) {
-	// Get flag values and apply them to config if they were set
-	if addr := flag.Lookup("addr"); addr != nil && addr.Value.String() != "" {
-		cfg.Addr = addr.Value.String()
+func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
+	// Apply flag values to config if they were set
+	if opts.FlagAddr != "" {
+		cfg.Addr = opts.FlagAddr
 	}
-	if user := flag.Lookup("user"); user != nil && user.Value.String() != "" {
-		cfg.User = user.Value.String()
+	if opts.FlagUser != "" {
+		cfg.User = opts.FlagUser
 	}
-	if password := flag.Lookup("password"); password != nil && password.Value.String() != "" {
-		cfg.Password = password.Value.String()
+	if opts.FlagPassword != "" {
+		cfg.Password = opts.FlagPassword
 	}
-	if tokenID := flag.Lookup("token-id"); tokenID != nil && tokenID.Value.String() != "" {
-		cfg.TokenID = tokenID.Value.String()
+	if opts.FlagTokenID != "" {
+		cfg.TokenID = opts.FlagTokenID
 	}
-	if tokenSecret := flag.Lookup("token-secret"); tokenSecret != nil && tokenSecret.Value.String() != "" {
-		cfg.TokenSecret = tokenSecret.Value.String()
+	if opts.FlagTokenSecret != "" {
+		cfg.TokenSecret = opts.FlagTokenSecret
 	}
-	if realm := flag.Lookup("realm"); realm != nil && realm.Value.String() != "" {
-		cfg.Realm = realm.Value.String()
+	if opts.FlagRealm != "" {
+		cfg.Realm = opts.FlagRealm
 	}
-	if insecure := flag.Lookup("insecure"); insecure != nil && insecure.Value.String() == "true" {
+	if opts.FlagInsecure {
 		cfg.Insecure = true
 	}
-	if apiPath := flag.Lookup("api-path"); apiPath != nil && apiPath.Value.String() != "" {
-		cfg.ApiPath = apiPath.Value.String()
+	if opts.FlagApiPath != "" {
+		cfg.ApiPath = opts.FlagApiPath
 	}
-	if sshUser := flag.Lookup("ssh-user"); sshUser != nil && sshUser.Value.String() != "" {
-		cfg.SSHUser = sshUser.Value.String()
+	if opts.FlagSSHUser != "" {
+		cfg.SSHUser = opts.FlagSSHUser
 	}
-	if debug := flag.Lookup("debug"); debug != nil && debug.Value.String() == "true" {
+	if opts.FlagDebug {
 		cfg.Debug = true
 	}
-	if cacheDir := flag.Lookup("cache-dir"); cacheDir != nil && cacheDir.Value.String() != "" {
-		cfg.CacheDir = cacheDir.Value.String()
+	if opts.FlagCacheDir != "" {
+		cfg.CacheDir = opts.FlagCacheDir
 	}
 }
 
