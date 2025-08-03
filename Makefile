@@ -34,6 +34,32 @@ build: ## Build the application binary
 		-X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
 		-o ./bin/$(APP_NAME) ./cmd/proxmox-tui
 
+install: ## Build and install the application from source
+	@printf "$(GREEN)Building and installing $(APP_NAME) from source...$(NC)\n"
+	@printf "$(YELLOW)Installing to: $(shell go env GOPATH)/bin/$(APP_NAME)$(NC)\n"
+	@mkdir -p $(shell go env GOPATH)/bin
+	go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) \
+		-X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+		-X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+		-o $(shell go env GOPATH)/bin/$(APP_NAME) ./cmd/proxmox-tui
+	@printf "$(GREEN)✅ Installation complete!$(NC)\n"
+	@printf "$(YELLOW)Make sure $(shell go env GOPATH)/bin is in your PATH$(NC)\n"
+
+install-remote: ## Install the application from remote repository using go install
+	@printf "$(GREEN)Installing $(APP_NAME) from remote repository...$(NC)\n"
+	@printf "$(YELLOW)Installing to: $(shell go env GOPATH)/bin/$(APP_NAME)$(NC)\n"
+	go install -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) \
+		-X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+		-X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+		./cmd/proxmox-tui
+	@printf "$(GREEN)✅ Installation complete!$(NC)\n"
+	@printf "$(YELLOW)Make sure $(shell go env GOPATH)/bin is in your PATH$(NC)\n"
+
+uninstall: ## Uninstall the application
+	@printf "$(GREEN)Uninstalling $(APP_NAME)...$(NC)\n"
+	@rm -f $(shell go env GOPATH)/bin/$(APP_NAME)
+	@printf "$(GREEN)✅ Uninstallation complete!$(NC)\n"
+
 test: ## Run unit tests
 	@printf "$(GREEN)Running unit tests...$(NC)\n"
 	go test -v $(shell go list ./... | grep -v /examples | grep -v /test/integration)

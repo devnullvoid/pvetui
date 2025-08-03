@@ -289,18 +289,9 @@ func ParseConfigFlags() {
 }
 
 // ParseFlags adds command-line flag definitions to a Config object.
+// DEPRECATED: Flags are now handled in bootstrap.ParseFlags()
 func (c *Config) ParseFlags() {
-	flag.StringVar(&c.Addr, "addr", c.Addr, "Proxmox API URL (env PROXMOX_ADDR)")
-	flag.StringVar(&c.User, "user", c.User, "Proxmox username (env PROXMOX_USER)")
-	flag.StringVar(&c.Password, "password", c.Password, "Proxmox password (env PROXMOX_PASSWORD)")
-	flag.StringVar(&c.TokenID, "token-id", c.TokenID, "Proxmox API token ID (env PROXMOX_TOKEN_ID)")
-	flag.StringVar(&c.TokenSecret, "token-secret", c.TokenSecret, "Proxmox API token secret (env PROXMOX_TOKEN_SECRET)")
-	flag.StringVar(&c.Realm, "realm", c.Realm, "Proxmox realm (env PROXMOX_REALM)")
-	flag.BoolVar(&c.Insecure, "insecure", c.Insecure, "Skip TLS verification (env PROXMOX_INSECURE)")
-	flag.StringVar(&c.ApiPath, "api-path", c.ApiPath, "Proxmox API path (env PROXMOX_API_PATH)")
-	flag.StringVar(&c.SSHUser, "ssh-user", c.SSHUser, "SSH username (env PROXMOX_SSH_USER)")
-	flag.BoolVar(&c.Debug, "debug", c.Debug, "Enable debug logging (env PROXMOX_DEBUG)")
-	flag.StringVar(&c.CacheDir, "cache-dir", c.CacheDir, "Cache directory path (env PROXMOX_CACHE_DIR, default: $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui)")
+	// This method is deprecated - flags are now handled in bootstrap
 }
 
 func (c *Config) MergeWithFile(path string) error {

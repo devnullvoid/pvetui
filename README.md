@@ -68,12 +68,17 @@
 1. Download from [Releases](https://github.com/devnullvoid/proxmox-tui/releases)
 2. Extract and run: `./proxmox-tui`
 
+**Via Go Install:**
+```bash
+go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest
+```
+
 **From Source:**
 ```bash
 git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
 cd proxmox-tui
-go build -o proxmox-tui ./cmd/proxmox-tui
-./proxmox-tui
+make install  # Build and install from source
+# or: make install-remote  # Install from remote repository
 ```
 
 ## ⚙️ Configuration
