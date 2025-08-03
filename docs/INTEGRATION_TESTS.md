@@ -214,4 +214,4 @@ When adding new integration tests:
 
 The integration tests provide comprehensive coverage of the proxmox-tui application's core functionality. They successfully test component interactions, authentication flows, caching behavior, and end-to-end workflows. The tests are designed to be reliable, fast, and suitable for both development and CI/CD environments.
 
-The implementation demonstrates best practices for Go integration testing and provides a solid foundation for maintaining code quality as the project evolves. 
+The implementation demonstrates best practices for Go integration testing and provides a solid foundation for maintaining code quality as the project evolves.

@@ -6,6 +6,10 @@ Sleep 1s
 Screenshot docs/screenshot-nodes-menu.png
 Type "h"
 Sleep 100ms
+Type "g"
+Sleep 1s
+Screenshot docs/screenshot-global-menu.png
+Escape
 Type "]"
 Sleep 500ms
 Type "jjjj"

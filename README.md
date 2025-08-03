@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/proxmox-tui-gopher-logo.png" alt="Proxmox TUI Logo" width="300">
+  <img src="docs/proxmox-tui-gopher-logo.png" alt="Proxmox TUI Logo" width="300">
 </p>
 
 <h1 align="center">Proxmox TUI</h1>
@@ -27,7 +27,7 @@
 
 <!-- Demo GIF -->
 <p align="center">
-  <img src="assets/demo.gif" width="600" alt="Live demo of Proxmox TUI in action">
+  <img src="docs/demo.gif" width="600" alt="Live demo of Proxmox TUI in action">
   <br>
   <em>Live demo of Proxmox TUI in action</em>
 </p>
@@ -44,18 +44,21 @@
 - **Community Scripts**: Install Proxmox community scripts directly from the TUI
 - **Modern Interface**: Vim-style navigation with customizable key bindings
 - **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
+- **Comprehensive Documentation**: Detailed guides for configuration, theming, and development
 
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="assets/screenshot-nodes.png" alt="Node Management" width="800"><br>
+  <img src="docs/screenshot-nodes.png" alt="Node Management" width="800"><br>
   <em>Node Management - Real-time cluster monitoring and control</em>
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-guests.png" alt="Guest Management" width="800"><br>
+  <img src="docs/screenshot-guests.png" alt="Guest Management" width="800"><br>
   <em>Guest Management - VM and container operations</em>
 </p>
+
+**📸 See [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md) for a complete showcase of all available screenshots and interface features**
 
 ## 📦 Installation
 
@@ -83,11 +86,10 @@ go build -o proxmox-tui ./cmd/proxmox-tui
 - Only one authentication method (password or token) per profile is allowed
 - All errors and confirmations are shown in clear, interactive modals
 
-### Configuration Formats
+### Configuration Format
 
-Proxmox TUI supports both **legacy single-profile** and **modern multi-profile** configuration formats. Legacy configurations are automatically migrated to the modern format.
+Proxmox TUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
 
-#### Modern Multi-Profile Configuration (Recommended)
 ```yaml
 profiles:
   default:
@@ -115,30 +117,6 @@ default_profile: "default"
 debug: false
 ```
 
-#### Legacy Single-Profile Configuration (Auto-migrated)
-```yaml
-# Legacy format - automatically migrated to profile-based format
-addr: "https://your-proxmox-host:8006"
-user: "your-user"
-realm: "pam"
-password: "your-password"
-# OR
-token_id: "your-token-id"
-token_secret: "your-secret"
-insecure: false
-ssh_user: "your-ssh-user"
-debug: false
-```
-
-### Automatic Legacy Migration
-
-Proxmox TUI automatically migrates legacy single-profile configurations to the modern multi-profile format:
-
-- **Seamless Migration**: Legacy configs are automatically converted to use the "default" profile
-- **Backward Compatibility**: Existing legacy configs continue to work without changes
-- **Profile Manager Ready**: Migrated configs can be managed through the built-in profile manager
-- **Migration Status**: The app displays `🔄 Migrated legacy configuration to profile-based format` when migration occurs
-
 ### Profile Management
 
 The built-in profile manager allows you to:
@@ -148,7 +126,7 @@ The built-in profile manager allows you to:
 - **Delete profiles** with confirmation
 - **Set default profile** for automatic connection
 
-Access the profile manager through the global menu (`g` key) or context menus.
+Access the profile manager through the global menu.
 
 ### API Token Setup (Recommended)
 1. In Proxmox web interface: **Datacenter → Permissions → API Tokens**
@@ -157,6 +135,10 @@ Access the profile manager through the global menu (`g` key) or context menus.
 
 ### Encrypted Configuration
 Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `-config` and it will decrypt automatically.
+
+**📖 For detailed configuration options, key bindings, theming, and advanced features, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md)**
+
+**📚 Complete documentation is available in the [docs/](docs/) folder**
 
 ## 🖥️ Usage
 
@@ -179,29 +161,13 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 | `/` | Search | `a` | Auto-refresh |
 | `?` | Help | `q` | Quit |
 
-*Customize via `key_bindings` section in config*
+*See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for detailed customization options*
 
 ## Theming
 
-Proxmox TUI supports semantic theming. By default, it adapts to your terminal's color scheme, but you can override any color in your config file.
+Proxmox TUI supports semantic theming with automatic adaptation to your terminal's color scheme.
 
-- To use your terminal's palette, set `use_terminal_colors: true` (default).
-- To use custom colors, set `use_terminal_colors: false` and specify overrides in the `colors` map.
-- You can use hex codes, ANSI color names, or the special value `default`.
-- You can also select a built-in theme with `theme.name`. Available built-in themes:
-  - `default`, `dracula`, `catppuccin-mocha`, `gruvbox`, `nord`, `rose-pine`, `tokyonight`, `solarized`, `kanagawa`, `everforest`
-- You can override any color in a built-in theme by specifying it in `colors`.
-
-Example:
-```yaml
-theme:
-  name: dracula
-  colors:
-    error: "red" # ANSI red
-    background: "#282a36" # Hex color
-```
-
-See [docs/THEMING.md](docs/THEMING.md) for the full list of color keys, advanced options, and troubleshooting.
+**📖 For detailed theming options, built-in themes, and color customization, see [docs/CONFIGURATION.md#theming](docs/CONFIGURATION.md#theming) and [docs/THEMING.md](docs/THEMING.md)**
 
 ## 🖥️ VNC Console Access
 
@@ -212,6 +178,14 @@ Built-in noVNC client provides seamless console access:
 - **Secure Proxy**: Local WebSocket proxy handles connections
 
 **Note**: Node VNC shells require password authentication (Proxmox limitation).
+
+**Important**: VNC ports must be opened and accessible on the connected Proxmox server. The TUI creates a local WebSocket proxy that connects to the Proxmox VNC endpoint, so ensure your Proxmox server's VNC ports are properly configured and accessible from your client machine.
+
+## 🎹 Keybind Configuration {#keybind-configuration}
+
+Proxmox TUI supports fully customizable key bindings through the `key_bindings` section in your configuration file.
+
+**📖 For detailed key binding options, customization examples, and supported formats, see [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings)**
 
 ## 🔧 Requirements
 
@@ -236,7 +210,7 @@ cp .env.example .env  # Edit with your Proxmox details
 docker compose run --rm proxmox-tui
 ```
 
-See [DOCKER.md](./DOCKER.md) for advanced usage.
+See [docs/DOCKER.md](docs/DOCKER.md) for advanced usage.
 
 ## 🤝 Contributing
 

@@ -31,9 +31,9 @@ Thumbs.db
 *~
 
 # VHS demo output
-/docs/*.gif
-/docs/*.png
-/docs/*.svg
-/docs/*.webm
+# /docs/*.gif
+# /docs/*.png
+# /docs/*.svg
+# /docs/*.webm
 
 REFACTORING_PROGRESS.md

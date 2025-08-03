@@ -158,7 +158,7 @@ Comprehensive testing support with:
 // Password-based authentication
 authManager := api.NewAuthManagerWithPassword(httpClient, "root", "password", logger)
 
-// API token authentication  
+// API token authentication
 authManager := api.NewAuthManagerWithToken(httpClient, "PVEAPIToken=...", logger)
 
 // Ensure authentication
@@ -214,7 +214,7 @@ package main
 import (
     "context"
     "log"
-    
+
     "github.com/devnullvoid/proxmox-tui/internal/config"
     "github.com/devnullvoid/proxmox-tui/internal/logger"
     "github.com/devnullvoid/proxmox-tui/internal/adapters"
@@ -229,18 +229,18 @@ func main() {
     if err := cfg.Validate(); err != nil {
         log.Fatal("Invalid configuration:", err)
     }
-    
+
     // Create logger
     loggerInstance, err := logger.NewInternalLogger(logger.LevelInfo, cfg.CacheDir)
     if err != nil {
         log.Fatal("Failed to create logger:", err)
     }
     defer loggerInstance.Close()
-    
+
     // Create adapters
     configAdapter := adapters.NewConfigAdapter(cfg)
     loggerAdapter := adapters.NewLoggerAdapter(cfg)
-    
+
     // Create API client
     // Note: This will attempt initial authentication and may fail if credentials are invalid
     client, err := api.NewClient(configAdapter,
@@ -248,14 +248,14 @@ func main() {
     if err != nil {
         log.Fatal("Failed to create client:", err)
     }
-    
+
     // Use the client
     ctx := context.Background()
     vms, err := client.GetVmList(ctx)
     if err != nil {
         log.Fatal("Failed to get VMs:", err)
     }
-    
+
     log.Printf("Found %d VMs", len(vms))
 }
 ```
@@ -271,7 +271,7 @@ import (
     "context"
     "log"
     "time"
-    
+
     "github.com/devnullvoid/proxmox-tui/internal/config"
     "github.com/devnullvoid/proxmox-tui/internal/logger"
     "github.com/devnullvoid/proxmox-tui/internal/adapters"
@@ -283,13 +283,13 @@ func main() {
     cfg := config.NewConfig()
     cfg.ParseFlags()
     cfg.SetDefaults()
-    
+
     if err := cfg.Validate(); err != nil {
         log.Printf("Configuration validation failed: %v", err)
         log.Println("Please check your configuration and try again.")
         return
     }
-    
+
     // Create logger with error handling
     loggerInstance, err := logger.NewInternalLogger(logger.LevelInfo, cfg.CacheDir)
     if err != nil {
@@ -298,11 +298,11 @@ func main() {
         loggerInstance = logger.NewSimpleLogger(logger.LevelInfo)
     }
     defer loggerInstance.Close()
-    
+
     // Create adapters
     configAdapter := adapters.NewConfigAdapter(cfg)
     loggerAdapter := adapters.NewLoggerAdapter(cfg)
-    
+
     // Create API client with error handling
     client, err := api.NewClient(configAdapter,
         api.WithLogger(loggerAdapter))
@@ -311,20 +311,20 @@ func main() {
         log.Println("Please check your Proxmox server address and credentials.")
         return
     }
-    
+
     // Use the client with timeout
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
-    
+
     vms, err := client.GetVmList(ctx)
     if err != nil {
         log.Printf("Failed to get VMs: %v", err)
         log.Println("This could be due to network issues or insufficient permissions.")
         return
     }
-    
+
     log.Printf("Successfully retrieved %d VMs", len(vms))
-    
+
          // Example: List VM details
      for _, vm := range vms {
          vmid := api.SafeStringValue(vm["vmid"])
@@ -343,10 +343,10 @@ package main
 import (
     "testing"
     "time"
-    
+
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/mock"
-    
+
     "github.com/devnullvoid/proxmox-tui/pkg/api"
     "github.com/devnullvoid/proxmox-tui/pkg/api/testutils"
 )
@@ -356,20 +356,20 @@ func TestAPIClient(t *testing.T) {
     mockLogger := &testutils.MockLogger{}
     mockCache := &testutils.MockCache{}
     config := testutils.NewTestConfig()
-    
+
     // Set expectations
     mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything).Return()
     mockCache.On("Get", "test-key", mock.Anything).Return(false, nil)
-    
+
     // Create client with mocks
     client, err := api.NewClient(config,
         api.WithLogger(mockLogger),
         api.WithCache(mockCache))
     assert.NoError(t, err)
-    
+
     // Test client operations
     // ... your test code here
-    
+
     // Verify expectations
     mockLogger.AssertExpectations(t)
     mockCache.AssertExpectations(t)
@@ -503,4 +503,4 @@ When modifying existing code:
 
 ---
 
-This documentation system ensures that the Proxmox TUI codebase is well-documented, maintainable, and accessible to both contributors and users. The comprehensive GoDoc comments provide clear guidance for using the API and understanding the system architecture. 
+This documentation system ensures that the Proxmox TUI codebase is well-documented, maintainable, and accessible to both contributors and users. The comprehensive GoDoc comments provide clear guidance for using the API and understanding the system architecture.

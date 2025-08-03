@@ -111,10 +111,10 @@ func TestFunctionName(t *testing.T) {
     // Arrange
     input := "test input"
     expected := "expected output"
-    
+
     // Act
     result := FunctionToTest(input)
-    
+
     // Assert
     assert.Equal(t, expected, result)
 }
@@ -155,7 +155,7 @@ func TestConfig_Validate(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             err := tt.config.Validate()
-            
+
             if tt.expectError {
                 assert.Error(t, err)
                 assert.Contains(t, err.Error(), tt.errorMsg)
@@ -177,14 +177,14 @@ func TestClientWithMocks(t *testing.T) {
     mockLogger := &testutils.MockLogger{}
     mockCache := &testutils.MockCache{}
     mockConfig := &testutils.MockConfig{}
-    
+
     // Set expectations
     mockConfig.On("GetAddr").Return("https://test.com")
     mockCache.On("Get", "key", mock.Anything).Return(false, nil)
-    
+
     // Test your code
     // ... test implementation
-    
+
     // Verify expectations
     mockConfig.AssertExpectations(t)
     mockCache.AssertExpectations(t)
@@ -198,11 +198,11 @@ Use `t.TempDir()` for tests that need file system operations:
 ```go
 func TestFileOperations(t *testing.T) {
     tempDir := t.TempDir() // Automatically cleaned up
-    
+
     filePath := filepath.Join(tempDir, "test.txt")
     err := os.WriteFile(filePath, []byte("test"), 0644)
     require.NoError(t, err)
-    
+
     // Test your file operations
 }
 ```
@@ -232,11 +232,11 @@ func TestParseVMID(t *testing.T) {
             expectError: true,
         },
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             result, err := ParseVMID(tt.input)
-            
+
             if tt.expectError {
                 assert.Error(t, err)
             } else {
@@ -313,7 +313,7 @@ When creating new test utilities:
 ### Current Coverage
 
 - **Config Package**: ~66% coverage
-- **Cache Package**: ~32% coverage  
+- **Cache Package**: ~32% coverage
 - **Adapters Package**: ~95% coverage
 - **API Utils**: ~4% coverage (mostly utility functions)
 
@@ -420,19 +420,19 @@ make format
 func TestConfig_LoadFromFile(t *testing.T) {
     tempDir := t.TempDir()
     configFile := filepath.Join(tempDir, "config.yml")
-    
+
     configContent := `
 addr: "https://test.example.com:8006"
 user: "testuser"
 password: "testpass"
 `
-    
+
     err := os.WriteFile(configFile, []byte(configContent), 0644)
     require.NoError(t, err)
-    
+
     config := &Config{}
     err = config.MergeWithFile(configFile)
-    
+
     assert.NoError(t, err)
     assert.Equal(t, "https://test.example.com:8006", config.Addr)
     assert.Equal(t, "testuser", config.User)
@@ -445,14 +445,14 @@ password: "testpass"
 ```go
 func TestCache_SetAndGet(t *testing.T) {
     cache := NewInMemoryCache()
-    
+
     key := "test-key"
     value := "test-value"
-    
+
     // Test Set
     err := cache.Set(key, value, time.Hour)
     assert.NoError(t, err)
-    
+
     // Test Get
     var result string
     found, err := cache.Get(key, &result)
@@ -469,10 +469,10 @@ func TestConfig_FromEnvironment(t *testing.T) {
     // Save original environment
     originalAddr := os.Getenv("PROXMOX_ADDR")
     defer os.Setenv("PROXMOX_ADDR", originalAddr)
-    
+
     // Set test environment
     os.Setenv("PROXMOX_ADDR", "https://test.com")
-    
+
     config := NewConfig()
     assert.Equal(t, "https://test.com", config.Addr)
 }
@@ -511,4 +511,4 @@ func TestConfig_FromEnvironment(t *testing.T) {
 
 ---
 
-This testing guide should help you understand and contribute to the test suite. Remember: good tests are an investment in code quality and developer productivity! 
+This testing guide should help you understand and contribute to the test suite. Remember: good tests are an investment in code quality and developer productivity!

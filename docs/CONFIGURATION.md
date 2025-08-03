@@ -1,0 +1,290 @@
+# Configuration Guide
+
+This document provides comprehensive information about configuring Proxmox TUI, including all available options and examples.
+
+## Table of Contents
+
+- [Configuration Format](#configuration-format)
+- [Profile Management](#profile-management)
+- [Authentication Methods](#authentication-methods)
+- [Key Bindings](#key-bindings)
+- [Theming](#theming)
+- [Advanced Options](#advanced-options)
+
+## Configuration Format
+
+Proxmox TUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
+
+```yaml
+profiles:
+  default:
+    addr: "https://your-proxmox-host:8006"
+    user: "your-user"
+    realm: "pam"
+    # Choose one authentication method:
+    password: "your-password"           # Method 1: Password auth
+    # OR
+    token_id: "your-token-id"          # Method 2: API token (recommended)
+    token_secret: "your-secret"
+    insecure: false
+    ssh_user: "your-ssh-user"
+
+  work:
+    addr: "https://work-proxmox:8006"
+    user: "workuser"
+    token_id: "worktoken"
+    token_secret: "worksecret"
+    realm: "pam"
+    insecure: false
+    ssh_user: "workuser"
+
+default_profile: "default"
+debug: false
+cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+
+# Key bindings customization
+key_bindings:
+  switch_view: "]"
+  switch_view_reverse: "["
+  nodes_page: "Alt+1"
+  guests_page: "Alt+2"
+  tasks_page: "Alt+3"
+  menu: "m"
+  global_menu: "g"
+  shell: "s"
+  vnc: "v"
+  refresh: "Ctrl+r"
+  auto_refresh: "a"
+  search: "/"
+  help: "?"
+  quit: "q"
+
+# Theme configuration
+theme:
+  name: "default"  # Built-in theme name
+  colors:
+    primary: "white"
+    secondary: "gray"
+    error: "red"
+    # ... other color overrides
+```
+
+## Profile Management
+
+The built-in profile manager allows you to:
+- **Switch between profiles** (e.g., home, work, development)
+- **Add new profiles** with different Proxmox connections
+- **Edit existing profiles** with validation
+- **Delete profiles** with confirmation
+- **Set default profile** for automatic connection
+
+Access the profile manager through the global menu (`g` key) or context menus.
+
+## Authentication Methods
+
+### API Token Authentication (Recommended)
+
+1. In Proxmox web interface: **Datacenter → Permissions → API Tokens**
+2. Click **Add** → Set user (e.g., `root@pam`) → Enter token ID
+3. Copy the generated **Token ID** and **Secret** to your config
+
+```yaml
+profiles:
+  default:
+    addr: "https://your-proxmox-host:8006"
+    user: "root@pam"
+    token_id: "your-token-id"
+    token_secret: "your-secret"
+    realm: "pam"
+    insecure: false
+    ssh_user: "root"
+```
+
+### Password Authentication
+
+```yaml
+profiles:
+  default:
+    addr: "https://your-proxmox-host:8006"
+    user: "root@pam"
+    password: "your-password"
+    realm: "pam"
+    insecure: false
+    ssh_user: "root"
+```
+
+**Note**: Only one authentication method (password or token) per profile is allowed.
+
+## Key Bindings
+
+Proxmox TUI supports fully customizable key bindings through the `key_bindings` section in your configuration file.
+
+### Default Key Bindings
+
+| Action | Default Key | Description |
+|--------|-------------|-------------|
+| `switch_view` | `]` | Switch to next view |
+| `switch_view_reverse` | `[` | Switch to previous view |
+| `nodes_page` | `Alt+1` | Jump to Nodes page |
+| `guests_page` | `Alt+2` | Jump to Guests page |
+| `tasks_page` | `Alt+3` | Jump to Tasks page |
+| `menu` | `m` | Open context menu |
+| `global_menu` | `g` | Open global menu |
+| `shell` | `s` | Open SSH shell |
+| `vnc` | `v` | Open VNC console |
+| `refresh` | `Ctrl+r` | Manual refresh |
+| `auto_refresh` | `a` | Toggle auto-refresh |
+| `search` | `/` | Activate search |
+| `help` | `?` | Toggle help modal |
+| `quit` | `q` | Quit application |
+
+### Customizing Key Bindings
+
+```yaml
+key_bindings:
+  switch_view: "Ctrl+n"
+  switch_view_reverse: "Ctrl+p"
+  nodes_page: "F1"
+  guests_page: "F2"
+  tasks_page: "F3"
+  menu: "Space"
+  global_menu: "g"
+  shell: "s"
+  vnc: "v"
+  refresh: "Ctrl+r"
+  auto_refresh: "a"
+  search: "/"
+  help: "?"
+  quit: "q"
+```
+
+### Supported Key Formats
+
+- **Single characters**: `m`, `s`, `v`, `q`
+- **Function keys**: `F1`, `F2`, etc.
+- **Modifier combinations**: `Ctrl+r`, `Alt+1`, `Ctrl+Shift+a`
+- **Special keys**: `Enter`, `Escape`, `Tab`, `Backspace`
+
+### Reserved Keys
+
+The following keys cannot be reassigned as they are used for core navigation:
+- `h`, `j`, `k`, `l` (Vim-style navigation)
+- Arrow keys
+- `Tab`, `Enter`, `Escape`, `Backspace`
+- System combinations like `Ctrl+C`, `Ctrl+D`, `Ctrl+Z`
+
+## Theming
+
+Proxmox TUI supports semantic theming with automatic adaptation to your terminal's color scheme.
+
+### Built-in Themes
+
+Available built-in themes:
+- `default` (default)
+- `dracula`
+- `catppuccin-mocha`
+- `gruvbox`
+- `nord`
+- `rose-pine`
+- `tokyonight`
+- `solarized`
+- `kanagawa`
+- `everforest`
+
+### Theme Configuration
+
+```yaml
+theme:
+  name: "dracula"  # Built-in theme name
+  colors:
+    error: "red"  # ANSI red
+    background: "#282a36"  # Hex color
+    primary: "white"  # Override theme color
+```
+
+### Color Options
+
+You can override any color in a built-in theme by specifying it in the `colors` map:
+
+- **primary**: Main text color
+- **secondary**: Secondary text color
+- **tertiary**: Tertiary text color
+- **success**: Success indicators
+- **warning**: Warning indicators
+- **error**: Error indicators
+- **info**: Information indicators
+- **background**: Background color
+- **border**: Border color
+- **selection**: Selection highlight
+- **header**: Header background
+- **headertext**: Header text
+- **footer**: Footer background
+- **footertext**: Footer text
+- **title**: Title text
+- **contrast**: Contrast elements
+- **morecontrast**: High contrast elements
+- **inverse**: Inverse text
+- **statusrunning**: Running status
+- **statusstopped**: Stopped status
+- **statuspending**: Pending status
+- **statuserror**: Error status
+- **usagelow**: Low usage indicators
+- **usagemedium**: Medium usage indicators
+- **usagehigh**: High usage indicators
+- **usagecritical**: Critical usage indicators
+
+See [THEMING.md](THEMING.md) for detailed theming information and troubleshooting.
+
+## Advanced Options
+
+### Encrypted Configuration
+
+Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `-config` and it will decrypt automatically.
+
+### Cache Directory
+
+Customize the cache directory location:
+
+```yaml
+cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+```
+
+### Debug Mode
+
+Enable debug logging:
+
+```yaml
+debug: true
+```
+
+### Insecure Connections
+
+Allow insecure HTTPS connections (for self-signed certificates):
+
+```yaml
+profiles:
+  default:
+    addr: "https://your-proxmox-host:8006"
+    user: "your-user"
+    token_id: "your-token-id"
+    token_secret: "your-secret"
+    realm: "pam"
+    insecure: true  # Allow self-signed certificates
+    ssh_user: "your-ssh-user"
+```
+
+## Configuration File Locations
+
+Proxmox TUI looks for configuration files in the following order:
+
+1. File specified with `-config` flag
+2. `~/.config/proxmox-tui/config.yml`
+3. `~/.proxmox-tui.yml`
+
+## First Run & Interactive Config Wizard
+
+- On first run, the app will offer to create and edit a config file in a user-friendly TUI wizard
+- Launch the wizard anytime with `--config-wizard`
+- Create and manage multiple connection profiles with validation
+- Edit, validate, and save your config (supports SOPS-encrypted files)
+- All errors and confirmations are shown in clear, interactive modals
