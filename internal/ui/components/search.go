@@ -44,16 +44,22 @@ func (a *App) activateSearch() {
 	// Set current filter text
 	a.searchInput.SetText(filterText)
 
-	// Add the search input field to the bottom of the layout
+	// Add the search input field above the footer
 	if a.mainLayout.GetItemCount() == 4 { // Already has header, cluster status, pages, footer
+		// Remove footer temporarily, add search input, then add footer back
+		a.mainLayout.RemoveItem(a.footer)
 		a.mainLayout.AddItem(a.searchInput, 1, 0, true)
+		a.mainLayout.AddItem(a.footer, 1, 0, false)
 		a.SetFocus(a.searchInput)
 	}
 
 	// Function to remove search input
 	removeSearchInput := func() {
 		if a.mainLayout.GetItemCount() > 4 {
+			// Remove search input and reorder: remove footer, remove search, add footer back
+			a.mainLayout.RemoveItem(a.footer)
 			a.mainLayout.RemoveItem(a.searchInput)
+			a.mainLayout.AddItem(a.footer, 1, 0, false)
 		}
 
 		if currentPage == api.PageNodes {
@@ -228,8 +234,10 @@ func (a *App) restoreSearchUI(searchWasActive bool, nodeSearchState, vmSearchSta
 				}
 
 				if hasActiveFilter {
-					// Re-add search input and restore focus
+					// Re-add search input above footer and restore focus
+					a.mainLayout.RemoveItem(a.footer)
 					a.mainLayout.AddItem(a.searchInput, 1, 0, true)
+					a.mainLayout.AddItem(a.footer, 1, 0, false)
 					a.SetFocus(a.searchInput)
 				}
 			}
