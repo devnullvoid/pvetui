@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -217,8 +218,14 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 					if err := app.pages.RemovePage("resizeStorage"); err != nil {
 						models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
 					}
-					// Refresh the specific VM data and tasks to show updated volume size and resize task
-					app.refreshVMDataAndTasks(vm)
+					// Add a delay to allow Proxmox API to update the config data
+					// This matches the pattern used in other VM operations
+					go func() {
+						time.Sleep(2 * time.Second)
+
+						// Refresh the specific VM data and tasks to show updated volume size and resize task
+						app.refreshVMDataAndTasks(vm)
+					}()
 				}
 			})
 		}()

@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Professional CLI interface with improved error handling and validation
   - Maintains 100% backward compatibility with existing functionality
 
+### Fixed
+- **Data Refresh Issues**: Improved data refresh after volume resize and snapshot rollback operations
+  - Volume resize now shows updated volume size immediately and displays the resize task
+  - Snapshot rollback now shows updated VM status and displays the rollback task
+  - Especially important for LXC containers that get shut down after rollback
+  - Extracted reusable `refreshVMDataAndTasks` function for consistent behavior
+
 ## [1.0.0] - 2025-08-03
 
 ### Added

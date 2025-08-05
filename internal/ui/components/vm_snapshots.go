@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -319,7 +320,14 @@ func (sm *SnapshotManager) pollForSnapshotUpdates(successMessage string) {
 		// For rollback operations, also refresh the VM data and tasks to show updated status
 		// This is especially important for LXC containers which often get shut down after rollback
 		if strings.Contains(successMessage, "rolled back") {
-			sm.app.refreshVMDataAndTasks(sm.vm)
+			// Add a delay to allow Proxmox API to update the config data
+			// This matches the pattern used in other VM operations
+			go func() {
+				time.Sleep(2 * time.Second)
+
+				// Refresh the specific VM data and tasks to show updated status
+				sm.app.refreshVMDataAndTasks(sm.vm)
+			}()
 		}
 	})
 }
