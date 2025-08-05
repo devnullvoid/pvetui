@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -314,5 +315,11 @@ func (sm *SnapshotManager) pollForSnapshotUpdates(successMessage string) {
 	sm.app.Application.QueueUpdateDraw(func() {
 		sm.loadSnapshots()
 		sm.app.header.ShowSuccess(successMessage)
+
+		// For rollback operations, also refresh the VM data and tasks to show updated status
+		// This is especially important for LXC containers which often get shut down after rollback
+		if strings.Contains(successMessage, "rolled back") {
+			sm.app.refreshVMDataAndTasks(sm.vm)
+		}
 	})
 }

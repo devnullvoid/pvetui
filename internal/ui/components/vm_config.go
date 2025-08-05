@@ -217,8 +217,8 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 					if err := app.pages.RemovePage("resizeStorage"); err != nil {
 						models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
 					}
-					// Then refresh data
-					app.manualRefresh()
+					// Refresh the specific VM data and tasks to show updated volume size and resize task
+					app.refreshVMDataAndTasks(vm)
 				}
 			})
 		}()

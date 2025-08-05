@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Cobra CLI Framework**: Migrated from Go's standard flag package to cobra for enhanced CLI experience
+  - Much better help text formatting with proper descriptions and organization
+  - Environment variable support with automatic binding to `PROXMOX_*` variables
+  - Subcommand architecture for future extensibility (config-wizard subcommand)
+  - Professional CLI interface with improved error handling and validation
+  - Maintains 100% backward compatibility with existing functionality
+
 ## [1.0.0] - 2025-08-03
 
 ### Added
