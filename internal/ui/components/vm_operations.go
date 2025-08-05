@@ -9,6 +9,34 @@ import (
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 )
 
+// updateVMListWithSelectionPreservation updates the VM list while preserving the currently selected VM.
+func (a *App) updateVMListWithSelectionPreservation() {
+	// Store current selection
+	var selectedVMID int
+	var selectedVMNode string
+	var hasSelectedVM bool
+
+	if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+		selectedVMID = selectedVM.ID
+		selectedVMNode = selectedVM.Node
+		hasSelectedVM = true
+	}
+
+	// Update the VM list
+	a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+
+	// Restore selection if we had one
+	if hasSelectedVM {
+		vmList := a.vmList.GetVMs()
+		for i, vm := range vmList {
+			if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
+				a.vmList.SetCurrentItem(i)
+				break
+			}
+		}
+	}
+}
+
 // performVMOperation performs an asynchronous VM operation and shows status message.
 func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, operationName string) {
 	models.GlobalState.SetVMPending(vm, operationName)
@@ -16,7 +44,7 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		a.QueueUpdateDraw(func() {
-			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			a.updateVMListWithSelectionPreservation()
 		})
 	}()
 	a.header.ShowLoading(fmt.Sprintf("%s %s", operationName, vm.Name))
@@ -34,7 +62,7 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 		defer func() {
 			models.GlobalState.ClearVMPending(vm)
 			a.QueueUpdateDraw(func() {
-				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+				a.updateVMListWithSelectionPreservation()
 			})
 		}()
 
@@ -73,7 +101,7 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		a.QueueUpdateDraw(func() {
-			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			a.updateVMListWithSelectionPreservation()
 		})
 	}()
 
@@ -83,7 +111,7 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 		defer func() {
 			models.GlobalState.ClearVMPending(vm)
 			a.QueueUpdateDraw(func() {
-				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+				a.updateVMListWithSelectionPreservation()
 			})
 		}()
 

@@ -212,7 +212,7 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		a.QueueUpdateDraw(func() {
-			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			a.updateVMListWithSelectionPreservation()
 		})
 	}()
 
@@ -225,7 +225,7 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 			models.GlobalState.ClearVMPending(vm)
 			// Refresh UI once at the end
 			a.QueueUpdateDraw(func() {
-				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+				a.updateVMListWithSelectionPreservation()
 				a.refreshVMData(vm)
 			})
 		}()
