@@ -128,7 +128,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	cfg := config.NewConfig()
 
 	// Resolve configuration path
-	configPath := resolveConfigPath(opts.ConfigPath)
+	configPath := ResolveConfigPath(opts.ConfigPath)
 	if configPath != "" {
 		if err := cfg.MergeWithFile(configPath); err != nil {
 			return nil, fmt.Errorf("failed to load config file: %w", err)
@@ -187,7 +187,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 
 	// Handle config wizard
 	if opts.ConfigWizard {
-		if err := handleConfigWizard(cfg, configPath, selectedProfile); err != nil {
+		if err := HandleConfigWizard(cfg, configPath, selectedProfile); err != nil {
 			return nil, fmt.Errorf("config wizard failed: %w", err)
 		}
 		return nil, nil
@@ -279,8 +279,8 @@ func StartApplication(result *BootstrapResult) error {
 	return nil
 }
 
-// resolveConfigPath resolves the configuration file path.
-func resolveConfigPath(flagPath string) string {
+// ResolveConfigPath resolves the configuration file path.
+func ResolveConfigPath(flagPath string) string {
 	if flagPath != "" {
 		return flagPath
 	}
@@ -292,8 +292,8 @@ func resolveConfigPath(flagPath string) string {
 	return ""
 }
 
-// handleConfigWizard launches the configuration wizard.
-func handleConfigWizard(cfg *config.Config, configPath string, activeProfile string) error {
+// HandleConfigWizard launches the configuration wizard.
+func HandleConfigWizard(cfg *config.Config, configPath string, activeProfile string) error {
 	res := components.LaunchConfigWizard(cfg, configPath, activeProfile)
 
 	switch {
