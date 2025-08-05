@@ -90,6 +90,8 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 		time.Sleep(2 * time.Second)
 		a.QueueUpdateDraw(func() {
 			a.refreshVMData(vm)
+			// Also refresh tasks to show any new tasks created by the operation
+			a.loadTasksData()
 		})
 	}()
 }
