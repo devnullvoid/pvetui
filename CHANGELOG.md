@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Config Wizard Theme Integration**: Fixed config wizard to use the same theme colors as the main application
+  - Config wizard now applies custom theme configuration before setting tview styles
+  - Ensures consistent visual appearance between main app and config wizard
+  - Fixed input field colors to match the default theme (black instead of blue)
+  - Applied to both standalone config wizard and embedded profile wizard
+- **Config Wizard Loading Issues**: Fixed config wizard to properly load existing configuration files
+  - Fixed config wizard to load from default locations (`~/.config/proxmox-tui/config.yml`)
+  - Added profile resolution and application logic to config wizard flow
+  - Ensured both `--config-wizard` flag and `config-wizard` subcommand work consistently
+  - Fixed issue where config wizard wouldn't load existing profiles when no config file specified
+- **Profile Wizard Validation**: Fixed profile wizard to properly recognize filled authentication fields
+  - Fixed profile wizard to create profile entries in memory for new profiles
+  - Ensured form fields and validation logic work with the same data structure
+  - Fixed validation to properly detect when password or token authentication is provided
+  - Resolved issue where profile wizard wouldn't recognize filled authentication information
+- **Profile Deletion Deadlock**: Fixed deadlock when deleting connection profiles
+  - Removed nested `QueueUpdateDraw` calls that caused deadlocks
+  - Fixed profile deletion modal to close properly after operation completion
+  - Used direct UI updates instead of queued updates to prevent deadlocks
+  - Ensured proper focus restoration after profile deletion operations
+
 ## [1.0.1] - 2025-08-06
 
 ### Added
