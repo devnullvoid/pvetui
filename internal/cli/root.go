@@ -59,7 +59,13 @@ func runMainApplication(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start the main application
-	return bootstrap.StartApplication(result)
+	// Handle application runtime errors differently from CLI usage errors
+	if err := bootstrap.StartApplication(result); err != nil {
+		// Application runtime error - exit directly without showing usage
+		os.Exit(1)
+	}
+
+	return nil
 }
 
 // getBootstrapOptions converts cobra flags to BootstrapOptions
