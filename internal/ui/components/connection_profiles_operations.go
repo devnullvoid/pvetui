@@ -70,6 +70,9 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 	message := fmt.Sprintf("Are you sure you want to delete profile '%s'?\n\nThis action cannot be undone.", profileName)
 
 	onConfirm := func() {
+		// Remove the modal first
+		a.pages.RemovePage("deleteProfile")
+
 		// Delete the profile
 		if a.config.Profiles != nil {
 			delete(a.config.Profiles, profileName)
@@ -95,26 +98,20 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 			}
 
 			if err := SaveConfigToFile(&a.config, configPath); err != nil {
-				a.Application.QueueUpdateDraw(func() {
-					a.header.ShowError("Failed to save config after deletion: " + err.Error())
-				})
+				a.header.ShowError("Failed to save config after deletion: " + err.Error())
 				return
 			}
 
 			// Re-encrypt if the original was SOPS encrypted
 			if wasSOPS {
 				if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
-					a.Application.QueueUpdateDraw(func() {
-						a.header.ShowError("Failed to re-encrypt config after deletion: " + err.Error())
-					})
+					a.header.ShowError("Failed to re-encrypt config after deletion: " + err.Error())
 					return
 				}
 			}
 
-			// Show success message with proper focus
-			a.Application.QueueUpdateDraw(func() {
-				a.header.ShowSuccess("Profile '" + profileName + "' deleted successfully!")
-			})
+			// Show success message
+			a.header.ShowSuccess("Profile '" + profileName + "' deleted successfully!")
 		}
 
 		// Restore focus
@@ -124,6 +121,9 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 	}
 
 	onCancel := func() {
+		// Remove the modal
+		a.pages.RemovePage("deleteProfile")
+
 		// Restore focus
 		if a.lastFocus != nil {
 			a.SetFocus(a.lastFocus)

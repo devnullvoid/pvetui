@@ -138,8 +138,24 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			_ = cfg.MergeWithFile(configPath) // Ignore errors for config wizard
 		}
 
+		// Set defaults for config wizard
+		cfg.SetDefaults()
+
+		// Handle profile selection for config wizard
+		selectedProfile, err := profile.ResolveProfile(opts.Profile, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("profile resolution failed: %w", err)
+		}
+
+		// Apply selected profile for config wizard
+		if selectedProfile != "" {
+			if err := cfg.ApplyProfile(selectedProfile); err != nil {
+				return nil, fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
+			}
+		}
+
 		// For config wizard, we don't need profile resolution
-		if err := HandleConfigWizard(cfg, configPath, opts.Profile); err != nil {
+		if err := HandleConfigWizard(cfg, configPath, selectedProfile); err != nil {
 			return nil, fmt.Errorf("config wizard failed: %w", err)
 		}
 		return nil, nil

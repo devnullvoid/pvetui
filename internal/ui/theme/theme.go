@@ -105,7 +105,7 @@ var Colors = struct {
 	FooterText: tcell.ColorWhite,
 
 	Title:        tcell.ColorWhite,
-	Contrast:     tcell.ColorBlue,
+	Contrast:     tcell.ColorBlack,
 	MoreContrast: tcell.ColorFuchsia,
 	Inverse:      tcell.ColorBlack,
 

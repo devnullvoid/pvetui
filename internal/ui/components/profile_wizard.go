@@ -40,9 +40,30 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		sopsRuleExists = findSOPSRule(filepath.Dir(configPath))
 	}
 
-	// Add profile name field at the top (only for new profiles)
-	var profileName string
+	// Determine if this is a new profile or editing existing
 	isNewProfile := cfg.DefaultProfile == "new_profile"
+
+	// For new profiles, create the profile entry in the map
+	if isNewProfile {
+		if cfg.Profiles == nil {
+			cfg.Profiles = make(map[string]config.ProfileConfig)
+		}
+		// Create a new profile entry with default values
+		cfg.Profiles["new_profile"] = config.ProfileConfig{
+			Addr:        "",
+			User:        "",
+			Password:    "",
+			TokenID:     "",
+			TokenSecret: "",
+			Realm:       "pam",
+			ApiPath:     "/api2/json",
+			Insecure:    false,
+			SSHUser:     "",
+		}
+	}
+
+	// Add profile name field at the top
+	var profileName string
 
 	if isNewProfile {
 		form.AddInputField("Profile Name", "", 20, nil, func(text string) {
@@ -251,8 +272,13 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 				a.config.Profiles = make(map[string]config.ProfileConfig)
 			}
 
-			// Handle profile renaming
-			if !isNewProfile && profileName != cfg.DefaultProfile {
+			// Handle profile renaming or new profile creation
+			if isNewProfile {
+				// For new profiles, remove the temporary "new_profile" entry and add with the actual name
+				delete(a.config.Profiles, "new_profile")
+				a.config.Profiles[profileName] = profile
+			} else if profileName != cfg.DefaultProfile {
+				// For existing profiles being renamed
 				oldProfileName := cfg.DefaultProfile
 				delete(a.config.Profiles, oldProfileName)
 
@@ -260,10 +286,13 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 				if a.config.DefaultProfile == oldProfileName {
 					a.config.DefaultProfile = profileName
 				}
-			}
 
-			// Add or update the profile
-			a.config.Profiles[profileName] = profile
+				// Add with new name
+				a.config.Profiles[profileName] = profile
+			} else {
+				// For existing profiles with same name, just update
+				a.config.Profiles[profileName] = profile
+			}
 		}
 
 		// Save the main config (which has all profiles)

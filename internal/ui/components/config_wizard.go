@@ -466,7 +466,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		resultChan <- WizardResult{Canceled: true}
 		app.Stop()
 	})
-	form.SetBorder(true).SetTitle("Proxmox TUI - Config Wizard").SetTitleColor(theme.Colors.Primary)
+	form.SetBorder(true).SetTitle("Proxmox TUI - Config Wizard").SetTitleColor(theme.Colors.Primary).SetBorderColor(theme.Colors.Border)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			if cancelFn != nil {
@@ -500,6 +500,11 @@ func SaveConfigToFile(cfg *config.Config, path string) error {
 // LaunchConfigWizard launches the configuration wizard and returns the result.
 func LaunchConfigWizard(cfg *config.Config, configPath string, activeProfile string) WizardResult {
 	tviewApp := tview.NewApplication()
+
+	// Apply theme configuration first, then apply to tview (same as main application)
+	theme.ApplyCustomTheme(&cfg.Theme)
+	theme.ApplyToTview()
+
 	resultChan := make(chan WizardResult, 1)
 	wizard := NewConfigWizardPage(tviewApp, cfg, configPath, func(c *config.Config) error {
 		// The form now handles profile updates directly
