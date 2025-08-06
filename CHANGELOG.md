@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed profile deletion modal to close properly after operation completion
   - Used direct UI updates instead of queued updates to prevent deadlocks
   - Ensured proper focus restoration after profile deletion operations
+- **Shell Connection Deadlock**: Fixed deadlock when opening shell to VM without IP address
+  - Added `showMessageSafe` function that doesn't use `QueueUpdateDraw` to avoid deadlocks
+  - Updated shell functions to use `CreateErrorDialog` for errors and `showMessageSafe` for info messages
+  - Fixed issue where screen would flash without showing error message to user
+  - Provide clear error message explaining why connection failed and how to fix it
+  - Follow same pattern as VNC functions to ensure consistency and prevent deadlocks
+- **noVNC Extra Keys Display**: Fixed broken 'extra keys' image display in embedded noVNC client
+  - Updated noVNC submodule from v1.6.0 to v1.6.0-11-g4cb5aa4 (11 commits ahead)
+  - Includes upstream fix for extra keys image display bug
+  - Resolves issue where extra keys button images would not display correctly
 
 ## [1.0.1] - 2025-08-06
 
