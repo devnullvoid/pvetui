@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Especially important for LXC containers that get shut down after rollback
   - Extracted reusable `refreshVMDataAndTasks` function for consistent behavior
   - Added 2-second delay to allow Proxmox API to update config data before refresh
+  - Prevents UI lockup by using non-blocking goroutine for delay
 - **VM Selection Preservation**: Fixed selection jumping during pending operations
   - Preserve selected VM by ID and node instead of index position
   - Fixes issue where selected guest would change during pending status
@@ -37,7 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Allows environment variable override for cross-compilation
   - Enables native development on macOS, Windows, and other platforms
   - Thanks to @unclesp1d3r for the detailed report and solution
-  - Prevents UI lockup by using non-blocking goroutine for delay
+- **Go Install Documentation**: Fixed incorrect installation instructions and improved macOS guidance ([#20](https://github.com/devnullvoid/proxmox-tui/issues/20))
+  - Removed non-functional `go install @latest` command (git submodule limitation)
+  - Renamed misleading `install-remote` Makefile target to `install-go` for clarity
+  - Added macOS Gatekeeper warning in README with direct link to troubleshooting guide
+  - Updated troubleshooting documentation with correct installation methods
+  - Thanks to @unclesp1d3r for reporting macOS Gatekeeper issues
 
 ## [1.0.0] - 2025-08-03
 
