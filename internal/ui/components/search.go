@@ -89,7 +89,10 @@ func (a *App) activateSearch() {
 			}
 
 			a.nodeList.SetCurrentItem(idx)
-			a.nodeDetails.Update(models.GlobalState.FilteredNodes[idx], a.client.Cluster.Nodes)
+			// Manually trigger the node changed callback to update details
+			if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
+				a.nodeDetails.Update(selectedNode, a.client.Cluster.Nodes)
+			}
 		} else {
 			a.nodeDetails.Clear()
 
@@ -117,7 +120,10 @@ func (a *App) activateSearch() {
 			}
 
 			a.vmList.SetCurrentItem(idx)
-			a.vmDetails.Update(models.GlobalState.FilteredVMs[idx])
+			// Manually trigger the VM changed callback to update details
+			if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+				a.vmDetails.Update(selectedVM)
+			}
 		} else {
 			a.vmDetails.Clear()
 

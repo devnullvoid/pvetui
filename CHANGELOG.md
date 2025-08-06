@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated noVNC submodule from v1.6.0 to v1.6.0-11-g4cb5aa4 (11 commits ahead)
   - Includes upstream fix for extra keys image display bug
   - Resolves issue where extra keys button images would not display correctly
+- **Guest List Search Selection Mismatch**: Fixed issue where selected item's details didn't match the selected item when searching/filtering
+  - Fixed programmatic selection not triggering VM/node changed callbacks
+  - Ensures details panel always shows correct information for selected item
+  - Applied to search filtering, selection restoration, and VM operations
+  - Resolves issue where details panel would show stale information after filtering
 
 ## [1.0.1] - 2025-08-06
 

@@ -185,6 +185,10 @@ func (a *App) refreshNodeData(node *api.Node) {
 			for i, n := range nodeList {
 				if n != nil && n.Name == selectedNodeName {
 					a.nodeList.SetCurrentItem(i)
+					// Manually trigger the node changed callback to update details
+					if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
+						a.nodeDetails.Update(selectedNode, models.GlobalState.OriginalNodes)
+					}
 
 					restored = true
 
@@ -194,6 +198,10 @@ func (a *App) refreshNodeData(node *api.Node) {
 
 			if !restored && len(nodeList) > 0 {
 				a.nodeList.SetCurrentItem(0)
+				// Manually trigger the node changed callback to update details
+				if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
+					a.nodeDetails.Update(selectedNode, models.GlobalState.OriginalNodes)
+				}
 			}
 
 			a.header.ShowSuccess(fmt.Sprintf("Node %s refreshed successfully", node.Name))

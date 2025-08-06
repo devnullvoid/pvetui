@@ -15,6 +15,11 @@ func (a *App) restoreSelection(hasVM bool, vmID int, vmNode string, vmState *mod
 					vmState.SelectedIndex = i
 				}
 
+				// Manually trigger the VM changed callback to update details
+				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+					a.vmDetails.Update(selectedVM)
+				}
+
 				break
 			}
 		}
@@ -27,6 +32,11 @@ func (a *App) restoreSelection(hasVM bool, vmID int, vmNode string, vmState *mod
 
 				if nodeState != nil {
 					nodeState.SelectedIndex = i
+				}
+
+				// Manually trigger the node changed callback to update details
+				if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
+					a.nodeDetails.Update(selectedNode, a.client.Cluster.Nodes)
 				}
 
 				break

@@ -31,6 +31,10 @@ func (a *App) updateVMListWithSelectionPreservation() {
 		for i, vm := range vmList {
 			if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
 				a.vmList.SetCurrentItem(i)
+				// Manually trigger the VM changed callback to update details
+				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+					a.vmDetails.Update(selectedVM)
+				}
 				break
 			}
 		}
