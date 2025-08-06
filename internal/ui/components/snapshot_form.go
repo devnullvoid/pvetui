@@ -51,7 +51,7 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 		}
 
 		if name == "" {
-			sf.app.showMessage("❌ Snapshot name is required")
+			sf.app.showMessageSafe("❌ Snapshot name is required")
 			return
 		}
 

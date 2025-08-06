@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensures details panel always shows correct information for selected item
   - Applied to search filtering, selection restoration, and VM operations
   - Resolves issue where details panel would show stale information after filtering
+- **showMessage Deadlock Prevention**: Updated showMessage calls to use showMessageSafe to prevent deadlocks
+  - Fixed showMessage calls in button handlers, event callbacks, and goroutines
+  - Applied to VM config forms, snapshot operations, script selector, and connection profiles
+  - Prevents UI deadlocks when showing error messages from async operations
+  - Ensures consistent user experience without blocking the interface
 
 ## [1.0.1] - 2025-08-06
 

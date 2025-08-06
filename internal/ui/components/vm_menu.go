@@ -69,7 +69,7 @@ func (a *App) ShowVMContextMenu() {
 				cfg, err := a.client.GetVMConfig(vm)
 				a.QueueUpdateDraw(func() {
 					if err != nil {
-						a.showMessage(fmt.Sprintf("Failed to load config: %v", err))
+						a.showMessageSafe(fmt.Sprintf("Failed to load config: %v", err))
 
 						return
 					}

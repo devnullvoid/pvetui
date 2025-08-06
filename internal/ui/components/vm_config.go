@@ -179,7 +179,7 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 	modal.AddButton("Resize", func() {
 		amountField, ok := modal.GetFormItemByLabel("Expand by (GB)").(*tview.InputField)
 		if !ok {
-			app.showMessage("Failed to get amount field.")
+			app.showMessageSafe("Failed to get amount field.")
 
 			return
 		}
@@ -188,20 +188,20 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 
 		amount, err := strconv.Atoi(amountStr)
 		if err != nil || amount <= 0 {
-			app.showMessage("Please enter a positive number of GB.")
+			app.showMessageSafe("Please enter a positive number of GB.")
 
 			return
 		}
 
 		if selectedDevice == "" {
-			app.showMessage("Please select a storage volume.")
+			app.showMessageSafe("Please select a storage volume.")
 
 			return
 		}
 
 		dev := deviceMap[selectedDevice]
 		if dev == nil {
-			app.showMessage("Invalid storage device selected.")
+			app.showMessageSafe("Invalid storage device selected.")
 
 			return
 		}

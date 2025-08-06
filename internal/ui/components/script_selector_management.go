@@ -161,7 +161,7 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 				// Show error message and go back to categories
 				s.pages.SwitchToPage("categories")
 				s.app.SetFocus(s.categoryList)
-				s.app.showMessage(fmt.Sprintf("Error fetching scripts: %v", err))
+				s.app.showMessageSafe(fmt.Sprintf("Error fetching scripts: %v", err))
 
 				return
 			}

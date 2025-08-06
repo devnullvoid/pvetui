@@ -101,7 +101,7 @@ func (a *App) showConnectionProfilesDialog() {
 					if profileName != addNewProfileText {
 						// Don't allow deletion if it's the only profile
 						if len(profiles) <= 1 {
-							a.showMessage("Cannot delete the only profile. At least one profile must remain.")
+							a.showMessageSafe("Cannot delete the only profile. At least one profile must remain.")
 							return nil
 						}
 						a.CloseConnectionProfilesMenu()

@@ -259,7 +259,7 @@ func (sm *SnapshotManager) performSnapshotOperation(
 ) {
 	snapshot := sm.snapshotTable.GetSelectedSnapshot()
 	if snapshot == nil {
-		sm.app.showMessage(fmt.Sprintf("❌ Please select a snapshot to %s", operationName))
+		sm.app.showMessageSafe(fmt.Sprintf("❌ Please select a snapshot to %s", operationName))
 		return
 	}
 
