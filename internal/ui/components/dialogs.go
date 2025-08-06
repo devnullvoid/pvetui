@@ -39,6 +39,29 @@ func (a *App) showMessage(message string) {
 	})
 }
 
+// showMessageSafe displays a message to the user without using QueueUpdateDraw to avoid deadlocks.
+// Use this when calling from contexts that might already be in a UI update cycle.
+func (a *App) showMessageSafe(message string) {
+	// Save current focus before showing modal
+	a.lastFocus = a.GetFocus()
+
+	modal := tview.NewModal().
+		SetText(message).
+		// SetBackgroundColor(theme.Colors.Background).
+		SetTextColor(theme.Colors.Primary).
+		AddButtons([]string{"OK"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.pages.RemovePage("message_safe")
+			// Restore focus to the last focused element
+			if a.lastFocus != nil {
+				a.SetFocus(a.lastFocus)
+			}
+		})
+
+	a.pages.AddPage("message_safe", modal, false, true)
+	a.SetFocus(modal)
+}
+
 // showConfirmationDialog displays a confirmation dialog with Yes/No options.
 // DEPRECATED: Use CreateConfirmDialog instead for consistency.
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {

@@ -171,14 +171,14 @@ func (a *App) openVMVNC() {
 // openVMShell opens a shell session to the currently selected VM/container.
 func (a *App) openVMShell() {
 	if a.config.SSHUser == "" {
-		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+		a.showMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
 
 		return
 	}
 
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
-		a.showMessage("Selected VM not found")
+		a.showMessageSafe("Selected VM not found")
 
 		return
 	}
@@ -195,8 +195,20 @@ func (a *App) openVMShell() {
 	}
 
 	if nodeIP == "" {
-		a.showMessage("Host node IP address not available")
+		a.showMessageSafe("Host node IP address not available")
 
+		return
+	}
+
+	// Check for QEMU VMs without IP address before suspending UI
+	if vm.Type == "qemu" && vm.IP == "" {
+		// Show error dialog for QEMU VMs without IP
+		errorModal := CreateErrorDialog("Cannot Open Shell",
+			fmt.Sprintf("Cannot open shell: No IP address available for VM %s (ID: %d)\n\nTo connect to this VM:\n1. Configure the VM's network to obtain an IP address\n2. Use VNC console instead (if available)\n3. Check VM network configuration and ensure it's properly started", vm.Name, vm.ID),
+			func() {
+				a.pages.RemovePage("shell_error")
+			})
+		a.pages.AddPage("shell_error", errorModal, false, true)
 		return
 	}
 
@@ -219,21 +231,12 @@ func (a *App) openVMShell() {
 			}
 		} else if vm.Type == "qemu" {
 			// For QEMU VMs, use direct SSH connection
-			if vm.IP != "" {
-				fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH at %s...\n",
-					vm.Name, vm.ID, vm.IP)
+			fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH at %s...\n",
+				vm.Name, vm.ID, vm.IP)
 
-				err := ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
-				if err != nil {
-					fmt.Printf("\nFailed to SSH to VM: %v\n", err)
-				}
-			} else {
-				// No IP address available
-				fmt.Printf("\nCannot open shell: No IP address available for VM %s (ID: %d)\n\n", vm.Name, vm.ID)
-				fmt.Printf("To connect to this VM:\n")
-				fmt.Printf("1. Configure the VM's network to obtain an IP address\n")
-				fmt.Printf("2. Use VNC console instead (if available)\n")
-				fmt.Printf("3. Check VM network configuration and ensure it's properly started\n")
+			err := ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
+			if err != nil {
+				fmt.Printf("\nFailed to SSH to VM: %v\n", err)
 			}
 		} else {
 			fmt.Printf("\nUnsupported VM type: %s\n", vm.Type)
