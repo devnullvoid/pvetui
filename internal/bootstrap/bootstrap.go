@@ -129,6 +129,23 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 
 	// Resolve configuration path
 	configPath := ResolveConfigPath(opts.ConfigPath)
+
+	// Handle config wizard BEFORE config loading and profile resolution
+	// This allows the wizard to work even when no config file exists
+	if opts.ConfigWizard {
+		// Try to load existing config if it exists, but don't fail if it doesn't
+		if configPath != "" {
+			_ = cfg.MergeWithFile(configPath) // Ignore errors for config wizard
+		}
+
+		// For config wizard, we don't need profile resolution
+		if err := HandleConfigWizard(cfg, configPath, opts.Profile); err != nil {
+			return nil, fmt.Errorf("config wizard failed: %w", err)
+		}
+		return nil, nil
+	}
+
+	// Regular application flow: load config and resolve profiles
 	if configPath != "" {
 		if err := cfg.MergeWithFile(configPath); err != nil {
 			return nil, fmt.Errorf("failed to load config file: %w", err)
@@ -183,14 +200,6 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			}
 			cfg.Profiles[selectedProfile] = profile
 		}
-	}
-
-	// Handle config wizard
-	if opts.ConfigWizard {
-		if err := HandleConfigWizard(cfg, configPath, selectedProfile); err != nil {
-			return nil, fmt.Errorf("config wizard failed: %w", err)
-		}
-		return nil, nil
 	}
 
 	// Set defaults and validate

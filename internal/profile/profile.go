@@ -24,8 +24,8 @@ func ResolveProfile(flagProfile string, cfg *config.Config) (string, error) {
 		return envProfile, nil
 	}
 
-	// Check configuration default
-	if cfg.DefaultProfile != "" {
+	// Check configuration default (only if profiles exist)
+	if cfg.DefaultProfile != "" && len(cfg.Profiles) > 0 {
 		return cfg.DefaultProfile, nil
 	}
 
@@ -34,7 +34,7 @@ func ResolveProfile(flagProfile string, cfg *config.Config) (string, error) {
 		return "default", nil
 	}
 
-	// No profile selected
+	// No profile selected (no profiles configured)
 	return "", nil
 }
 

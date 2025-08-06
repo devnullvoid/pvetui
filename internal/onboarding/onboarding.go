@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
 	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
 )
 
@@ -51,19 +50,13 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 		} else if res.Saved {
 			fmt.Println("✅ Configuration saved.")
 		} else if res.Canceled {
-			fmt.Println("🚪 Exiting.")
-		}
-
-		if promptYesNo("Would you like to proceed with main application startup?") {
-			*cfg = *config.NewConfig()
-			_ = cfg.MergeWithFile(path)
-			cfg.SetDefaults()
-			config.DebugEnabled = cfg.Debug
-			logger.SetDebugEnabled(cfg.Debug)
-			return nil // Signal to continue with main app
+			fmt.Println("ℹ️  Using default configuration.")
 		}
 	}
 
+	fmt.Println()
+	fmt.Println("✅ Configuration is ready!")
+	fmt.Println("🔄 Please re-run 'proxmox-tui' to start the application with your new configuration.")
 	fmt.Println("🚪 Exiting.")
 	os.Exit(0)
 	return nil
