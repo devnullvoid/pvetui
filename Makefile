@@ -9,8 +9,9 @@ FULL_IMAGE_NAME := $(if $(REGISTRY),$(REGISTRY)/$(IMAGE_NAME),$(IMAGE_NAME))
 
 # Go configuration
 GO_VERSION := 1.24.2
-GOOS := linux
-GOARCH := amd64
+# Default to host platform, allow override via environment variables
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 
 # Colors
 GREEN := \033[0;32m
