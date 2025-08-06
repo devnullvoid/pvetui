@@ -44,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added macOS Gatekeeper warning in README with direct link to troubleshooting guide
   - Updated troubleshooting documentation with correct installation methods
   - Thanks to @unclesp1d3r for reporting macOS Gatekeeper issues
+- **First-Run Configuration Issues**: Fixed app failing to launch without config file ([#21](https://github.com/devnullvoid/proxmox-tui/issues/21))
+  - Fixed bootstrap flow to handle config wizard before profile resolution
+  - Fixed profile resolution to not assume 'default' profile when no profiles exist
+  - Improved onboarding flow with clear user guidance after config creation
+  - Ensured --config-wizard flag and config-wizard subcommand work without existing config
+  - Maintained full SOPS functionality for encrypted configuration support
+  - Thanks to @BenRachmiel for the detailed bug report and reproduction steps
 
 ## [1.0.0] - 2025-08-03
 
