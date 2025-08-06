@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-08-06
+
 ### Added
 - **Cobra CLI Framework**: Migrated from Go's standard flag package to cobra for enhanced CLI experience
   - Much better help text formatting with proper descriptions and organization
