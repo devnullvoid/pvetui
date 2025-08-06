@@ -37,12 +37,15 @@ make install
 
 Building from source avoids Gatekeeper issues entirely since the binary is compiled locally.
 
-#### Option 4: Use Go Install (Recommended for Developers)
+#### Option 4: Use Go Install from Source (Recommended for Developers)
 ```bash
-go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest
+git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
+cd proxmox-tui
+make install-go
+# or: go install ./cmd/proxmox-tui
 ```
 
-This method downloads and compiles the source code directly, bypassing Gatekeeper restrictions.
+This method compiles the source code directly with all submodules, bypassing Gatekeeper restrictions.
 
 **Why This Happens**: The pre-built binaries are not code-signed with an Apple Developer certificate ($99/year requirement). Code signing would eliminate these warnings but requires an Apple Developer Program membership.
 
@@ -72,9 +75,28 @@ Some antivirus software may flag the binary as suspicious. This is common with u
 
 1. Add an exception for the binary in your antivirus software
 2. Build from source using the Go toolchain
-3. Use the `go install` method
+3. Use the source installation method (see Go Install Issues section above)
 
 ## 🔧 General Issues
+
+### Go Install Issues
+
+**Problem**: Running `go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest` fails with:
+```
+pattern novnc: no matching files found
+```
+
+**Cause**: The `go install` command from a remote repository doesn't fetch git submodules, but Proxmox TUI requires the noVNC submodule for its embedded VNC client functionality.
+
+**Solution**: Use the source installation method instead:
+```bash
+git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
+cd proxmox-tui
+go install ./cmd/proxmox-tui
+# or: make install-go
+```
+
+The `--recurse-submodules` flag ensures that the noVNC client files are downloaded, allowing the `//go:embed` directive to find the required files.
 
 ### Binary Won't Start
 1. **Check Architecture**: Ensure you downloaded the correct binary for your system:

@@ -68,27 +68,17 @@
 1. Download from [Releases](https://github.com/devnullvoid/proxmox-tui/releases)
 2. Extract and run: `./proxmox-tui`
 
-**Via Go Install:**
-```bash
-go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest
-```
+> **macOS Users**: You may encounter Gatekeeper warnings with pre-compiled binaries. See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-macos-issues) for solutions including bypassing the warning or building from source.
 
 **From Source:**
 ```bash
 git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
 cd proxmox-tui
 make install  # Build and install from source
-# or: make install-remote  # Install from remote repository
+# or: make install-go  # Install via Go toolchain
 ```
 
-### 🛠️ Troubleshooting
-
-Having issues? Check our comprehensive **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to common problems including:
-
-- 🍎 **macOS Gatekeeper warnings** (`zsh: killed` errors)
-- 🪟 **Windows SmartScreen** and antivirus issues
-- 🐧 **Linux permission** problems
-- 🔧 **General installation** and configuration issues
+> **Note**: The `go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
 
 ## ⚙️ Configuration
 
@@ -214,6 +204,15 @@ Proxmox TUI supports fully customizable key bindings through the `key_bindings` 
   ```
   youruser ALL=(ALL) NOPASSWD: /usr/sbin/pct enter *, /usr/sbin/pct exec *
   ```
+
+### 🛠️ Troubleshooting
+
+Check our **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to common problems including:
+
+- 🍎 **macOS Gatekeeper warnings** (`zsh: killed` errors)
+- 🪟 **Windows SmartScreen** and antivirus issues
+- 🐧 **Linux permission** problems
+- 🔧 **General installation** and configuration issues
 
 ## 🐳 Docker Usage
 

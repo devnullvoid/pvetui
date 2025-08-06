@@ -46,8 +46,8 @@ install: ## Build and install the application from source
 	@printf "$(GREEN)✅ Installation complete!$(NC)\n"
 	@printf "$(YELLOW)Make sure $(shell go env GOPATH)/bin is in your PATH$(NC)\n"
 
-install-remote: ## Install the application from remote repository using go install
-	@printf "$(GREEN)Installing $(APP_NAME) from remote repository...$(NC)\n"
+install-go: ## Install the application using go install from local source
+	@printf "$(GREEN)Installing $(APP_NAME) using go install...$(NC)\n"
 	@printf "$(YELLOW)Installing to: $(shell go env GOPATH)/bin/$(APP_NAME)$(NC)\n"
 	go install -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) \
 		-X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
