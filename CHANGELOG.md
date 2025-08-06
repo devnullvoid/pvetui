@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes issue where selected guest would change during pending status
   - Ensures consistent user experience during long-running operations
   - Applied to VM operations (start/stop/restart) and migration operations
+- **Makefile Cross-Platform Build**: Fixed hardcoded GOOS/GOARCH in build target ([#19](https://github.com/devnullvoid/proxmox-tui/issues/19))
+  - Now builds for host platform by default instead of forcing Linux/amd64
+  - Allows environment variable override for cross-compilation
+  - Enables native development on macOS, Windows, and other platforms
+  - Thanks to @unclesp1d3r for the detailed report and solution
   - Prevents UI lockup by using non-blocking goroutine for delay
 
 ## [1.0.0] - 2025-08-03
