@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Subcommand architecture for future extensibility (config-wizard subcommand)
   - Professional CLI interface with improved error handling and validation
   - Maintains 100% backward compatibility with existing functionality
+- **Task List Refresh**: Automatically refresh tasks list when VM operations complete
+  - Ensures tasks created by VM operations are immediately visible
+  - Provides better visibility into operation progress and completion
+  - Applied to start/stop/restart operations
+  - Delete and migration operations already refresh tasks via manualRefresh()
 
 ### Fixed
 - **Data Refresh Issues**: Improved data refresh after volume resize and snapshot rollback operations
@@ -21,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Snapshot rollback now shows updated VM status and displays the rollback task
   - Especially important for LXC containers that get shut down after rollback
   - Extracted reusable `refreshVMDataAndTasks` function for consistent behavior
+  - Added 2-second delay to allow Proxmox API to update config data before refresh
+- **VM Selection Preservation**: Fixed selection jumping during pending operations
+  - Preserve selected VM by ID and node instead of index position
+  - Fixes issue where selected guest would change during pending status
+  - Ensures consistent user experience during long-running operations
+  - Applied to VM operations (start/stop/restart) and migration operations
+  - Prevents UI lockup by using non-blocking goroutine for delay
 
 ## [1.0.0] - 2025-08-03
 
