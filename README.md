@@ -81,6 +81,15 @@ make install  # Build and install from source
 # or: make install-remote  # Install from remote repository
 ```
 
+### 🛠️ Troubleshooting
+
+Having issues? Check our comprehensive **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to common problems including:
+
+- 🍎 **macOS Gatekeeper warnings** (`zsh: killed` errors)
+- 🪟 **Windows SmartScreen** and antivirus issues
+- 🐧 **Linux permission** problems
+- 🔧 **General installation** and configuration issues
+
 ## ⚙️ Configuration
 
 ### First Run & Interactive Config Wizard
