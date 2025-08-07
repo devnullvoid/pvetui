@@ -114,6 +114,12 @@ func formatTaskType(taskType string) string {
 		return "CT Migrate"
 	case "vzrestore":
 		return "CT Restore"
+	case "vzrollback":
+		return "CT Rollback"
+	case "vzdelsnapshot":
+		return "CT Delete Snapshot"
+	case "vzsnapshot":
+		return "CT Snapshot"
 	case "vztemplate":
 		return "CT Template"
 	case "aptupdate":
