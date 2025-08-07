@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 
@@ -52,20 +53,34 @@ func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 
 	// Open embedded VNC connection in a goroutine to avoid blocking UI
 	go func() {
-		err := vncService.ConnectToNodeEmbedded(node.Name)
+		vncURL, err := vncService.ConnectToNodeEmbedded(node.Name)
 
 		a.QueueUpdateDraw(func() {
 			if err != nil {
 				// Clear the loading message from header
 				a.header.StopLoading()
 				a.updateHeaderWithActiveProfile() // Restore header with active profile
-				// Show error in modal dialog instead of header
-				errorModal := CreateErrorDialog("VNC Connection Error",
-					fmt.Sprintf("Failed to start VNC shell for %s:\n\n%s", node.Name, err.Error()),
-					func() {
+
+				// Check if this is an xdg-open not found error
+				if strings.Contains(err.Error(), "xdg-open not found") {
+					// Show helpful dialog with shortened VNC URL
+					message := fmt.Sprintf("Cannot open browser automatically on this system.\n\nxdg-open is not installed or not available.\n\nThe VNC server is still running and ready for connection.\n\nTo connect to the VNC shell:\n1. Copy the shortened URL below\n2. Paste it into your browser\n3. It will automatically redirect to the full VNC session\n4. Connect quickly before the session expires\n\nShortened URL:\n%s", vncURL)
+
+					// Create a custom dialog with scrollable text area for long URLs
+					modal := CreateErrorDialogWithScrollableText("Browser Not Available", message, func() {
 						a.pages.RemovePage("vnc_error")
 					})
-				a.pages.AddPage("vnc_error", errorModal, false, true)
+					a.pages.AddPage("vnc_error", modal, false, true)
+					a.SetFocus(modal)
+				} else {
+					// Show generic error dialog
+					errorModal := CreateErrorDialog("VNC Connection Error",
+						fmt.Sprintf("Failed to start VNC shell for %s:\n\n%s", node.Name, err.Error()),
+						func() {
+							a.pages.RemovePage("vnc_error")
+						})
+					a.pages.AddPage("vnc_error", errorModal, false, true)
+				}
 			} else {
 				a.header.ShowSuccess(fmt.Sprintf("Embedded VNC shell started for %s", node.Name))
 			}
@@ -80,20 +95,34 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 
 	// Open embedded VNC connection in a goroutine to avoid blocking UI
 	go func() {
-		err := vncService.ConnectToVMEmbedded(vm)
+		vncURL, err := vncService.ConnectToVMEmbedded(vm)
 
 		a.QueueUpdateDraw(func() {
 			if err != nil {
 				// Clear the loading message from header
 				a.header.StopLoading()
 				a.updateHeaderWithActiveProfile() // Restore header with active profile
-				// Show error in modal dialog instead of header
-				errorModal := CreateErrorDialog("VNC Connection Error",
-					fmt.Sprintf("Failed to start VNC console for %s:\n\n%s", vm.Name, err.Error()),
-					func() {
+
+				// Check if this is an xdg-open not found error
+				if strings.Contains(err.Error(), "xdg-open not found") {
+					// Show helpful dialog with shortened VNC URL
+					message := fmt.Sprintf("Cannot open browser automatically on this system.\n\nxdg-open is not installed or not available.\n\nThe VNC server is still running and ready for connection.\n\nTo connect to the VNC console:\n1. Copy the shortened URL below\n2. Paste it into your browser\n3. It will automatically redirect to the full VNC session\n4. Connect quickly before the session expires\n\nShortened URL:\n%s", vncURL)
+
+					// Create a custom dialog with scrollable text area for long URLs
+					modal := CreateErrorDialogWithScrollableText("Browser Not Available", message, func() {
 						a.pages.RemovePage("vnc_error")
 					})
-				a.pages.AddPage("vnc_error", errorModal, false, true)
+					a.pages.AddPage("vnc_error", modal, false, true)
+					a.SetFocus(modal)
+				} else {
+					// Show generic error dialog
+					errorModal := CreateErrorDialog("VNC Connection Error",
+						fmt.Sprintf("Failed to start VNC console for %s:\n\n%s", vm.Name, err.Error()),
+						func() {
+							a.pages.RemovePage("vnc_error")
+						})
+					a.pages.AddPage("vnc_error", errorModal, false, true)
+				}
 			} else {
 				a.header.ShowSuccess(fmt.Sprintf("Embedded VNC console started for %s", vm.Name))
 			}

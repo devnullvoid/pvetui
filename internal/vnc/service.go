@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
@@ -107,7 +108,6 @@ func (s *Service) ConnectToNode(nodeName string) error {
 // openBrowser opens the specified URL in the user's default browser.
 func openBrowser(url string) error {
 	var cmd string
-
 	var args []string
 
 	switch runtime.GOOS {
@@ -120,11 +120,45 @@ func openBrowser(url string) error {
 		cmd = "open"
 		args = []string{url}
 	default: // "linux", "freebsd", "openbsd", "netbsd"
+		// Check if xdg-open is available before trying to use it
+		if _, err := exec.LookPath("xdg-open"); err != nil {
+			return fmt.Errorf("xdg-open not found: %w", err)
+		}
 		cmd = "xdg-open"
 		args = []string{url}
 	}
 
 	return exec.Command(cmd, args...).Start()
+}
+
+// createShortenedVNCURL creates a shortened URL that forwards to the actual VNC URL
+func createShortenedVNCURL(actualURL string) string {
+	// Extract the port from the actual URL
+	// Example: http://localhost:45167/vnc.html?autoconnect=true&reconnect=true&password=%5D%3E%283LV%2C.&path=vnc-proxy&resize=scale
+	// We'll create: http://localhost:45167/vnc-forward
+
+	// Parse the URL to extract the port
+	// Look for "localhost:" followed by digits
+	localhostIndex := strings.Index(actualURL, "localhost:")
+	if localhostIndex == -1 {
+		return actualURL // Fallback to original URL if we can't find localhost
+	}
+
+	// Start after "localhost:"
+	portStart := localhostIndex + len("localhost:")
+
+	// Find the next "/" to get the end of the port
+	portEnd := strings.Index(actualURL[portStart:], "/")
+	if portEnd == -1 {
+		return actualURL // Fallback to original URL if we can't find the path
+	}
+
+	port := actualURL[portStart : portStart+portEnd]
+
+	// Create a shortened URL that will forward to the actual URL
+	shortenedURL := fmt.Sprintf("http://localhost:%s/vnc-forward", port)
+
+	return shortenedURL
 }
 
 // GetVMVNCStatus checks if VNC is available for a VM.
@@ -166,7 +200,7 @@ func (s *Service) GetNodeVNCStatus(nodeName string) (bool, string) {
 
 // ConnectToVMEmbedded opens an embedded VNC connection to a VM using the built-in noVNC client
 // This method supports multiple concurrent sessions - each VM gets its own session.
-func (s *Service) ConnectToVMEmbedded(vm *api.VM) error {
+func (s *Service) ConnectToVMEmbedded(vm *api.VM) (string, error) {
 	s.logger.Info("Starting embedded VNC connection for VM: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
 	// Create or get existing session for this VM
@@ -174,27 +208,35 @@ func (s *Service) ConnectToVMEmbedded(vm *api.VM) error {
 	if err != nil {
 		s.logger.Error("Failed to create VM session for %s: %v", vm.Name, err)
 
-		return fmt.Errorf("failed to create VM session: %w", err)
+		return "", fmt.Errorf("failed to create VM session: %w", err)
 	}
 
 	s.logger.Info("VM VNC session ready: %s (Port: %d, Session: %s)", vm.Name, session.Port, session.ID)
+
+	// Store the actual VNC URL in the server for forwarding
+	if session.Server != nil {
+		session.Server.actualVNCURL = session.URL
+	}
+
+	// Create shortened URL for easier copying
+	shortenedURL := createShortenedVNCURL(session.URL)
 
 	// Open the embedded VNC client in the default browser
 	err = openBrowser(session.URL)
 	if err != nil {
 		s.logger.Error("Failed to open embedded VNC client for VM %s: %v", vm.Name, err)
 
-		return err
+		return shortenedURL, err
 	}
 
 	s.logger.Info("Successfully opened embedded VNC client for VM %s (Session: %s)", vm.Name, session.ID)
 
-	return nil
+	return shortenedURL, nil
 }
 
 // ConnectToNodeEmbedded opens an embedded VNC shell connection to a node using the built-in noVNC client
 // This method supports multiple concurrent sessions - each node gets its own session.
-func (s *Service) ConnectToNodeEmbedded(nodeName string) error {
+func (s *Service) ConnectToNodeEmbedded(nodeName string) (string, error) {
 	s.logger.Info("Starting embedded VNC shell connection for node: %s", nodeName)
 
 	// Create or get existing session for this node
@@ -202,22 +244,30 @@ func (s *Service) ConnectToNodeEmbedded(nodeName string) error {
 	if err != nil {
 		s.logger.Error("Failed to create node session for %s: %v", nodeName, err)
 
-		return fmt.Errorf("failed to create node session: %w", err)
+		return "", fmt.Errorf("failed to create node session: %w", err)
 	}
 
 	s.logger.Info("Node VNC session ready: %s (Port: %d, Session: %s)", nodeName, session.Port, session.ID)
+
+	// Store the actual VNC URL in the server for forwarding
+	if session.Server != nil {
+		session.Server.actualVNCURL = session.URL
+	}
+
+	// Create shortened URL for easier copying
+	shortenedURL := createShortenedVNCURL(session.URL)
 
 	// Open the embedded VNC client in the default browser
 	err = openBrowser(session.URL)
 	if err != nil {
 		s.logger.Error("Failed to open embedded VNC client for node %s: %v", nodeName, err)
 
-		return err
+		return shortenedURL, err
 	}
 
 	s.logger.Info("Successfully opened embedded VNC client for node %s (Session: %s)", nodeName, session.ID)
 
-	return nil
+	return shortenedURL, nil
 }
 
 // Session Management Methods

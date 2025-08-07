@@ -19,14 +19,15 @@ import (
 //go:embed novnc
 var novncFiles embed.FS
 
-// Server represents an embedded HTTP server for serving noVNC client.
+// Server provides an embedded HTTP server for VNC connections.
 type Server struct {
-	httpServer *http.Server
-	proxy      *WebSocketProxy
-	port       int
-	mu         sync.Mutex
-	running    bool
-	logger     *logger.Logger
+	httpServer   *http.Server
+	proxy        *WebSocketProxy
+	port         int
+	mu           sync.Mutex
+	running      bool
+	logger       *logger.Logger
+	actualVNCURL string // Store the actual VNC URL for forwarding
 }
 
 // NewServer creates a new embedded HTTP server for VNC connections.
@@ -194,6 +195,10 @@ func (s *Server) startHTTPServer() error {
 	s.logger.Debug("Setting up WebSocket proxy endpoint")
 	mux.HandleFunc("/vnc-proxy", s.proxy.HandleWebSocketProxy)
 
+	// VNC forward endpoint for shortened URLs
+	s.logger.Debug("Setting up VNC forward endpoint")
+	mux.HandleFunc("/vnc-forward", s.handleVNCForward)
+
 	s.httpServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.port),
 		Handler:      mux,
@@ -267,4 +272,19 @@ func (s *Server) IsRunning() bool {
 	s.logger.Debug("Requested server running status: %t", s.running)
 
 	return s.running
+}
+
+// handleVNCForward handles the shortened VNC URL and redirects to the actual VNC URL
+func (s *Server) handleVNCForward(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	actualURL := s.actualVNCURL
+	s.mu.Unlock()
+
+	if actualURL == "" {
+		http.Error(w, "VNC session not available", http.StatusNotFound)
+		return
+	}
+
+	// Redirect to the actual VNC URL
+	http.Redirect(w, r, actualURL, http.StatusTemporaryRedirect)
 }

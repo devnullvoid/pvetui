@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **VNC Browser Opening on Linux**: Fixed VNC connection issues when xdg-open is not available
+  - Added detection for missing xdg-open command before attempting to open browser
+  - Shows helpful error dialog with shortened VNC URL when browser cannot be opened automatically
+  - Implements URL forwarding system: shortened URLs (e.g., `http://localhost:45167/vnc-forward`) automatically redirect to full VNC sessions
+  - Uses scrollable text area for long VNC URLs to prevent UI overflow and improve readability
+  - Improved dialog positioning and width to properly display long URLs without truncation
+  - Enhanced button focus and keyboard handling (Enter/Escape) for proper dialog dismissal
+  - Clarifies that the VNC server is still running and ready for connection
+  - Prevents confusing situation where VNC server starts but browser doesn't open
+  - Provides clear instructions for manual connection with the VNC URL
+  - Especially important for WSL and minimal Linux distributions that don't include xdg-open
 - **Config Wizard Theme Integration**: Fixed config wizard to use the same theme colors as the main application
   - Config wizard now applies custom theme configuration before setting tview styles
   - Ensures consistent visual appearance between main app and config wizard
