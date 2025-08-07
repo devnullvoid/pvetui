@@ -46,6 +46,16 @@ func NewServiceWithLogger(client *api.Client, sharedLogger *logger.Logger) *Serv
 // UpdateClient updates the VNC service's client (used when switching profiles).
 func (s *Service) UpdateClient(client *api.Client) {
 	s.logger.Info("Updating VNC service client for profile switch")
+
+	// Close all existing sessions since they're connected to the old server
+	// This ensures new VNC connections use the updated client
+	if s.sessionManager != nil {
+		s.logger.Info("Closing all existing VNC sessions due to profile switch")
+		if err := s.sessionManager.CloseAllSessions(); err != nil {
+			s.logger.Error("Failed to close existing sessions during profile switch: %v", err)
+		}
+	}
+
 	s.client = client
 	s.sessionManager.UpdateClient(client)
 }

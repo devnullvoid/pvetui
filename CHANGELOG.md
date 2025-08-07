@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **VNC Profile Switching**: Fixed VNC sessions not updating when switching connection profiles
+  - VNC service now properly closes all existing sessions when switching profiles
+  - Ensures new VNC connections use the updated client connection
+  - Prevents VNC sessions from trying to connect to old servers after profile changes
+  - Maintains session management integrity across profile switches
+
 - **VNC Browser Opening on Linux**: Fixed VNC connection issues when xdg-open is not available
   - Added detection for missing xdg-open command before attempting to open browser
   - Shows helpful error dialog with shortened VNC URL when browser cannot be opened automatically
