@@ -23,13 +23,18 @@ jobs:
         run: |
           set -euo pipefail
           ver="${GITHUB_REF_NAME#v}"
+          tag="${GITHUB_REF_NAME}"
           tmp=/tmp/RELEASE_NOTES.md
           section=$(sed -n "/^## \\[${ver}\\]/,/^## \\[/p" CHANGELOG.md || true)
-          printf "%s\n" "$section" | sed '/^## \[/d' | tail -n +2 > "$tmp"
-          if [ ! -s "$tmp" ]; then
+          body=$(printf "%s\n" "$section" | sed '/^## \[/d' | tail -n +2)
+          if [ -z "${body}" ]; then
             echo "No changelog section found for ${ver} in CHANGELOG.md" >&2
             exit 1
           fi
+          {
+            printf "## 🚀 Release %s\n\n" "$tag"
+            printf "%s\n" "$body"
+          } > "$tmp"
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

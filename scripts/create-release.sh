@@ -348,8 +348,7 @@ main() {
 
     # Confirm unless dry run
     if [[ "$DRY_RUN" == "false" ]]; then
-        echo -n "Proceed with release? (y/N): "
-        read -r REPLY
+        read -r -p "Proceed with release? (y/N): " REPLY
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Release cancelled by user"
             exit 0
