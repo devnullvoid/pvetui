@@ -24,7 +24,7 @@ func (a *App) showMessage(message string) {
 		SetTextColor(theme.Colors.Primary).
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			a.pages.RemovePage("message")
+			a.removePageIfPresent("message")
 			// Restore focus to the last focused element
 			if a.lastFocus != nil {
 				a.SetFocus(a.lastFocus)
@@ -51,7 +51,7 @@ func (a *App) showMessageSafe(message string) {
 		SetTextColor(theme.Colors.Primary).
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			a.pages.RemovePage("message_safe")
+			a.removePageIfPresent("message_safe")
 			// Restore focus to the last focused element
 			if a.lastFocus != nil {
 				a.SetFocus(a.lastFocus)
@@ -66,10 +66,10 @@ func (a *App) showMessageSafe(message string) {
 // DEPRECATED: Use CreateConfirmDialog instead for consistency.
 func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	confirm := CreateConfirmDialog("Confirm", message, func() {
-		a.pages.RemovePage("confirmation")
+		a.removePageIfPresent("confirmation")
 		onConfirm()
 	}, func() {
-		a.pages.RemovePage("confirmation")
+		a.removePageIfPresent("confirmation")
 	})
 	a.pages.AddPage("confirmation", confirm, false, true)
 	a.SetFocus(confirm)
@@ -176,27 +176,20 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 			}
 
 			// Close dialog and perform migration
-			if err := a.pages.RemovePage("migration"); err != nil {
-				models.GetUILogger().Error("Failed to remove migration page: %v", err)
-			}
+			a.removePageIfPresent("migration")
 
 			a.performMigrationOperation(vm, options)
 		})
 	})
 
 	form.AddButton("Cancel", func() {
-		if err := a.pages.RemovePage("migration"); err != nil {
-			models.GetUILogger().Error("Failed to remove migration page: %v", err)
-		}
+		a.removePageIfPresent("migration")
 	})
 
 	// Set up input capture for navigation
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			if err := a.pages.RemovePage("migration"); err != nil {
-				models.GetUILogger().Error("Failed to remove migration page: %v", err)
-			}
-
+			a.removePageIfPresent("migration")
 			return nil
 		}
 

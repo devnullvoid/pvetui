@@ -49,6 +49,13 @@ type App struct {
 	autoRefreshCountdownStop chan bool
 }
 
+// removePageIfPresent removes a page by name if it exists, ignoring errors.
+func (a *App) removePageIfPresent(name string) {
+	if a.pages != nil && a.pages.HasPage(name) {
+		_ = a.pages.RemovePage(name)
+	}
+}
+
 // NewApp creates a new application instance with all UI components.
 func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string) *App {
 	uiLogger := models.GetUILogger()

@@ -98,7 +98,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 				} else {
 					app.header.ShowSuccess("Configuration updated successfully.")
 					// Remove the config page first
-					app.pages.RemovePage("vmConfig")
+					app.removePageIfPresent("vmConfig")
 					// Then refresh data
 					app.manualRefresh()
 				}
@@ -106,7 +106,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		}()
 	})
 	form.AddButton("Cancel", func() {
-		app.pages.RemovePage("vmConfig")
+		app.removePageIfPresent("vmConfig")
 	})
 	// Set dynamic title with guest info
 	guestType := "VM"
@@ -119,10 +119,7 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	// Set ESC key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
-			if err := app.pages.RemovePage("vmConfig"); err != nil {
-				models.GetUILogger().Error("Failed to remove vmConfig page: %v", err)
-			}
-
+			app.removePageIfPresent("vmConfig")
 			return nil
 		}
 
@@ -231,18 +228,13 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 		}()
 	})
 	modal.AddButton("Cancel", func() {
-		if err := app.pages.RemovePage("resizeStorage"); err != nil {
-			models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
-		}
+		app.removePageIfPresent("resizeStorage")
 	})
 	modal.SetBorder(true).SetTitle("Resize Storage Volume").SetTitleColor(theme.Colors.Primary)
 	// Set ESC key to cancel for resize modal
 	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
-			if err := app.pages.RemovePage("resizeStorage"); err != nil {
-				models.GetUILogger().Error("Failed to remove resizeStorage page: %v", err)
-			}
-
+			app.removePageIfPresent("resizeStorage")
 			return nil
 		}
 
