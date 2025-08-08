@@ -9,6 +9,9 @@ builds:
     main: ./cmd/proxmox-tui
     env:
       - CGO_ENABLED=0
+    # Ensure maximum CPU compatibility and avoid cgo dependencies
+    goamd64: [v1]
+    tags: [netgo, osusergo]
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
     ldflags:
