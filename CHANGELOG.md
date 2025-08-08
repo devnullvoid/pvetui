@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Windows: Saving profiles could fail with "The system cannot find the path specified"**
+  - Ensure config directory creation uses OS-agnostic path handling when saving from the config/profile wizards and menu actions.
+  - Fixes saving when adding/editing profiles and when setting default profile on Windows.
+
 ## [1.0.2] - 2025-08-07
 
 ### Fixed

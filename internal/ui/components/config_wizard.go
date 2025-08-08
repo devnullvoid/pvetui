@@ -88,15 +88,7 @@ func showWizardModal(pages *tview.Pages, form *tview.Form, app *tview.Applicatio
 	pages.SwitchToPage("modal")
 }
 
-// FilepathBase returns the last element of the path.
-func FilepathBase(path string) string {
-	parts := strings.Split(path, "/")
-	if len(parts) == 0 {
-		return ""
-	}
-
-	return parts[len(parts)-1]
-}
+// (removed) FilepathBase is removed in favor of filepath.Dir which is OS-agnostic
 
 // isSOPSEncrypted checks if a config file appears to be SOPS encrypted.
 func isSOPSEncrypted(path string, data []byte) bool {
@@ -490,7 +482,9 @@ func SaveConfigToFile(cfg *config.Config, path string) error {
 		return err
 	}
 
-	if err := os.MkdirAll(strings.TrimSuffix(path, "/"+FilepathBase(path)), 0o750); err != nil {
+	// Ensure the target directory exists using OS-agnostic path operations
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 
