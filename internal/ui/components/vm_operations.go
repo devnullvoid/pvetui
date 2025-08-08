@@ -55,7 +55,7 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 
 	var originalUptime int64 = -1
 
-	if strings.ToLower(operationName) == "restarting" {
+	if op := strings.ToLower(operationName); op == "restarting" {
 		freshVM, err := a.client.RefreshVMData(vm, nil)
 		if err == nil {
 			originalUptime = freshVM.Uptime
@@ -78,14 +78,19 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 			return
 		}
 
-		a.QueueUpdateDraw(func() {
-			a.header.ShowLoading(fmt.Sprintf("Waiting for %s %s to complete...", strings.ToLower(operationName), vm.Name))
-		})
-
-		if strings.ToLower(operationName) == "restarting" {
-			a.waitForVMRestartCompletionWithRefresh(vm, originalUptime)
+		op := strings.ToLower(operationName)
+		if op == "resetting" {
+			// Reset is instantaneous and may not change reported uptime; do a short refresh delay instead of waiting
+			time.Sleep(3 * time.Second)
 		} else {
-			a.waitForVMOperationCompletionWithRefresh(vm, operationName)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowLoading(fmt.Sprintf("Waiting for %s %s to complete...", op, vm.Name))
+			})
+			if op == "restarting" {
+				a.waitForVMRestartCompletionWithRefresh(vm, originalUptime)
+			} else {
+				a.waitForVMOperationCompletionWithRefresh(vm, operationName)
+			}
 		}
 
 		a.QueueUpdateDraw(func() {
