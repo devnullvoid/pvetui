@@ -5,15 +5,31 @@ before:
     - git submodule update --init --recursive
 
 builds:
+  # General build for all platforms except windows/amd64
   - id: proxmox-tui
     main: ./cmd/proxmox-tui
     env:
       - CGO_ENABLED=0
-    # Ensure maximum CPU compatibility and avoid cgo dependencies
-    goamd64: [v1]
-    tags: [netgo, osusergo]
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: amd64
+    ldflags:
+      - -s -w
+      - -X github.com/devnullvoid/proxmox-tui/internal/version.version={{.Version}}
+      - -X github.com/devnullvoid/proxmox-tui/internal/version.commit={{.Commit}}
+      - -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate={{.Date}}
+
+  # Windows/amd64 build with extra compatibility settings
+  - id: proxmox-tui-windows-amd64
+    main: ./cmd/proxmox-tui
+    env:
+      - CGO_ENABLED=0
+    goos: [windows]
+    goarch: [amd64]
+    goamd64: [v1]
+    tags: [netgo, osusergo]
     ldflags:
       - -s -w
       - -X github.com/devnullvoid/proxmox-tui/internal/version.version={{.Version}}
@@ -22,7 +38,7 @@ builds:
 
 archives:
   - id: default
-    builds: [proxmox-tui]
+    builds: [proxmox-tui, proxmox-tui-windows-amd64]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     format_overrides:
