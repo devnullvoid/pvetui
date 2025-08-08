@@ -18,36 +18,49 @@ func (a *App) applyConnectionProfile(profileName string) {
 
 	// Run profile switching in goroutine to avoid blocking UI
 	go func() {
+		uiLogger := models.GetUILogger()
+		uiLogger.Debug("Starting profile switch to: %s", profileName)
+
 		err := a.config.ApplyProfile(profileName)
 		if err != nil {
+			uiLogger.Error("Failed to apply profile %s: %v", profileName, err)
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError("Failed to apply profile: " + err.Error())
 			})
 			return
 		}
 
+		uiLogger.Debug("Profile %s applied successfully to config", profileName)
+
 		// Note: We don't save the config file when switching profiles in the UI
 		// The default_profile should only be changed via the config wizard
 		// This allows temporary profile switching without affecting the saved config
 
 		// Recreate the API client with the new profile
+		uiLogger.Debug("Creating new API client with updated config")
 		client, err := api.NewClient(&a.config, api.WithLogger(models.GetUILogger()))
 		if err != nil {
+			uiLogger.Error("Failed to create API client for profile %s: %v", profileName, err)
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError("Failed to create API client: " + err.Error())
 			})
 			return
 		}
 
+		uiLogger.Debug("New API client created successfully for profile %s", profileName)
+
 		a.QueueUpdateDraw(func() {
+			uiLogger.Debug("Updating app client and VNC service")
 			a.client = client
 
 			// Update VNC service with new connection details
 			if a.vncService != nil {
+				uiLogger.Debug("Updating VNC service client")
 				a.vncService.UpdateClient(client)
 			}
 
 			// Update the header to show the new active profile
+			uiLogger.Debug("Updating header with new active profile: %s", profileName)
 			a.header.ShowActiveProfile(profileName)
 		})
 
@@ -57,6 +70,7 @@ func (a *App) applyConnectionProfile(profileName string) {
 		})
 
 		// Then refresh data with new connection (this will update the UI)
+		uiLogger.Debug("Starting manual refresh with new client")
 		a.manualRefresh()
 	}()
 }

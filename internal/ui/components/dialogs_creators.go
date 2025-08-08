@@ -103,12 +103,44 @@ func CreateErrorDialog(title, message string, onClose func()) *tview.Modal {
 	return createBaseModal(title, message, theme.Colors.Error, onClose)
 }
 
-// CreateErrorDialogWithScrollableText creates an error dialog with scrollable text for long content.
+// CreateErrorDialogWithScrollableText creates an error dialog with scrollable text for long URLs.
 func CreateErrorDialogWithScrollableText(title, message string, onClose func()) *tview.Modal {
 	// Create a modal with the message
 	modal := tview.NewModal()
 	modal.SetText(message)
 	modal.SetTextColor(theme.Colors.Error)
+	modal.SetBorderColor(theme.Colors.Border)
+	modal.SetTitle(title)
+	modal.SetTitleColor(theme.Colors.Title)
+
+	// Add close button
+	modal.AddButtons([]string{"OK"})
+	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if onClose != nil {
+			onClose()
+		}
+	})
+
+	// Add keyboard shortcuts for dismissal
+	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			if onClose != nil {
+				onClose()
+			}
+			return nil
+		}
+		return event
+	})
+
+	return modal
+}
+
+// CreateSuccessDialogWithURL creates a success dialog with URL information for VNC connections.
+func CreateSuccessDialogWithURL(title, message string, onClose func()) *tview.Modal {
+	// Create a modal with the message
+	modal := tview.NewModal()
+	modal.SetText(message)
+	modal.SetTextColor(theme.Colors.Success)
 	modal.SetBorderColor(theme.Colors.Border)
 	modal.SetTitle(title)
 	modal.SetTitleColor(theme.Colors.Title)

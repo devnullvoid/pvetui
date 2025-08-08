@@ -33,7 +33,7 @@ func (c *Config) ApplyProfile(profileName string) error {
 		return fmt.Errorf("profile '%s' not found", profileName)
 	}
 
-	// Apply profile settings to main config
+	// Apply profile settings to main config (legacy compatibility)
 	c.Addr = profile.Addr
 	c.User = profile.User
 	c.Password = profile.Password
@@ -43,6 +43,9 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.ApiPath = profile.ApiPath
 	c.Insecure = profile.Insecure
 	c.SSHUser = profile.SSHUser
+
+	// Also set DefaultProfile so getters (GetAddr, GetUser, etc.) resolve to this profile at runtime
+	c.DefaultProfile = profileName
 
 	return nil
 }
