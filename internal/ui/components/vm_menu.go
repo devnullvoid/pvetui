@@ -17,7 +17,9 @@ const (
 	vmActionRefresh    = "Refresh"
 	vmActionStart      = "Start"
 	vmActionShutdown   = "Shutdown"
+	vmActionStop       = "Stop (force)"
 	vmActionRestart    = "Restart"
+	vmActionReset      = "Reset (hard)"
 	vmActionMigrate    = "Migrate"
 	vmActionDelete     = "Delete"
 )
@@ -45,7 +47,12 @@ func (a *App) ShowVMContextMenu() {
 	}
 
 	if vm.Status == api.VMStatusRunning {
-		menuItems = append(menuItems, vmActionShutdown, vmActionRestart)
+		// When running, offer graceful Shutdown, force Stop, and Restart
+		menuItems = append(menuItems, vmActionShutdown, vmActionStop, vmActionRestart)
+		// Hard Reset is QEMU-only
+		if vm.Type == api.VMTypeQemu {
+			menuItems = append(menuItems, vmActionReset)
+		}
 	} else if vm.Status == api.VMStatusStopped {
 		menuItems = append(menuItems, vmActionStart)
 	}
@@ -96,9 +103,16 @@ func (a *App) ShowVMContextMenu() {
 			)
 		case vmActionShutdown:
 			a.showConfirmationDialog(
-				fmt.Sprintf("Are you sure you want to shutdown VM '%s' (ID: %d)?", vm.Name, vm.ID),
+				fmt.Sprintf("Are you sure you want to gracefully shut down '%s' (ID: %d)?\n\nThis requests an OS shutdown and may take time.", vm.Name, vm.ID),
 				func() {
-					a.performVMOperation(vm, a.client.StopVM, "Shutting down")
+					a.performVMOperation(vm, a.client.ShutdownVM, "Shutting down")
+				},
+			)
+		case vmActionStop:
+			a.showConfirmationDialog(
+				fmt.Sprintf("⚠️  Force stop '%s' (ID: %d)?\n\nThis is equivalent to power off and may cause data loss.", vm.Name, vm.ID),
+				func() {
+					a.performVMOperation(vm, a.client.StopVM, "Stopping")
 				},
 			)
 		case vmActionRestart:
@@ -108,6 +122,15 @@ func (a *App) ShowVMContextMenu() {
 					a.performVMOperation(vm, a.client.RestartVM, "Restarting")
 				},
 			)
+		case vmActionReset:
+			if vm.Type == api.VMTypeQemu {
+				a.showConfirmationDialog(
+					fmt.Sprintf("⚠️  Hard reset '%s' (ID: %d)?\n\nThis is an immediate reset (like pressing reset) and may cause data loss.", vm.Name, vm.ID),
+					func() {
+						a.performVMOperation(vm, a.client.ResetVM, "Resetting")
+					},
+				)
+			}
 		case vmActionMigrate:
 			a.showMigrationDialog(vm)
 		case vmActionDelete:
@@ -177,6 +200,10 @@ func generateVMShortcuts(menuItems []string) []rune {
 			shortcuts[i] = 'd'
 		case vmActionRestart:
 			shortcuts[i] = 'a'
+		case vmActionStop:
+			shortcuts[i] = 's'
+		case vmActionReset:
+			shortcuts[i] = 'R'
 		case vmActionMigrate:
 			shortcuts[i] = 'm'
 		case vmActionDelete:

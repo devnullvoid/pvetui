@@ -19,6 +19,15 @@ func (c *Client) StopVM(vm *VM) error {
 	return c.Post(path, nil)
 }
 
+// ShutdownVM requests a graceful shutdown via the guest OS.
+// For both QEMU and LXC, Proxmox exposes `/status/shutdown`.
+// The guest tools/agent should be installed for reliable behavior.
+func (c *Client) ShutdownVM(vm *VM) error {
+	path := fmt.Sprintf("/nodes/%s/%s/%d/status/shutdown", vm.Node, vm.Type, vm.ID)
+
+	return c.Post(path, nil)
+}
+
 // RestartVM restarts a VM or container
 //
 // Both QEMU VMs and LXC containers use the `/status/reboot` endpoint
@@ -31,6 +40,18 @@ func (c *Client) StopVM(vm *VM) error {
 func (c *Client) RestartVM(vm *VM) error {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/reboot", vm.Node, vm.Type, vm.ID)
 	c.logger.Info("Rebooting %s %s (ID: %d) using /status/reboot endpoint", vm.Type, vm.Name, vm.ID)
+
+	return c.Post(path, nil)
+}
+
+// ResetVM performs a hard reset (like pressing the reset button).
+// Only supported for QEMU VMs. Not applicable to LXC.
+func (c *Client) ResetVM(vm *VM) error {
+	if vm.Type != VMTypeQemu {
+		return fmt.Errorf("reset is only supported for QEMU VMs")
+	}
+
+	path := fmt.Sprintf("/nodes/%s/%s/%d/status/reset", vm.Node, vm.Type, vm.ID)
 
 	return c.Post(path, nil)
 }
