@@ -1,5 +1,5 @@
 Source ./docs/common.tape
-Sleep 1s
+Sleep 1.5s
 Type "m"
 Sleep 1s
 Enter
@@ -24,18 +24,18 @@ Sleep 500ms
 Enter
 Sleep 2s
 Backspace
-Sleep 100ms
-Backspace@200ms 2
-Sleep 100ms
+Sleep 200ms
+Backspace@400ms 2
+Sleep 200ms
 Type "]"
 Sleep 1s
 Type@300ms "/nix"
 Enter
 Sleep 500ms
 Type "jj"
-Sleep 100ms
+Sleep 200ms
 Type "l"
-Sleep 100ms
+Sleep 200ms
 Type "jjjjjjjjjh"
 Sleep 500ms
 Type "m"
