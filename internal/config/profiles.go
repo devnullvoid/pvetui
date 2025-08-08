@@ -44,8 +44,8 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.Insecure = profile.Insecure
 	c.SSHUser = profile.SSHUser
 
-	// Also set DefaultProfile so getters (GetAddr, GetUser, etc.) resolve to this profile at runtime
-	c.DefaultProfile = profileName
+	// Mark runtime active profile so getters resolve to this profile without changing persisted default
+	c.ActiveProfile = profileName
 
 	return nil
 }
@@ -149,5 +149,8 @@ func (c *Config) HasProfiles() bool {
 
 // GetActiveProfile returns the name of the currently active profile.
 func (c *Config) GetActiveProfile() string {
+	if c.ActiveProfile != "" {
+		return c.ActiveProfile
+	}
 	return c.DefaultProfile
 }

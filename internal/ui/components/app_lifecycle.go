@@ -37,7 +37,7 @@ func (a *App) Run() error {
 
 // updateHeaderWithActiveProfile updates the header to show the current active profile.
 func (a *App) updateHeaderWithActiveProfile() {
-	profileName := a.config.DefaultProfile
+	profileName := a.config.GetActiveProfile()
 
 	if profileName == "" {
 		a.header.ShowActiveProfile("")

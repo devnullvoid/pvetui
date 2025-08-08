@@ -94,6 +94,9 @@ var DebugEnabled bool
 type Config struct {
 	Profiles       map[string]ProfileConfig `yaml:"profiles"`
 	DefaultProfile string                   `yaml:"default_profile"`
+	// ActiveProfile holds the currently active profile at runtime.
+	// It is not persisted to disk and is used to resolve getters when set.
+	ActiveProfile string `yaml:"-"`
 	// The following fields are global settings, not per-profile
 	Debug       bool        `yaml:"debug"`
 	CacheDir    string      `yaml:"cache_dir"`
@@ -539,35 +542,42 @@ func (c *Config) MergeWithFile(path string) error {
 }
 
 func (c *Config) Validate() error {
-	// Check if using profile-based configuration
-	if c.DefaultProfile != "" && len(c.Profiles) > 0 {
-		// Validate profile-based configuration
-
-		// Check if default profile exists
-		defaultProfile, exists := c.Profiles[c.DefaultProfile]
-		if !exists {
-			return fmt.Errorf("default profile '%s' not found", c.DefaultProfile)
+	// Validate profile-based configuration if profiles exist
+	if len(c.Profiles) > 0 {
+		// Prefer active profile for validation; fall back to default
+		profileName := c.ActiveProfile
+		label := "selected profile"
+		if profileName == "" {
+			profileName = c.DefaultProfile
+			label = "default profile"
 		}
 
-		// Validate the default profile
-		if defaultProfile.Addr == "" {
-			return errors.New("proxmox address required in default profile")
-		}
+		if profileName != "" {
+			selectedProfile, exists := c.Profiles[profileName]
+			if !exists {
+				return fmt.Errorf("%s '%s' not found", label, profileName)
+			}
 
-		if defaultProfile.User == "" {
-			return errors.New("proxmox username required in default profile")
-		}
+			// Validate selected/default profile
+			if selectedProfile.Addr == "" {
+				return errors.New("proxmox address required in " + label)
+			}
 
-		// Check that either password or token authentication is provided
-		hasPassword := defaultProfile.Password != ""
-		hasToken := defaultProfile.TokenID != "" && defaultProfile.TokenSecret != ""
+			if selectedProfile.User == "" {
+				return errors.New("proxmox username required in " + label)
+			}
 
-		if !hasPassword && !hasToken {
-			return errors.New("authentication required in default profile: provide either password or API token")
-		}
+			// Check that either password or token authentication is provided
+			hasPassword := selectedProfile.Password != ""
+			hasToken := selectedProfile.TokenID != "" && selectedProfile.TokenSecret != ""
 
-		if hasPassword && hasToken {
-			return errors.New("conflicting authentication methods in default profile: provide either password or API token, not both")
+			if !hasPassword && !hasToken {
+				return errors.New("authentication required in " + label + ": provide either password or API token")
+			}
+
+			if hasPassword && hasToken {
+				return errors.New("conflicting authentication methods in " + label + ": provide either password or API token, not both")
+			}
 		}
 	} else {
 		// Validate legacy configuration
@@ -616,9 +626,17 @@ func (c *Config) GetAPIToken() string {
 
 // GetAddr returns the configured server address.
 func (c *Config) GetAddr() string {
-	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
-		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
-			return profile.Addr
+	// Prefer active profile if set
+	if len(c.Profiles) > 0 {
+		if c.ActiveProfile != "" {
+			if profile, exists := c.Profiles[c.ActiveProfile]; exists {
+				return profile.Addr
+			}
+		}
+		if c.DefaultProfile != "" {
+			if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+				return profile.Addr
+			}
 		}
 	}
 	return c.Addr
@@ -626,9 +644,16 @@ func (c *Config) GetAddr() string {
 
 // GetUser returns the configured username.
 func (c *Config) GetUser() string {
-	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
-		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
-			return profile.User
+	if len(c.Profiles) > 0 {
+		if c.ActiveProfile != "" {
+			if profile, exists := c.Profiles[c.ActiveProfile]; exists {
+				return profile.User
+			}
+		}
+		if c.DefaultProfile != "" {
+			if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+				return profile.User
+			}
 		}
 	}
 	return c.User
@@ -636,9 +661,16 @@ func (c *Config) GetUser() string {
 
 // GetPassword returns the configured password.
 func (c *Config) GetPassword() string {
-	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
-		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
-			return profile.Password
+	if len(c.Profiles) > 0 {
+		if c.ActiveProfile != "" {
+			if profile, exists := c.Profiles[c.ActiveProfile]; exists {
+				return profile.Password
+			}
+		}
+		if c.DefaultProfile != "" {
+			if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+				return profile.Password
+			}
 		}
 	}
 	return c.Password
@@ -646,9 +678,16 @@ func (c *Config) GetPassword() string {
 
 // GetRealm returns the configured realm.
 func (c *Config) GetRealm() string {
-	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
-		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
-			return profile.Realm
+	if len(c.Profiles) > 0 {
+		if c.ActiveProfile != "" {
+			if profile, exists := c.Profiles[c.ActiveProfile]; exists {
+				return profile.Realm
+			}
+		}
+		if c.DefaultProfile != "" {
+			if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+				return profile.Realm
+			}
 		}
 	}
 	return c.Realm
@@ -656,9 +695,16 @@ func (c *Config) GetRealm() string {
 
 // GetTokenID returns the configured token ID.
 func (c *Config) GetTokenID() string {
-	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
-		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
-			return profile.TokenID
+	if len(c.Profiles) > 0 {
+		if c.ActiveProfile != "" {
+			if profile, exists := c.Profiles[c.ActiveProfile]; exists {
+				return profile.TokenID
+			}
+		}
+		if c.DefaultProfile != "" {
+			if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+				return profile.TokenID
+			}
 		}
 	}
 	return c.TokenID
@@ -666,9 +712,16 @@ func (c *Config) GetTokenID() string {
 
 // GetTokenSecret returns the configured token secret.
 func (c *Config) GetTokenSecret() string {
-	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
-		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
-			return profile.TokenSecret
+	if len(c.Profiles) > 0 {
+		if c.ActiveProfile != "" {
+			if profile, exists := c.Profiles[c.ActiveProfile]; exists {
+				return profile.TokenSecret
+			}
+		}
+		if c.DefaultProfile != "" {
+			if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+				return profile.TokenSecret
+			}
 		}
 	}
 	return c.TokenSecret
@@ -676,9 +729,16 @@ func (c *Config) GetTokenSecret() string {
 
 // GetInsecure returns the configured insecure flag.
 func (c *Config) GetInsecure() bool {
-	if len(c.Profiles) > 0 && c.DefaultProfile != "" {
-		if profile, exists := c.Profiles[c.DefaultProfile]; exists {
-			return profile.Insecure
+	if len(c.Profiles) > 0 {
+		if c.ActiveProfile != "" {
+			if profile, exists := c.Profiles[c.ActiveProfile]; exists {
+				return profile.Insecure
+			}
+		}
+		if c.DefaultProfile != "" {
+			if profile, exists := c.Profiles[c.DefaultProfile]; exists {
+				return profile.Insecure
+			}
 		}
 	}
 	return c.Insecure
