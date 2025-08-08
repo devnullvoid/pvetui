@@ -18,10 +18,22 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+      - name: Generate release notes from CHANGELOG.md
+        id: notes
+        run: |
+          set -euo pipefail
+          ver="${GITHUB_REF_NAME#v}"
+          tmp=/tmp/RELEASE_NOTES.md
+          section=$(sed -n "/^## \\[${ver}\\]/,/^## \\[/p" CHANGELOG.md || true)
+          printf "%s\n" "$section" | sed '/^## \[/d' | tail -n +2 > "$tmp"
+          if [ ! -s "$tmp" ]; then
+            echo "No changelog section found for ${ver} in CHANGELOG.md" >&2
+            exit 1
+          fi
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --clean
+          args: release --clean --release-notes /tmp/RELEASE_NOTES.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
