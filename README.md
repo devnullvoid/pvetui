@@ -13,6 +13,7 @@
   <a href="#installation">Installation</a> •
   <a href="#configuration">Configuration</a> •
   <a href="#usage">Usage</a> •
+  <a href="#theming">Theming</a> •
   <a href="#vnc-console-access">VNC Console</a>
 </p>
 
@@ -165,7 +166,7 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 | `/` | Search | `a` | Auto-refresh |
 | `?` | Help | `q` | Quit |
 
-*See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for detailed customization options (including macOS `Opt` key support)*
+Customize keys via the `key_bindings` section in your config. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
 
 ## Theming
 
@@ -185,17 +186,13 @@ Built-in noVNC client provides seamless console access:
 
 **Important**: VNC ports must be opened and accessible on the connected Proxmox server. The TUI creates a local WebSocket proxy that connects to the Proxmox VNC endpoint, so ensure your Proxmox server's VNC ports are properly configured and accessible from your client machine.
 
-## 🎹 Keybind Configuration {#keybind-configuration}
-
-Proxmox TUI supports fully customizable key bindings through the `key_bindings` section in your configuration file.
-
-**📖 For detailed key binding options, customization examples, and supported formats, see [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings)**
+<!-- Consolidated into Usage → Key Bindings -->
 
 ## 🔧 Requirements
 
 - Access to Proxmox VE cluster
 - SSH access for shell functionality
-- Go 1.20+ (for building from source)
+- Go 1.24+ (for building from source)
 
 ## 💡 Tips
 
@@ -227,7 +224,7 @@ See [docs/DOCKER.md](docs/DOCKER.md) for advanced usage.
 
 ## 🤝 Contributing
 
-Contributions welcome! Check the [issues page](https://github.com/devnull-cr/proxmox-tui/issues).
+Contributions welcome! Check the [issues page](https://github.com/devnullvoid/proxmox-tui/issues).
 
 ## 📝 License
 
