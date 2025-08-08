@@ -102,7 +102,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// CPU Usage
-	nd.SetCell(row, 0, tview.NewTableCell("🖥️ CPU").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell("🧮 CPU").SetTextColor(theme.Colors.HeaderText))
 
 	cpuValue := api.StringNA
 	cpuUsageColor := theme.Colors.Primary
@@ -155,7 +155,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// Remove the Rootfs row
 
 	// Uptime
-	nd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell("🕒 Uptime").SetTextColor(theme.Colors.HeaderText))
 
 	uptimeValue := api.StringNA
 	if node.Uptime > 0 {
@@ -167,7 +167,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// Version
-	nd.SetCell(row, 0, tview.NewTableCell("🛠️ Version").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell("🔧 Version").SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(node.Version).SetTextColor(theme.Colors.Primary))
 
 	row++
@@ -193,7 +193,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	}
 	// Level
 	if node.Level != "" {
-		nd.SetCell(row, 0, tview.NewTableCell("🔒 Level").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 0, tview.NewTableCell("📈 Level").SetTextColor(theme.Colors.HeaderText))
 		nd.SetCell(row, 1, tview.NewTableCell(node.Level).SetTextColor(theme.Colors.Primary))
 
 		row++
@@ -226,7 +226,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	yellowTag := theme.ColorToTag(theme.Colors.Warning)
 	vmText := fmt.Sprintf("[%s]%d running[-], [%s]%d stopped[-], [%s]%d templates[-]", greenTag, vmRunning, redTag, vmStopped, yellowTag, vmTemplates)
 
-	nd.SetCell(row, 0, tview.NewTableCell("🖥️ VMs").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell("💻 VMs").SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(vmText))
 
 	row++

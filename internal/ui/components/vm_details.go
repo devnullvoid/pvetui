@@ -143,7 +143,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// CPU Usage
-	vd.SetCell(row, 0, tview.NewTableCell("💻 CPU").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell("🧮 CPU").SetTextColor(theme.Colors.HeaderText))
 
 	cpuValue := api.StringNA
 	cpuUsageColor := theme.Colors.Primary
@@ -196,7 +196,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("⏱️ Uptime").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell("🕒 Uptime").SetTextColor(theme.Colors.HeaderText))
 
 	uptimeValue := api.StringNA
 	if vm.Uptime > 0 {
@@ -208,7 +208,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// Network IO summary
-	vd.SetCell(row, 0, tview.NewTableCell("🔄 Network IO").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell("🔃 Network IO").SetTextColor(theme.Colors.HeaderText))
 
 	if vm.NetIn > 0 || vm.NetOut > 0 {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("In: %s, Out: %s", utils.FormatBytes(vm.NetIn), utils.FormatBytes(vm.NetOut))).SetTextColor(theme.Colors.Primary))
@@ -219,7 +219,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// Disk IO summary
-	vd.SetCell(row, 0, tview.NewTableCell("️↔️ Disk IO").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell("🔄 Disk IO").SetTextColor(theme.Colors.HeaderText))
 
 	if vm.DiskRead > 0 || vm.DiskWrite > 0 {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("Read: %s, Write: %s", utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(theme.Colors.Primary))
@@ -231,7 +231,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	// Guest Agent (QEMU only)
 	if vm.Type == api.VMTypeQemu {
-		vd.SetCell(row, 0, tview.NewTableCell("👾 Guest Agent").SetTextColor(theme.Colors.HeaderText))
+		vd.SetCell(row, 0, tview.NewTableCell("🤖 Guest Agent").SetTextColor(theme.Colors.HeaderText))
 
 		agentStatus := "Not enabled"
 		agentColor := theme.Colors.Secondary
@@ -456,7 +456,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	}
 
 	// Configuration Section
-	vd.SetCell(row, 0, tview.NewTableCell("⚙️ Configuration").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell("🔨 Configuration").SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Primary))
 
 	row++
