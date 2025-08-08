@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Windows: Saving profiles could fail with "The system cannot find the path specified"**
   - Ensure config directory creation uses OS-agnostic path handling when saving from the config/profile wizards and menu actions.
   - Fixes saving when adding/editing profiles and when setting default profile on Windows.
+- **Windows: Locally built binaries sometimes failed to start**
+  - Align local Windows builds with release artifacts by disabling CGO and using baseline CPU target.
+  - Scoped compatibility flags to Windows/amd64 only to avoid affecting other platforms.
+- **UI: Reduce noisy page removal errors in logs**
+  - Remove pages only when present to avoid benign "Failed to remove … page" errors.
 
 ## [1.0.2] - 2025-08-07
 
