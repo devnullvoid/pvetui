@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Guest power actions:** Added Shutdown (graceful), Stop (force), and Reset (hard, QEMU-only) alongside Restart/Start in the guest context menu, with clear confirmations and shortcuts.
+
 ### Fixed
 - **Windows: Saving profiles could fail with "The system cannot find the path specified"**
   - Ensure config directory creation uses OS-agnostic path handling when saving from the config/profile wizards and menu actions.
@@ -85,7 +88,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2025-08-06
 
 ### Added
-- **Guest power actions:** Added Shutdown (graceful), Stop (force), and Reset (hard, QEMU-only) alongside Restart/Start in the guest context menu, with clear confirmations and shortcuts.
 - **Cobra CLI Framework**: Migrated from Go's standard flag package to cobra for enhanced CLI experience
   - Much better help text formatting with proper descriptions and organization
   - Environment variable support with automatic binding to `PROXMOX_*` variables
