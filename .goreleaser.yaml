@@ -41,5 +41,5 @@ changelog:
       - Merge branch
 
 release:
-  draft: false
+  draft: true
   prerelease: auto
