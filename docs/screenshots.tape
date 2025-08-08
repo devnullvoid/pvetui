@@ -12,7 +12,7 @@ Screenshot docs/screenshot-global-menu.png
 Escape
 Type "]"
 Sleep 500ms
-Type "jjjj"
+Type "jjjjj"
 Sleep 500ms
 Screenshot docs/screenshot-guests.png
 Type "m"
