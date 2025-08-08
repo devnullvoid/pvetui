@@ -108,7 +108,7 @@ func (h *Header) formatProfileText(profileName string) string {
 		return appName
 	}
 
-	return theme.ReplaceSemanticTags(fmt.Sprintf("%s - [info]%s[-]", appName, profileName))
+	return theme.ReplaceSemanticTags(fmt.Sprintf("%s [info][%s[][-]", appName, profileName))
 }
 
 // ShowActiveProfile displays the active profile in the header.
