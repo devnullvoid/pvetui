@@ -1,0 +1,45 @@
+version: 2
+
+before:
+  hooks:
+    - git submodule update --init --recursive
+
+builds:
+  - id: proxmox-tui
+    main: ./cmd/proxmox-tui
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/devnullvoid/proxmox-tui/internal/version.version={{.Version}}
+      - -X github.com/devnullvoid/proxmox-tui/internal/version.commit={{.Commit}}
+      - -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate={{.Date}}
+
+archives:
+  - id: default
+    builds: [proxmox-tui]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums_{{ .Version }}.txt"
+
+changelog:
+  use: git
+  filters:
+    exclude:
+      - '^chore:'
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  draft: false
+  prerelease: auto
