@@ -201,7 +201,8 @@ func generateVMShortcuts(menuItems []string) []rune {
 		case vmActionRestart:
 			shortcuts[i] = 'a'
 		case vmActionStop:
-			shortcuts[i] = 's'
+			// Use 'D' to avoid conflict with Open Shell ('s') and to pair with Shutdown ('d')
+			shortcuts[i] = 'D'
 		case vmActionReset:
 			shortcuts[i] = 'R'
 		case vmActionMigrate:
