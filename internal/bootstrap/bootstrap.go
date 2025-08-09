@@ -124,6 +124,8 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, nil
 	}
 
+	fmt.Println("🚀 Starting Proxmox TUI...")
+
 	// Initialize configuration
 	cfg := config.NewConfig()
 
@@ -282,8 +284,6 @@ func StartApplication(result *BootstrapResult) error {
 	if result == nil {
 		return fmt.Errorf("bootstrap result is nil")
 	}
-
-	fmt.Println("\n🚀 Starting Proxmox TUI...")
 
 	if result.ConfigPath != "" {
 		fmt.Printf("✅ Configuration loaded from %s\n", result.ConfigPath)

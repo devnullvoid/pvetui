@@ -96,7 +96,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	row++
 
-	nd.SetCell(row, 0, tview.NewTableCell("📍 IP").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(node.IP).SetTextColor(theme.Colors.Primary))
 
 	row++

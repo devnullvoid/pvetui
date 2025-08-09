@@ -309,7 +309,7 @@ func (c *Config) MergeWithFile(path string) error {
 
 		data = decrypted
 
-		fmt.Printf("🔐 Decrypted SOPS config file: %s\n", path)
+		fmt.Printf("🔐 Decrypted config file: %s\n", path)
 	}
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values
