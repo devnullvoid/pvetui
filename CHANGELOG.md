@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-08-09
+
 ### Added
 - **Guest power actions:** Added Shutdown (graceful), Stop (force), and Reset (hard, QEMU-only) alongside Restart/Start in the guest context menu, with clear confirmations and shortcuts.
 
