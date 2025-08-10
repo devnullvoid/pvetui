@@ -52,6 +52,22 @@ func (a *App) manualRefresh() {
 		copy(models.GlobalState.OriginalNodes, cluster.Nodes)
 		copy(models.GlobalState.FilteredNodes, cluster.Nodes)
 		a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+		// Rebuild VM list from fresh cluster data so new guests appear immediately
+		var vms []*api.VM
+		for _, n := range cluster.Nodes {
+			if n != nil {
+				for _, vm := range n.VMs {
+					if vm != nil {
+						vms = append(vms, vm)
+					}
+				}
+			}
+		}
+		models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
+		models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+		copy(models.GlobalState.OriginalVMs, vms)
+		copy(models.GlobalState.FilteredVMs, vms)
+		a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 		a.clusterStatus.Update(cluster)
 
 		// Start sequential enrichment in a goroutine (one node at a time, UI updated after each)

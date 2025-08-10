@@ -56,8 +56,13 @@ func (h *Header) SetText(text string) {
 
 // ShowLoading displays an animated loading indicator.
 func (h *Header) ShowLoading(message string) {
+	// Stop any existing loading first to avoid overlapping animations
 	if h.isLoading {
-		h.StopLoading() // Stop any existing loading animation
+		h.isLoading = false
+		select {
+		case h.stopLoading <- true:
+		default:
+		}
 	}
 
 	h.isLoading = true
@@ -86,6 +91,8 @@ func (h *Header) IsLoading() bool {
 
 // ShowSuccess displays a success message temporarily.
 func (h *Header) ShowSuccess(message string) {
+	// Mark not loading before changing text to prevent race with animateLoading
+	h.isLoading = false
 	h.StopLoading()
 	h.SetText(theme.ReplaceSemanticTags("[success]✓ " + message + "[-]"))
 
@@ -95,6 +102,7 @@ func (h *Header) ShowSuccess(message string) {
 
 // ShowError displays an error message temporarily.
 func (h *Header) ShowError(message string) {
+	h.isLoading = false
 	h.StopLoading()
 	h.SetText(theme.ReplaceSemanticTags("[error]✗ " + message + "[-]"))
 
@@ -113,6 +121,7 @@ func (h *Header) formatProfileText(profileName string) string {
 
 // ShowActiveProfile displays the active profile in the header.
 func (h *Header) ShowActiveProfile(profileName string) {
+	h.isLoading = false
 	h.StopLoading()
 	h.currentProfile = profileName // Store the profile name
 	h.SetText(h.formatProfileText(profileName))
@@ -158,6 +167,9 @@ func (h *Header) animateLoading() {
 		default:
 			if h.app != nil {
 				h.app.QueueUpdateDraw(func() {
+					if !h.isLoading {
+						return
+					}
 					spinnerChar := spinner[index]
 					h.SetText(theme.ReplaceSemanticTags(fmt.Sprintf("[info]%s %s[-]", spinnerChar, h.loadingText)))
 				})

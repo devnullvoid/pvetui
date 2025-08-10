@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -76,7 +77,18 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 
 	// Fix for tview suspend/resume issue - sync the application after suspend
 	s.app.Sync()
-	// Don't do any UI operations immediately after suspend/resume - let it fully restore first
+	// Give the terminal a brief moment to fully restore before UI operations to avoid blank screens
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		// Clear API cache, then close the selector overlay and refresh
+		s.app.client.ClearAPICache()
+		s.app.QueueUpdateDraw(func() {
+			// Close selector to return to main UI before refreshing
+			s.Hide()
+		})
+		// Kick off a full refresh; it manages its own UI updates
+		s.app.manualRefresh()
+	}()
 }
 
 // onSearchChanged is called when the search input changes.
