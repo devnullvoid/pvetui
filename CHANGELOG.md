@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Community Scripts: returning from installation no longer blanks the screen. The selector now closes before refresh and a brief post-resume delay ensures stable UI restore.
 - Data Refresh: new containers/VMs created by community scripts are shown immediately without restarting. After install we trigger a hard refresh (cache cleared) and the manual refresh rebuilds the guest list from fresh cluster data.
 - Header: eliminated brief spinner flash that could reappear after success/error messages.
+- Manual Refresh stability: VM list now rebuilt strictly from cluster resources; filtering preserved across consecutive refreshes; removed VM details flicker and selection jump by stabilizing selection and suppressing programmatic callbacks during list rebuild.
 
 ## [1.0.3] - 2025-08-09
 

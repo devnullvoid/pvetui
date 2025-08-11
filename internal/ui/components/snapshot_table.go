@@ -1,6 +1,8 @@
 package components
 
 import (
+	"sort"
+
 	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
 	"github.com/gdamore/tcell/v2"
@@ -83,8 +85,36 @@ func (st *SnapshotTable) DisplaySnapshots(snapshots []api.Snapshot) {
 		return
 	}
 
+	// Build sorted view: oldest at top, newest at bottom; place "current" (NOW) last
+	display := make([]api.Snapshot, 0, len(snapshots))
+	var current *api.Snapshot
+	for _, s := range snapshots {
+		if s.Name == CurrentSnapshotName {
+			ss := s
+			current = &ss
+		} else {
+			display = append(display, s)
+		}
+	}
+	sort.Slice(display, func(i, j int) bool {
+		// If SnapTime is zero, treat as oldest
+		if display[i].SnapTime.IsZero() && display[j].SnapTime.IsZero() {
+			return display[i].Name < display[j].Name
+		}
+		if display[i].SnapTime.IsZero() {
+			return true
+		}
+		if display[j].SnapTime.IsZero() {
+			return false
+		}
+		return display[i].SnapTime.Before(display[j].SnapTime)
+	})
+	if current != nil {
+		display = append(display, *current)
+	}
+
 	// Add snapshot rows
-	for i, snapshot := range snapshots {
+	for i, snapshot := range display {
 		row := i + 1
 
 		// Handle "current" as "NOW" like the web UI

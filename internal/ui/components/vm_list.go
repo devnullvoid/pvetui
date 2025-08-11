@@ -21,6 +21,8 @@ type VMList struct {
 	onSelect  func(*api.VM)
 	onChanged func(*api.VM)
 	app       *App
+	// suppressCallbacks prevents onChanged from firing during programmatic updates
+	suppressCallbacks bool
 }
 
 var _ VMListComponent = (*VMList)(nil)
@@ -54,6 +56,18 @@ func (vl *VMList) SetApp(app *App) {
 
 // SetVMs updates the list with the provided VMs.
 func (vl *VMList) SetVMs(vms []*api.VM) {
+	// Preserve previously selected VM to restore selection after rebuilding
+	var prevID int
+	var prevNode string
+	if sel := vl.GetSelectedVM(); sel != nil {
+		prevID = sel.ID
+		prevNode = sel.Node
+	} else {
+		prevID = -1
+		prevNode = ""
+	}
+
+	vl.suppressCallbacks = true
 	vl.Clear()
 	vl.vms = vms
 
@@ -109,6 +123,24 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			vl.AddItem(mainText, secondaryText, 0, nil)
 		}
 	}
+
+	// Restore selection to previously selected VM if present
+	restoreIdx := -1
+	if prevID >= 0 {
+		for i, vm := range sortedVMs {
+			if vm != nil && vm.ID == prevID && vm.Node == prevNode {
+				restoreIdx = i
+				break
+			}
+		}
+	}
+	if restoreIdx == -1 && len(sortedVMs) > 0 {
+		restoreIdx = 0
+	}
+	if restoreIdx >= 0 {
+		vl.List.SetCurrentItem(restoreIdx)
+	}
+	vl.suppressCallbacks = false
 }
 
 // GetSelectedVM returns the currently selected VM.
@@ -144,6 +176,9 @@ func (vl *VMList) SetVMChangedFunc(handler func(*api.VM)) {
 	vl.onChanged = handler
 
 	vl.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
+		if vl.suppressCallbacks {
+			return
+		}
 		if index >= 0 && index < len(vl.vms) {
 			if vl.onChanged != nil {
 				vl.onChanged(vl.vms[index])
