@@ -114,8 +114,10 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 				mainText = statusIndicator + fmt.Sprintf("[secondary]%s[-]", vmText)
 			} else {
 				// For running VMs, use normal formatting
-				mainText = statusIndicator + vmText
+				mainText = statusIndicator + fmt.Sprintf("[primary]%s[-]", vmText)
 			}
+
+			mainText = theme.ReplaceSemanticTags(mainText)
 
 			// Store node info in secondary text (not visible but used for search functionality)
 			secondaryText := fmt.Sprintf("Node: %s Type: %s", vm.Node, vm.Type)
