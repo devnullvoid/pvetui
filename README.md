@@ -138,6 +138,18 @@ Access the profile manager through the global menu.
 2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
 
+> Note: Proxmox displays the Token ID in the form `user@realm!tokenid` (for example: `root@pam!mytoken`). When configuring Proxmox TUI, split those parts into separate fields:
+
+```yaml
+profiles:
+  default:
+    addr: "https://your-proxmox-host:8006"
+    user: "root"          # from user@realm!tokenid → user
+    realm: "pam"          # from user@realm!tokenid → realm
+    token_id: "mytoken"   # from user@realm!tokenid → tokenid
+    token_secret: "YOUR_SECRET"
+```
+
 ### Encrypted Configuration
 Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `-config` and it will decrypt automatically.
 

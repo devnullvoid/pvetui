@@ -88,14 +88,16 @@ Access the profile manager through the global menu (`g` key) or context menus.
 2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
 
+> Important: Proxmox shows the Token ID as `user@realm!tokenid` (e.g., `root@pam!mytoken`). Split this into fields when configuring:
+
 ```yaml
 profiles:
   default:
     addr: "https://your-proxmox-host:8006"
-    user: "root"
-    token_id: "your-token-id"
-    token_secret: "your-secret"
-    realm: "pam"
+    user: "root"          # from user@realm!tokenid → user
+    realm: "pam"          # from user@realm!tokenid → realm
+    token_id: "mytoken"   # from user@realm!tokenid → tokenid
+    token_secret: "YOUR_SECRET"
     insecure: false
     ssh_user: "root"
 ```
