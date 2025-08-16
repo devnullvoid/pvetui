@@ -212,9 +212,9 @@ func (a *App) waitForVMOperationCompletionWithRefresh(vm *api.VM, operationName 
 		if err == nil && freshVM != nil {
 			if strings.ToLower(operationName) == "stopping" && freshVM.Status != api.VMStatusRunning {
 				break
-			}
-
-			if strings.ToLower(operationName) == "starting" && freshVM.Status == api.VMStatusRunning {
+			} else if strings.ToLower(operationName) == "shutting down" && freshVM.Status != api.VMStatusRunning {
+				break
+			} else if strings.ToLower(operationName) == "starting" && freshVM.Status == api.VMStatusRunning {
 				break
 			}
 		}

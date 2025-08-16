@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -100,91 +101,143 @@ func (a *App) applyInitialClusterUpdate(cluster *api.Cluster) {
 // enrichNodesSequentially enriches node data one-by-one and finalizes the refresh
 func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
 	go func() {
-		enrichedNodes := make([]*api.Node, len(cluster.Nodes))
-		copy(enrichedNodes, cluster.Nodes)
+		// Collect current node filter to avoid repeated lookups
+		nodeState := models.GlobalState.GetSearchState(api.PageNodes)
+		activeFilter := ""
+		if nodeState != nil {
+			activeFilter = nodeState.Filter
+		}
 
+		// Enrich nodes incrementally with minimal UI updates
 		for i, node := range cluster.Nodes {
 			if node == nil {
-				enrichedNodes[i] = nil
-
 				continue
 			}
 
 			freshNode, err := a.client.RefreshNodeData(node.Name)
 			if err == nil && freshNode != nil {
-				enrichedNodes[i] = freshNode
-			} else {
-				enrichedNodes[i] = node
-			}
-
-			a.QueueUpdateDraw(func() {
-				// Update original nodes with enriched data
-				models.GlobalState.OriginalNodes = make([]*api.Node, len(enrichedNodes))
-				copy(models.GlobalState.OriginalNodes, enrichedNodes)
-
-				// Respect active node filter during incremental updates to avoid UI flash
-				if nodeState := models.GlobalState.GetSearchState(api.PageNodes); nodeState != nil && nodeState.Filter != "" {
-					models.FilterNodes(nodeState.Filter)
-				} else {
-					models.GlobalState.FilteredNodes = make([]*api.Node, len(enrichedNodes))
-					copy(models.GlobalState.FilteredNodes, enrichedNodes)
+				// Preserve VMs from original cluster data since RefreshNodeData doesn't include them
+				if cluster.Nodes[i] != nil {
+					freshNode.VMs = cluster.Nodes[i].VMs
 				}
-				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 
-				for _, n := range enrichedNodes {
-					if n != nil && n.Version != "" {
-						cluster.Version = fmt.Sprintf("Proxmox VE %s", n.Version)
+				// Update only the specific node index in global state
+				models.GlobalState.OriginalNodes[i] = freshNode
 
-						break
+				// Update filtered list only if this node matches current filter
+				shouldUpdateFiltered := false
+				if activeFilter == "" {
+					// No filter active, always update
+					models.GlobalState.FilteredNodes[i] = freshNode
+					shouldUpdateFiltered = true
+				} else {
+					// Check if node matches filter before updating filtered list
+					if a.nodeMatchesFilter(freshNode, activeFilter) {
+						models.FilterNodes(activeFilter) // Re-apply filter efficiently
+						shouldUpdateFiltered = true
 					}
 				}
 
-				a.clusterStatus.Update(cluster)
-				// Keep selection stable during refresh (avoid updating VM details repeatedly)
-				nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
-				// Do not restore VM selection during incremental node updates to prevent flicker
-				a.restoreSelection(false, 0, "", nil,
-					hasSelectedNode, selectedNodeName, nodeSearchState)
-				// Only update node details if the enriched node is the selected node
+				// Only update UI if filtered list changed or this is the selected node
 				selected := a.nodeList.GetSelectedNode()
-				if selected != nil && enrichedNodes[i] != nil && selected.Name == enrichedNodes[i].Name {
-					a.nodeDetails.Update(enrichedNodes[i], enrichedNodes)
+				if shouldUpdateFiltered || (selected != nil && selected.Name == freshNode.Name) {
+					a.QueueUpdateDraw(func() {
+						if shouldUpdateFiltered {
+							a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+						}
+						// Update details if this is the currently selected node
+						if selected != nil && selected.Name == freshNode.Name {
+							a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
+						}
+					})
 				}
-			})
+			}
 		}
 
-		// Final UI update and rest of refresh logic
+		// Final update: rebuild VMs, cluster version, status, and complete refresh
 		a.QueueUpdateDraw(func() {
-			// Capture current search states
-			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
-			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
-
-			// Re-apply node filter to ensure consistency after all enrichments
-			if nodeSearchState != nil && nodeSearchState.Filter != "" {
-				models.FilterNodes(nodeSearchState.Filter)
+			// Rebuild VM list from enriched nodes (which now preserve VMs from original cluster data)
+			var vms []*api.VM
+			for _, n := range models.GlobalState.OriginalNodes {
+				if n != nil {
+					for _, vm := range n.VMs {
+						if vm != nil {
+							vms = append(vms, vm)
+						}
+					}
+				}
 			}
-			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 
-			// Do not rebuild VM list here to avoid flicker; it already comes from cluster resources
-			// Just ensure current filtered VMs are shown
-			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			// Update global VM state with enriched data
+			models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
+			copy(models.GlobalState.OriginalVMs, vms)
+
+			// Apply VM filter if active
+			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+			if vmSearchState != nil && vmSearchState.Filter != "" {
+				models.FilterVMs(vmSearchState.Filter)
+				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			} else {
+				models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+				copy(models.GlobalState.FilteredVMs, vms)
+				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			}
+
+			// Update cluster version from enriched nodes
+			for _, n := range models.GlobalState.OriginalNodes {
+				if n != nil && n.Version != "" {
+					cluster.Version = fmt.Sprintf("Proxmox VE %s", n.Version)
+					break
+				}
+			}
+			a.clusterStatus.Update(cluster)
+
+			// Final selection restore and search UI restoration
+			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
 
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
 			if node := a.nodeList.GetSelectedNode(); node != nil {
-				a.nodeDetails.Update(node, enrichedNodes)
+				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
 			}
-
-			// Avoid updating VM details here; they already reflect current selection
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 			a.header.ShowSuccess("Data refreshed successfully")
 			a.footer.SetLoading(false)
-			// Refresh tasks as well
 			a.loadTasksData()
 		})
 	}()
+}
+
+// nodeMatchesFilter checks if a node matches the given filter string
+func (a *App) nodeMatchesFilter(node *api.Node, filter string) bool {
+	if filter == "" || node == nil {
+		return true
+	}
+
+	filter = strings.ToLower(filter)
+
+	// Check node name
+	if strings.Contains(strings.ToLower(node.Name), filter) {
+		return true
+	}
+
+	// Check node IP
+	if strings.Contains(strings.ToLower(node.IP), filter) {
+		return true
+	}
+
+	// Check node status
+	statusText := "offline"
+	if node.Online {
+		statusText = "online"
+	}
+	if strings.Contains(statusText, filter) {
+		return true
+	}
+
+	return false
 }
 
 // refreshNodeData refreshes data for a specific node and updates the UI.

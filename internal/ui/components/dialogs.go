@@ -212,11 +212,17 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 // performMigrationOperation performs an asynchronous VM migration operation.
 func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOptions) {
 	// Set pending state immediately for visual feedback
-	migrationTypeStr := "offline"
+	const (
+		migrationTypeOffline = "offline"
+		migrationTypeRestart = "restart"
+		migrationTypeOnline  = "online"
+	)
+
+	migrationTypeStr := migrationTypeOffline
 	if vm.Type == api.VMTypeLXC {
-		migrationTypeStr = "restart"
+		migrationTypeStr = migrationTypeRestart
 	} else if options.Online != nil && *options.Online {
-		migrationTypeStr = "online"
+		migrationTypeStr = migrationTypeOnline
 	}
 
 	models.GlobalState.SetVMPending(vm, "Migrating")

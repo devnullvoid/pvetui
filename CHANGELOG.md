@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Header: eliminated brief spinner flash that could reappear after success/error messages.
 - Manual Refresh stability: VM list now rebuilt strictly from cluster resources; filtering preserved across consecutive refreshes; removed VM details flicker and selection jump by stabilizing selection and suppressing programmatic callbacks during list rebuild.
 - VM delete selection fallback: after deleting a VM, selection now moves to the first remaining VM and the details panel updates accordingly; clears details when the list becomes empty.
+- Manual Refresh optimization: refactored complex refresh logic into separate functions for better maintainability; reduced UI update calls and improved incremental node enrichment; fixed regression where VM list would become empty after refresh due to enriched nodes not preserving VM data from original cluster resources.
 
 ## [1.0.3] - 2025-08-09
 
