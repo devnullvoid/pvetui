@@ -144,6 +144,10 @@ func (h *Header) clearMessageAfterDelay(delay time.Duration) {
 
 		if h.app != nil {
 			h.app.QueueUpdateDraw(func() {
+				// Avoid overriding an active loading indicator that may have started after ShowSuccess/ShowError
+				if h.isLoading {
+					return
+				}
 				// Restore the current profile if it exists, otherwise reset to default
 				if h.currentProfile != "" {
 					h.restoreProfile()

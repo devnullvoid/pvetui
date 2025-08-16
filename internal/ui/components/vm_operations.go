@@ -96,7 +96,14 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 		a.QueueUpdateDraw(func() {
 			a.header.ShowSuccess(fmt.Sprintf("%s %s completed successfully", operationName, vm.Name))
 		})
-		time.Sleep(2 * time.Second)
+		time.Sleep(1500 * time.Millisecond)
+		a.QueueUpdateDraw(func() {
+			// Only show the pre-refresh loading if we're not already loading for another reason
+			if !a.header.IsLoading() {
+				a.header.ShowLoading("Preparing refresh...")
+			}
+		})
+		time.Sleep(500 * time.Millisecond)
 		a.QueueUpdateDraw(func() {
 			a.refreshVMData(vm)
 			// Also refresh tasks to show any new tasks created by the operation
@@ -146,6 +153,15 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 		} else {
 			a.QueueUpdateDraw(func() {
 				a.header.ShowSuccess(fmt.Sprintf("Successfully deleted %s", vm.Name))
+				// Schedule a short success first, then show pre-refresh loading only if not already loading
+				go func() {
+					time.Sleep(2005 * time.Millisecond)
+					a.QueueUpdateDraw(func() {
+						if !a.header.IsLoading() {
+							a.header.ShowLoading("Preparing refresh...")
+						}
+					})
+				}()
 			})
 			a.client.ClearAPICache()
 
