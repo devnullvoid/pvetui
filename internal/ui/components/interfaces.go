@@ -65,6 +65,7 @@ type HeaderComponent interface {
 	IsLoading() bool
 	ShowSuccess(string)
 	ShowError(string)
+	ShowWarning(string)
 	SetTitle(string)
 	ShowActiveProfile(string)
 	GetCurrentProfile() string

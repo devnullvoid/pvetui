@@ -110,6 +110,16 @@ func (h *Header) ShowError(message string) {
 	h.clearMessageAfterDelay(3 * time.Second)
 }
 
+// ShowWarning displays a warning message temporarily.
+func (h *Header) ShowWarning(message string) {
+	h.isLoading = false
+	h.StopLoading()
+	h.SetText(theme.ReplaceSemanticTags("[warning]⚠ " + message + "[-]"))
+
+	// Clear the message after 3 seconds
+	h.clearMessageAfterDelay(3 * time.Second)
+}
+
 // formatProfileText creates the formatted header text for a profile.
 func (h *Header) formatProfileText(profileName string) string {
 	if profileName == "" {

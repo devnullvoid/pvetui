@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -164,13 +165,19 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 					// Show loading indicator while waiting for API changes to propagate
 					app.header.ShowLoading("Waiting for configuration changes to propagate...")
 
-					// Wait for API changes to fully propagate before refreshing
-					// This ensures the updated name appears in the cluster resources
+					// Poll Proxmox API to verify the name change has propagated
+					// This is more professional than arbitrary delays
 					go func() {
-						time.Sleep(6 * time.Second)
-						app.QueueUpdateDraw(func() {
-							app.manualRefresh()
-						})
+						// Store the expected new name
+						expectedName := ""
+						if vm.Type == api.VMTypeQemu && page.config.Name != "" {
+							expectedName = page.config.Name
+						} else if vm.Type == api.VMTypeLXC && page.config.Hostname != "" {
+							expectedName = page.config.Hostname
+						}
+
+						// Use the dedicated polling function
+						app.pollForConfigChange(vm, expectedName)
 					}()
 				}
 			})
@@ -376,4 +383,57 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 	})
 	app.pages.AddPage("resizeStorage", modal, true, true)
 	app.SetFocus(modal)
+}
+
+// pollForConfigChange polls the Proxmox API to verify that a configuration change has propagated
+// to both the config endpoint and the cluster resources endpoint before refreshing the UI.
+// This prevents race conditions where config is updated but cluster resources still show old names.
+func (app *App) pollForConfigChange(vm *api.VM, expectedName string) {
+	// Poll every 500ms for up to 15 seconds (increased timeout for cluster resources propagation)
+	maxAttempts := 30
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		time.Sleep(500 * time.Millisecond)
+
+		// First check if the config endpoint has the new name using the existing API function
+		config, err := app.client.GetVMConfig(vm)
+		configUpdated := false
+
+		if err == nil && config != nil {
+			if vm.Type == api.VMTypeQemu && config.Name == expectedName {
+				configUpdated = true
+			} else if vm.Type == api.VMTypeLXC && config.Hostname == expectedName {
+				configUpdated = true
+			}
+		}
+
+		// If config is updated, also check if cluster resources reflect the change
+		if configUpdated {
+			// Use the existing GetVmList function to check cluster resources
+			vmList, err := app.client.GetVmList(context.Background())
+			if err == nil {
+				for _, vmData := range vmList {
+					if resType, exists := vmData["type"].(string); exists && resType == vm.Type {
+						if nodeName, exists := vmData["node"].(string); exists && nodeName == vm.Node {
+							if vmID, exists := vmData["vmid"].(float64); exists && int(vmID) == vm.ID {
+								if name, exists := vmData["name"].(string); exists && name == expectedName {
+									// Both config and cluster resources show the new name, we can proceed
+									app.QueueUpdateDraw(func() {
+										app.manualRefresh()
+									})
+									return
+								}
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// If we timeout, refresh anyway and show a warning
+	app.QueueUpdateDraw(func() {
+		app.header.ShowWarning("Configuration change propagation timeout, refreshing anyway...")
+		app.manualRefresh()
+	})
 }

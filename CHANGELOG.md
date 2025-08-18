@@ -15,8 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changes are saved to Proxmox and reflected immediately in the UI
   - Input validation prevents invalid hostname characters (underscores, spaces, special chars)
   - Validates hostname format (no leading/trailing hyphens, proper length limits)
-  - Fixed UI refresh issue with targeted delay for config updates, keeping general refresh responsive
-  - Added loading indicator during API propagation delay for better user experience
+  - Fixed UI refresh issue with professional polling approach that verifies API changes before refreshing
+  - Added loading indicators during API propagation delay for better user experience
+  - Enhanced header component with ShowWarning method for better user feedback
+  - Refactored polling functionality into dedicated function for improved maintainability
+  - Fixed race condition by polling both config and cluster resources endpoints to ensure complete propagation
 - **Cross-platform config and cache paths**: Added native support for Windows config/cache directories
   - Windows: Config in `%APPDATA%/proxmox-tui`, Cache in `%LOCALAPPDATA%/proxmox-tui`
   - macOS: Uses XDG-style paths (`~/.config/proxmox-tui`, `~/.cache/proxmox-tui`) for consistency with other TUI applications
