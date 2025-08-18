@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Maintains backward compatibility with existing XDG functions
   - Environment variables still override platform defaults when set
 
+### Breaking Changes
+- **Windows/macOS users**: Existing config files in XDG-style paths need to be moved to new platform-specific locations
+  - **Windows**: Move from `~/.config/proxmox-tui/` to `%APPDATA%/proxmox-tui/`
+  - **macOS**: Move from `~/.config/proxmox-tui/` to `~/Library/Application Support/proxmox-tui/`
+  - **Linux**: No changes required - existing paths continue to work
+  - The application will automatically use the new paths on first run after this update
+
 ### Fixed
 - Community Scripts: returning from installation no longer blanks the screen. The selector now closes before refresh and a brief post-resume delay ensures stable UI restore.
 - Data Refresh: new containers/VMs created by community scripts are shown immediately without restarting. After install we trigger a hard refresh (cache cleared) and the manual refresh rebuilds the guest list from fresh cluster data.
