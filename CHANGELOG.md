@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Cross-platform config and cache paths**: Added native support for Windows and macOS config/cache directories
+  - Windows: Config in `%APPDATA%/proxmox-tui`, Cache in `%LOCALAPPDATA%/proxmox-tui`
+  - macOS: Config in `~/Library/Application Support/proxmox-tui`, Cache in `~/Library/Caches/proxmox-tui`
+  - Linux: Maintains existing XDG support (`~/.config/proxmox-tui`, `~/.cache/proxmox-tui`)
+  - Maintains backward compatibility with existing XDG functions
+  - Environment variables still override platform defaults when set
+
 ### Fixed
 - Community Scripts: returning from installation no longer blanks the screen. The selector now closes before refresh and a brief post-resume delay ensures stable UI restore.
 - Data Refresh: new containers/VMs created by community scripts are shown immediately without restarting. After install we trigger a hard refresh (cache cleared) and the manual refresh rebuilds the guest list from fresh cluster data.

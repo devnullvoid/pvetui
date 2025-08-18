@@ -7,8 +7,9 @@
 //  3. Configuration files (YAML format)
 //  4. Default values (lowest priority)
 //
-// The package follows XDG Base Directory Specification for configuration and
-// cache file locations, providing a clean and predictable user experience.
+// The package follows platform-appropriate standards for configuration and
+// cache file locations, providing a clean and predictable user experience across
+// Windows, macOS, and Linux.
 //
 // Configuration Sources:
 //
@@ -21,7 +22,7 @@
 //   - PROXMOX_REALM: Authentication realm (default: "pam")
 //   - PROXMOX_INSECURE: Skip TLS verification ("true"/"false")
 //   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
-//   - PROXMOX_CACHE_DIR: Custom cache directory path
+//   - PROXMOX_CACHE_DIR: Custom cache directory (overrides platform defaults)
 //
 // Configuration File Format (YAML):
 //
@@ -31,14 +32,15 @@
 //	realm: "pam"
 //	insecure: false
 //	debug: true
-//	cache_dir: "/custom/cache/path"
+//	cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 //
-// XDG Directory Support:
+// Platform Directory Support:
 //
 // The package automatically determines appropriate directories for configuration
-// and cache files based on XDG specifications:
-//   - Config: $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui
-//   - Cache: $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+// and cache files based on platform standards:
+//   - Windows: Config in %APPDATA%/proxmox-tui, Cache in %LOCALAPPDATA%/proxmox-tui
+//   - macOS: Config in ~/Library/Application Support/proxmox-tui, Cache in ~/Library/Caches/proxmox-tui
+//   - Linux: Config in $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui, Cache in $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
 //
 // Authentication Methods:
 //
@@ -233,7 +235,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 //   - PROXMOX_INSECURE: Skip TLS verification ("true"/"false")
 //   - PROXMOX_SSH_USER: SSH username
 //   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
-//   - PROXMOX_CACHE_DIR: Custom cache directory
+//   - PROXMOX_CACHE_DIR: Custom cache directory (overrides platform defaults)
 //
 // The returned Config should typically be further configured with command-line
 // flags and/or configuration files before validation.
@@ -755,8 +757,8 @@ func (c *Config) SetDefaults() {
 	}
 
 	if c.CacheDir == "" {
-		// Use XDG_CACHE_HOME for cache directory
-		c.CacheDir = getXDGCacheDir()
+		// Use platform-appropriate cache directory
+		c.CacheDir = getCacheDir()
 	}
 
 	// Apply default key bindings if not set

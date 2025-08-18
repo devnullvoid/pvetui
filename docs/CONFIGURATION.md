@@ -40,7 +40,7 @@ profiles:
 
 default_profile: "default"
 debug: false
-cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 
 # Key bindings customization
 key_bindings:
@@ -250,12 +250,14 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 Customize the cache directory location:
 
 ```yaml
-cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 ```
 
 ### Debug Mode
 
 Enable debug logging:
+
+> **Note**: logs can be found in the cache directory
 
 ```yaml
 debug: true
@@ -282,7 +284,10 @@ profiles:
 Proxmox TUI looks for configuration files in the following order:
 
 1. File specified with `-config` flag
-2. `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
+2. Platform-appropriate config directory:
+   - **Windows**: `%APPDATA%/proxmox-tui/config.yml`
+   - **macOS**: `~/Library/Application Support/proxmox-tui/config.yml`
+   - **Linux**: `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
 3. `./config.yml` (current directory)
 
 ## First Run & Interactive Config Wizard

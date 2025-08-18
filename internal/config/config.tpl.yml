@@ -22,7 +22,7 @@ profiles:
 default_profile: default
 
 debug: false
-# cache_dir: "/custom/cache/path"  # Optional: defaults to $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+# cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 
 key_bindings:
   switch_view: "]"

@@ -469,6 +469,14 @@ func TestGetXDGConfigDir(t *testing.T) {
 	testXDGPathHelper(t, "XDG_CONFIG_HOME", getXDGConfigDir, "/home/user/.config/proxmox-tui")
 }
 
+func TestGetCacheDir(t *testing.T) {
+	testXDGPathHelper(t, "XDG_CACHE_HOME", getCacheDir, "/home/user/.cache/proxmox-tui")
+}
+
+func TestGetConfigDir(t *testing.T) {
+	testXDGPathHelper(t, "XDG_CONFIG_HOME", getConfigDir, "/home/user/.config/proxmox-tui")
+}
+
 func TestValidateKeyBindings(t *testing.T) {
 	t.Run("duplicate", func(t *testing.T) {
 		kb := KeyBindings{SwitchView: "F1", NodesPage: "F1"}

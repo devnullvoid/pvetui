@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/devnullvoid/proxmox-tui/internal/logger"
@@ -19,12 +20,12 @@ var templateFS embed.FS
 
 // GetDefaultConfigPath returns the default configuration file path.
 func GetDefaultConfigPath() string {
-	return filepath.Join(getXDGConfigDir(), "config.yml")
+	return filepath.Join(getConfigDir(), "config.yml")
 }
 
 // CreateDefaultConfigFile creates a default configuration file and returns its path.
 func CreateDefaultConfigFile() (string, error) {
-	configDir := getXDGConfigDir()
+	configDir := getConfigDir()
 	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return "", fmt.Errorf("create config directory: %w", err)
 	}
@@ -63,32 +64,78 @@ func FindDefaultConfigPath() (string, bool) {
 	return "", false
 }
 
+// getConfigDir returns the appropriate config directory path for the current platform.
+func getConfigDir() string {
+	switch runtime.GOOS {
+	case "windows":
+		// Windows: Use %APPDATA% (Roaming) for config files
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			return filepath.Join(appData, "proxmox-tui")
+		}
+		// Fallback to user home directory
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(homeDir, "AppData", "Roaming", "proxmox-tui")
+		}
+	case "darwin":
+		// macOS: Use ~/Library/Application Support for config files
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(homeDir, "Library", "Application Support", "proxmox-tui")
+		}
+	default:
+		// Linux and other Unix-like systems: Use XDG Base Directory Specification
+		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+			return filepath.Join(xdgConfig, "proxmox-tui")
+		}
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(homeDir, ".config", "proxmox-tui")
+		}
+	}
+
+	// Ultimate fallback
+	return filepath.Join(".config", "proxmox-tui")
+}
+
+// getCacheDir returns the appropriate cache directory path for the current platform.
+func getCacheDir() string {
+	switch runtime.GOOS {
+	case "windows":
+		// Windows: Use %LOCALAPPDATA% for cache files
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			return filepath.Join(localAppData, "proxmox-tui")
+		}
+		// Fallback to user home directory
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(homeDir, "AppData", "Local", "proxmox-tui")
+		}
+	case "darwin":
+		// macOS: Use ~/Library/Caches for cache files
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(homeDir, "Library", "Caches", "proxmox-tui")
+		}
+	default:
+		// Linux and other Unix-like systems: Use XDG Base Directory Specification
+		if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
+			return filepath.Join(xdgCache, "proxmox-tui")
+		}
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(homeDir, ".cache", "proxmox-tui")
+		}
+	}
+
+	// Ultimate fallback
+	return filepath.Join(".cache", "proxmox-tui")
+}
+
 // getXDGConfigDir returns the XDG config directory path.
+// * Deprecated: Use getConfigDir() instead for cross-platform support
 func getXDGConfigDir() string {
-	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		return filepath.Join(xdgConfig, "proxmox-tui")
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".config", "proxmox-tui")
-	}
-
-	return filepath.Join(homeDir, ".config", "proxmox-tui")
+	return getConfigDir()
 }
 
 // getXDGCacheDir returns the XDG cache directory path.
+// * Deprecated: Use getCacheDir() instead for cross-platform support
 func getXDGCacheDir() string {
-	if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
-		return filepath.Join(xdgCache, "proxmox-tui")
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".cache", "proxmox-tui")
-	}
-
-	return filepath.Join(homeDir, ".cache", "proxmox-tui")
+	return getCacheDir()
 }
 
 // IsSOPSEncrypted checks if a file is SOPS-encrypted.
