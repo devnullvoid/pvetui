@@ -286,11 +286,11 @@ Proxmox TUI looks for configuration files in the following order:
 1. File specified with `-config` flag
 2. Platform-appropriate config directory:
    - **Windows**: `%APPDATA%/proxmox-tui/config.yml`
-   - **macOS**: `~/Library/Application Support/proxmox-tui/config.yml`
+   - **macOS**: `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
    - **Linux**: `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
 3. `./config.yml` (current directory)
 
-> **Important**: If you're upgrading from a previous version on Windows or macOS and have existing config files in `~/.config/proxmox-tui/`, you'll need to move them to the new platform-specific location. The application will automatically use the new paths on first run after this update.
+> **Important**: If you're upgrading from a previous version on Windows and have existing config files in `~/.config/proxmox-tui/`, you'll need to move them to the new platform-specific location (`%APPDATA%/proxmox-tui/`). macOS and Linux users can continue using their existing config files without any changes.
 
 ## First Run & Interactive Config Wizard
 

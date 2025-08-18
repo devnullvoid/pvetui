@@ -76,13 +76,8 @@ func getConfigDir() string {
 		if homeDir, err := os.UserHomeDir(); err == nil {
 			return filepath.Join(homeDir, "AppData", "Roaming", "proxmox-tui")
 		}
-	case "darwin":
-		// macOS: Use ~/Library/Application Support for config files
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, "Library", "Application Support", "proxmox-tui")
-		}
 	default:
-		// Linux and other Unix-like systems: Use XDG Base Directory Specification
+		// macOS, Linux, and other Unix-like systems: Use XDG Base Directory Specification
 		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
 			return filepath.Join(xdgConfig, "proxmox-tui")
 		}
@@ -107,13 +102,8 @@ func getCacheDir() string {
 		if homeDir, err := os.UserHomeDir(); err == nil {
 			return filepath.Join(homeDir, "AppData", "Local", "proxmox-tui")
 		}
-	case "darwin":
-		// macOS: Use ~/Library/Caches for cache files
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, "Library", "Caches", "proxmox-tui")
-		}
 	default:
-		// Linux and other Unix-like systems: Use XDG Base Directory Specification
+		// macOS, Linux, and other Unix-like systems: Use XDG Base Directory Specification
 		if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
 			return filepath.Join(xdgCache, "proxmox-tui")
 		}

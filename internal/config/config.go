@@ -39,7 +39,7 @@
 // The package automatically determines appropriate directories for configuration
 // and cache files based on platform standards:
 //   - Windows: Config in %APPDATA%/proxmox-tui, Cache in %LOCALAPPDATA%/proxmox-tui
-//   - macOS: Config in ~/Library/Application Support/proxmox-tui, Cache in ~/Library/Caches/proxmox-tui
+//   - macOS: Config in $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui, Cache in $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
 //   - Linux: Config in $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui, Cache in $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
 //
 // Authentication Methods:

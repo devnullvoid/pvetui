@@ -8,18 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Cross-platform config and cache paths**: Added native support for Windows and macOS config/cache directories
+- **Cross-platform config and cache paths**: Added native support for Windows config/cache directories
   - Windows: Config in `%APPDATA%/proxmox-tui`, Cache in `%LOCALAPPDATA%/proxmox-tui`
-  - macOS: Config in `~/Library/Application Support/proxmox-tui`, Cache in `~/Library/Caches/proxmox-tui`
+  - macOS: Uses XDG-style paths (`~/.config/proxmox-tui`, `~/.cache/proxmox-tui`) for consistency with other TUI applications
   - Linux: Maintains existing XDG support (`~/.config/proxmox-tui`, `~/.cache/proxmox-tui`)
   - Maintains backward compatibility with existing XDG functions
   - Environment variables still override platform defaults when set
 
 ### Breaking Changes
-- **Windows/macOS users**: Existing config files in XDG-style paths need to be moved to new platform-specific locations
+- **Windows users only**: Existing config files in XDG-style paths need to be moved to new platform-specific locations
   - **Windows**: Move from `~/.config/proxmox-tui/` to `%APPDATA%/proxmox-tui/`
-  - **macOS**: Move from `~/.config/proxmox-tui/` to `~/Library/Application Support/proxmox-tui/`
-  - **Linux**: No changes required - existing paths continue to work
+  - **macOS/Linux**: No changes required - existing paths continue to work
   - The application will automatically use the new paths on first run after this update
 
 ### Fixed
