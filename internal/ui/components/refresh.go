@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
@@ -37,6 +38,10 @@ func (a *App) manualRefresh() {
 
 	// Run data refresh in goroutine to avoid blocking UI
 	go func() {
+		// Wait a moment for API changes to propagate to cluster resources endpoint
+		// This ensures we get fresh data after configuration updates
+		time.Sleep(500 * time.Millisecond)
+
 		// Fetch fresh data bypassing cache
 		cluster, err := a.client.GetFreshClusterStatus()
 		if err != nil {
@@ -116,7 +121,8 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 
 			freshNode, err := a.client.RefreshNodeData(node.Name)
 			if err == nil && freshNode != nil {
-				// Preserve VMs from original cluster data since RefreshNodeData doesn't include them
+				// Preserve VMs from the FRESH cluster data (not the original stale data)
+				// This ensures we keep the updated VM names we just fetched
 				if cluster.Nodes[i] != nil {
 					freshNode.VMs = cluster.Nodes[i].VMs
 				}
@@ -156,7 +162,7 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 
 		// Final update: rebuild VMs, cluster version, status, and complete refresh
 		a.QueueUpdateDraw(func() {
-			// Rebuild VM list from enriched nodes (which now preserve VMs from original cluster data)
+			// Rebuild VM list from enriched nodes (which now preserve VMs from FRESH cluster data)
 			var vms []*api.VM
 			for _, n := range models.GlobalState.OriginalNodes {
 				if n != nil {

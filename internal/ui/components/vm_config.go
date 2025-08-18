@@ -41,6 +41,42 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		showResizeStorageModal(app, vm)
 	}).SetAlignment(AlignLeft)
 	form.AddFormItem(resizeBtn)
+
+	// Add Name/Hostname field
+	if vm.Type == api.VMTypeQemu {
+		// For QEMU VMs, use the "name" field
+		initialName := vm.Name
+		if config.Name != "" {
+			initialName = config.Name
+		}
+		form.AddInputField("Name", initialName, 20, func(textToCheck string, lastChar rune) bool {
+			// Validate hostname characters: letters, digits, hyphens only
+			// Hostnames cannot start or end with hyphens, and cannot contain underscores
+			return isValidHostnameChar(lastChar)
+		}, func(text string) {
+			page.config.Name = text
+			// Update title in real-time
+			title := fmt.Sprintf("Edit Configuration: VM %d - %s", vm.ID, text)
+			form.SetTitle(title)
+		})
+	} else if vm.Type == api.VMTypeLXC {
+		// For LXC containers, use the "hostname" field
+		initialHostname := vm.Name
+		if config.Hostname != "" {
+			initialHostname = config.Hostname
+		}
+		form.AddInputField("Hostname", initialHostname, 20, func(textToCheck string, lastChar rune) bool {
+			// Validate hostname characters: letters, digits, hyphens only
+			// Hostnames cannot start or end with hyphens, and cannot contain underscores
+			return isValidHostnameChar(lastChar)
+		}, func(text string) {
+			page.config.Hostname = text
+			// Update title in real-time
+			title := fmt.Sprintf("Edit Configuration: CT %d - %s", vm.ID, text)
+			form.SetTitle(title)
+		})
+	}
+
 	// Restore to simple vertical layout for Cores, Sockets, Memory (MB)
 	form.SetHorizontal(false)
 	form.AddInputField("Cores", strconv.Itoa(config.Cores), 4, func(textToCheck string, lastChar rune) bool {
@@ -85,6 +121,23 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	})
 	// Save/Cancel buttons
 	form.AddButton("Save", func() {
+		// Validate hostname format before saving
+		var validationError string
+		if vm.Type == api.VMTypeQemu && page.config.Name != "" {
+			if !isValidHostname(page.config.Name) {
+				validationError = fmt.Sprintf("Invalid VM name: %s", page.config.Name)
+			}
+		} else if vm.Type == api.VMTypeLXC && page.config.Hostname != "" {
+			if !isValidHostname(page.config.Hostname) {
+				validationError = fmt.Sprintf("Invalid hostname: %s", page.config.Hostname)
+			}
+		}
+
+		if validationError != "" {
+			app.header.ShowError(validationError)
+			return
+		}
+
 		// Show loading indicator
 		app.header.ShowLoading(fmt.Sprintf("Saving configuration for %s...", vm.Name))
 
@@ -97,10 +150,28 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 					app.header.ShowError(fmt.Sprintf("Failed to save config: %v", err))
 				} else {
 					app.header.ShowSuccess("Configuration updated successfully.")
+
+					// Update the VM name in the current VM object for title update
+					if vm.Type == api.VMTypeQemu && page.config.Name != "" {
+						vm.Name = page.config.Name
+					} else if vm.Type == api.VMTypeLXC && page.config.Hostname != "" {
+						vm.Name = page.config.Hostname
+					}
+
 					// Remove the config page first
 					app.removePageIfPresent("vmConfig")
-					// Then refresh data
-					app.manualRefresh()
+
+					// Show loading indicator while waiting for API changes to propagate
+					app.header.ShowLoading("Waiting for configuration changes to propagate...")
+
+					// Wait for API changes to fully propagate before refreshing
+					// This ensures the updated name appears in the cluster resources
+					go func() {
+						time.Sleep(6 * time.Second)
+						app.QueueUpdateDraw(func() {
+							app.manualRefresh()
+						})
+					}()
 				}
 			})
 		}()
@@ -114,7 +185,15 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		guestType = "CT"
 	}
 
-	title := fmt.Sprintf("Edit Configuration: %s %d - %s", guestType, vm.ID, vm.Name)
+	// Use the current name from config if available, otherwise use VM name
+	displayName := vm.Name
+	if vm.Type == api.VMTypeQemu && config.Name != "" {
+		displayName = config.Name
+	} else if vm.Type == api.VMTypeLXC && config.Hostname != "" {
+		displayName = config.Hostname
+	}
+
+	title := fmt.Sprintf("Edit Configuration: %s %d - %s", guestType, vm.ID, displayName)
 	form.SetBorder(true).SetTitle(title).SetTitleColor(theme.Colors.Primary)
 	// Set ESC key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -128,6 +207,61 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	// // Set initial focus to the first field (Resize Storage Volume)
 	// form.SetFocus(0)
 	return page
+}
+
+// isValidHostnameChar validates if a character is allowed in a hostname.
+// Hostnames can only contain letters (a-z, A-Z), digits (0-9), and hyphens (-).
+// They cannot start or end with hyphens, and cannot contain underscores or other special characters.
+func isValidHostnameChar(char rune) bool {
+	// Allow letters (a-z, A-Z)
+	if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') {
+		return true
+	}
+	// Allow digits (0-9)
+	if char >= '0' && char <= '9' {
+		return true
+	}
+	// Allow hyphens (-)
+	if char == '-' {
+		return true
+	}
+	// Reject all other characters including underscores, spaces, etc.
+	return false
+}
+
+// isValidHostname validates if a complete hostname string is valid.
+// This checks the overall format, not just individual characters.
+func isValidHostname(hostname string) bool {
+	if hostname == "" {
+		return false
+	}
+
+	// Check length (RFC 1035: max 63 characters)
+	if len(hostname) > 63 {
+		return false
+	}
+
+	// Check minimum length (at least 1 character)
+	if len(hostname) < 1 {
+		return false
+	}
+
+	// Check that it doesn't start or end with a hyphen
+	if hostname[0] == '-' || hostname[len(hostname)-1] == '-' {
+		return false
+	}
+
+	// Check that it contains at least one letter or digit
+	hasValidChar := false
+	for _, char := range hostname {
+		if isValidHostnameChar(char) {
+			hasValidChar = true
+		} else {
+			return false // Invalid character found
+		}
+	}
+
+	return hasValidChar
 }
 
 // showResizeStorageModal displays a modal for resizing a storage volume.

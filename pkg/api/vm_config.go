@@ -10,6 +10,8 @@ import (
 // VMConfig represents editable configuration for both QEMU and LXC guests.
 type VMConfig struct {
 	// Common fields (match Proxmox API)
+	Name        string `json:"name,omitempty"`     // VM name (QEMU) or hostname (LXC)
+	Hostname    string `json:"hostname,omitempty"` // LXC hostname (alternative to name)
 	Cores       int    `json:"cores,omitempty"`
 	Sockets     int    `json:"sockets,omitempty"`
 	Memory      int64  `json:"memory,omitempty"` // in bytes
@@ -94,6 +96,12 @@ func (c *Client) UpdateVMResources(vm *VM, cores int, memory int64) error {
 // parseVMConfig parses the config API response into a VMConfig struct.
 func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 	cfg := &VMConfig{}
+	if v, ok := data["name"].(string); ok {
+		cfg.Name = v
+	}
+	if v, ok := data["hostname"].(string); ok {
+		cfg.Hostname = v
+	}
 	if v, ok := data["cores"].(float64); ok {
 		cfg.Cores = int(v)
 	}
@@ -157,6 +165,12 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 // buildConfigPayload builds the payload for updating VM/LXC config.
 func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} {
 	data := map[string]interface{}{}
+	if config.Name != "" {
+		data["name"] = config.Name
+	}
+	if config.Hostname != "" {
+		data["hostname"] = config.Hostname
+	}
 	if config.Cores > 0 {
 		data["cores"] = config.Cores
 	}

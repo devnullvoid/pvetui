@@ -12,6 +12,7 @@ import (
 	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
 	"github.com/devnullvoid/proxmox-tui/internal/vnc"
 	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
 )
 
 // App is the main application component.
@@ -37,6 +38,7 @@ type App struct {
 	contextMenu   *tview.List
 	isMenuOpen    bool
 	lastFocus     tview.Primitive
+	logger        interfaces.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -81,6 +83,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		autoRefreshEnabled: false,
 		ctx:                ctx,
 		cancel:             cancel,
+		logger:             uiLogger,
 	}
 
 	uiLogger.Debug("Initializing UI components")

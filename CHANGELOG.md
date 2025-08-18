@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Guest name editing**: Added ability to change QEMU VM names and LXC container hostnames from the config page
+  - QEMU VMs: Edit the "name" field which updates the VM display name
+  - LXC containers: Edit the "hostname" field which updates the container hostname
+  - Real-time title updates show the new name as you type
+  - Changes are saved to Proxmox and reflected immediately in the UI
+  - Input validation prevents invalid hostname characters (underscores, spaces, special chars)
+  - Validates hostname format (no leading/trailing hyphens, proper length limits)
+  - Fixed UI refresh issue with targeted delay for config updates, keeping general refresh responsive
+  - Added loading indicator during API propagation delay for better user experience
 - **Cross-platform config and cache paths**: Added native support for Windows config/cache directories
   - Windows: Config in `%APPDATA%/proxmox-tui`, Cache in `%LOCALAPPDATA%/proxmox-tui`
   - macOS: Uses XDG-style paths (`~/.config/proxmox-tui`, `~/.cache/proxmox-tui`) for consistency with other TUI applications
