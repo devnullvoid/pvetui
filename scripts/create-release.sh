@@ -132,6 +132,13 @@ check_git_status() {
 }
 
 check_branch() {
+    # Skip branch check in dry run mode for testing purposes
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_warning "[DRY RUN] Skipping branch check (would require 'develop' branch)"
+        CURRENT_BRANCH="develop"  # Set dummy value for dry run
+        return 0
+    fi
+
     CURRENT_BRANCH=$(git branch --show-current)
     if [[ "$CURRENT_BRANCH" != "develop" ]]; then
         log_error "Must be on 'develop' branch to create release. Currently on '$CURRENT_BRANCH'"
