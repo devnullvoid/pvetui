@@ -122,6 +122,12 @@ run_command() {
 
 # Validation functions
 check_git_status() {
+    # Skip git status check in dry run mode since no actual changes will be made
+    # if [[ "$DRY_RUN" == "true" ]]; then
+    #     log_warning "[DRY RUN] Skipping git status check"
+    #     return 0
+    # fi
+
     if [[ -n $(git status --porcelain) ]]; then
         log_error "Working directory is not clean. Please commit or stash changes."
         git status --short
@@ -346,9 +352,8 @@ main() {
     fi
     echo ""
 
-    # Confirm unless dry run
+    # Always show confirmation prompt (for both normal and dry run modes)
     if [[ "$DRY_RUN" == "false" ]]; then
-        echo ""
         echo -e "${YELLOW}⚠️  CONFIRMATION REQUIRED${NC}"
         echo "This will:"
         echo "  • Update CHANGELOG.md and commit changes"
@@ -359,7 +364,6 @@ main() {
         fi
         echo ""
         read -r -p "Proceed with release? (y/N): " REPLY
-        echo ""
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Release cancelled by user"
             exit 0
@@ -367,8 +371,6 @@ main() {
         log_success "Release confirmed, proceeding..."
         echo ""
     else
-        # Show confirmation prompt in dry run mode for testing
-        echo ""
         echo -e "${YELLOW}⚠️  DRY RUN CONFIRMATION (Testing Only)${NC}"
         echo "This would:"
         echo "  • Update CHANGELOG.md and commit changes"
@@ -381,7 +383,6 @@ main() {
         echo -e "${BLUE}Note: This is a dry run - no actual changes will be made${NC}"
         echo ""
         read -r -p "Proceed with dry run? (y/N): " REPLY
-        echo ""
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Dry run cancelled by user"
             exit 0
