@@ -348,11 +348,45 @@ main() {
 
     # Confirm unless dry run
     if [[ "$DRY_RUN" == "false" ]]; then
+        echo ""
+        echo -e "${YELLOW}⚠️  CONFIRMATION REQUIRED${NC}"
+        echo "This will:"
+        echo "  • Update CHANGELOG.md and commit changes"
+        echo "  • Merge develop branch to master"
+        echo "  • Create and push release tag $VERSION"
+        if [[ "$NO_GITHUB" == "false" ]]; then
+            echo "  • Create GitHub release draft"
+        fi
+        echo ""
         read -r -p "Proceed with release? (y/N): " REPLY
+        echo ""
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Release cancelled by user"
             exit 0
         fi
+        log_success "Release confirmed, proceeding..."
+        echo ""
+    else
+        # Show confirmation prompt in dry run mode for testing
+        echo ""
+        echo -e "${YELLOW}⚠️  DRY RUN CONFIRMATION (Testing Only)${NC}"
+        echo "This would:"
+        echo "  • Update CHANGELOG.md and commit changes"
+        echo "  • Merge develop branch to master"
+        echo "  • Create and push release tag $VERSION"
+        if [[ "$NO_GITHUB" == "false" ]]; then
+            echo "  • Create GitHub release draft"
+        fi
+        echo ""
+        echo -e "${BLUE}Note: This is a dry run - no actual changes will be made${NC}"
+        echo ""
+        read -r -p "Proceed with dry run? (y/N): " REPLY
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Dry run cancelled by user"
+            exit 0
+        fi
+        log_success "Dry run confirmed, proceeding..."
         echo ""
     fi
 
