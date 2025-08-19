@@ -370,6 +370,9 @@ main() {
 
     # Always show confirmation prompt (for both normal and dry run modes)
     if [[ "$DRY_RUN" == "false" ]]; then
+        # Add small delay to prevent race condition/buffering issues
+        sleep 0.1
+
         echo -e "${YELLOW}⚠️  CONFIRMATION REQUIRED${NC}"
         echo "This will:"
         echo "  • Update CHANGELOG.md and commit changes"
@@ -387,6 +390,9 @@ main() {
         log_success "Release confirmed, proceeding..."
         echo ""
     else
+        # Add small delay to prevent race condition/buffering issues
+        sleep 0.1
+
         echo -e "${YELLOW}⚠️  DRY RUN CONFIRMATION (Testing Only)${NC}"
         echo "This would:"
         echo "  • Update CHANGELOG.md and commit changes"
