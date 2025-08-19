@@ -123,30 +123,32 @@ run_command() {
 # Validation functions
 check_git_status() {
     # Skip git status check in dry run mode since no actual changes will be made
-    # if [[ "$DRY_RUN" == "true" ]]; then
-    #     log_warning "[DRY RUN] Skipping git status check"
-    #     return 0
-    # fi
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_warning "[DRY RUN] Skipping git status check"
+        return 0
+    fi
 
     if [[ -n $(git status --porcelain) ]]; then
         log_error "Working directory is not clean. Please commit or stash changes."
         git status --short
-        exit 1
+        return 1
     fi
+    return 0
 }
 
 check_branch() {
     CURRENT_BRANCH=$(git branch --show-current)
     if [[ "$CURRENT_BRANCH" != "develop" ]]; then
         log_error "Must be on 'develop' branch to create release. Currently on '$CURRENT_BRANCH'"
-        exit 1
+        return 1
     fi
+    return 0
 }
 
 check_unreleased_content() {
     if ! grep -q "## \[Unreleased\]" CHANGELOG.md; then
         log_error "No [Unreleased] section found in CHANGELOG.md"
-        exit 1
+        return 1
     fi
 
     # Check if there's actual content in Unreleased section
@@ -155,20 +157,22 @@ check_unreleased_content() {
 
     if [[ $unreleased_content -eq 0 ]]; then
         log_error "No content found in [Unreleased] section of CHANGELOG.md"
-        exit 1
+        return 1
     fi
+    return 0
 }
 
 check_version_not_exists() {
     if grep -q "## \[$VERSION_NO_V\]" CHANGELOG.md; then
         log_error "Version $VERSION_NO_V already exists in CHANGELOG.md"
-        exit 1
+        return 1
     fi
 
     if git tag | grep -q "^$VERSION$"; then
         log_error "Tag $VERSION already exists"
-        exit 1
+        return 1
     fi
+    return 0
 }
 
 check_github_cli() {
@@ -330,11 +334,21 @@ main() {
 
     # Pre-flight checks
     log_info "Running pre-flight checks..."
-    check_git_status
-    check_branch
-    check_unreleased_content
-    check_version_not_exists
-    check_github_cli
+
+    # Run all checks and collect results
+    local check_failed=false
+    check_git_status || check_failed=true
+    check_branch || check_failed=true
+    check_unreleased_content || check_failed=true
+    check_version_not_exists || check_failed=true
+    check_github_cli || check_failed=true
+
+    # Exit if any check failed
+    if [[ "$check_failed" == "true" ]]; then
+        log_error "Pre-flight checks failed. Please fix the issues above and try again."
+        exit 1
+    fi
+
     log_success "All pre-flight checks passed"
     echo ""
 
