@@ -370,7 +370,8 @@ main() {
 
     # Always show confirmation prompt (for both normal and dry run modes)
     if [[ "$DRY_RUN" == "false" ]]; then
-        # Add delay to prevent race condition/buffering issues
+        # Force output flush and add delay to prevent race condition/buffering issues
+        echo "" >&2  # Force stderr flush
         sleep 0.3
 
         echo -e "${YELLOW}⚠️  CONFIRMATION REQUIRED${NC}"
@@ -390,7 +391,8 @@ main() {
         log_success "Release confirmed, proceeding..."
         echo ""
     else
-        # Add delay to prevent race condition/buffering issues
+        # Force output flush and add delay to prevent race condition/buffering issues
+        echo "" >&2  # Force stderr flush
         sleep 0.3
 
         echo -e "${YELLOW}⚠️  DRY RUN CONFIRMATION (Testing Only)${NC}"
