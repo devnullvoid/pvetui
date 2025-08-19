@@ -227,6 +227,87 @@ release: ## Create a new release (usage: make release VERSION=v0.6.0)
 	@chmod +x scripts/create-release.sh
 	./scripts/create-release.sh $(VERSION)
 
+# Package Manager targets
+package-managers-setup: ## Set up all package manager repositories
+	@printf "$(GREEN)Setting up package managers...$(NC)\n"
+	@chmod +x scripts/package-managers.sh
+	./scripts/package-managers.sh setup
+
+package-managers-update: ## Update all package managers to latest version (usage: make package-managers-update VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make package-managers-update VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@printf "$(GREEN)Updating package managers...$(NC)\n"
+	@chmod +x scripts/package-managers.sh
+	./scripts/package-managers.sh update -v $(VERSION)
+
+package-managers-release: ## Create complete release across all platforms (usage: make package-managers-release VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make package-managers-release VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@printf "$(GREEN)Creating complete release...$(NC)\n"
+	@chmod +x scripts/package-managers.sh
+	./scripts/package-managers.sh release -v $(VERSION)
+
+package-managers-status: ## Show status of all package managers
+	@printf "$(GREEN)Checking package manager status...$(NC)\n"
+	@chmod +x scripts/package-managers.sh
+	./scripts/package-managers.sh status
+
+package-managers-clean: ## Clean up all package manager repositories
+	@printf "$(GREEN)Cleaning up package managers...$(NC)\n"
+	@chmod +x scripts/package-managers.sh
+	./scripts/package-managers.sh clean
+
+# Individual package manager targets
+aur-setup: ## Set up AUR package repository
+	@printf "$(GREEN)Setting up AUR package...$(NC)\n"
+	@chmod +x scripts/aur-package.sh
+	./scripts/aur-package.sh setup
+
+aur-update: ## Update AUR package (usage: make aur-update VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make aur-update VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@printf "$(GREEN)Updating AUR package...$(NC)\n"
+	@chmod +x scripts/aur-package.sh
+	./scripts/aur-package.sh update -v $(VERSION)
+
+homebrew-setup: ## Set up Homebrew tap
+	@printf "$(GREEN)Setting up Homebrew tap...$(NC)\n"
+	@chmod +x scripts/homebrew-tap.sh
+	./scripts/homebrew-tap.sh setup
+
+homebrew-update: ## Update Homebrew tap (usage: make homebrew-update VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		printf "Usage: make homebrew-update VERSION=v0.6.0\n"; \
+		exit 1; \
+	fi
+	@printf "$(GREEN)Updating Homebrew tap...$(NC)\n"
+	@chmod +x scripts/homebrew-tap.sh
+	./scripts/homebrew-tap.sh update -v $(VERSION)
+
+scoop-setup: ## Set up Scoop bucket
+	@printf "$(GREEN)Setting up Scoop bucket...$(NC)\n"
+	@chmod +x scripts/scoop-bucket.sh
+	./scripts/scoop-bucket.sh setup
+
+scoop-update: ## Update Scoop bucket (usage: make scoop-update VERSION=v0.6.0)
+	@if [ -z "$(VERSION)" ]; then \
+		printf "$(RED)Error: VERSION is required$(NC)\n"; \
+		exit 1; \
+	fi
+	@printf "$(GREEN)Updating Scoop bucket...$(NC)\n"
+	@chmod +x scripts/scoop-bucket.sh
+	./scripts/scoop-bucket.sh update -v $(VERSION)
+
 release-github: ## Create release with GitHub CLI (usage: make release-github VERSION=v0.6.0)
 	@if [ -z "$(VERSION)" ]; then \
 		printf "$(RED)Error: VERSION is required$(NC)\n"; \

@@ -65,3 +65,187 @@ changelog:
 release:
   draft: true
   prerelease: auto
+
+# AUR Package
+aur:
+  - name: proxmox-tui
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    maintainers:
+      - "devnullvoid"
+    license: "MIT"
+    conflicts:
+      - "proxmox-tui-git"
+    provides:
+      - "proxmox-tui"
+    depends:
+      - "glibc"
+    optdepends:
+      - "kitty: Better terminal support"
+      - "alacritty: Better terminal support"
+    files:
+      - "proxmox-tui"
+      - "LICENSE"
+      - "README.md"
+    extra_scripts:
+      - "postinst"
+      - "postrm"
+    postinst: |
+      #!/bin/bash
+      echo "proxmox-tui has been installed successfully!"
+      echo "Run 'proxmox-tui --help' to see available options."
+    postrm: |
+      #!/bin/bash
+      echo "proxmox-tui has been removed."
+
+# Homebrew Tap
+brews:
+  - name: proxmox-tui
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    license: "MIT"
+    repository:
+      owner: "devnullvoid"
+      name: "homebrew-proxmox-tui"
+    commit_author:
+      name: "GoReleaser Bot"
+      email: "noreply@github.com"
+    folder: "Formula"
+    test: |
+      system "#{bin}/proxmox-tui", "--help"
+    install: |
+      bin.install "proxmox-tui"
+    caveats: |
+      proxmox-tui requires a Proxmox VE server to connect to.
+      Run 'proxmox-tui --help' to see configuration options.
+
+# Scoop Manifest
+scoop:
+  - name: proxmox-tui
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    license: "MIT"
+    repository:
+      owner: "devnullvoid"
+      name: "scoop-proxmox-tui"
+    commit_author:
+      name: "GoReleaser Bot"
+      email: "noreply@github.com"
+    folder: "bucket"
+    notes: |
+      proxmox-tui requires a Proxmox VE server to connect to.
+      Run 'proxmox-tui --help' to see configuration options.
+    persist: []
+    env_add_path: []
+    checkver:
+      url: "https://github.com/devnullvoid/proxmox-tui/releases/latest"
+      re: "v([\\d.]+)"
+    autoupdate:
+      architecture:
+        64bit:
+          url: "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_amd64.zip"
+          hash: "sha256"
+        arm64:
+          url: "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_arm64.zip"
+          hash: "sha256"
+
+# DEB Package
+nfpms:
+  - id: proxmox-tui-deb
+    builds_info:
+      - id: proxmox-tui
+        name: proxmox-tui
+    builds: [proxmox-tui]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    maintainer: "devnullvoid <noreply@github.com>"
+    license: "MIT"
+    formats:
+      - deb
+    contents:
+      - src: "{{ .ArtifactPath }}"
+        dst: "/usr/local/bin/proxmox-tui"
+        mode: 0755
+      - src: "LICENSE"
+        dst: "/usr/share/doc/proxmox-tui/LICENSE"
+        type: "doc"
+      - src: "README.md"
+        dst: "/usr/share/doc/proxmox-tui/README.md"
+        type: "doc"
+    scripts:
+      postinst: |
+        #!/bin/bash
+        echo "proxmox-tui has been installed successfully!"
+        echo "Run 'proxmox-tui --help' to see available options."
+      postrm: |
+        #!/bin/bash
+        echo "proxmox-tui has been removed."
+    overrides:
+      deb:
+        depends:
+          - "libc6"
+        recommends:
+          - "kitty | alacritty"
+        suggests:
+          - "proxmox-ve"
+
+# RPM Package
+  - id: proxmox-tui-rpm
+    builds_info:
+      - id: proxmox-tui
+        name: proxmox-tui
+    builds: [proxmox-tui]
+    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    maintainer: "devnullvoid <noreply@github.com>"
+    license: "MIT"
+    formats:
+      - rpm
+    contents:
+      - src: "{{ .ArtifactPath }}"
+        dst: "/usr/local/bin/proxmox-tui"
+        mode: 0755
+      - src: "LICENSE"
+        dst: "/usr/share/doc/proxmox-tui/LICENSE"
+        type: "doc"
+      - src: "README.md"
+        dst: "/usr/share/doc/proxmox-tui/README.md"
+        type: "doc"
+    scripts:
+      post: |
+        #!/bin/bash
+        echo "proxmox-tui has been installed successfully!"
+        echo "Run 'proxmox-tui --help' to see available options."
+      postun: |
+        #!/bin/bash
+        echo "proxmox-tui has been removed."
+    overrides:
+      rpm:
+        requires:
+          - "glibc"
+        suggests:
+          - "kitty"
+          - "alacritty"
+          - "proxmox-ve"
+
+# Docker Images
+dockers:
+  - image_templates:
+      - "ghcr.io/devnullvoid/proxmox-tui:{{ .Version }}"
+      - "ghcr.io/devnullvoid/proxmox-tui:latest"
+    dockerfile: "Dockerfile"
+    use: "buildx"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--platform=linux/arm64"
+    extra_files:
+      - LICENSE
+      - README.md
+    labels:
+      org.opencontainers.image.title: "proxmox-tui"
+      org.opencontainers.image.description: "A terminal user interface (TUI) for Proxmox VE"
+      org.opencontainers.image.vendor: "devnullvoid"
+      org.opencontainers.image.licenses: "MIT"
+      org.opencontainers.image.source: "https://github.com/devnullvoid/proxmox-tui"

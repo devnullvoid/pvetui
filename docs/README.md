@@ -8,6 +8,7 @@ This directory contains comprehensive documentation for Proxmox TUI.
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration guide with examples
 - **[THEMING.md](THEMING.md)** - Detailed theming and color customization
 - **[DOCKER.md](DOCKER.md)** - Docker usage and deployment
+- **[PACKAGE_MANAGERS.md](PACKAGE_MANAGERS.md)** - Distribution via AUR, Homebrew, Scoop, and more
 - **[DOCUMENTATION.md](DOCUMENTATION.md)** - API documentation and development guide
 - **[SCREENSHOTS.md](SCREENSHOTS.md)** - Application screenshots and interface showcase
 
