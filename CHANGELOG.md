@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-08-19
+
 ### Added
 - **Guest name editing**: Added ability to change QEMU VM names and LXC container hostnames from the config page
   - QEMU VMs: Edit the "name" field which updates the VM display name
