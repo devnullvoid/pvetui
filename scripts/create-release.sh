@@ -122,11 +122,6 @@ run_command() {
 
 # Validation functions
 check_git_status() {
-    # Skip git status check in dry run mode since no actual changes will be made
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_warning "[DRY RUN] Skipping git status check"
-        return 0
-    fi
 
     if [[ -n $(git status --porcelain) ]]; then
         log_error "Working directory is not clean. Please commit or stash changes."
@@ -332,7 +327,7 @@ main() {
         echo ""
     fi
 
-    # Pre-flight checks
+        # Pre-flight checks
     log_info "Running pre-flight checks..."
 
     # Run all checks and collect results
