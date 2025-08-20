@@ -36,12 +36,7 @@ builds:
 
 archives:
   - id: default
-    builds: [proxmox-tui, proxmox-tui-windows-amd64]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
     files:
       - LICENSE
       - README.md
@@ -70,7 +65,7 @@ aurs:
     homepage: "https://github.com/devnullvoid/proxmox-tui"
     description: "A terminal user interface (TUI) for Proxmox VE"
     maintainers:
-      - "devnullvoid <noreply@github.com>"
+      - "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
     conflicts:
       - "proxmox-tui"
@@ -98,7 +93,7 @@ aur_sources:
     homepage: "https://github.com/devnullvoid/proxmox-tui"
     description: "A terminal user interface (TUI) for Proxmox VE"
     maintainers:
-      - "devnullvoid <noreply@github.com>"
+      - "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
     conflicts:
       - "proxmox-tui-bin"
@@ -130,3 +125,108 @@ aur_sources:
       install -Dm755 ./proxmox-tui "${pkgdir}/usr/bin/proxmox-tui"
       install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/proxmox-tui/LICENSE"
       install -Dm644 README.md "${pkgdir}/usr/share/doc/proxmox-tui/README.md"
+
+# Homebrew Casks
+homebrew_casks:
+  - name: proxmox-tui
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    license: "MIT"
+    binary: "proxmox-tui"
+    repository:
+      owner: "devnullvoid"
+      name: "homebrew-proxmox-tui"
+    commit_author:
+      name: "GoReleaser Bot"
+      email: "noreply@github.com"
+    caveats: |
+      proxmox-tui requires a Proxmox VE server to connect to.
+      Run 'proxmox-tui --help' to see configuration options.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/proxmox-tui"]
+          end
+
+# Scoop Manifest
+scoops:
+  - name: proxmox-tui
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    license: "MIT"
+    repository:
+      owner: "devnullvoid"
+      name: "scoop-proxmox-tui"
+    commit_author:
+      name: "GoReleaser Bot"
+      email: "noreply@github.com"
+
+# DEB Package
+nfpms:
+  - id: proxmox-tui-deb
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    maintainer: "devnullvoid <devnullvoid.space@gmail.com>"
+    license: "MIT"
+    formats:
+      - deb
+    contents:
+      - src: "{{ .ArtifactPath }}"
+        dst: "/usr/local/bin/proxmox-tui"
+        type: "file"
+      - src: "LICENSE"
+        dst: "/usr/share/doc/proxmox-tui/LICENSE"
+        type: "doc"
+      - src: "README.md"
+        dst: "/usr/share/doc/proxmox-tui/README.md"
+        type: "doc"
+    overrides:
+      deb:
+        dependencies:
+          - "libc6"
+        recommends:
+          - "kitty | alacritty"
+        suggests:
+          - "proxmox-ve"
+
+  # RPM Package
+  - id: proxmox-tui-rpm
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    maintainer: "devnullvoid <devnullvoid.space@gmail.com>"
+    license: "MIT"
+    formats:
+      - rpm
+    contents:
+      - src: "{{ .ArtifactPath }}"
+        dst: "/usr/local/bin/proxmox-tui"
+        type: "file"
+      - src: "LICENSE"
+        dst: "/usr/share/doc/proxmox-tui/LICENSE"
+        type: "doc"
+      - src: "README.md"
+        dst: "/usr/share/doc/proxmox-tui/README.md"
+        type: "doc"
+    overrides:
+      rpm:
+        dependencies:
+          - "glibc"
+        suggests:
+          - "kitty"
+          - "alacritty"
+          - "proxmox-ve"
+
+# Docker Images
+dockers:
+  - image_templates:
+      - "ghcr.io/devnullvoid/proxmox-tui:{{ .Version }}"
+      - "ghcr.io/devnullvoid/proxmox-tui:latest"
+    dockerfile: "Dockerfile"
+    use: "buildx"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--platform=linux/arm64"
+    extra_files:
+      - LICENSE
+      - README.md
