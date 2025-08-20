@@ -5,13 +5,12 @@ before:
     - git submodule update --init --recursive
 
 builds:
-  # General build for all platforms except windows/amd64
   - id: proxmox-tui
     main: ./cmd/proxmox-tui
     env:
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
+    goarch: [amd64, arm64, 386]
     ignore:
       - goos: windows
         goarch: amd64
@@ -21,7 +20,6 @@ builds:
       - -X github.com/devnullvoid/proxmox-tui/internal/version.commit={{.Commit}}
       - -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate={{.Date}}
 
-  # Windows/amd64 build with extra compatibility settings
   - id: proxmox-tui-windows-amd64
     main: ./cmd/proxmox-tui
     env:
@@ -63,18 +61,19 @@ changelog:
       - Merge branch
 
 release:
-  draft: true
+  draft: false
   prerelease: auto
 
-# AUR Package
-aur:
-  - name: proxmox-tui
+# AUR Package (Binary)
+aurs:
+  - name: proxmox-tui-bin
     homepage: "https://github.com/devnullvoid/proxmox-tui"
     description: "A terminal user interface (TUI) for Proxmox VE"
     maintainers:
-      - "devnullvoid"
+      - "devnullvoid <noreply@github.com>"
     license: "MIT"
     conflicts:
+      - "proxmox-tui"
       - "proxmox-tui-git"
     provides:
       - "proxmox-tui"
@@ -83,169 +82,51 @@ aur:
     optdepends:
       - "kitty: Better terminal support"
       - "alacritty: Better terminal support"
-    files:
+    package: |-
+      # Install binary
+      install -Dm755 "./proxmox-tui" "${pkgdir}/usr/bin/proxmox-tui"
+
+      # Install license
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/proxmox-tui/LICENSE"
+
+      # Install documentation
+      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/proxmox-tui/README.md"
+
+# AUR Package (Source)
+aur_sources:
+  - name: proxmox-tui
+    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    description: "A terminal user interface (TUI) for Proxmox VE"
+    maintainers:
+      - "devnullvoid <noreply@github.com>"
+    license: "MIT"
+    conflicts:
+      - "proxmox-tui-bin"
+      - "proxmox-tui-git"
+    provides:
       - "proxmox-tui"
-      - "LICENSE"
-      - "README.md"
-    extra_scripts:
-      - "postinst"
-      - "postrm"
-    postinst: |
-      #!/bin/bash
-      echo "proxmox-tui has been installed successfully!"
-      echo "Run 'proxmox-tui --help' to see available options."
-    postrm: |
-      #!/bin/bash
-      echo "proxmox-tui has been removed."
-
-# Homebrew Tap
-brews:
-  - name: proxmox-tui
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
-    description: "A terminal user interface (TUI) for Proxmox VE"
-    license: "MIT"
-    repository:
-      owner: "devnullvoid"
-      name: "homebrew-proxmox-tui"
-    commit_author:
-      name: "GoReleaser Bot"
-      email: "noreply@github.com"
-    folder: "Formula"
-    test: |
-      system "#{bin}/proxmox-tui", "--help"
-    install: |
-      bin.install "proxmox-tui"
-    caveats: |
-      proxmox-tui requires a Proxmox VE server to connect to.
-      Run 'proxmox-tui --help' to see configuration options.
-
-# Scoop Manifest
-scoop:
-  - name: proxmox-tui
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
-    description: "A terminal user interface (TUI) for Proxmox VE"
-    license: "MIT"
-    repository:
-      owner: "devnullvoid"
-      name: "scoop-proxmox-tui"
-    commit_author:
-      name: "GoReleaser Bot"
-      email: "noreply@github.com"
-    folder: "bucket"
-    notes: |
-      proxmox-tui requires a Proxmox VE server to connect to.
-      Run 'proxmox-tui --help' to see configuration options.
-    persist: []
-    env_add_path: []
-    checkver:
-      url: "https://github.com/devnullvoid/proxmox-tui/releases/latest"
-      re: "v([\\d.]+)"
-    autoupdate:
-      architecture:
-        64bit:
-          url: "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_amd64.zip"
-          hash: "sha256"
-        arm64:
-          url: "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_arm64.zip"
-          hash: "sha256"
-
-# DEB Package
-nfpms:
-  - id: proxmox-tui-deb
-    builds_info:
-      - id: proxmox-tui
-        name: proxmox-tui
-    builds: [proxmox-tui]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    description: "A terminal user interface (TUI) for Proxmox VE"
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
-    maintainer: "devnullvoid <noreply@github.com>"
-    license: "MIT"
-    formats:
-      - deb
-    contents:
-      - src: "{{ .ArtifactPath }}"
-        dst: "/usr/local/bin/proxmox-tui"
-        mode: 0755
-      - src: "LICENSE"
-        dst: "/usr/share/doc/proxmox-tui/LICENSE"
-        type: "doc"
-      - src: "README.md"
-        dst: "/usr/share/doc/proxmox-tui/README.md"
-        type: "doc"
-    scripts:
-      postinst: |
-        #!/bin/bash
-        echo "proxmox-tui has been installed successfully!"
-        echo "Run 'proxmox-tui --help' to see available options."
-      postrm: |
-        #!/bin/bash
-        echo "proxmox-tui has been removed."
-    overrides:
-      deb:
-        depends:
-          - "libc6"
-        recommends:
-          - "kitty | alacritty"
-        suggests:
-          - "proxmox-ve"
-
-# RPM Package
-  - id: proxmox-tui-rpm
-    builds_info:
-      - id: proxmox-tui
-        name: proxmox-tui
-    builds: [proxmox-tui]
-    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
-    description: "A terminal user interface (TUI) for Proxmox VE"
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
-    maintainer: "devnullvoid <noreply@github.com>"
-    license: "MIT"
-    formats:
-      - rpm
-    contents:
-      - src: "{{ .ArtifactPath }}"
-        dst: "/usr/local/bin/proxmox-tui"
-        mode: 0755
-      - src: "LICENSE"
-        dst: "/usr/share/doc/proxmox-tui/LICENSE"
-        type: "doc"
-      - src: "README.md"
-        dst: "/usr/share/doc/proxmox-tui/README.md"
-        type: "doc"
-    scripts:
-      post: |
-        #!/bin/bash
-        echo "proxmox-tui has been installed successfully!"
-        echo "Run 'proxmox-tui --help' to see available options."
-      postun: |
-        #!/bin/bash
-        echo "proxmox-tui has been removed."
-    overrides:
-      rpm:
-        requires:
-          - "glibc"
-        suggests:
-          - "kitty"
-          - "alacritty"
-          - "proxmox-ve"
-
-# Docker Images
-dockers:
-  - image_templates:
-      - "ghcr.io/devnullvoid/proxmox-tui:{{ .Version }}"
-      - "ghcr.io/devnullvoid/proxmox-tui:latest"
-    dockerfile: "Dockerfile"
-    use: "buildx"
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--platform=linux/arm64"
-    extra_files:
-      - LICENSE
-      - README.md
-    labels:
-      org.opencontainers.image.title: "proxmox-tui"
-      org.opencontainers.image.description: "A terminal user interface (TUI) for Proxmox VE"
-      org.opencontainers.image.vendor: "devnullvoid"
-      org.opencontainers.image.licenses: "MIT"
-      org.opencontainers.image.source: "https://github.com/devnullvoid/proxmox-tui"
+    depends:
+      - "go"
+      - "git"
+    makedepends:
+      - "make"
+    optdepends:
+      - "kitty: Better terminal support"
+      - "alacritty: Better terminal support"
+    url_template: "https://github.com/devnullvoid/proxmox-tui/archive/{{ .Tag }}.tar.gz"
+    prepare: |-
+      cd "${pkgname}-${pkgver}"
+      go mod download
+    build: |-
+      cd "${pkgname}-${pkgver}"
+      export CGO_CPPFLAGS="${CPPFLAGS}"
+      export CGO_CFLAGS="${CFLAGS}"
+      export CGO_CXXFLAGS="${CXXFLAGS}"
+      export CGO_LDFLAGS="${LDFLAGS}"
+      export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+      go build -ldflags="-w -s -buildid='' -linkmode=external -X github.com/devnullvoid/proxmox-tui/internal/version.version=${pkgver}" ./cmd/proxmox-tui
+    package: |-
+      cd "${pkgname}-${pkgver}"
+      install -Dm755 ./proxmox-tui "${pkgdir}/usr/bin/proxmox-tui"
+      install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/proxmox-tui/LICENSE"
+      install -Dm644 README.md "${pkgdir}/usr/share/doc/proxmox-tui/README.md"

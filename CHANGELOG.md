@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Multi-platform Package Distribution**: Added comprehensive support for distributing proxmox-tui through multiple package managers
+- **32-bit builds**: Add official 32-bit binaries by request in [#25](https://github.com/devnullvoid/proxmox-tui/issues/25)
+  - Linux: `linux/386`
+  - Windows: `windows/386`
+  - Included in GoReleaser config and local Makefile release target
+
   - **AUR Support**: Complete Arch User Repository integration with automated PKGBUILD generation and management
   - **Homebrew Tap**: macOS and Linux distribution via Homebrew with automated formula updates
   - **Scoop Bucket**: Windows distribution via Scoop with automated manifest management
