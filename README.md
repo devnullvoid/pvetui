@@ -2,7 +2,7 @@
   <img src="docs/proxmox-tui-gopher-logo.png" alt="Proxmox TUI Logo" width="300">
 </p>
 
-<h1 align="center">Proxmox TUI</h1>
+<h1 align="center">TUI for Proxmox Virtual Environment</h1>
 <p align="center">
   <strong>A powerful Terminal User Interface for Proxmox VE clusters</strong>
 </p>
@@ -266,3 +266,7 @@ Contributions welcome! Check the [issues page](https://github.com/devnullvoid/pr
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+## ™️ Trademark Notice
+
+**Proxmox®** is a registered trademark of Proxmox Server Solutions GmbH in the EU, the U.S., and other countries. This project is not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH. "Proxmox" is used solely to describe compatibility with Proxmox Virtual Environment software.
