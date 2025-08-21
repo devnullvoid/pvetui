@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- **README Updates**: Fixed CLI argument conventions and improved documentation
+  - Updated all CLI examples to use correct double-dash format (`--config` instead of `-config`)
+  - Added comprehensive CLI reference table with all available flags and short versions
+  - Fixed broken anchor links in navigation for better user experience
+  - Replaced problematic emojis with compatible ones for consistent anchor generation
+  - Updated project title to 'TUI for Proxmox Virtual Environment' for trademark compliance
+  - Added trademark disclaimer to clarify non-affiliation with Proxmox Server Solutions GmbH
+  - Enhanced demo section with both GIF (GitHub compatible) and WebM (high quality) options
+  - Fixed CLI examples throughout all documentation files for consistency
+
 ## [1.0.4] - 2025-08-19
 
 ### Added
