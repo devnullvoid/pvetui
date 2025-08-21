@@ -119,7 +119,7 @@ aur_sources:
       export CGO_CXXFLAGS="${CXXFLAGS}"
       export CGO_LDFLAGS="${LDFLAGS}"
       export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
-      go build -ldflags="-w -s -buildid='' -linkmode=external -X github.com/devnullvoid/proxmox-tui/internal/version.version=${pkgver}" ./cmd/proxmox-tui
+      go build -ldflags="-w -s -linkmode=external -X github.com/devnullvoid/proxmox-tui/internal/version.version=${pkgver}" ./cmd/proxmox-tui
     package: |-
       cd "${pkgname}-${pkgver}"
       install -Dm755 ./proxmox-tui "${pkgdir}/usr/bin/proxmox-tui"
