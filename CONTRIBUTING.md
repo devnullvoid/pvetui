@@ -30,7 +30,7 @@ cd proxmox-tui
 go build -o proxmox-tui ./cmd/proxmox-tui
 
 # Run with your config
-./proxmox-tui -config ./configs/config.yml
+./proxmox-tui --config ./configs/config.yml
 ```
 
 ### Running Tests

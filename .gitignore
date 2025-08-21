@@ -9,6 +9,7 @@ config.yaml
 **/proxmox-tui.log
 /bin/
 *.exe
+*.code-workspace
 
 # Runtime logs (now stored in XDG cache directory)
 # logs/ - removed since logs are now in ~/.cache/proxmox-tui/

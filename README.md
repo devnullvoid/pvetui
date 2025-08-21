@@ -8,13 +8,13 @@
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#configuration">Configuration</a> •
-  <a href="#usage">Usage</a> •
-  <a href="#theming">Theming</a> •
-  <a href="#vnc-console-access">VNC Console</a>
+  <a href="#-features">Features</a> •
+  <a href="#-screenshots">Screenshots</a> •
+  <a href="#-installation">Installation</a> •
+  <a href="#-configuration">Configuration</a> •
+  <a href="#-usage">Usage</a> •
+  <a href="#-theming">Theming</a> •
+  <a href="#-vnc-console-access">VNC Console</a>
 </p>
 
 <!-- Badges -->
@@ -31,6 +31,8 @@
   <img src="docs/demo.gif" width="600" alt="Live demo of Proxmox TUI in action">
   <br>
   <em>Live demo of Proxmox TUI in action</em>
+  <br>
+  <a href="docs/demo.webm">🎥 Watch high-quality WebM demo</a>
 </p>
 
 ## 🚀 Features
@@ -151,7 +153,7 @@ profiles:
 ```
 
 ### Encrypted Configuration
-Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `-config` and it will decrypt automatically.
+Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `--config` and it will decrypt automatically.
 
 **📖 For detailed configuration options, key bindings, theming, and advanced features, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md)**
 
@@ -164,8 +166,31 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 ./proxmox-tui
 
 # Or specify custom config
-./proxmox-tui -config /path/to/config.yml
+./proxmox-tui --config /path/to/config.yml
 ```
+
+### Command Line Options
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--config` | `-c` | Path to YAML config file |
+| `--profile` | `-p` | Connection profile to use (overrides default_profile) |
+| `--no-cache` | `-n` | Disable caching |
+| `--version` | `-v` | Show version information |
+| `--config-wizard` | `-w` | Launch interactive config wizard and exit |
+| `--addr` | | Proxmox API URL |
+| `--user` | | Proxmox username |
+| `--password` | | Proxmox password |
+| `--token-id` | | Proxmox API token ID |
+| `--token-secret` | | Proxmox API token secret |
+| `--realm` | | Proxmox realm |
+| `--insecure` | | Skip TLS verification |
+| `--api-path` | | Proxmox API path |
+| `--ssh-user` | | SSH username |
+| `--debug` | | Enable debug logging |
+| `--cache-dir` | | Cache directory path |
+
+**Environment Variables**: All flags can also be set via environment variables with `PROXMOX_` prefix (e.g., `PROXMOX_ADDR`, `PROXMOX_USER`).
 
 ### Key Bindings
 
@@ -180,7 +205,7 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 
 Customize keys via the `key_bindings` section in your config. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
 
-## Theming
+## 🎨 Theming
 
 Proxmox TUI supports semantic theming with automatic adaptation to your terminal's color scheme.
 

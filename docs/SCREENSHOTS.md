@@ -39,7 +39,7 @@ This page showcases screenshots of Proxmox TUI in action, demonstrating its vari
 *Live demonstration of Proxmox TUI in action - Watch the interface respond to user interactions*
 
 ### Video Demo
-[Watch Demo Video](demo.webm)
+[Watch Demo Video](../demo.webm) (WebM format - higher quality than GIF)
 *Comprehensive video demonstration showing key features and workflows*
 
 ## 🎨 Interface Features

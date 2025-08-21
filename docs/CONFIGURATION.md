@@ -243,7 +243,7 @@ See [THEMING.md](THEMING.md) for detailed theming information and troubleshootin
 
 ### Encrypted Configuration
 
-Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `-config` and it will decrypt automatically.
+Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `--config` and it will decrypt automatically.
 
 ### Cache Directory
 
@@ -283,7 +283,7 @@ profiles:
 
 Proxmox TUI looks for configuration files in the following order:
 
-1. File specified with `-config` flag
+1. File specified with `--config` flag
 2. Platform-appropriate config directory:
    - **Windows**: `%APPDATA%/proxmox-tui/config.yml`
    - **macOS**: `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
