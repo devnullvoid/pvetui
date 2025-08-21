@@ -83,7 +83,7 @@ make install  # Build and install from source
 
 > **Note**: The `go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
 ### First Run & Interactive Config Wizard
 - On first run, the app will offer to create and edit a config file in a user-friendly TUI wizard
@@ -159,7 +159,7 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 
 **📚 Complete documentation is available in the [docs/](docs/) folder**
 
-## 🖥️ Usage
+## 🔌 Usage
 
 ```bash
 # Auto-detects config at ~/.config/proxmox-tui/config.yml
@@ -211,7 +211,7 @@ Proxmox TUI supports semantic theming with automatic adaptation to your terminal
 
 **📖 For detailed theming options, built-in themes, and color customization, see [docs/CONFIGURATION.md#theming](docs/CONFIGURATION.md#theming) and [docs/THEMING.md](docs/THEMING.md)**
 
-## 🖥️ VNC Console Access
+## 📺 VNC Console Access
 
 Built-in noVNC client provides seamless console access:
 - **Zero Configuration**: Works out of the box
