@@ -1,6 +1,6 @@
-# Contributing to PeeveTUI
+# Contributing to pvetui
 
-Thank you for your interest in contributing to PeeveTUI! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to pvetui! This document provides guidelines for contributing to the project.
 
 ## Getting Started
 
@@ -242,4 +242,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 Feel free to open an issue for questions or reach out to the maintainers.
 
-Thank you for contributing to PeeveTUI! 🚀
+Thank you for contributing to pvetui! 🚀

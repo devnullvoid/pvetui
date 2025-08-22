@@ -3,10 +3,10 @@
 .cursor/
 config.yml
 config.yaml
-/peevetui
-/peevetui.log
+/pvetui
+/pvetui.log
 # Ignore log files anywhere in the project (including test-generated ones)
-**/peevetui.log
+**/pvetui.log
 /bin/
 *.exe
 *.code-workspace

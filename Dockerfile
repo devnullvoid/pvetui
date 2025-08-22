@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Create the specific binary we need for the final image
-RUN CGO_ENABLED=0 GOOS=linux go build -o peevetui ./cmd/peevetui
+RUN CGO_ENABLED=0 GOOS=linux go build -o pvetui ./cmd/pvetui
 
 # Final stage
 FROM alpine:latest
@@ -37,7 +37,7 @@ RUN addgroup -g ${GROUP_ID} -S appgroup && \
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /app/peevetui .
+COPY --from=builder /app/pvetui .
 
 # Copy any config files if they exist
 COPY --from=builder /app/configs ./configs
@@ -57,7 +57,7 @@ ENV CACHE_DIR=/app/cache
 
 # Health check (optional)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD pgrep peevetui || exit 1
+    CMD pgrep pvetui || exit 1
 
 # Run the application
-ENTRYPOINT ["./peevetui"]
+ENTRYPOINT ["./pvetui"]

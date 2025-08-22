@@ -20,7 +20,7 @@ func ResolveProfile(flagProfile string, cfg *config.Config) (string, error) {
 	}
 
 	// Check environment variable
-	if envProfile := os.Getenv("PROXMOX_TUI_PROFILE"); envProfile != "" {
+	if envProfile := os.Getenv("PVETUI_PROFILE"); envProfile != "" {
 		return envProfile, nil
 	}
 

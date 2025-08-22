@@ -1,6 +1,6 @@
-# Documentation Guide for PeeveTUI
+# Documentation Guide for pvetui
 
-This document provides a comprehensive guide to the documentation system implemented throughout the PeeveTUI codebase. All packages and public functions now include comprehensive GoDoc documentation following Go best practices.
+This document provides a comprehensive guide to the documentation system implemented throughout the pvetui codebase. All packages and public functions now include comprehensive GoDoc documentation following Go best practices.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ This document provides a comprehensive guide to the documentation system impleme
 
 ## Overview
 
-The PeeveTUI project follows Go's official documentation conventions using GoDoc. Every package, type, function, and method includes comprehensive documentation that explains:
+The pvetui project follows Go's official documentation conventions using GoDoc. Every package, type, function, and method includes comprehensive documentation that explains:
 
 - **Purpose and functionality**
 - **Parameters and return values**
@@ -503,4 +503,4 @@ When modifying existing code:
 
 ---
 
-This documentation system ensures that the PeeveTUI codebase is well-documented, maintainable, and accessible to both contributors and users. The comprehensive GoDoc comments provide clear guidance for using the API and understanding the system architecture.
+This documentation system ensures that the pvetui codebase is well-documented, maintainable, and accessible to both contributors and users. The comprehensive GoDoc comments provide clear guidance for using the API and understanding the system architecture.

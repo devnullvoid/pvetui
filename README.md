@@ -7,7 +7,7 @@
   <strong>A Terminal User Interface For Proxmox Virtual Environment</strong>
 </p>
 <p align="center">
-  <em>Pronounced: peeve-too-ie</em>
+  <em>Pronounced: peeve-tooey</em>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 
 <!-- Demo GIF -->
 <p align="center">
-  <img src="docs/demo.gif" width="600" alt="Live demo of PeeveTUI in action">
+  <img src="docs/demo.gif" width="600" alt="Live demo of pvetui in action">
   <br>
   <em>Live demo of pvetui in action</em>
   <br>
@@ -98,7 +98,7 @@ make install  # Build and install from source
 
 ### Configuration Format
 
-PeeveTUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
+pvetui uses a modern multi-profile configuration format that supports multiple Proxmox connections:
 
 ```yaml
 profiles:
@@ -143,7 +143,7 @@ Access the profile manager through the global menu.
 2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
 
-> Note: Proxmox displays the Token ID in the form `user@realm!tokenid` (for example: `root@pam!mytoken`). When configuring PeeveTUI, split those parts into separate fields:
+> Note: Proxmox displays the Token ID in the form `user@realm!tokenid` (for example: `root@pam!mytoken`). When configuring pvetui, split those parts into separate fields:
 
 ```yaml
 profiles:
@@ -193,7 +193,7 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 | `--debug` | | Enable debug logging |
 | `--cache-dir` | | Cache directory path |
 
-**Environment Variables**: All flags can also be set via environment variables with `PEEVETUI_` prefix (e.g., `PEEVETUI_ADDR`, `PEEVETUI_USER`).
+**Environment Variables**: All flags can also be set via environment variables with `PVETUI_` prefix (e.g., `PVETUI_ADDR`, `PVETUI_USER`).
 
 ### Key Bindings
 
@@ -210,7 +210,7 @@ Customize keys via the `key_bindings` section in your config. See [docs/CONFIGUR
 
 ## 🎨 Theming
 
-PeeveTUI supports semantic theming with automatic adaptation to your terminal's color scheme.
+pvetui supports semantic theming with automatic adaptation to your terminal's color scheme.
 
 **📖 For detailed theming options, built-in themes, and color customization, see [docs/CONFIGURATION.md#theming](docs/CONFIGURATION.md#theming) and [docs/THEMING.md](docs/THEMING.md)**
 

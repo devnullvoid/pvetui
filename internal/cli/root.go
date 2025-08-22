@@ -132,7 +132,7 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
 
 	// Bind flags to environment variables
-	viper.SetEnvPrefix("PROXMOX")
+	viper.SetEnvPrefix("PVETUI")
 	viper.AutomaticEnv()
 
 	// Bind each flag to its corresponding environment variable

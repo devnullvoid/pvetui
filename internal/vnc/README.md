@@ -1,6 +1,6 @@
 # VNC Integration with noVNC
 
-This directory contains the VNC integration for PeeveTUI, including an embedded noVNC client.
+This directory contains the VNC integration for pvetui, including an embedded noVNC client.
 
 ## noVNC Submodule
 

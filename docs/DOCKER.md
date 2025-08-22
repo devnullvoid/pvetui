@@ -1,6 +1,6 @@
-# Docker & Podman Support for PeeveTUI
+# Docker & Podman Support for pvetui
 
-This document describes how to build and run the PeeveTUI application using Docker or Podman containers.
+This document describes how to build and run the pvetui application using Docker or Podman containers.
 
 ## Quick Start
 

@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This document provides solutions to common issues encountered when installing and running PeeveTUI.
+This document provides solutions to common issues encountered when installing and running pvetui.
 
 ## 🍎 macOS Issues
 
@@ -59,7 +59,7 @@ chmod +x ./pvetui-linux-amd64
 ```
 
 ### Missing Dependencies
-PeeveTUI is statically compiled and should not require additional dependencies. If you encounter issues, ensure your system is up to date.
+pvetui is statically compiled and should not require additional dependencies. If you encounter issues, ensure your system is up to date.
 
 ## 🪟 Windows Issues
 
@@ -86,7 +86,7 @@ Some antivirus software may flag the binary as suspicious. This is common with u
 pattern novnc: no matching files found
 ```
 
-**Cause**: The `go install` command from a remote repository doesn't fetch git submodules, but PeeveTUI requires the noVNC submodule for its embedded VNC client functionality.
+**Cause**: The `go install` command from a remote repository doesn't fetch git submodules, but pvetui requires the noVNC submodule for its embedded VNC client functionality.
 
 **Solution**: Use the source installation method instead:
 ```bash

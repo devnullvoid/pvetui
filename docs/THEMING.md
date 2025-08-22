@@ -1,6 +1,6 @@
 # Theming Guide
 
-PeeveTUI supports flexible theming through both terminal emulator color schemes and application-level configuration.
+pvetui supports flexible theming through both terminal emulator color schemes and application-level configuration.
 
 ## Overview
 

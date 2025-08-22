@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This document provides comprehensive information about configuring PeeveTUI, including all available options and examples.
+This document provides comprehensive information about configuring pvetui, including all available options and examples.
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ This document provides comprehensive information about configuring PeeveTUI, inc
 
 ## Configuration Format
 
-PeeveTUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
+pvetui uses a modern multi-profile configuration format that supports multiple Proxmox connections:
 
 ```yaml
 profiles:
@@ -119,7 +119,7 @@ profiles:
 
 ## Key Bindings
 
-PeeveTUI supports fully customizable key bindings through the `key_bindings` section in your configuration file.
+pvetui supports fully customizable key bindings through the `key_bindings` section in your configuration file.
 
 ### Default Key Bindings
 
@@ -179,7 +179,7 @@ The following keys cannot be reassigned as they are used for core navigation:
 
 ## Theming
 
-PeeveTUI supports semantic theming with automatic adaptation to your terminal's color scheme.
+pvetui supports semantic theming with automatic adaptation to your terminal's color scheme.
 
 ### Built-in Themes
 
@@ -281,7 +281,7 @@ profiles:
 
 ## Configuration File Locations
 
-PeeveTUI looks for configuration files in the following order:
+pvetui looks for configuration files in the following order:
 
 1. File specified with `--config` flag
 2. Platform-appropriate config directory:

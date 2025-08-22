@@ -72,10 +72,10 @@ test-integration: ## Run integration tests
 	@printf "$(GREEN)Running integration tests...$(NC)\n"
 	go test -v ./test/integration/...
 
-test-integration-real: ## Run integration tests against real Proxmox (requires PROXMOX_INTEGRATION_TEST=true)
+test-integration-real: ## Run integration tests against real Proxmox (requires PVETUI_INTEGRATION_TEST=true)
 	@printf "$(GREEN)Running integration tests against real Proxmox...$(NC)\n"
-	@printf "$(YELLOW)Make sure PROXMOX_TEST_* environment variables are set$(NC)\n"
-	PROXMOX_INTEGRATION_TEST=true go test -v ./test/integration/...
+	@printf "$(YELLOW)Make sure PVETUI_TEST_* environment variables are set$(NC)\n"
+	PVETUI_INTEGRATION_TEST=true go test -v ./test/integration/...
 
 test-all: ## Run all tests (unit + integration)
 	@printf "$(GREEN)Running all tests...$(NC)\n"

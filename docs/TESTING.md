@@ -1,6 +1,6 @@
-# Testing Guide for PeeveTUI
+# Testing Guide for pvetui
 
-This document provides a comprehensive guide to testing in the PeeveTUI project. We use Go's built-in testing framework along with the testify library for assertions and mocking.
+This document provides a comprehensive guide to testing in the pvetui project. We use Go's built-in testing framework along with the testify library for assertions and mocking.
 
 ## Table of Contents
 

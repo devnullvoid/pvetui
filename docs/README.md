@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains comprehensive documentation for PeeveTUI.
+This directory contains comprehensive documentation for pvetui.
 
 ## 📚 Documentation Index
 
