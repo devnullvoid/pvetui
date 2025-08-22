@@ -142,11 +142,11 @@ make podman-run
 
 ```bash
 # Run the service interactively (recommended)
-docker compose run --rm proxmox-tui
+docker compose run --rm peevetui
 
 # If you need to run in the background (not typical for a TUI):
 # docker-compose up -d
-# docker-compose attach proxmox-tui
+# docker-compose attach peevetui
 
 # Stop and remove background containers and networks
 docker-compose down
@@ -205,9 +205,9 @@ The container doesn't expose any ports by default. Network access is only needed
 2. **Container Won't Start:**
    ```bash
    # Check logs
-   docker logs proxmox-tui
+   docker logs peevetui
    # or
-   podman logs proxmox-tui
+   podman logs peevetui
    ```
 
 3. **Environment Variable Issues:**
@@ -328,7 +328,7 @@ Adjust these based on your needs.
 
 **Important for TUI Applications:**
 
-- ✅ **Use:** `docker compose run --rm proxmox-tui`
+- ✅ **Use:** `docker compose run --rm peevetui`
 - ✅ **Use:** `make docker-run` or `make podman-run`
 - ❌ **Avoid:** `docker-compose up` directly, as it can have TTY attachment issues and doesn't clean up the container automatically.
 

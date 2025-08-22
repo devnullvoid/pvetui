@@ -5,7 +5,7 @@ Thank you for your interest in contributing to Proxmox TUI! This document provid
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/yourusername/proxmox-tui.git`
+2. Clone your fork: `git clone https://github.com/yourusername/peevetui.git`
 3. Create a feature branch: `git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes
@@ -23,14 +23,14 @@ Thank you for your interest in contributing to Proxmox TUI! This document provid
 ### Building
 ```bash
 # Clone the repository
-git clone https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone https://github.com/devnullvoid/peevetui.git
+cd peevetui
 
 # Build the application
-go build -o proxmox-tui ./cmd/proxmox-tui
+go build -o peevetui ./cmd/peevetui
 
 # Run with your config
-./proxmox-tui --config ./configs/config.yml
+./peevetui --config ./configs/config.yml
 ```
 
 ### Running Tests
@@ -53,7 +53,7 @@ golangci-lint run --timeout=5m
 go fmt ./...
 
 # Fix imports
-goimports -local github.com/devnullvoid/proxmox-tui -w .
+goimports -local github.com/devnullvoid/peevetui -w .
 ```
 
 ## Code Style
@@ -67,8 +67,8 @@ goimports -local github.com/devnullvoid/proxmox-tui -w .
 
 ### Project Structure
 ```
-proxmox-tui/
-├── cmd/proxmox-tui/     # Application entrypoint
+peevetui/
+├── cmd/peevetui/     # Application entrypoint
 ├── internal/            # Internal application code
 │   ├── adapters/        # External service adapters
 │   ├── cache/           # Caching implementation

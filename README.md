@@ -1,10 +1,13 @@
 <p align="center">
-  <img src="docs/proxmox-tui-gopher-logo.png" alt="Proxmox TUI Logo" width="300">
+  <img src="docs/peevetui-gopher-logo.png" alt="PeeveTUI Logo" width="300">
 </p>
 
-<h1 align="center">TUI for Proxmox Virtual Environment</h1>
+<h1 align="center">PeeveTUI</h1>
 <p align="center">
-  <strong>A powerful Terminal User Interface for Proxmox VE clusters</strong>
+  <strong>A Terminal User Interface For Proxmox Virtual Environment</strong>
+</p>
+<p align="center">
+  <em>Pronounced: peeve-too-ie</em>
 </p>
 
 <p align="center">
@@ -19,18 +22,18 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/devnullvoid/proxmox-tui" alt="GitHub release">
-  <img src="https://img.shields.io/github/license/devnullvoid/proxmox-tui" alt="License">
-  <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/proxmox-tui" alt="Go Version">
-  <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/proxmox-tui/ci.yml?branch=master" alt="Build Status">
-  <img src="https://img.shields.io/github/downloads/devnullvoid/proxmox-tui/total" alt="Total Downloads">
+  <img src="https://img.shields.io/github/v/release/devnullvoid/peevetui" alt="GitHub release">
+  <img src="https://img.shields.io/github/license/devnullvoid/peevetui" alt="License">
+  <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/peevetui" alt="Go Version">
+  <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/peevetui/ci.yml?branch=master" alt="Build Status">
+  <img src="https://img.shields.io/github/downloads/devnullvoid/peevetui/total" alt="Total Downloads">
 </p>
 
 <!-- Demo GIF -->
 <p align="center">
-  <img src="docs/demo.gif" width="600" alt="Live demo of Proxmox TUI in action">
+  <img src="docs/demo.gif" width="600" alt="Live demo of PeeveTUI in action">
   <br>
-  <em>Live demo of Proxmox TUI in action</em>
+  <em>Live demo of PeeveTUI in action</em>
   <br>
   <a href="docs/demo.webm">🎥 Watch high-quality WebM demo</a>
 </p>
@@ -68,20 +71,20 @@
 ### Quick Start
 
 **From Pre-compiled Binaries:**
-1. Download from [Releases](https://github.com/devnullvoid/proxmox-tui/releases)
-2. Extract and run: `./proxmox-tui`
+1. Download from [Releases](https://github.com/devnullvoid/peevetui/releases)
+2. Extract and run: `./peevetui`
 
 > **macOS Users**: You may encounter Gatekeeper warnings with pre-compiled binaries. See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-macos-issues) for solutions including bypassing the warning or building from source.
 
 **From Source:**
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/peevetui.git
+cd peevetui
 make install  # Build and install from source
 # or: make install-go  # Install via Go toolchain
 ```
 
-> **Note**: The `go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
+> **Note**: The `go install github.com/devnullvoid/peevetui/cmd/peevetui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
 
 ## 🔧 Configuration
 
@@ -95,7 +98,7 @@ make install  # Build and install from source
 
 ### Configuration Format
 
-Proxmox TUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
+PeeveTUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
 
 ```yaml
 profiles:
@@ -162,11 +165,11 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 ## 🔌 Usage
 
 ```bash
-# Auto-detects config at ~/.config/proxmox-tui/config.yml
-./proxmox-tui
+# Auto-detects config at ~/.config/peevetui/config.yml
+./peevetui
 
 # Or specify custom config
-./proxmox-tui --config /path/to/config.yml
+./peevetui --config /path/to/config.yml
 ```
 
 ### Command Line Options
@@ -190,7 +193,7 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 | `--debug` | | Enable debug logging |
 | `--cache-dir` | | Cache directory path |
 
-**Environment Variables**: All flags can also be set via environment variables with `PROXMOX_` prefix (e.g., `PROXMOX_ADDR`, `PROXMOX_USER`).
+**Environment Variables**: All flags can also be set via environment variables with `PEEVETUI_` prefix (e.g., `PEEVETUI_ADDR`, `PEEVETUI_USER`).
 
 ### Key Bindings
 
@@ -207,7 +210,7 @@ Customize keys via the `key_bindings` section in your config. See [docs/CONFIGUR
 
 ## 🎨 Theming
 
-Proxmox TUI supports semantic theming with automatic adaptation to your terminal's color scheme.
+PeeveTUI supports semantic theming with automatic adaptation to your terminal's color scheme.
 
 **📖 For detailed theming options, built-in themes, and color customization, see [docs/CONFIGURATION.md#theming](docs/CONFIGURATION.md#theming) and [docs/THEMING.md](docs/THEMING.md)**
 
@@ -251,17 +254,17 @@ Check our **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to 
 ## 🐳 Docker Usage
 
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/peevetui.git
+cd peevetui
 cp .env.example .env  # Edit with your Proxmox details
-docker compose run --rm proxmox-tui
+docker compose run --rm peevetui
 ```
 
 See [docs/DOCKER.md](docs/DOCKER.md) for advanced usage.
 
 ## 🤝 Contributing
 
-Contributions welcome! Check the [issues page](https://github.com/devnullvoid/proxmox-tui/issues).
+Contributions welcome! Check the [issues page](https://github.com/devnullvoid/peevetui/issues).
 
 ## 📝 License
 
