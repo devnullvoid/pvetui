@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/pvetui-gopher-logo.png" alt="pvetui Logo" width="300">
-</p>
+
 
 <h1 align="center">pvetui</h1>
 <p align="center">

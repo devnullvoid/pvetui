@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Update any shell aliases or scripts referencing the old binary name
     - Update any systemd service files or cron jobs
     - Update any documentation or bookmarks referencing the old project name
-  - **Impact:** This change affects configuration paths, binary names, and all project references
+    - **Environment Variables:** Change prefix from `PROXMOX_` to `PVETUI_` (e.g., `PROXMOX_HOST` → `PVETUI_HOST`)
+  - **Impact:** This change affects configuration paths, binary names, environment variables, and all project references
 
 ### Documentation
 - **README Updates**: Fixed CLI argument conventions and improved documentation
