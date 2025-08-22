@@ -35,8 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed race condition by polling both config and cluster resources endpoints to ensure complete propagation
 - **Cross-platform config and cache paths**: Added native support for Windows config/cache directories
   - Windows: Config in `%APPDATA%/pvetui`, Cache in `%LOCALAPPDATA%/pvetui`
-- macOS: Uses XDG-style paths (`~/.config/pvetui`, `~/.cache/pvetui`) for consistency with other TUI applications
-- Linux: Maintains existing XDG support (`~/.config/pvetui`, `~/.cache/pvetui`)
+  - macOS: Uses XDG-style paths (`~/.config/pvetui`, `~/.cache/pvetui`) for consistency with other TUI applications
+  - Linux: Maintains existing XDG support (`~/.config/pvetui`, `~/.cache/pvetui`)
   - Maintains backward compatibility with existing XDG functions
   - Environment variables still override platform defaults when set
 

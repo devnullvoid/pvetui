@@ -12,7 +12,7 @@ config.yaml
 *.code-workspace
 
 # Runtime logs (now stored in XDG cache directory)
-# logs/ - removed since logs are now in ~/.cache/peevetui/
+# logs/ - removed since logs are now in ~/.cache/pvetui/
 
 # Docker/Container files
 .env

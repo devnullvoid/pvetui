@@ -14,11 +14,11 @@
 Thumbs.db
 
 # Build artifacts
-peevetui
+pvetui
 dist/
 *.exe
 
-# Logs (but not cmd/peevetui/logs)
+# Logs (but not cmd/pvetui/logs)
 /logs/
 *.log
 
