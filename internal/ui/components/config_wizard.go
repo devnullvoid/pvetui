@@ -458,7 +458,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		resultChan <- WizardResult{Canceled: true}
 		app.Stop()
 	})
-	form.SetBorder(true).SetTitle("Proxmox TUI - Config Wizard").SetTitleColor(theme.Colors.Primary).SetBorderColor(theme.Colors.Border)
+	form.SetBorder(true).SetTitle("PeeveTUI - Config Wizard").SetTitleColor(theme.Colors.Primary).SetBorderColor(theme.Colors.Border)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			if cancelFn != nil {

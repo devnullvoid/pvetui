@@ -1,4 +1,4 @@
-// Package config provides configuration management for the Proxmox TUI application.
+// Package config provides configuration management for the PeeveTUI application.
 //
 // This package handles loading configuration from multiple sources with proper
 // precedence ordering:

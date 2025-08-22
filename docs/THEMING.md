@@ -1,6 +1,6 @@
 # Theming Guide
 
-Proxmox TUI supports flexible theming through both terminal emulator color schemes and application-level configuration.
+PeeveTUI supports flexible theming through both terminal emulator color schemes and application-level configuration.
 
 ## Overview
 

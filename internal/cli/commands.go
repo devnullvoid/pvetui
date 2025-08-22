@@ -15,7 +15,7 @@ func newConfigWizardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config-wizard",
 		Short: "Launch interactive config wizard",
-		Long: `Launch an interactive configuration wizard to set up your Proxmox TUI configuration.
+		Long: `Launch an interactive configuration wizard to set up your PeeveTUI configuration.
 
 This wizard will guide you through creating a configuration file with your
 Proxmox server details, authentication credentials, and other settings.`,

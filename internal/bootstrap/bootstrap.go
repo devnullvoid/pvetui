@@ -124,7 +124,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, nil
 	}
 
-	fmt.Println("🚀 Starting Proxmox TUI...")
+	fmt.Println("🚀 Starting PeeveTUI...")
 
 	// Initialize configuration
 	cfg := config.NewConfig()

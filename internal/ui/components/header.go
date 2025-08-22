@@ -9,7 +9,7 @@ import (
 	"github.com/devnullvoid/peevetui/internal/ui/theme"
 )
 
-const appName = "Proxmox TUI"
+const appName = "PeeveTUI"
 
 // Header encapsulates the application header.
 type Header struct {
@@ -28,7 +28,7 @@ var _ HeaderComponent = (*Header)(nil)
 func NewHeader() *Header {
 	header := tview.NewTextView()
 	header.SetTextAlign(tview.AlignCenter)
-	header.SetText("Proxmox TUI")
+	header.SetText("PeeveTUI")
 	header.SetDynamicColors(true)
 	header.SetBackgroundColor(theme.Colors.Header)
 	header.SetTextColor(theme.Colors.HeaderText)

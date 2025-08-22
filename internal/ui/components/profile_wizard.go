@@ -346,7 +346,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		resultChan <- WizardResult{Canceled: true}
 	})
 
-	form.SetBorder(true).SetTitle("Proxmox TUI - Profile Configuration").SetTitleColor(theme.Colors.Primary)
+	form.SetBorder(true).SetTitle("PeeveTUI - Profile Configuration").SetTitleColor(theme.Colors.Primary)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			resultChan <- WizardResult{Canceled: true}

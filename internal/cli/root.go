@@ -15,7 +15,7 @@ import (
 var RootCmd = &cobra.Command{
 	Use:   "peevetui",
 	Short: "A terminal user interface for Proxmox VE",
-	Long: `Proxmox TUI is a terminal user interface for managing Proxmox VE clusters.
+	Long: `PeeveTUI is a terminal user interface for managing Proxmox VE clusters.
 
 It provides an interactive interface for managing virtual machines, containers,
 nodes, and other Proxmox resources directly from the terminal.`,

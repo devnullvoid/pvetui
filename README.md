@@ -143,7 +143,7 @@ Access the profile manager through the global menu.
 2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
 
-> Note: Proxmox displays the Token ID in the form `user@realm!tokenid` (for example: `root@pam!mytoken`). When configuring Proxmox TUI, split those parts into separate fields:
+> Note: Proxmox displays the Token ID in the form `user@realm!tokenid` (for example: `root@pam!mytoken`). When configuring PeeveTUI, split those parts into separate fields:
 
 ```yaml
 profiles:

@@ -219,7 +219,7 @@ func CreateAboutDialog(versionInfo *version.BuildInfo, onClose func()) *tview.Mo
 	}
 
 	// Create about text with dynamic information
-	aboutText := fmt.Sprintf(`Proxmox TUI
+	aboutText := fmt.Sprintf(`PeeveTUI
 
 A terminal user interface for Proxmox VE
 

@@ -27,7 +27,7 @@ func NewHelpModal(keys config.KeyBindings) *HelpModal {
 		SetWrap(false)
 
 	textView.SetBorder(true).
-		SetTitle(" Proxmox TUI - Help & Keybindings ").
+		SetTitle(" PeeveTUI - Help & Keybindings ").
 		SetTitleColor(theme.Colors.Primary).
 		SetBorderColor(theme.Colors.Border)
 

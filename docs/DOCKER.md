@@ -1,6 +1,6 @@
-# Docker & Podman Support for Proxmox TUI
+# Docker & Podman Support for PeeveTUI
 
-This document describes how to build and run the Proxmox TUI application using Docker or Podman containers.
+This document describes how to build and run the PeeveTUI application using Docker or Podman containers.
 
 ## Quick Start
 

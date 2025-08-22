@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains comprehensive documentation for Proxmox TUI.
+This directory contains comprehensive documentation for PeeveTUI.
 
 ## 📚 Documentation Index
 

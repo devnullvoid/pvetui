@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This document provides solutions to common issues encountered when installing and running Proxmox TUI.
+This document provides solutions to common issues encountered when installing and running PeeveTUI.
 
 ## 🍎 macOS Issues
 
@@ -59,7 +59,7 @@ chmod +x ./peevetui-linux-amd64
 ```
 
 ### Missing Dependencies
-Proxmox TUI is statically compiled and should not require additional dependencies. If you encounter issues, ensure your system is up to date.
+PeeveTUI is statically compiled and should not require additional dependencies. If you encounter issues, ensure your system is up to date.
 
 ## 🪟 Windows Issues
 

@@ -1,4 +1,4 @@
-// Package theme provides color theming support for the Proxmox TUI application.
+// Package theme provides color theming support for the PeeveTUI application.
 //
 // This package defines semantic color constants that map to standard ANSI colors,
 // allowing users to customize the application appearance through their terminal
