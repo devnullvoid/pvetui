@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

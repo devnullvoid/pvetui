@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // Level represents the logging level.
@@ -71,7 +71,7 @@ func NewInternalLogger(level Level, cacheDir string) (*Logger, error) {
 		logsDir = "."
 	}
 
-	logFile := filepath.Join(logsDir, "peevetui.log")
+	logFile := filepath.Join(logsDir, "pvetui.log")
 	config := &Config{
 		Level:     level,
 		LogToFile: true,

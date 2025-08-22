@@ -7,15 +7,15 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/devnullvoid/peevetui/internal/bootstrap"
-	"github.com/devnullvoid/peevetui/internal/version"
+	"github.com/devnullvoid/pvetui/internal/bootstrap"
+	"github.com/devnullvoid/pvetui/internal/version"
 )
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "peevetui",
+	Use:   "pvetui",
 	Short: "A terminal user interface for Proxmox VE",
-	Long: `PeeveTUI is a terminal user interface for managing Proxmox VE clusters.
+	Long: `pvetui is a terminal user interface for managing Proxmox VE clusters.
 
 It provides an interactive interface for managing virtual machines, containers,
 nodes, and other Proxmox resources directly from the terminal.`,

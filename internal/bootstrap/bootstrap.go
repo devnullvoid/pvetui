@@ -10,14 +10,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/peevetui/internal/app"
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/logger"
-	"github.com/devnullvoid/peevetui/internal/onboarding"
-	"github.com/devnullvoid/peevetui/internal/profile"
-	"github.com/devnullvoid/peevetui/internal/ui/components"
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
-	"github.com/devnullvoid/peevetui/internal/version"
+	"github.com/devnullvoid/pvetui/internal/app"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/internal/onboarding"
+	"github.com/devnullvoid/pvetui/internal/profile"
+	"github.com/devnullvoid/pvetui/internal/ui/components"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/version"
 )
 
 // BootstrapOptions contains all the options for bootstrapping the application.
@@ -124,7 +124,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, nil
 	}
 
-	fmt.Println("🚀 Starting PeeveTUI...")
+	fmt.Println("🚀 Starting pvetui...")
 
 	// Initialize configuration
 	cfg := config.NewConfig()
@@ -352,7 +352,7 @@ func handleStartupError(err error, cfg *config.Config) error {
 // printVersion prints version information.
 func printVersion() {
 	info := version.GetBuildInfo()
-	fmt.Printf("peevetui version %s\n", info.Version)
+	fmt.Printf("pvetui version %s\n", info.Version)
 	fmt.Printf("Build date: %s\n", info.BuildDate)
 	fmt.Printf("Commit: %s\n", info.Commit)
 	fmt.Printf("Go version: %s\n", info.GoVersion)

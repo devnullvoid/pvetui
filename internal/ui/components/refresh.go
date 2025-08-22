@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/peevetui/internal/ui/models"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // manualRefresh refreshes all data manually.

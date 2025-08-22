@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/devnullvoid/peevetui/internal/logger"
+	"github.com/devnullvoid/pvetui/internal/logger"
 )
 
 //go:embed config.tpl.yml
@@ -70,24 +70,24 @@ func getConfigDir() string {
 	case "windows":
 		// Windows: Use %APPDATA% (Roaming) for config files
 		if appData := os.Getenv("APPDATA"); appData != "" {
-			return filepath.Join(appData, "peevetui")
+			return filepath.Join(appData, "pvetui")
 		}
 		// Fallback to user home directory
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, "AppData", "Roaming", "peevetui")
+			return filepath.Join(homeDir, "AppData", "Roaming", "pvetui")
 		}
 	default:
 		// macOS, Linux, and other Unix-like systems: Use XDG Base Directory Specification
 		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-			return filepath.Join(xdgConfig, "peevetui")
+			return filepath.Join(xdgConfig, "pvetui")
 		}
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, ".config", "peevetui")
+			return filepath.Join(homeDir, ".config", "pvetui")
 		}
 	}
 
 	// Ultimate fallback
-	return filepath.Join(".config", "peevetui")
+	return filepath.Join(".config", "pvetui")
 }
 
 // getCacheDir returns the appropriate cache directory path for the current platform.
@@ -96,24 +96,24 @@ func getCacheDir() string {
 	case "windows":
 		// Windows: Use %LOCALAPPDATA% for cache files
 		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			return filepath.Join(localAppData, "peevetui")
+			return filepath.Join(localAppData, "pvetui")
 		}
 		// Fallback to user home directory
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, "AppData", "Local", "peevetui")
+			return filepath.Join(homeDir, "AppData", "Local", "pvetui")
 		}
 	default:
 		// macOS, Linux, and other Unix-like systems: Use XDG Base Directory Specification
 		if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
-			return filepath.Join(xdgCache, "peevetui")
+			return filepath.Join(xdgCache, "pvetui")
 		}
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, ".cache", "peevetui")
+			return filepath.Join(homeDir, ".cache", "pvetui")
 		}
 	}
 
 	// Ultimate fallback
-	return filepath.Join(".cache", "peevetui")
+	return filepath.Join(".cache", "pvetui")
 }
 
 // getXDGConfigDir returns the XDG config directory path.

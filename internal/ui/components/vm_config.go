@@ -10,10 +10,10 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/ui/models"
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
-	"github.com/devnullvoid/peevetui/internal/ui/utils"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // VMConfigPage is a modal/page for editing VM or LXC configuration.

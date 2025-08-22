@@ -8,8 +8,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -458,7 +458,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		resultChan <- WizardResult{Canceled: true}
 		app.Stop()
 	})
-	form.SetBorder(true).SetTitle("PeeveTUI - Config Wizard").SetTitleColor(theme.Colors.Primary).SetBorderColor(theme.Colors.Border)
+	form.SetBorder(true).SetTitle("pvetui - Config Wizard").SetTitleColor(theme.Colors.Primary).SetBorderColor(theme.Colors.Border)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			if cancelFn != nil {

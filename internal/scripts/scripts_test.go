@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/devnullvoid/peevetui/internal/cache"
-	"github.com/devnullvoid/peevetui/pkg/api/testutils"
+	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/pkg/api/testutils"
 	"golang.org/x/term"
 )
 

@@ -6,8 +6,8 @@ before:
 
 builds:
   # General build for all platforms except windows/amd64
-  - id: peevetui
-    main: ./cmd/peevetui
+  - id: pvetui
+    main: ./cmd/pvetui
     env:
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]
@@ -17,13 +17,13 @@ builds:
         goarch: amd64
     ldflags:
       - -s -w
-      - -X github.com/devnullvoid/peevetui/internal/version.version={{.Version}}
-      - -X github.com/devnullvoid/peevetui/internal/version.commit={{.Commit}}
-      - -X github.com/devnullvoid/peevetui/internal/version.buildDate={{.Date}}
+      - -X github.com/devnullvoid/pvetui/internal/version.version={{.Version}}
+      - -X github.com/devnullvoid/pvetui/internal/version.commit={{.Commit}}
+      - -X github.com/devnullvoid/pvetui/internal/version.buildDate={{.Date}}
 
   # Windows/amd64 build with extra compatibility settings
-  - id: peevetui-windows-amd64
-    main: ./cmd/peevetui
+  - id: pvetui-windows-amd64
+    main: ./cmd/pvetui
     env:
       - CGO_ENABLED=0
     goos: [windows]
@@ -32,13 +32,13 @@ builds:
     tags: [netgo, osusergo]
     ldflags:
       - -s -w
-      - -X github.com/devnullvoid/peevetui/internal/version.version={{.Version}}
-      - -X github.com/devnullvoid/peevetui/internal/version.commit={{.Commit}}
-      - -X github.com/devnullvoid/peevetui/internal/version.buildDate={{.Date}}
+      - -X github.com/devnullvoid/pvetui/internal/version.version={{.Version}}
+      - -X github.com/devnullvoid/pvetui/internal/version.commit={{.Commit}}
+      - -X github.com/devnullvoid/pvetui/internal/version.buildDate={{.Date}}
 
 archives:
   - id: default
-    builds: [peevetui, peevetui-windows-amd64]
+    builds: [pvetui, pvetui-windows-amd64]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     format_overrides:

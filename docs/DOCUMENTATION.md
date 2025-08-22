@@ -91,7 +91,7 @@ go install golang.org/x/tools/cmd/godoc@latest
 godoc -http=:6060
 
 # Then navigate to:
-# http://localhost:6060/pkg/github.com/devnullvoid/peevetui/
+# http://localhost:6060/pkg/github.com/devnullvoid/pvetui/
 ```
 
 ### IDE Integration
@@ -215,10 +215,10 @@ import (
     "context"
     "log"
 
-    "github.com/devnullvoid/peevetui/internal/config"
-    "github.com/devnullvoid/peevetui/internal/logger"
-    "github.com/devnullvoid/peevetui/internal/adapters"
-    "github.com/devnullvoid/peevetui/pkg/api"
+    "github.com/devnullvoid/pvetui/internal/config"
+    "github.com/devnullvoid/pvetui/internal/logger"
+    "github.com/devnullvoid/pvetui/internal/adapters"
+    "github.com/devnullvoid/pvetui/pkg/api"
 )
 
 func main() {
@@ -272,10 +272,10 @@ import (
     "log"
     "time"
 
-    "github.com/devnullvoid/peevetui/internal/config"
-    "github.com/devnullvoid/peevetui/internal/logger"
-    "github.com/devnullvoid/peevetui/internal/adapters"
-    "github.com/devnullvoid/peevetui/pkg/api"
+    "github.com/devnullvoid/pvetui/internal/config"
+    "github.com/devnullvoid/pvetui/internal/logger"
+    "github.com/devnullvoid/pvetui/internal/adapters"
+    "github.com/devnullvoid/pvetui/pkg/api"
 )
 
 func main() {
@@ -347,8 +347,8 @@ import (
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/mock"
 
-    "github.com/devnullvoid/peevetui/pkg/api"
-    "github.com/devnullvoid/peevetui/pkg/api/testutils"
+    "github.com/devnullvoid/pvetui/pkg/api"
+    "github.com/devnullvoid/pvetui/pkg/api/testutils"
 )
 
 func TestAPIClient(t *testing.T) {

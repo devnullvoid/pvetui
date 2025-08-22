@@ -1,4 +1,4 @@
-module github.com/devnullvoid/peevetui
+module github.com/devnullvoid/pvetui
 
 go 1.24.2
 

@@ -6,8 +6,8 @@ package main
 import (
 	"github.com/stretchr/testify/mock"
 
-	"github.com/devnullvoid/peevetui/pkg/api"
-	"github.com/devnullvoid/peevetui/pkg/api/testutils"
+	"github.com/devnullvoid/pvetui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api/testutils"
 )
 
 func main() {

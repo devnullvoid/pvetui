@@ -1,4 +1,4 @@
-// Package interfaces defines the core interfaces used throughout the PeeveTUI application.
+// Package interfaces defines the core interfaces used throughout the pvetui application.
 //
 // This package provides clean abstractions for logging, caching, and configuration
 // that enable dependency injection and testability. All interfaces follow Go

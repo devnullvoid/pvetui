@@ -1,4 +1,4 @@
-// Package theme provides color theming support for the PeeveTUI application.
+// Package theme provides color theming support for the pvetui application.
 //
 // This package defines semantic color constants that map to standard ANSI colors,
 // allowing users to customize the application appearance through their terminal
@@ -15,7 +15,7 @@
 //
 // Usage:
 //
-//	import "github.com/devnullvoid/peevetui/internal/ui/theme"
+//	import "github.com/devnullvoid/pvetui/internal/ui/theme"
 //
 //	// Use semantic colors instead of hardcoded tcell.Color values
 //	cell.SetTextColor(theme.Colors.Primary)
@@ -39,7 +39,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

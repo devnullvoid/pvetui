@@ -158,7 +158,7 @@ func TestNewInternalLogger(t *testing.T) {
 	logger.Info("internal logger test")
 
 	// Check if log file was created
-	logFile := filepath.Join(tempDir, "peevetui.log")
+	logFile := filepath.Join(tempDir, "pvetui.log")
 	content, err := os.ReadFile(logFile)
 	require.NoError(t, err)
 

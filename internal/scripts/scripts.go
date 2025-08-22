@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/peevetui/internal/cache"
-	"github.com/devnullvoid/peevetui/internal/logger"
-	"github.com/devnullvoid/peevetui/internal/ui/utils"
-	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // GitHubRepo is the URL to the Proxmox Community Scripts repository.
@@ -142,7 +142,7 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	}
 
 	// Add User-Agent header to avoid GitHub API rate limiting
-	req.Header.Add("User-Agent", "PeeveTUI")
+	req.Header.Add("User-Agent", "pvetui")
 
 	// Execute the request
 	client := &http.Client{}
@@ -230,7 +230,7 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 	}
 
 	// Add User-Agent header to avoid GitHub API rate limiting
-	req.Header.Add("User-Agent", "PeeveTUI")
+	req.Header.Add("User-Agent", "pvetui")
 
 	// Execute the request
 	client := &http.Client{}

@@ -119,13 +119,13 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           New-Item -ItemType Directory -Force -Path dist
-          go build -ldflags="-s -w" -o ./dist/peevetui.exe ./cmd/peevetui
+          go build -ldflags="-s -w" -o ./dist/pvetui.exe ./cmd/pvetui
 
       - name: Build binary (Unix)
         if: matrix.os != 'windows-latest'
         run: |
           mkdir -p dist
-          go build -ldflags="-s -w" -o ./dist/peevetui ./cmd/peevetui
+          go build -ldflags="-s -w" -o ./dist/pvetui ./cmd/pvetui
 
       - name: List built files (debug)
         if: matrix.os == 'windows-latest'
@@ -141,15 +141,15 @@ jobs:
 
       - name: Test binary (Unix)
         if: matrix.os != 'windows-latest'
-        run: ./dist/peevetui --help
+        run: ./dist/pvetui --help
 
       - name: Test binary (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          if (Test-Path ".\dist\peevetui.exe") {
-            .\dist\peevetui.exe --help
+          if (Test-Path ".\dist\pvetui.exe") {
+            .\dist\pvetui.exe --help
           } else {
-            Write-Error "Binary not found at .\dist\peevetui.exe"
+            Write-Error "Binary not found at .\dist\pvetui.exe"
             Get-ChildItem .\dist\
             exit 1
           }

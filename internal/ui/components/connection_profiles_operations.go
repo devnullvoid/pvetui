@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/ui/models"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // applyConnectionProfile applies the selected connection profile.

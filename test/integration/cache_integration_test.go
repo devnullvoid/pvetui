@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/peevetui/internal/cache"
-	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
-	"github.com/devnullvoid/peevetui/test/testutils"
+	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/test/testutils"
 )
 
 // TestCacheIntegration_BadgerCache tests the Badger cache implementation.

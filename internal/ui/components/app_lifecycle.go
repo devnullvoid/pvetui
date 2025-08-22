@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 
-	"github.com/devnullvoid/peevetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
 )
 
 // Run starts the application.

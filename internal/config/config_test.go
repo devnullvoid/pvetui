@@ -416,7 +416,7 @@ func TestConfig_SetDefaults(t *testing.T) {
 
 	// Test that cache directory is set to XDG-compliant path
 	assert.NotEmpty(t, config.CacheDir)
-	assert.Contains(t, config.CacheDir, "peevetui")
+	assert.Contains(t, config.CacheDir, "pvetui")
 }
 
 // testXDGPathHelper runs tests for XDG path functions with common setup and teardown.
@@ -440,7 +440,7 @@ func testXDGPathHelper(t *testing.T, envVar string, testFunc func() string, expe
 			name:           envVar + " set",
 			envValue:       "/custom/path",
 			home:           "/home/user",
-			expectedSuffix: "/custom/path/peevetui",
+			expectedSuffix: "/custom/path/pvetui",
 		},
 		{
 			name:           "HOME set, no " + envVar,
@@ -462,19 +462,19 @@ func testXDGPathHelper(t *testing.T, envVar string, testFunc func() string, expe
 }
 
 func TestGetXDGCacheDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CACHE_HOME", getXDGCacheDir, "/home/user/.cache/peevetui")
+	testXDGPathHelper(t, "XDG_CACHE_HOME", getXDGCacheDir, "/home/user/.cache/pvetui")
 }
 
 func TestGetXDGConfigDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CONFIG_HOME", getXDGConfigDir, "/home/user/.config/peevetui")
+	testXDGPathHelper(t, "XDG_CONFIG_HOME", getXDGConfigDir, "/home/user/.config/pvetui")
 }
 
 func TestGetCacheDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CACHE_HOME", getCacheDir, "/home/user/.cache/peevetui")
+	testXDGPathHelper(t, "XDG_CACHE_HOME", getCacheDir, "/home/user/.cache/pvetui")
 }
 
 func TestGetConfigDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CONFIG_HOME", getConfigDir, "/home/user/.config/peevetui")
+	testXDGPathHelper(t, "XDG_CONFIG_HOME", getConfigDir, "/home/user/.config/pvetui")
 }
 
 func TestValidateKeyBindings(t *testing.T) {

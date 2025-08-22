@@ -7,9 +7,9 @@ import (
 
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/logger"
-	"github.com/devnullvoid/peevetui/pkg/api"
-	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // SearchState holds the state for a search operation.

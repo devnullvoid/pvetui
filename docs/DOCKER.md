@@ -44,7 +44,7 @@ This document describes how to build and run the PeeveTUI application using Dock
    The `docker compose run` command is the recommended way to start the TUI application. It handles interactive sessions correctly and cleans up the container on exit when used with `--rm`.
 
    ```bash
-   docker compose run --rm peevetui
+   docker compose run --rm pvetui
    ```
 
 ## Configuration
@@ -142,11 +142,11 @@ make podman-run
 
 ```bash
 # Run the service interactively (recommended)
-docker compose run --rm peevetui
+docker compose run --rm pvetui
 
 # If you need to run in the background (not typical for a TUI):
 # docker-compose up -d
-# docker-compose attach peevetui
+# docker-compose attach pvetui
 
 # Stop and remove background containers and networks
 docker-compose down
@@ -205,9 +205,9 @@ The container doesn't expose any ports by default. Network access is only needed
 2. **Container Won't Start:**
    ```bash
    # Check logs
-   docker logs peevetui
+   docker logs pvetui
    # or
-   podman logs peevetui
+   podman logs pvetui
    ```
 
 3. **Environment Variable Issues:**
@@ -328,7 +328,7 @@ Adjust these based on your needs.
 
 **Important for TUI Applications:**
 
-- ✅ **Use:** `docker compose run --rm peevetui`
+- ✅ **Use:** `docker compose run --rm pvetui`
 - ✅ **Use:** `make docker-run` or `make podman-run`
 - ❌ **Avoid:** `docker-compose up` directly, as it can have TTY attachment issues and doesn't clean up the container automatically.
 

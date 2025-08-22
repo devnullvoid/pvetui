@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/peevetui/internal/logger"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 //go:embed novnc

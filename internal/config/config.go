@@ -1,4 +1,4 @@
-// Package config provides configuration management for the PeeveTUI application.
+// Package config provides configuration management for the pvetui application.
 //
 // This package handles loading configuration from multiple sources with proper
 // precedence ordering:
@@ -38,9 +38,9 @@
 //
 // The package automatically determines appropriate directories for configuration
 // and cache files based on platform standards:
-//   - Windows: Config in %APPDATA%/peevetui, Cache in %LOCALAPPDATA%/peevetui
-//   - macOS: Config in $XDG_CONFIG_HOME/peevetui or ~/.config/peevetui, Cache in $XDG_CACHE_HOME/peevetui or ~/.cache/peevetui
-//   - Linux: Config in $XDG_CONFIG_HOME/peevetui or ~/.config/peevetui, Cache in $XDG_CACHE_HOME/peevetui or ~/.cache/peevetui
+//   - Windows: Config in %APPDATA%/pvetui, Cache in %LOCALAPPDATA%/pvetui
+//   - macOS: Config in $XDG_CONFIG_HOME/pvetui or ~/.config/pvetui, Cache in $XDG_CACHE_HOME/pvetui or ~/.cache/pvetui
+//   - Linux: Config in $XDG_CONFIG_HOME/pvetui or ~/.config/pvetui, Cache in $XDG_CACHE_HOME/pvetui or ~/.cache/pvetui
 //
 // Authentication Methods:
 //
@@ -76,7 +76,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/devnullvoid/peevetui/internal/keys"
+	"github.com/devnullvoid/pvetui/internal/keys"
 	"github.com/getsops/sops/v3/decrypt"
 	"gopkg.in/yaml.v3"
 )

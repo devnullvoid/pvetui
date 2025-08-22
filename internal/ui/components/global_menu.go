@@ -1,7 +1,7 @@
 package components
 
 import (
-	"github.com/devnullvoid/peevetui/internal/version"
+	"github.com/devnullvoid/pvetui/internal/version"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/peevetui/pkg/api/testutils"
+	"github.com/devnullvoid/pvetui/pkg/api/testutils"
 )
 
 // Test constants for repeated strings.
@@ -216,7 +216,7 @@ func TestAuthManager_authenticate_Success(t *testing.T) {
 		if r.URL.Path == "/access/ticket" && r.Method == http.MethodPost {
 			// Verify the request
 			assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
-			assert.Equal(t, "peevetui", r.Header.Get("User-Agent"))
+			assert.Equal(t, "pvetui", r.Header.Get("User-Agent"))
 
 			// Parse form data
 			err := r.ParseForm()

@@ -3,9 +3,9 @@ package ui
 import (
 	"context"
 
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/ui/components"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/components"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // RunApp creates and starts the application using the component-based architecture.

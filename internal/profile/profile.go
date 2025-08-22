@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/config"
 )
 
 // ResolveProfile determines which profile to use based on command line flags,

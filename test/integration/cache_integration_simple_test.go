@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/peevetui/internal/cache"
-	"github.com/devnullvoid/peevetui/test/testutils"
+	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/test/testutils"
 )
 
 // Test constants for repeated strings.

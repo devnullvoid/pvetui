@@ -3,8 +3,8 @@ package components
 import (
 	"fmt"
 
-	"github.com/devnullvoid/peevetui/internal/ui/models"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // autoRefreshDataWithFooter sets loading state and starts the data fetch in a new goroutine.

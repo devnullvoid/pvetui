@@ -5,7 +5,7 @@ Thank you for your interest in contributing to PeeveTUI! This document provides 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/yourusername/peevetui.git`
+2. Clone your fork: `git clone https://github.com/yourusername/pvetui.git`
 3. Create a feature branch: `git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes
@@ -23,14 +23,14 @@ Thank you for your interest in contributing to PeeveTUI! This document provides 
 ### Building
 ```bash
 # Clone the repository
-git clone https://github.com/devnullvoid/peevetui.git
-cd peevetui
+git clone https://github.com/devnullvoid/pvetui.git
+cd pvetui
 
 # Build the application
-go build -o peevetui ./cmd/peevetui
+go build -o pvetui ./cmd/pvetui
 
 # Run with your config
-./peevetui --config ./configs/config.yml
+./pvetui --config ./configs/config.yml
 ```
 
 ### Running Tests
@@ -53,7 +53,7 @@ golangci-lint run --timeout=5m
 go fmt ./...
 
 # Fix imports
-goimports -local github.com/devnullvoid/peevetui -w .
+goimports -local github.com/devnullvoid/pvetui -w .
 ```
 
 ## Code Style
@@ -67,8 +67,8 @@ goimports -local github.com/devnullvoid/peevetui -w .
 
 ### Project Structure
 ```
-peevetui/
-├── cmd/peevetui/     # Application entrypoint
+pvetui/
+├── cmd/pvetui/     # Application entrypoint
 ├── internal/            # Internal application code
 │   ├── adapters/        # External service adapters
 │   ├── cache/           # Caching implementation

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/peevetui-gopher-logo.png" alt="PeeveTUI Logo" width="300">
+  <img src="docs/pvetui-gopher-logo.png" alt="pvetui Logo" width="300">
 </p>
 
-<h1 align="center">PeeveTUI</h1>
+<h1 align="center">pvetui</h1>
 <p align="center">
   <strong>A Terminal User Interface For Proxmox Virtual Environment</strong>
 </p>
@@ -22,18 +22,18 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/devnullvoid/peevetui" alt="GitHub release">
-  <img src="https://img.shields.io/github/license/devnullvoid/peevetui" alt="License">
-  <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/peevetui" alt="Go Version">
-  <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/peevetui/ci.yml?branch=master" alt="Build Status">
-  <img src="https://img.shields.io/github/downloads/devnullvoid/peevetui/total" alt="Total Downloads">
+  <img src="https://img.shields.io/github/v/release/devnullvoid/pvetui" alt="GitHub release">
+  <img src="https://img.shields.io/github/license/devnullvoid/pvetui" alt="License">
+  <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/pvetui" alt="Go Version">
+  <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/pvetui/ci.yml?branch=master" alt="Build Status">
+  <img src="https://img.shields.io/github/downloads/devnullvoid/pvetui/total" alt="Total Downloads">
 </p>
 
 <!-- Demo GIF -->
 <p align="center">
   <img src="docs/demo.gif" width="600" alt="Live demo of PeeveTUI in action">
   <br>
-  <em>Live demo of PeeveTUI in action</em>
+  <em>Live demo of pvetui in action</em>
   <br>
   <a href="docs/demo.webm">🎥 Watch high-quality WebM demo</a>
 </p>
@@ -71,20 +71,20 @@
 ### Quick Start
 
 **From Pre-compiled Binaries:**
-1. Download from [Releases](https://github.com/devnullvoid/peevetui/releases)
-2. Extract and run: `./peevetui`
+1. Download from [Releases](https://github.com/devnullvoid/pvetui/releases)
+2. Extract and run: `./pvetui`
 
 > **macOS Users**: You may encounter Gatekeeper warnings with pre-compiled binaries. See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-macos-issues) for solutions including bypassing the warning or building from source.
 
 **From Source:**
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/peevetui.git
-cd peevetui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
 make install  # Build and install from source
 # or: make install-go  # Install via Go toolchain
 ```
 
-> **Note**: The `go install github.com/devnullvoid/peevetui/cmd/peevetui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
+> **Note**: The `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
 
 ## 🔧 Configuration
 
@@ -165,11 +165,11 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 ## 🔌 Usage
 
 ```bash
-# Auto-detects config at ~/.config/peevetui/config.yml
-./peevetui
+# Auto-detects config at ~/.config/pvetui/config.yml
+./pvetui
 
 # Or specify custom config
-./peevetui --config /path/to/config.yml
+./pvetui --config /path/to/config.yml
 ```
 
 ### Command Line Options
@@ -254,17 +254,17 @@ Check our **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to 
 ## 🐳 Docker Usage
 
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/peevetui.git
-cd peevetui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
 cp .env.example .env  # Edit with your Proxmox details
-docker compose run --rm peevetui
+docker compose run --rm pvetui
 ```
 
 See [docs/DOCKER.md](docs/DOCKER.md) for advanced usage.
 
 ## 🤝 Contributing
 
-Contributions welcome! Check the [issues page](https://github.com/devnullvoid/peevetui/issues).
+Contributions welcome! Check the [issues page](https://github.com/devnullvoid/pvetui/issues).
 
 ## 📝 License
 

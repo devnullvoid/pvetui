@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api"
 
-	// "github.com/devnullvoid/peevetui/pkg/config".
-	"github.com/devnullvoid/peevetui/internal/ssh"
-	"github.com/devnullvoid/peevetui/internal/ui/models"
-	"github.com/devnullvoid/peevetui/internal/vnc"
+	// "github.com/devnullvoid/pvetui/pkg/config".
+	"github.com/devnullvoid/pvetui/internal/ssh"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/vnc"
 )
 
 // openNodeShell opens an SSH session to the currently selected node.

@@ -1,4 +1,4 @@
-# Example multi-profile config for peevetui
+# Example multi-profile config for pvetui
 profiles:
   default:
     addr: https://proxmox.local:8006

@@ -8,7 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 )
 
 // createStatusCell creates a colored status cell (theme-aware).

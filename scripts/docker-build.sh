@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Docker build script for peevetui
+# Docker build script for pvetui
 set -e
 
 # Configuration
-IMAGE_NAME="peevetui"
+IMAGE_NAME="pvetui"
 VERSION=${VERSION:-latest}
 REGISTRY=${REGISTRY:-""}
 
@@ -40,7 +40,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Change to project root
 cd "$PROJECT_ROOT"
 
-log_info "Building Docker image for peevetui..."
+log_info "Building Docker image for pvetui..."
 
 # Get current user's UID and GID
 USER_ID=$(id -u)

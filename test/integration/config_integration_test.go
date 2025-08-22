@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/peevetui/internal/adapters"
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/test/testutils"
+	"github.com/devnullvoid/pvetui/internal/adapters"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/test/testutils"
 )
 
 // TestConfigIntegration_FileLoading tests loading configuration from YAML files.
@@ -435,7 +435,7 @@ func TestConfigIntegration_DefaultsAndValidation(t *testing.T) {
 		assert.Equal(t, "pam", cfg.Realm)
 		assert.Equal(t, "/api2/json", cfg.ApiPath)
 		assert.NotEmpty(t, cfg.CacheDir)
-		assert.Contains(t, cfg.CacheDir, "peevetui")
+		assert.Contains(t, cfg.CacheDir, "pvetui")
 	})
 
 	t.Run("validation_scenarios", func(t *testing.T) {

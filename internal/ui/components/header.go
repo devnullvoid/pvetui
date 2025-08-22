@@ -6,10 +6,10 @@ import (
 
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 )
 
-const appName = "PeeveTUI"
+const appName = "pvetui"
 
 // Header encapsulates the application header.
 type Header struct {
@@ -28,7 +28,7 @@ var _ HeaderComponent = (*Header)(nil)
 func NewHeader() *Header {
 	header := tview.NewTextView()
 	header.SetTextAlign(tview.AlignCenter)
-	header.SetText("PeeveTUI")
+	header.SetText("pvetui")
 	header.SetDynamicColors(true)
 	header.SetBackgroundColor(theme.Colors.Header)
 	header.SetTextColor(theme.Colors.HeaderText)

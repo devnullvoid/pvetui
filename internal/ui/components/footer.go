@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 )
 
 // Footer encapsulates the application footer.

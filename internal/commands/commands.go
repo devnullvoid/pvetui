@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/devnullvoid/peevetui/internal/ssh"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ssh"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // TODO: implement commands for listing nodes, managing VMs/LXCs, and opening shells.

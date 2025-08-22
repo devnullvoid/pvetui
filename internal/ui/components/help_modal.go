@@ -7,8 +7,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 )
 
 // HelpModal represents a modal dialog showing keybindings and usage information.
@@ -27,7 +27,7 @@ func NewHelpModal(keys config.KeyBindings) *HelpModal {
 		SetWrap(false)
 
 	textView.SetBorder(true).
-		SetTitle(" PeeveTUI - Help & Keybindings ").
+		SetTitle(" pvetui - Help & Keybindings ").
 		SetTitleColor(theme.Colors.Primary).
 		SetBorderColor(theme.Colors.Border)
 

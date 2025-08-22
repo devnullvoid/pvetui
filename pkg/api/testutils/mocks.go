@@ -1,4 +1,4 @@
-// Package testutils provides testing utilities, mocks, and helper functions for the PeeveTUI API package.
+// Package testutils provides testing utilities, mocks, and helper functions for the pvetui API package.
 //
 // This package contains mock implementations of core interfaces, test data generators,
 // and utility functions that make it easier to write comprehensive unit tests for

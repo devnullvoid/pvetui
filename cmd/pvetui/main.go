@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/devnullvoid/peevetui/internal/cli"
+	"github.com/devnullvoid/pvetui/internal/cli"
 )
 
 func main() {

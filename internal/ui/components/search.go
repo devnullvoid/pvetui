@@ -4,13 +4,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/peevetui/pkg/api"
-	// "github.com/devnullvoid/peevetui/pkg/config".
+	"github.com/devnullvoid/pvetui/pkg/api"
+	// "github.com/devnullvoid/pvetui/pkg/config".
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
 )
 
 // activateSearch shows the search input field and sets up filtering.

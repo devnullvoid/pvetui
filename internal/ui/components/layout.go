@@ -3,8 +3,8 @@ package components
 import (
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/peevetui/internal/ui/models"
-	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // createMainLayout builds the main application layout.

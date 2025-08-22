@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	// "github.com/devnullvoid/peevetui/pkg/config".
+	// "github.com/devnullvoid/pvetui/pkg/config".
 )
 
 // Ensure config package is properly imported

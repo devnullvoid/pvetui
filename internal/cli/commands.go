@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/devnullvoid/peevetui/internal/bootstrap"
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/profile"
+	"github.com/devnullvoid/pvetui/internal/bootstrap"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/profile"
 )
 
 // newConfigWizardCmd creates the config wizard command
@@ -15,7 +15,7 @@ func newConfigWizardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config-wizard",
 		Short: "Launch interactive config wizard",
-		Long: `Launch an interactive configuration wizard to set up your PeeveTUI configuration.
+		Long: `Launch an interactive configuration wizard to set up your pvetui configuration.
 
 This wizard will guide you through creating a configuration file with your
 Proxmox server details, authentication credentials, and other settings.`,

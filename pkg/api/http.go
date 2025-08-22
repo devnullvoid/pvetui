@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // HTTPClient wraps http.Client with Proxmox-specific functionality and dependency injection.
@@ -133,7 +133,7 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 	}
 
 	// Set headers
-	req.Header.Set("User-Agent", "peevetui")
+	req.Header.Set("User-Agent", "pvetui")
 	req.Header.Set("Accept", "application/json")
 
 	// Handle authentication

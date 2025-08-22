@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/logger"
-	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // Cache defines the interface for the caching system.

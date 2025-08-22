@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/peevetui/pkg/api/testutils"
+	"github.com/devnullvoid/pvetui/pkg/api/testutils"
 )
 
 func TestNewHTTPClient(t *testing.T) {
@@ -53,7 +53,7 @@ func TestHTTPClient_Get_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/test/path", r.URL.Path)
-		assert.Equal(t, "peevetui", r.Header.Get("User-Agent"))
+		assert.Equal(t, "pvetui", r.Header.Get("User-Agent"))
 		assert.Equal(t, "application/json", r.Header.Get("Accept"))
 
 		response := map[string]interface{}{

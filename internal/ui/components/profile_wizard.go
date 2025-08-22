@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/devnullvoid/peevetui/internal/config"
-	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -346,7 +346,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		resultChan <- WizardResult{Canceled: true}
 	})
 
-	form.SetBorder(true).SetTitle("PeeveTUI - Profile Configuration").SetTitleColor(theme.Colors.Primary)
+	form.SetBorder(true).SetTitle("pvetui - Profile Configuration").SetTitleColor(theme.Colors.Primary)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			resultChan <- WizardResult{Canceled: true}
