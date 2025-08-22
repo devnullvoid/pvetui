@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### MAJOR BREAKING CHANGE
+- **Project Renamed to pvetui**
+  - Rename was necessary in order to remain compliant with Proxmox trademark
+  - Old paths referencing `proxmox-tui` must be renamed to `pvetui`. For example:
+    ```
+    mv ~/.config/proxmox-tui ~/.config/pvetui
+    ```
+  - **Additional migration steps:**
+    - Update any shell aliases or scripts referencing the old binary name
+    - Update any systemd service files or cron jobs
+    - Update any documentation or bookmarks referencing the old project name
+  - **Impact:** This change affects configuration paths, binary names, and all project references
+
 ### Documentation
 - **README Updates**: Fixed CLI argument conventions and improved documentation
   - Updated all CLI examples to use correct double-dash format (`--config` instead of `-config`)
