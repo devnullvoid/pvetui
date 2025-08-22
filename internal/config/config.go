@@ -584,11 +584,11 @@ func (c *Config) Validate() error {
 	} else {
 		// Validate legacy configuration
 		if c.Addr == "" {
-			return errors.New("proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
+			return errors.New("proxmox address required: set via -addr flag, PVETUI_ADDR env var, or config file")
 		}
 
 		if c.User == "" {
-			return errors.New("proxmox username required: set via -user flag, PROXMOX_USER env var, or config file")
+			return errors.New("proxmox username required: set via -user flag, PVETUI_USER env var, or config file")
 		}
 
 		// Check that either password or token authentication is provided
@@ -596,7 +596,7 @@ func (c *Config) Validate() error {
 		hasToken := c.TokenID != "" && c.TokenSecret != ""
 
 		if !hasPassword && !hasToken {
-			return errors.New("authentication required: provide either password (-password flag, PROXMOX_PASSWORD env var) or API token (-token-id/-token-secret flags, PROXMOX_TOKEN_ID/PROXMOX_TOKEN_SECRET env vars, or config file)")
+			return errors.New("authentication required: provide either password (-password flag, PVETUI_PASSWORD env var) or API token (-token-id/-token-secret flags, PVETUI_TOKEN_ID/PVETUI_TOKEN_SECRET env vars, or config file)")
 		}
 
 		if hasPassword && hasToken {

@@ -47,10 +47,10 @@ func NewIntegrationTestConfig(t *testing.T) *IntegrationTestConfig {
 		ConfigFile:     filepath.Join(tempDir, "test-config.yml"),
 		CacheDir:       filepath.Join(tempDir, "cache"),
 		LogFile:        filepath.Join(tempDir, "test.log"),
-		UseRealProxmox: os.Getenv("PROXMOX_INTEGRATION_TEST") == api.StringTrue,
-		ProxmoxAddr:    getEnvOrDefault("PROXMOX_TEST_ADDR", "https://test.example.com:8006"),
-		ProxmoxUser:    getEnvOrDefault("PROXMOX_TEST_USER", "testuser@pam"),
-		ProxmoxPass:    getEnvOrDefault("PROXMOX_TEST_PASS", "testpass"),
+		UseRealProxmox: os.Getenv("PVETUI_INTEGRATION_TEST") == api.StringTrue,
+		ProxmoxAddr:    getEnvOrDefault("PVETUI_TEST_ADDR", "https://test.example.com:8006"),
+		ProxmoxUser:    getEnvOrDefault("PVETUI_TEST_USER", "testuser@pam"),
+		ProxmoxPass:    getEnvOrDefault("PVETUI_TEST_PASS", "testpass"),
 	}
 }
 
@@ -330,14 +330,14 @@ func getEnvOrDefault(key, defaultValue string) string {
 
 // SkipIfNoRealProxmox skips the test if not running against real Proxmox.
 func SkipIfNoRealProxmox(t *testing.T) {
-	if os.Getenv("PROXMOX_INTEGRATION_TEST") != "true" {
-		t.Skip("Skipping integration test - set PROXMOX_INTEGRATION_TEST=true to run against real Proxmox")
+	if os.Getenv("PVETUI_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping integration test - set PVETUI_INTEGRATION_TEST=true to run against real Proxmox")
 	}
 }
 
 // SkipIfRealProxmox skips the test if running against real Proxmox.
 func SkipIfRealProxmox(t *testing.T) {
-	if os.Getenv("PROXMOX_INTEGRATION_TEST") == "true" {
+	if os.Getenv("PVETUI_INTEGRATION_TEST") == "true" {
 		t.Skip("Skipping mock test - running against real Proxmox")
 	}
 }
