@@ -119,13 +119,13 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           New-Item -ItemType Directory -Force -Path dist
-          go build -ldflags="-s -w" -o ./dist/proxmox-tui.exe ./cmd/proxmox-tui
+          go build -ldflags="-s -w" -o ./dist/peevetui.exe ./cmd/peevetui
 
       - name: Build binary (Unix)
         if: matrix.os != 'windows-latest'
         run: |
           mkdir -p dist
-          go build -ldflags="-s -w" -o ./dist/proxmox-tui ./cmd/proxmox-tui
+          go build -ldflags="-s -w" -o ./dist/peevetui ./cmd/peevetui
 
       - name: List built files (debug)
         if: matrix.os == 'windows-latest'
@@ -141,15 +141,15 @@ jobs:
 
       - name: Test binary (Unix)
         if: matrix.os != 'windows-latest'
-        run: ./dist/proxmox-tui --help
+        run: ./dist/peevetui --help
 
       - name: Test binary (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          if (Test-Path ".\dist\proxmox-tui.exe") {
-            .\dist\proxmox-tui.exe --help
+          if (Test-Path ".\dist\peevetui.exe") {
+            .\dist\peevetui.exe --help
           } else {
-            Write-Error "Binary not found at .\dist\proxmox-tui.exe"
+            Write-Error "Binary not found at .\dist\peevetui.exe"
             Get-ChildItem .\dist\
             exit 1
           }

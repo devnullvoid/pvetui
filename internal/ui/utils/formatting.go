@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/devnullvoid/peevetui/internal/ui/theme"
 )
 
 // FormatUptime formats the uptime in seconds to a human-readable format.

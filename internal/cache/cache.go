@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/logger"
+	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
 )
 
 // Cache defines the interface for the caching system.

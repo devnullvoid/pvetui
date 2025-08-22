@@ -3,7 +3,7 @@ package components
 import (
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 // EnhancedNetworkInterface represents enhanced network information with both config and runtime data.

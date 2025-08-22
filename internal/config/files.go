@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
+	"github.com/devnullvoid/peevetui/internal/logger"
 )
 
 //go:embed config.tpl.yml
@@ -70,24 +70,24 @@ func getConfigDir() string {
 	case "windows":
 		// Windows: Use %APPDATA% (Roaming) for config files
 		if appData := os.Getenv("APPDATA"); appData != "" {
-			return filepath.Join(appData, "proxmox-tui")
+			return filepath.Join(appData, "peevetui")
 		}
 		// Fallback to user home directory
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, "AppData", "Roaming", "proxmox-tui")
+			return filepath.Join(homeDir, "AppData", "Roaming", "peevetui")
 		}
 	default:
 		// macOS, Linux, and other Unix-like systems: Use XDG Base Directory Specification
 		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-			return filepath.Join(xdgConfig, "proxmox-tui")
+			return filepath.Join(xdgConfig, "peevetui")
 		}
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, ".config", "proxmox-tui")
+			return filepath.Join(homeDir, ".config", "peevetui")
 		}
 	}
 
 	// Ultimate fallback
-	return filepath.Join(".config", "proxmox-tui")
+	return filepath.Join(".config", "peevetui")
 }
 
 // getCacheDir returns the appropriate cache directory path for the current platform.
@@ -96,24 +96,24 @@ func getCacheDir() string {
 	case "windows":
 		// Windows: Use %LOCALAPPDATA% for cache files
 		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			return filepath.Join(localAppData, "proxmox-tui")
+			return filepath.Join(localAppData, "peevetui")
 		}
 		// Fallback to user home directory
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, "AppData", "Local", "proxmox-tui")
+			return filepath.Join(homeDir, "AppData", "Local", "peevetui")
 		}
 	default:
 		// macOS, Linux, and other Unix-like systems: Use XDG Base Directory Specification
 		if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
-			return filepath.Join(xdgCache, "proxmox-tui")
+			return filepath.Join(xdgCache, "peevetui")
 		}
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, ".cache", "proxmox-tui")
+			return filepath.Join(homeDir, ".cache", "peevetui")
 		}
 	}
 
 	// Ultimate fallback
-	return filepath.Join(".cache", "proxmox-tui")
+	return filepath.Join(".cache", "peevetui")
 }
 
 // getXDGConfigDir returns the XDG config directory path.

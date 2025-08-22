@@ -3,16 +3,16 @@
 .cursor/
 config.yml
 config.yaml
-/proxmox-tui
-/proxmox-tui.log
+/peevetui
+/peevetui.log
 # Ignore log files anywhere in the project (including test-generated ones)
-**/proxmox-tui.log
+**/peevetui.log
 /bin/
 *.exe
 *.code-workspace
 
 # Runtime logs (now stored in XDG cache directory)
-# logs/ - removed since logs are now in ~/.cache/proxmox-tui/
+# logs/ - removed since logs are now in ~/.cache/peevetui/
 
 # Docker/Container files
 .env

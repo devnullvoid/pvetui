@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/proxmox-tui/internal/cache"
-	"github.com/devnullvoid/proxmox-tui/test/testutils"
+	"github.com/devnullvoid/peevetui/internal/cache"
+	"github.com/devnullvoid/peevetui/test/testutils"
 )
 
 // Test constants for repeated strings.

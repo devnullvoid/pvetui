@@ -3,7 +3,7 @@ package components
 import (
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+	"github.com/devnullvoid/peevetui/internal/ui/models"
 )
 
 // toggleAutoRefresh toggles the auto-refresh functionality on/off.

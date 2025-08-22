@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/proxmox-tui/internal/adapters"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/test/testutils"
+	"github.com/devnullvoid/peevetui/internal/adapters"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/test/testutils"
 )
 
 // TestConfigIntegration_FileLoading tests loading configuration from YAML files.
@@ -435,7 +435,7 @@ func TestConfigIntegration_DefaultsAndValidation(t *testing.T) {
 		assert.Equal(t, "pam", cfg.Realm)
 		assert.Equal(t, "/api2/json", cfg.ApiPath)
 		assert.NotEmpty(t, cfg.CacheDir)
-		assert.Contains(t, cfg.CacheDir, "proxmox-tui")
+		assert.Contains(t, cfg.CacheDir, "peevetui")
 	})
 
 	t.Run("validation_scenarios", func(t *testing.T) {

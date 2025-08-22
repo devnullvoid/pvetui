@@ -1,6 +1,6 @@
 # Integration Tests Implementation
 
-This document provides a comprehensive overview of the integration tests implemented for the proxmox-tui project.
+This document provides a comprehensive overview of the integration tests implemented for the peevetui project.
 
 ## Overview
 
@@ -212,6 +212,6 @@ When adding new integration tests:
 
 ## Conclusion
 
-The integration tests provide comprehensive coverage of the proxmox-tui application's core functionality. They successfully test component interactions, authentication flows, caching behavior, and end-to-end workflows. The tests are designed to be reliable, fast, and suitable for both development and CI/CD environments.
+The integration tests provide comprehensive coverage of the peevetui application's core functionality. They successfully test component interactions, authentication flows, caching behavior, and end-to-end workflows. The tests are designed to be reliable, fast, and suitable for both development and CI/CD environments.
 
 The implementation demonstrates best practices for Go integration testing and provides a solid foundation for maintaining code quality as the project evolves.

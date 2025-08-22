@@ -61,5 +61,5 @@ Set Theme "Catppuccin Mocha"
 Set FontFamily "Monaspace Krypton"
 Set TypingSpeed 100ms
 Set Shell bash
-Type@50ms "go run ./cmd/proxmox-tui/
+Type@50ms "go run ./cmd/peevetui/
 Enter

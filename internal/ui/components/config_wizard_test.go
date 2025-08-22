@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/config"
 )
 
 func TestConfigWizardValidation(t *testing.T) {

@@ -8,10 +8,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/adapters"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/internal/adapters"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/logger"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 func main() {

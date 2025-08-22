@@ -6,7 +6,7 @@ import (
 
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/devnullvoid/peevetui/internal/ui/theme"
 )
 
 const appName = "Proxmox TUI"

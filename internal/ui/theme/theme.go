@@ -15,7 +15,7 @@
 //
 // Usage:
 //
-//	import "github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+//	import "github.com/devnullvoid/peevetui/internal/ui/theme"
 //
 //	// Use semantic colors instead of hardcoded tcell.Color values
 //	cell.SetTextColor(theme.Colors.Primary)
@@ -39,7 +39,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/config"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

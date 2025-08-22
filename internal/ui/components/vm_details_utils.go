@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 // getFriendlyFilesystemName returns a user-friendly name for a filesystem.

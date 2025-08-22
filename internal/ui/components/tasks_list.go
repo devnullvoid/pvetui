@@ -7,8 +7,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 // TasksList encapsulates the tasks list panel.

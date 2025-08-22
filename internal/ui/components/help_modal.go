@@ -7,8 +7,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/ui/theme"
 )
 
 // HelpModal represents a modal dialog showing keybindings and usage information.

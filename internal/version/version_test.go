@@ -108,8 +108,8 @@ func TestProjectNameConstant(t *testing.T) {
 		t.Error("ProjectName constant should not be empty")
 	}
 
-	if ProjectName != "proxmox-tui" {
-		t.Errorf("ProjectName constant should be 'proxmox-tui', got: %s", ProjectName)
+	if ProjectName != "peevetui" {
+		t.Errorf("ProjectName constant should be 'peevetui', got: %s", ProjectName)
 	}
 }
 

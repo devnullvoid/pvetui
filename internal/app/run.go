@@ -6,13 +6,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/adapters"
-	"github.com/devnullvoid/proxmox-tui/internal/cache"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/internal/ui"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/internal/adapters"
+	"github.com/devnullvoid/peevetui/internal/cache"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/logger"
+	"github.com/devnullvoid/peevetui/internal/ui"
+	"github.com/devnullvoid/peevetui/internal/ui/models"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 // Options configures the Run function.

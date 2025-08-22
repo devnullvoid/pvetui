@@ -7,13 +7,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/devnullvoid/proxmox-tui/internal/bootstrap"
-	"github.com/devnullvoid/proxmox-tui/internal/version"
+	"github.com/devnullvoid/peevetui/internal/bootstrap"
+	"github.com/devnullvoid/peevetui/internal/version"
 )
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "proxmox-tui",
+	Use:   "peevetui",
 	Short: "A terminal user interface for Proxmox VE",
 	Long: `Proxmox TUI is a terminal user interface for managing Proxmox VE clusters.
 

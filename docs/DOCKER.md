@@ -44,7 +44,7 @@ This document describes how to build and run the Proxmox TUI application using D
    The `docker compose run` command is the recommended way to start the TUI application. It handles interactive sessions correctly and cleans up the container on exit when used with `--rm`.
 
    ```bash
-   docker compose run --rm proxmox-tui
+   docker compose run --rm peevetui
    ```
 
 ## Configuration

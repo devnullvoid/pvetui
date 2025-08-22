@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
+	"github.com/devnullvoid/peevetui/internal/ui/models"
 )
 
 // Run starts the application.

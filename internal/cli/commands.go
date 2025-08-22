@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/devnullvoid/proxmox-tui/internal/bootstrap"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/profile"
+	"github.com/devnullvoid/peevetui/internal/bootstrap"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/profile"
 )
 
 // newConfigWizardCmd creates the config wizard command

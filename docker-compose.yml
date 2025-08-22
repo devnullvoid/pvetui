@@ -1,13 +1,13 @@
 services:
-  proxmox-tui:
+  peevetui:
     build:
       context: .
       dockerfile: Dockerfile
       args:
         USER_ID: ${UID:-1000}
         GROUP_ID: ${GID:-1000}
-    image: proxmox-tui:latest
-    container_name: proxmox-tui
+    image: peevetui:latest
+    container_name: peevetui
     restart: "no"  # Don't restart for interactive TUI apps
 
     # Environment variables are loaded from the .env file

@@ -5,8 +5,8 @@ import (
 
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/scripts"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/internal/scripts"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 // Script type constants.

@@ -8,8 +8,8 @@ import (
 
 func TestRootCommand(t *testing.T) {
 	// Test that the root command is properly configured
-	if RootCmd.Use != "proxmox-tui" {
-		t.Errorf("Expected root command use to be 'proxmox-tui', got '%s'", RootCmd.Use)
+	if RootCmd.Use != "peevetui" {
+		t.Errorf("Expected root command use to be 'peevetui', got '%s'", RootCmd.Use)
 	}
 
 	if RootCmd.Short == "" {

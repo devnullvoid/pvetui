@@ -14,11 +14,11 @@
 Thumbs.db
 
 # Build artifacts
-proxmox-tui
+peevetui
 dist/
 *.exe
 
-# Logs (but not cmd/proxmox-tui/logs)
+# Logs (but not cmd/peevetui/logs)
 /logs/
 *.log
 
@@ -46,4 +46,4 @@ docker-compose*.yml
 
 # Temporary files
 tmp/
-temp/ 
+temp/

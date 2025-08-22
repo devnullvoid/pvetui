@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ssh"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/internal/ssh"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 // TODO: implement commands for listing nodes, managing VMs/LXCs, and opening shells.

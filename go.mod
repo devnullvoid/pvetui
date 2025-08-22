@@ -1,4 +1,4 @@
-module github.com/devnullvoid/proxmox-tui
+module github.com/devnullvoid/peevetui
 
 go 1.24.2
 

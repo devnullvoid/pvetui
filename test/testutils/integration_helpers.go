@@ -18,12 +18,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/proxmox-tui/internal/adapters"
-	"github.com/devnullvoid/proxmox-tui/internal/cache"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
+	"github.com/devnullvoid/peevetui/internal/adapters"
+	"github.com/devnullvoid/peevetui/internal/cache"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/logger"
+	"github.com/devnullvoid/peevetui/pkg/api"
+	"github.com/devnullvoid/peevetui/pkg/api/interfaces"
 )
 
 // IntegrationTestConfig holds configuration for integration tests.

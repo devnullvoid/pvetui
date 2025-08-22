@@ -10,14 +10,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/app"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/internal/onboarding"
-	"github.com/devnullvoid/proxmox-tui/internal/profile"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
-	"github.com/devnullvoid/proxmox-tui/internal/version"
+	"github.com/devnullvoid/peevetui/internal/app"
+	"github.com/devnullvoid/peevetui/internal/config"
+	"github.com/devnullvoid/peevetui/internal/logger"
+	"github.com/devnullvoid/peevetui/internal/onboarding"
+	"github.com/devnullvoid/peevetui/internal/profile"
+	"github.com/devnullvoid/peevetui/internal/ui/components"
+	"github.com/devnullvoid/peevetui/internal/ui/theme"
+	"github.com/devnullvoid/peevetui/internal/version"
 )
 
 // BootstrapOptions contains all the options for bootstrapping the application.
@@ -352,7 +352,7 @@ func handleStartupError(err error, cfg *config.Config) error {
 // printVersion prints version information.
 func printVersion() {
 	info := version.GetBuildInfo()
-	fmt.Printf("proxmox-tui version %s\n", info.Version)
+	fmt.Printf("peevetui version %s\n", info.Version)
 	fmt.Printf("Build date: %s\n", info.BuildDate)
 	fmt.Printf("Commit: %s\n", info.Commit)
 	fmt.Printf("Go version: %s\n", info.GoVersion)

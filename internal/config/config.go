@@ -38,9 +38,9 @@
 //
 // The package automatically determines appropriate directories for configuration
 // and cache files based on platform standards:
-//   - Windows: Config in %APPDATA%/proxmox-tui, Cache in %LOCALAPPDATA%/proxmox-tui
-//   - macOS: Config in $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui, Cache in $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
-//   - Linux: Config in $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui, Cache in $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+//   - Windows: Config in %APPDATA%/peevetui, Cache in %LOCALAPPDATA%/peevetui
+//   - macOS: Config in $XDG_CONFIG_HOME/peevetui or ~/.config/peevetui, Cache in $XDG_CACHE_HOME/peevetui or ~/.cache/peevetui
+//   - Linux: Config in $XDG_CONFIG_HOME/peevetui or ~/.config/peevetui, Cache in $XDG_CACHE_HOME/peevetui or ~/.cache/peevetui
 //
 // Authentication Methods:
 //
@@ -76,7 +76,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/keys"
+	"github.com/devnullvoid/peevetui/internal/keys"
 	"github.com/getsops/sops/v3/decrypt"
 	"gopkg.in/yaml.v3"
 )

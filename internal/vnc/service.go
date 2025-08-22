@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/peevetui/internal/logger"
+	"github.com/devnullvoid/peevetui/pkg/api"
 )
 
 // Service provides VNC connection management with support for multiple concurrent sessions.
