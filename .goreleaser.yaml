@@ -38,8 +38,12 @@ builds:
 
 archives:
   - id: default
-    builds: [pvetui, pvetui-windows-amd64]
+    # ids: [pvetui, pvetui-windows-amd64]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [ 'tar.gz' ]
+    format_overrides:
+      - goos: windows
+        formats: [ 'zip' ]
     files:
       - LICENSE
       - README.md
@@ -58,8 +62,20 @@ changelog:
       - Merge pull request
       - Merge branch
 
+signs:
+  - artifacts: checksum
+    cmd: gpg2
+    args:
+      - "--batch"
+      - "-u"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
 release:
-  draft: false
+  draft: true
   prerelease: auto
 
 # AUR Package (Binary)
@@ -92,7 +108,7 @@ aurs:
 
 # AUR Package (Source)
 aur_sources:
-  - name: pvetui
+  - name: pvetui-git
     homepage: "https://github.com/devnullvoid/pvetui"
     description: "A terminal user interface (TUI) for Proxmox VE"
     maintainers:
@@ -100,7 +116,7 @@ aur_sources:
     license: "MIT"
     conflicts:
       - "pvetui-bin"
-      - "pvetui-git"
+      - "pvetui"
     provides:
       - "pvetui"
     depends:
@@ -190,8 +206,6 @@ nfpms:
           - "libc6"
         recommends:
           - "kitty | alacritty"
-        suggests:
-          - "proxmox-ve"
 
   # RPM Package
   - id: pvetui-rpm
@@ -218,7 +232,6 @@ nfpms:
         suggests:
           - "kitty"
           - "alacritty"
-          - "proxmox-ve"
 
 # Docker Images
 dockers:
