@@ -64,17 +64,17 @@ release:
 
 # AUR Package (Binary)
 aurs:
-  - name: proxmox-tui-bin
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
+  - name: pvetui-bin
+    homepage: "https://github.com/devnullvoid/pvetui"
     description: "A terminal user interface (TUI) for Proxmox VE"
     maintainers:
       - "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
     conflicts:
-      - "proxmox-tui"
-      - "proxmox-tui-git"
+      - "pvetui"
+      - "pvetui-git"
     provides:
-      - "proxmox-tui"
+      - "pvetui"
     depends:
       - "glibc"
     optdepends:
@@ -82,27 +82,27 @@ aurs:
       - "alacritty: Better terminal support"
     package: |-
       # Install binary
-      install -Dm755 "./proxmox-tui" "${pkgdir}/usr/bin/proxmox-tui"
+      install -Dm755 "./pvetui" "${pkgdir}/usr/bin/pvetui"
 
       # Install license
-      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/proxmox-tui/LICENSE"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
 
       # Install documentation
-      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/proxmox-tui/README.md"
+      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/pvetui/README.md"
 
 # AUR Package (Source)
 aur_sources:
-  - name: proxmox-tui
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
+  - name: pvetui
+    homepage: "https://github.com/devnullvoid/pvetui"
     description: "A terminal user interface (TUI) for Proxmox VE"
     maintainers:
       - "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
     conflicts:
-      - "proxmox-tui-bin"
-      - "proxmox-tui-git"
+      - "pvetui-bin"
+      - "pvetui-git"
     provides:
-      - "proxmox-tui"
+      - "pvetui"
     depends:
       - "go"
       - "git"
@@ -111,7 +111,7 @@ aur_sources:
     optdepends:
       - "kitty: Better terminal support"
       - "alacritty: Better terminal support"
-    url_template: "https://github.com/devnullvoid/proxmox-tui/archive/{{ .Tag }}.tar.gz"
+    url_template: "https://github.com/devnullvoid/pvetui/archive/{{ .Tag }}.tar.gz"
     prepare: |-
       cd "${pkgname}-${pkgver}"
       go mod download
@@ -122,67 +122,67 @@ aur_sources:
       export CGO_CXXFLAGS="${CXXFLAGS}"
       export CGO_LDFLAGS="${LDFLAGS}"
       export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
-      go build -ldflags="-w -s -linkmode=external -X github.com/devnullvoid/proxmox-tui/internal/version.version=${pkgver}" ./cmd/proxmox-tui
+      go build -ldflags="-w -s -linkmode=external -X github.com/devnullvoid/pvetui/internal/version.version=${pkgver}" ./cmd/pvetui
     package: |-
       cd "${pkgname}-${pkgver}"
-      install -Dm755 ./proxmox-tui "${pkgdir}/usr/bin/proxmox-tui"
-      install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/proxmox-tui/LICENSE"
-      install -Dm644 README.md "${pkgdir}/usr/share/doc/proxmox-tui/README.md"
+      install -Dm755 ./pvetui "${pkgdir}/usr/bin/pvetui"
+      install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
+      install -Dm644 README.md "${pkgdir}/usr/share/doc/pvetui/README.md"
 
 # Homebrew Casks
 homebrew_casks:
-  - name: proxmox-tui
+  - name: pvetui
     description: "A terminal user interface (TUI) for Proxmox VE"
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    homepage: "https://github.com/devnullvoid/pvetui"
     license: "MIT"
-    binary: "proxmox-tui"
+    binary: "pvetui"
     repository:
       owner: "devnullvoid"
-      name: "homebrew-proxmox-tui"
+      name: "homebrew-pvetui"
     commit_author:
       name: "GoReleaser Bot"
       email: "noreply@github.com"
     caveats: |
-      proxmox-tui requires a Proxmox VE server to connect to.
-      Run 'proxmox-tui --help' to see configuration options.
+      pvetui requires a Proxmox VE server to connect to.
+      Run 'pvetui --help' to see configuration options.
     hooks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/proxmox-tui"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/pvetui"]
           end
 
 # Scoop Manifest
 scoops:
-  - name: proxmox-tui
+  - name: pvetui
     description: "A terminal user interface (TUI) for Proxmox VE"
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    homepage: "https://github.com/devnullvoid/pvetui"
     license: "MIT"
     repository:
       owner: "devnullvoid"
-      name: "scoop-proxmox-tui"
+      name: "scoop-pvetui"
     commit_author:
       name: "GoReleaser Bot"
       email: "noreply@github.com"
 
 # DEB Package
 nfpms:
-  - id: proxmox-tui-deb
+  - id: pvetui-deb
     description: "A terminal user interface (TUI) for Proxmox VE"
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    homepage: "https://github.com/devnullvoid/pvetui"
     maintainer: "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
     formats:
       - deb
     contents:
       - src: "{{ .ArtifactPath }}"
-        dst: "/usr/local/bin/proxmox-tui"
+        dst: "/usr/local/bin/pvetui"
         type: "file"
       - src: "LICENSE"
-        dst: "/usr/share/doc/proxmox-tui/LICENSE"
+        dst: "/usr/share/doc/pvetui/LICENSE"
         type: "doc"
       - src: "README.md"
-        dst: "/usr/share/doc/proxmox-tui/README.md"
+        dst: "/usr/share/doc/pvetui/README.md"
         type: "doc"
     overrides:
       deb:
@@ -194,22 +194,22 @@ nfpms:
           - "proxmox-ve"
 
   # RPM Package
-  - id: proxmox-tui-rpm
+  - id: pvetui-rpm
     description: "A terminal user interface (TUI) for Proxmox VE"
-    homepage: "https://github.com/devnullvoid/proxmox-tui"
+    homepage: "https://github.com/devnullvoid/pvetui"
     maintainer: "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
     formats:
       - rpm
     contents:
       - src: "{{ .ArtifactPath }}"
-        dst: "/usr/local/bin/proxmox-tui"
+        dst: "/usr/local/bin/pvetui"
         type: "file"
       - src: "LICENSE"
-        dst: "/usr/share/doc/proxmox-tui/LICENSE"
+        dst: "/usr/share/doc/pvetui/LICENSE"
         type: "doc"
       - src: "README.md"
-        dst: "/usr/share/doc/proxmox-tui/README.md"
+        dst: "/usr/share/doc/pvetui/README.md"
         type: "doc"
     overrides:
       rpm:
@@ -223,8 +223,8 @@ nfpms:
 # Docker Images
 dockers:
   - image_templates:
-      - "ghcr.io/devnullvoid/proxmox-tui:{{ .Version }}"
-      - "ghcr.io/devnullvoid/proxmox-tui:latest"
+      - "ghcr.io/devnullvoid/pvetui:{{ .Version }}"
+      - "ghcr.io/devnullvoid/pvetui:latest"
     dockerfile: "Dockerfile"
     use: "buildx"
     build_flag_templates:

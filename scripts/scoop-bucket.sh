@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Scoop Bucket Management Script for proxmox-tui
+# Scoop Bucket Management Script for pvetui
 # This script helps set up and maintain the Scoop bucket repository
 
 set -euo pipefail
@@ -12,9 +12,9 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Configuration
-PKGNAME="proxmox-tui"
-BUCKET_REPO="scoop-proxmox-tui"
-GITHUB_REPO="devnullvoid/proxmox-tui"
+PKGNAME="pvetui"
+BUCKET_REPO="scoop-pvetui"
+GITHUB_REPO="devnullvoid/pvetui"
 VERSION=$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo "dev")
 
 # Functions
@@ -32,7 +32,7 @@ log_error() {
 
 show_help() {
     cat << EOF
-Scoop Bucket Management Script for proxmox-tui
+Scoop Bucket Management Script for pvetui
 
 Usage: $0 [COMMAND] [OPTIONS]
 
@@ -89,50 +89,50 @@ setup_scoop_bucket() {
     mkdir -p bucket
 
     # Create manifest if it doesn't exist
-    if [ ! -f "bucket/proxmox-tui.json" ]; then
+    if [ ! -f "bucket/pvetui.json" ]; then
         log_info "Creating Scoop manifest"
-        cat > bucket/proxmox-tui.json << 'EOF'
+        cat > bucket/pvetui.json << 'EOF'
 {
     "version": "VERSION_PLACEHOLDER",
     "description": "A terminal user interface (TUI) for Proxmox VE",
-    "homepage": "https://github.com/devnullvoid/proxmox-tui",
+    "homepage": "https://github.com/devnullvoid/pvetui",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/devnullvoid/proxmox-tui/releases/download/vVERSION_PLACEHOLDER/proxmox-tui_VERSION_PLACEHOLDER_windows_amd64.zip",
+            "url": "https://github.com/devnullvoid/pvetui/releases/download/vVERSION_PLACEHOLDER/pvetui_VERSION_PLACEHOLDER_windows_amd64.zip",
             "hash": "SHA256_PLACEHOLDER_AMD64"
         },
         "32bit": {
-            "url": "https://github.com/devnullvoid/proxmox-tui/releases/download/vVERSION_PLACEHOLDER/proxmox-tui_VERSION_PLACEHOLDER_windows_386.zip",
+            "url": "https://github.com/devnullvoid/pvetui/releases/download/vVERSION_PLACEHOLDER/pvetui_VERSION_PLACEHOLDER_windows_386.zip",
             "hash": "SHA256_PLACEHOLDER_386"
         },
         "arm64": {
-            "url": "https://github.com/devnullvoid/proxmox-tui/releases/download/vVERSION_PLACEHOLDER/proxmox-tui_VERSION_PLACEHOLDER_windows_arm64.zip",
+            "url": "https://github.com/devnullvoid/pvetui/releases/download/vVERSION_PLACEHOLDER/pvetui_VERSION_PLACEHOLDER_windows_arm64.zip",
             "hash": "SHA256_PLACEHOLDER_ARM64"
         }
     },
-    "bin": "proxmox-tui.exe",
+    "bin": "pvetui.exe",
     "checkver": {
-        "url": "https://github.com/devnullvoid/proxmox-tui/releases/latest",
+        "url": "https://github.com/devnullvoid/pvetui/releases/latest",
         "re": "v([\\d.]+)"
     },
     "autoupdate": {
         "architecture": {
             "64bit": {
-                "url": "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_amd64.zip",
+                "url": "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_windows_amd64.zip",
                 "hash": "sha256"
             },
             "32bit": {
-                "url": "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_386.zip",
+                "url": "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_windows_386.zip",
                 "hash": "sha256"
             },
             "arm64": {
-                "url": "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_arm64.zip",
+                "url": "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_windows_arm64.zip",
                 "hash": "sha256"
             }
         }
     },
-    "notes": "proxmox-tui requires a Proxmox VE server to connect to. Run 'proxmox-tui --help' to see configuration options."
+    "notes": "pvetui requires a Proxmox VE server to connect to. Run 'pvetui --help' to see configuration options."
 }
 EOF
     fi
@@ -142,7 +142,7 @@ EOF
     log_info "1. cd $BUCKET_REPO"
     log_info "2. Update manifest with latest version and checksums"
     log_info "3. Commit and push changes"
-    log_info "4. Users can install with: scoop bucket add devnullvoid/proxmox-tui && scoop install proxmox-tui"
+    log_info "4. Users can install with: scoop bucket add devnullvoid/pvetui && scoop install pvetui"
 }
 
 update_manifest() {
@@ -158,38 +158,38 @@ update_manifest() {
     log_info "Updating manifest to version $version"
 
     # Update version in manifest
-    sed -i.bak "s/\"version\": \"VERSION_PLACEHOLDER\"/\"version\": \"$version\"/g" bucket/proxmox-tui.json
-    sed -i.bak "s/VERSION_PLACEHOLDER/$version/g" bucket/proxmox-tui.json
+    sed -i.bak "s/\"version\": \"VERSION_PLACEHOLDER\"/\"version\": \"$version\"/g" bucket/pvetui.json
+    sed -i.bak "s/VERSION_PLACEHOLDER/$version/g" bucket/pvetui.json
 
     # Download and calculate checksums for all platforms
     log_info "Downloading binaries and calculating checksums..."
 
     # Windows AMD64
-    if curl -fsSL -o /tmp/proxmox-tui-windows-amd64.zip "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_amd64.zip" 2>/dev/null; then
-        SHA256_AMD64=$(shasum -a 256 /tmp/proxmox-tui-windows-amd64.zip | cut -d' ' -f1)
-        sed -i.bak "s/SHA256_PLACEHOLDER_AMD64/$SHA256_AMD64/" bucket/proxmox-tui.json
+    if curl -fsSL -o /tmp/pvetui-windows-amd64.zip "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_windows_amd64.zip" 2>/dev/null; then
+        SHA256_AMD64=$(shasum -a 256 /tmp/pvetui-windows-amd64.zip | cut -d' ' -f1)
+        sed -i.bak "s/SHA256_PLACEHOLDER_AMD64/$SHA256_AMD64/" bucket/pvetui.json
         log_info "Updated Windows AMD64 checksum: $SHA256_AMD64"
     fi
 
     # Windows 386 (32-bit)
-    if curl -fsSL -o /tmp/proxmox-tui-windows-386.zip "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_386.zip" 2>/dev/null; then
-        SHA256_386=$(shasum -a 256 /tmp/proxmox-tui-windows-386.zip | cut -d' ' -f1)
-        sed -i.bak "s/SHA256_PLACEHOLDER_386/$SHA256_386/" bucket/proxmox-tui.json
+    if curl -fsSL -o /tmp/pvetui-windows-386.zip "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_windows_386.zip" 2>/dev/null; then
+        SHA256_386=$(shasum -a 256 /tmp/pvetui-windows-386.zip | cut -d' ' -f1)
+        sed -i.bak "s/SHA256_PLACEHOLDER_386/$SHA256_386/" bucket/pvetui.json
         log_info "Updated Windows 386 checksum: $SHA256_386"
     fi
 
     # Windows ARM64
-    if curl -fsSL -o /tmp/proxmox-tui-windows-arm64.zip "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_windows_arm64.zip" 2>/dev/null; then
-        SHA256_ARM64=$(shasum -a 256 /tmp/proxmox-tui-windows-arm64.zip | cut -d' ' -f1)
-        sed -i.bak "s/SHA256_PLACEHOLDER_ARM64/$SHA256_ARM64/" bucket/proxmox-tui.json
+    if curl -fsSL -o /tmp/pvetui-windows-arm64.zip "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_windows_arm64.zip" 2>/dev/null; then
+        SHA256_ARM64=$(shasum -a 256 /tmp/pvetui-windows-arm64.zip | cut -d' ' -f1)
+        sed -i.bak "s/SHA256_PLACEHOLDER_ARM64/$SHA256_ARM64/" bucket/pvetui.json
         log_info "Updated Windows ARM64 checksum: $SHA256_ARM64"
     fi
 
     # Clean up temporary files
-    rm -f /tmp/proxmox-tui-*.zip
+    rm -f /tmp/pvetui-*.zip
 
     # Remove backup files
-    rm -f bucket/proxmox-tui.json.bak
+    rm -f bucket/pvetui.json.bak
 
     log_info "Manifest updated to version $version"
     log_info "Review changes and commit them"
@@ -206,10 +206,10 @@ test_manifest() {
     log_info "Testing manifest locally..."
 
     # Add local bucket
-    scoop bucket add . devnullvoid/proxmox-tui
+    scoop bucket add . devnullvoid/pvetui
 
     # Test manifest
-    scoop install proxmox-tui
+    scoop install pvetui
 
     log_info "Manifest test completed"
 }
@@ -225,10 +225,10 @@ install_package() {
     log_info "Installing package locally..."
 
     # Add local bucket
-    scoop bucket add . devnullvoid/proxmox-tui
+    scoop bucket add . devnullvoid/pvetui
 
     # Install package
-    scoop install proxmox-tui
+    scoop install pvetui
 
     log_info "Package installed successfully"
 }

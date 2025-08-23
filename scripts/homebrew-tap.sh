@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Homebrew Tap Management Script for proxmox-tui
+# Homebrew Tap Management Script for pvetui
 # This script helps set up and maintain the Homebrew tap repository
 
 set -euo pipefail
@@ -12,9 +12,9 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Configuration
-PKGNAME="proxmox-tui"
-TAP_REPO="homebrew-proxmox-tui"
-GITHUB_REPO="devnullvoid/proxmox-tui"
+PKGNAME="pvetui"
+TAP_REPO="homebrew-pvetui"
+GITHUB_REPO="devnullvoid/pvetui"
 VERSION=$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo "dev")
 
 # Functions
@@ -32,7 +32,7 @@ log_error() {
 
 show_help() {
     cat << EOF
-Homebrew Tap Management Script for proxmox-tui
+Homebrew Tap Management Script for pvetui
 
 Usage: $0 [COMMAND] [OPTIONS]
 
@@ -89,47 +89,47 @@ setup_homebrew_tap() {
     mkdir -p Formula
 
     # Create formula if it doesn't exist
-    if [ ! -f "Formula/proxmox-tui.rb" ]; then
+    if [ ! -f "Formula/pvetui.rb" ]; then
         log_info "Creating Homebrew formula"
-        cat > Formula/proxmox-tui.rb << 'EOF'
-class ProxmoxTui < Formula
+        cat > Formula/pvetui.rb << 'EOF'
+class Pvetui < Formula
   desc "A terminal user interface (TUI) for Proxmox VE"
-  homepage "https://github.com/devnullvoid/proxmox-tui"
+  homepage "https://github.com/devnullvoid/pvetui"
   version "VERSION_PLACEHOLDER"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/devnullvoid/proxmox-tui/releases/download/v#{version}/proxmox-tui_#{version}_darwin_arm64.tar.gz"
+      url "https://github.com/devnullvoid/pvetui/releases/download/v#{version}/pvetui_#{version}_darwin_arm64.tar.gz"
       sha256 "SHA256_PLACEHOLDER_ARM64"
     else
-      url "https://github.com/devnullvoid/proxmox-tui/releases/download/v#{version}/proxmox-tui_#{version}_darwin_amd64.tar.gz"
+      url "https://github.com/devnullvoid/pvetui/releases/download/v#{version}/pvetui_#{version}_darwin_amd64.tar.gz"
       sha256 "SHA256_PLACEHOLDER_AMD64"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/devnullvoid/proxmox-tui/releases/download/v#{version}/proxmox-tui_#{version}_linux_arm64.tar.gz"
+      url "https://github.com/devnullvoid/pvetui/releases/download/v#{version}/pvetui_#{version}_linux_arm64.tar.gz"
       sha256 "SHA256_PLACEHOLDER_LINUX_ARM64"
     else
-      url "https://github.com/devnullvoid/proxmox-tui/releases/download/v#{version}/proxmox-tui_#{version}_linux_amd64.tar.gz"
+      url "https://github.com/devnullvoid/pvetui/releases/download/v#{version}/pvetui_#{version}_linux_amd64.tar.gz"
       sha256 "SHA256_PLACEHOLDER_LINUX_AMD64"
     end
   end
 
   def install
-    bin.install "proxmox-tui"
+    bin.install "pvetui"
   end
 
   test do
-    system "#{bin}/proxmox-tui", "--help"
+    system "#{bin}/pvetui", "--help"
   end
 
   def caveats
     <<~EOS
-      proxmox-tui requires a Proxmox VE server to connect to.
-      Run 'proxmox-tui --help' to see configuration options.
+      pvetui requires a Proxmox VE server to connect to.
+      Run 'pvetui --help' to see configuration options.
     EOS
   end
 end
@@ -141,7 +141,7 @@ EOF
     log_info "1. cd $TAP_REPO"
     log_info "2. Update formula with latest version and checksums"
     log_info "3. Commit and push changes"
-    log_info "4. Users can install with: brew install devnullvoid/proxmox-tui/proxmox-tui"
+    log_info "4. Users can install with: brew install devnullvoid/pvetui/pvetui"
 }
 
 update_formula() {
@@ -157,44 +157,44 @@ update_formula() {
     log_info "Updating formula to version $version"
 
     # Update version in formula
-    sed -i.bak "s/version \"VERSION_PLACEHOLDER\"/version \"$version\"/" Formula/proxmox-tui.rb
+    sed -i.bak "s/version \"VERSION_PLACEHOLDER\"/version \"$version\"/" Formula/pvetui.rb
 
     # Download and calculate checksums for all platforms
     log_info "Downloading binaries and calculating checksums..."
 
     # macOS ARM64
-    if curl -fsSL -o /tmp/proxmox-tui-darwin-arm64.tar.gz "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_darwin_arm64.tar.gz" 2>/dev/null; then
-        SHA256_ARM64=$(shasum -a 256 /tmp/proxmox-tui-darwin-arm64.tar.gz | cut -d' ' -f1)
-        sed -i.bak "s/SHA256_PLACEHOLDER_ARM64/$SHA256_ARM64/" Formula/proxmox-tui.rb
+    if curl -fsSL -o /tmp/pvetui-darwin-arm64.tar.gz "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_darwin_arm64.tar.gz" 2>/dev/null; then
+        SHA256_ARM64=$(shasum -a 256 /tmp/pvetui-darwin-arm64.tar.gz | cut -d' ' -f1)
+        sed -i.bak "s/SHA256_PLACEHOLDER_ARM64/$SHA256_ARM64/" Formula/pvetui.rb
         log_info "Updated macOS ARM64 checksum: $SHA256_ARM64"
     fi
 
     # macOS AMD64
-    if curl -fsSL -o /tmp/proxmox-tui-darwin-amd64.tar.gz "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_darwin_amd64.tar.gz" 2>/dev/null; then
-        SHA256_AMD64=$(shasum -a 256 /tmp/proxmox-tui-darwin-amd64.tar.gz | cut -d' ' -f1)
-        sed -i.bak "s/SHA256_PLACEHOLDER_AMD64/$SHA256_AMD64/" Formula/proxmox-tui.rb
+    if curl -fsSL -o /tmp/pvetui-darwin-amd64.tar.gz "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_darwin_amd64.tar.gz" 2>/dev/null; then
+        SHA256_AMD64=$(shasum -a 256 /tmp/pvetui-darwin-amd64.tar.gz | cut -d' ' -f1)
+        sed -i.bak "s/SHA256_PLACEHOLDER_AMD64/$SHA256_AMD64/" Formula/pvetui.rb
         log_info "Updated macOS AMD64 checksum: $SHA256_AMD64"
     fi
 
     # Linux ARM64
-    if curl -fsSL -o /tmp/proxmox-tui-linux-arm64.tar.gz "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_linux_arm64.tar.gz" 2>/dev/null; then
-        SHA256_LINUX_ARM64=$(shasum -a 256 /tmp/proxmox-tui-linux-arm64.tar.gz | cut -d' ' -f1)
-        sed -i.bak "s/SHA256_PLACEHOLDER_LINUX_ARM64/$SHA256_LINUX_ARM64/" Formula/proxmox-tui.rb
+    if curl -fsSL -o /tmp/pvetui-linux-arm64.tar.gz "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_linux_arm64.tar.gz" 2>/dev/null; then
+        SHA256_LINUX_ARM64=$(shasum -a 256 /tmp/pvetui-linux-arm64.tar.gz | cut -d' ' -f1)
+        sed -i.bak "s/SHA256_PLACEHOLDER_LINUX_ARM64/$SHA256_LINUX_ARM64/" Formula/pvetui.rb
         log_info "Updated Linux ARM64 checksum: $SHA256_LINUX_ARM64"
     fi
 
     # Linux AMD64
-    if curl -fsSL -o /tmp/proxmox-tui-linux-amd64.tar.gz "https://github.com/devnullvoid/proxmox-tui/releases/download/v$version/proxmox-tui_$version_linux_amd64.tar.gz" 2>/dev/null; then
-        SHA256_LINUX_AMD64=$(shasum -a 256 /tmp/proxmox-tui-linux-amd64.tar.gz | cut -d' ' -f1)
-        sed -i.bak "s/SHA256_PLACEHOLDER_LINUX_AMD64/$SHA256_LINUX_AMD64/" Formula/proxmox-tui.rb
+    if curl -fsSL -o /tmp/pvetui-linux-amd64.tar.gz "https://github.com/devnullvoid/pvetui/releases/download/v$version/pvetui_$version_linux_amd64.tar.gz" 2>/dev/null; then
+        SHA256_LINUX_AMD64=$(shasum -a 256 /tmp/pvetui-linux-amd64.tar.gz | cut -d' ' -f1)
+        sed -i.bak "s/SHA256_PLACEHOLDER_LINUX_AMD64/$SHA256_LINUX_AMD64/" Formula/pvetui.rb
         log_info "Updated Linux AMD64 checksum: $SHA256_LINUX_AMD64"
     fi
 
     # Clean up temporary files
-    rm -f /tmp/proxmox-tui-*.tar.gz
+    rm -f /tmp/pvetui-*.tar.gz
 
     # Remove backup files
-    rm -f Formula/proxmox-tui.rb.bak
+    rm -f Formula/pvetui.rb.bak
 
     log_info "Formula updated to version $version"
     log_info "Review changes and commit them"
@@ -214,8 +214,8 @@ test_formula() {
     brew tap --full .
 
     # Test formula
-    brew audit --strict Formula/proxmox-tui.rb
-    brew style Formula/proxmox-tui.rb
+    brew audit --strict Formula/pvetui.rb
+    brew style Formula/pvetui.rb
 
     log_info "Formula validation completed"
 }
@@ -234,7 +234,7 @@ install_formula() {
     brew tap --full .
 
     # Install formula
-    brew install Formula/proxmox-tui.rb
+    brew install Formula/pvetui.rb
 
     log_info "Formula installed successfully"
 }

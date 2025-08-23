@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Package Manager Orchestration Script for proxmox-tui
+# Package Manager Orchestration Script for pvetui
 # This script manages releases across multiple package managers
 
 set -euo pipefail
@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-PKGNAME="proxmox-tui"
+PKGNAME="pvetui"
 VERSION=$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo "dev")
 WORKSPACE_DIR=$(pwd)
 
@@ -43,7 +43,7 @@ log_step() {
 
 show_help() {
     cat << EOF
-Package Manager Orchestration Script for proxmox-tui
+Package Manager Orchestration Script for pvetui
 
 This script manages releases across multiple package managers including:
 - AUR (Arch User Repository)
@@ -230,21 +230,21 @@ show_status() {
             # Check if repository exists
             case $key in
                 "aur")
-                    if [ -d "proxmox-tui" ]; then
+                    if [ -d "pvetui" ]; then
                         echo -e "${GREEN}✓ Repository exists${NC}"
                     else
                         echo -e "${YELLOW}⚠ Repository not set up${NC}"
                     fi
                     ;;
                 "homebrew")
-                    if [ -d "homebrew-proxmox-tui" ]; then
+                    if [ -d "homebrew-pvetui" ]; then
                         echo -e "${GREEN}✓ Repository exists${NC}"
                     else
                         echo -e "${YELLOW}⚠ Repository not set up${NC}"
                     fi
                     ;;
                 "scoop")
-                    if [ -d "scoop-proxmox-tui" ]; then
+                    if [ -d "scoop-pvetui" ]; then
                         echo -e "${GREEN}✓ Repository exists${NC}"
                     else
                         echo -e "${YELLOW}⚠ Repository not set up${NC}"
@@ -276,20 +276,20 @@ cleanup_package_managers() {
 
             case $key in
                 "aur")
-                    if [ -d "proxmox-tui" ]; then
-                        rm -rf "proxmox-tui"
+                    if [ -d "pvetui" ]; then
+                        rm -rf "pvetui"
                         log_info "Removed AUR repository"
                     fi
                     ;;
                 "homebrew")
-                    if [ -d "homebrew-proxmox-tui" ]; then
-                        rm -rf "homebrew-proxmox-tui"
+                    if [ -d "homebrew-pvetui" ]; then
+                        rm -rf "homebrew-pvetui"
                         log_info "Removed Homebrew tap"
                     fi
                     ;;
                 "scoop")
-                    if [ -d "scoop-proxmox-tui" ]; then
-                        rm -rf "scoop-proxmox-tui"
+                    if [ -d "scoop-pvetui" ]; then
+                        rm -rf "scoop-pvetui"
                         log_info "Removed Scoop bucket"
                     fi
                     ;;

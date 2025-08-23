@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# AUR Package Management Script for proxmox-tui
+# AUR Package Management Script for pvetui
 # This script helps set up and maintain the AUR package repository
 
 set -euo pipefail
@@ -12,9 +12,9 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Configuration
-PKGNAME="proxmox-tui"
-AUR_REPO="proxmox-tui"
-GITHUB_REPO="devnullvoid/proxmox-tui"
+PKGNAME="pvetui"
+AUR_REPO="pvetui"
+GITHUB_REPO="devnullvoid/pvetui"
 VERSION=$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo "dev")
 
 # Functions
@@ -32,7 +32,7 @@ log_error() {
 
 show_help() {
     cat << EOF
-AUR Package Management Script for proxmox-tui
+AUR Package Management Script for pvetui
 
 Usage: $0 [COMMAND] [OPTIONS]
 
@@ -92,18 +92,18 @@ setup_aur_repo() {
         log_info "Creating PKGBUILD"
         cat > PKGBUILD << 'EOF'
 # Maintainer: devnullvoid <noreply@github.com>
-pkgname=proxmox-tui
+pkgname=pvetui
 pkgver=VERSION_PLACEHOLDER
 pkgrel=1
 pkgdesc="A terminal user interface (TUI) for Proxmox VE"
 arch=('x86_64' 'aarch64')
-url="https://github.com/devnullvoid/proxmox-tui"
+url="https://github.com/devnullvoid/pvetui"
 license=('MIT')
 depends=('glibc')
 optdepends=('kitty: Better terminal support' 'alacritty: Better terminal support')
-provides=('proxmox-tui')
-conflicts=('proxmox-tui-git')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/devnullvoid/proxmox-tui/archive/v$pkgver.tar.gz")
+provides=('pvetui')
+conflicts=('pvetui-git')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/devnullvoid/pvetui/archive/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
@@ -113,7 +113,7 @@ build() {
 
 package() {
     cd "$pkgname-$pkgver"
-    install -Dm755 bin/proxmox-tui "$pkgdir/usr/bin/proxmox-tui"
+    install -Dm755 bin/pvetui "$pkgdir/usr/bin/pvetui"
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 }
