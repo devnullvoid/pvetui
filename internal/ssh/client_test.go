@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/stretchr/testify/require"
 )
 

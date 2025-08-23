@@ -11,15 +11,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/components"
 )
 
 // HandleValidationError handles configuration validation errors by guiding users through onboarding.
 func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bool, activeProfile string) error {
 	fmt.Println("🔧 Configuration Setup Required")
 	fmt.Println()
-	fmt.Printf("It looks like this is your first time running proxmox-tui, or your configuration needs attention.\n")
+	fmt.Printf("It looks like this is your first time running pvetui, or your configuration needs attention.\n")
 	fmt.Printf("Missing: %v\n", cfg.Validate())
 	fmt.Println()
 
@@ -56,7 +56,7 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 
 	fmt.Println()
 	fmt.Println("✅ Configuration is ready!")
-	fmt.Println("🔄 Please re-run 'proxmox-tui' to start the application with your new configuration.")
+	fmt.Println("🔄 Please re-run 'pvetui' to start the application with your new configuration.")
 	fmt.Println("🚪 Exiting.")
 	os.Exit(0)
 	return nil

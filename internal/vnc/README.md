@@ -1,6 +1,6 @@
 # VNC Integration with noVNC
 
-This directory contains the VNC integration for Proxmox TUI, including an embedded noVNC client.
+This directory contains the VNC integration for pvetui, including an embedded noVNC client.
 
 ## noVNC Submodule
 
@@ -88,4 +88,4 @@ Run tests to verify the embedding works correctly:
 
 ```bash
 go test -v ./internal/vnc -run TestNoVNC
-``` 
+```

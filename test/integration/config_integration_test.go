@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/proxmox-tui/internal/adapters"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/test/testutils"
+	"github.com/devnullvoid/pvetui/internal/adapters"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/test/testutils"
 )
 
 // TestConfigIntegration_FileLoading tests loading configuration from YAML files.
@@ -19,10 +19,10 @@ func TestConfigIntegration_FileLoading(t *testing.T) {
 
 	// Save and clear ALL environment variables that could affect config
 	envVars := []string{
-		"PROXMOX_ADDR", "PROXMOX_USER", "PROXMOX_PASSWORD",
-		"PROXMOX_TOKEN_ID", "PROXMOX_TOKEN_SECRET", "PROXMOX_REALM",
-		"PROXMOX_INSECURE", "PROXMOX_DEBUG", "PROXMOX_CACHE_DIR",
-		"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
+		"PVETUI_ADDR", "PVETUI_USER", "PVETUI_PASSWORD",
+		"PVETUI_TOKEN_ID", "PVETUI_TOKEN_SECRET", "PVETUI_REALM",
+		"PVETUI_INSECURE", "PVETUI_DEBUG", "PVETUI_CACHE_DIR",
+		"PVETUI_API_PATH", "PVETUI_SSH_USER",
 	}
 	originalEnv := make(map[string]string)
 
@@ -148,9 +148,9 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 	// Save original environment
 	originalEnv := make(map[string]string)
 	envVars := []string{
-		"PROXMOX_ADDR", "PROXMOX_USER", "PROXMOX_PASSWORD",
-		"PROXMOX_TOKEN_ID", "PROXMOX_TOKEN_SECRET", "PROXMOX_REALM",
-		"PROXMOX_INSECURE", "PROXMOX_DEBUG", "PROXMOX_CACHE_DIR",
+		"PVETUI_ADDR", "PVETUI_USER", "PVETUI_PASSWORD",
+		"PVETUI_TOKEN_ID", "PVETUI_TOKEN_SECRET", "PVETUI_REALM",
+		"PVETUI_INSECURE", "PVETUI_DEBUG", "PVETUI_CACHE_DIR",
 	}
 
 	for _, env := range envVars {
@@ -178,12 +178,12 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 		{
 			name: "complete_password_auth_env",
 			envVars: map[string]string{
-				"PROXMOX_ADDR":     "https://env.example.com:8006",
-				"PROXMOX_USER":     "envuser",
-				"PROXMOX_PASSWORD": "envpass",
-				"PROXMOX_REALM":    "pam",
-				"PROXMOX_DEBUG":    "true",
-				"PROXMOX_INSECURE": "true",
+				"PVETUI_ADDR":     "https://env.example.com:8006",
+				"PVETUI_USER":     "envuser",
+				"PVETUI_PASSWORD": "envpass",
+				"PVETUI_REALM":    "pam",
+				"PVETUI_DEBUG":    "true",
+				"PVETUI_INSECURE": "true",
 			},
 			expectError: false,
 			validate: func(t *testing.T, cfg *config.Config) {
@@ -199,12 +199,12 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 		{
 			name: "complete_token_auth_env",
 			envVars: map[string]string{
-				"PROXMOX_ADDR":         "https://token.example.com:8006",
-				"PROXMOX_USER":         "tokenuser",
-				"PROXMOX_TOKEN_ID":     "mytoken",
-				"PROXMOX_TOKEN_SECRET": "secret123",
-				"PROXMOX_REALM":        "pve",
-				"PROXMOX_DEBUG":        "false",
+				"PVETUI_ADDR":         "https://token.example.com:8006",
+				"PVETUI_USER":         "tokenuser",
+				"PVETUI_TOKEN_ID":     "mytoken",
+				"PVETUI_TOKEN_SECRET": "secret123",
+				"PVETUI_REALM":        "pve",
+				"PVETUI_DEBUG":        "false",
 			},
 			expectError: false,
 			validate: func(t *testing.T, cfg *config.Config) {
@@ -222,11 +222,11 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 		{
 			name: "boolean_variations",
 			envVars: map[string]string{
-				"PROXMOX_ADDR":     "https://bool.example.com:8006",
-				"PROXMOX_USER":     "booluser",
-				"PROXMOX_PASSWORD": "boolpass",
-				"PROXMOX_DEBUG":    "TRUE",
-				"PROXMOX_INSECURE": "True",
+				"PVETUI_ADDR":     "https://bool.example.com:8006",
+				"PVETUI_USER":     "booluser",
+				"PVETUI_PASSWORD": "boolpass",
+				"PVETUI_DEBUG":    "TRUE",
+				"PVETUI_INSECURE": "True",
 			},
 			expectError: false,
 			validate: func(t *testing.T, cfg *config.Config) {
@@ -237,8 +237,8 @@ func TestConfigIntegration_EnvironmentVariables(t *testing.T) {
 		{
 			name: "missing_auth_credentials",
 			envVars: map[string]string{
-				"PROXMOX_ADDR": "https://noauth.example.com:8006",
-				"PROXMOX_USER": "noauthuser",
+				"PVETUI_ADDR": "https://noauth.example.com:8006",
+				"PVETUI_USER": "noauthuser",
 				// No password or token
 			},
 			expectError: true,
@@ -286,10 +286,10 @@ func TestConfigIntegration_FileAndEnvironmentMerging(t *testing.T) {
 
 	// Save and clear ALL environment variables that could affect config
 	envVars := []string{
-		"PROXMOX_ADDR", "PROXMOX_USER", "PROXMOX_PASSWORD",
-		"PROXMOX_TOKEN_ID", "PROXMOX_TOKEN_SECRET", "PROXMOX_REALM",
-		"PROXMOX_INSECURE", "PROXMOX_DEBUG", "PROXMOX_CACHE_DIR",
-		"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
+		"PVETUI_ADDR", "PVETUI_USER", "PVETUI_PASSWORD",
+		"PVETUI_TOKEN_ID", "PVETUI_TOKEN_SECRET", "PVETUI_REALM",
+		"PVETUI_INSECURE", "PVETUI_DEBUG", "PVETUI_CACHE_DIR",
+		"PVETUI_API_PATH", "PVETUI_SSH_USER",
 	}
 	originalEnv := make(map[string]string)
 
@@ -321,8 +321,8 @@ debug: false
 	require.NoError(t, err)
 
 	// Set environment variables that should be overridden by file values
-	os.Setenv("PROXMOX_ADDR", "https://env.example.com:8006")
-	os.Setenv("PROXMOX_DEBUG", "true")
+	os.Setenv("PVETUI_ADDR", "https://env.example.com:8006")
+	os.Setenv("PVETUI_DEBUG", "true")
 
 	// Create config and merge
 	cfg := config.NewConfig() // This loads from environment first
@@ -435,7 +435,7 @@ func TestConfigIntegration_DefaultsAndValidation(t *testing.T) {
 		assert.Equal(t, "pam", cfg.Realm)
 		assert.Equal(t, "/api2/json", cfg.ApiPath)
 		assert.NotEmpty(t, cfg.CacheDir)
-		assert.Contains(t, cfg.CacheDir, "proxmox-tui")
+		assert.Contains(t, cfg.CacheDir, "pvetui")
 	})
 
 	t.Run("validation_scenarios", func(t *testing.T) {

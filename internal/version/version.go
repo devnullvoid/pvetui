@@ -76,7 +76,7 @@ const (
 	Author      = "Jon Rogers"
 	License     = "MIT License"
 	GitHubUser  = "devnullvoid"
-	ProjectName = "proxmox-tui"
+	ProjectName = "pvetui"
 )
 
 // GetCopyrightYearRange returns a copyright year range (e.g., "2025-2026")

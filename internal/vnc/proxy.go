@@ -15,8 +15,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // ProxyConfig holds configuration for the VNC WebSocket proxy.

@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/proxmox-tui/internal/adapters"
-	"github.com/devnullvoid/proxmox-tui/internal/cache"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/test/testutils"
+	"github.com/devnullvoid/pvetui/internal/adapters"
+	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api"
+	"github.com/devnullvoid/pvetui/test/testutils"
 )
 
 // TestEndToEndIntegration_CompleteWorkflow tests a complete workflow from config to API calls.
@@ -33,10 +33,10 @@ func TestEndToEndIntegration_CompleteWorkflow(t *testing.T) {
 	t.Run("config_file_to_api_calls", func(t *testing.T) {
 		// Clear environment variables to avoid conflicts
 		envVars := []string{
-			"PROXMOX_ADDR", "PROXMOX_USER", "PROXMOX_PASSWORD",
-			"PROXMOX_TOKEN_ID", "PROXMOX_TOKEN_SECRET", "PROXMOX_REALM",
-			"PROXMOX_INSECURE", "PROXMOX_DEBUG", "PROXMOX_CACHE_DIR",
-			"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
+			"PVETUI_ADDR", "PVETUI_USER", "PVETUI_PASSWORD",
+			"PVETUI_TOKEN_ID", "PVETUI_TOKEN_SECRET", "PVETUI_REALM",
+			"PVETUI_INSECURE", "PVETUI_DEBUG", "PVETUI_CACHE_DIR",
+			"PVETUI_API_PATH", "PVETUI_SSH_USER",
 		}
 		originalEnv := make(map[string]string)
 
@@ -124,10 +124,10 @@ cache_dir: "` + itc.CacheDir + `"
 	t.Run("environment_to_api_calls", func(t *testing.T) {
 		// Save and clear ALL environment variables that could affect config
 		envVars := []string{
-			"PROXMOX_ADDR", "PROXMOX_USER", "PROXMOX_PASSWORD",
-			"PROXMOX_TOKEN_ID", "PROXMOX_TOKEN_SECRET", "PROXMOX_REALM",
-			"PROXMOX_INSECURE", "PROXMOX_DEBUG", "PROXMOX_CACHE_DIR",
-			"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
+			"PVETUI_ADDR", "PVETUI_USER", "PVETUI_PASSWORD",
+			"PVETUI_TOKEN_ID", "PVETUI_TOKEN_SECRET", "PVETUI_REALM",
+			"PVETUI_INSECURE", "PVETUI_DEBUG", "PVETUI_CACHE_DIR",
+			"PVETUI_API_PATH", "PVETUI_SSH_USER",
 		}
 		originalEnv := make(map[string]string)
 
@@ -147,11 +147,11 @@ cache_dir: "` + itc.CacheDir + `"
 		}()
 
 		// Step 1: Set environment variables
-		os.Setenv("PROXMOX_ADDR", mockServer.GetURL())
-		os.Setenv("PROXMOX_USER", "envuser")
-		os.Setenv("PROXMOX_PASSWORD", "envpass")
-		os.Setenv("PROXMOX_DEBUG", "true")
-		os.Setenv("PROXMOX_INSECURE", "true")
+		os.Setenv("PVETUI_ADDR", mockServer.GetURL())
+		os.Setenv("PVETUI_USER", "envuser")
+		os.Setenv("PVETUI_PASSWORD", "envpass")
+		os.Setenv("PVETUI_DEBUG", "true")
+		os.Setenv("PVETUI_INSECURE", "true")
 
 		// Step 2: Create configuration from environment
 		cfg := config.NewConfig()
@@ -239,10 +239,10 @@ func TestEndToEndIntegration_ErrorRecovery(t *testing.T) {
 	t.Run("invalid_config_recovery", func(t *testing.T) {
 		// Clear environment variables to avoid conflicts
 		envVars := []string{
-			"PROXMOX_ADDR", "PROXMOX_USER", "PROXMOX_PASSWORD",
-			"PROXMOX_TOKEN_ID", "PROXMOX_TOKEN_SECRET", "PROXMOX_REALM",
-			"PROXMOX_INSECURE", "PROXMOX_DEBUG", "PROXMOX_CACHE_DIR",
-			"PROXMOX_API_PATH", "PROXMOX_SSH_USER",
+			"PVETUI_ADDR", "PVETUI_USER", "PVETUI_PASSWORD",
+			"PVETUI_TOKEN_ID", "PVETUI_TOKEN_SECRET", "PVETUI_REALM",
+			"PVETUI_INSECURE", "PVETUI_DEBUG", "PVETUI_CACHE_DIR",
+			"PVETUI_API_PATH", "PVETUI_SSH_USER",
 		}
 		originalEnv := make(map[string]string)
 

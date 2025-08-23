@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // manualRefresh refreshes all data manually.

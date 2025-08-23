@@ -1,4 +1,4 @@
-// Package config provides configuration management for the Proxmox TUI application.
+// Package config provides configuration management for the pvetui application.
 //
 // This package handles loading configuration from multiple sources with proper
 // precedence ordering:
@@ -38,9 +38,9 @@
 //
 // The package automatically determines appropriate directories for configuration
 // and cache files based on platform standards:
-//   - Windows: Config in %APPDATA%/proxmox-tui, Cache in %LOCALAPPDATA%/proxmox-tui
-//   - macOS: Config in $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui, Cache in $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
-//   - Linux: Config in $XDG_CONFIG_HOME/proxmox-tui or ~/.config/proxmox-tui, Cache in $XDG_CACHE_HOME/proxmox-tui or ~/.cache/proxmox-tui
+//   - Windows: Config in %APPDATA%/pvetui, Cache in %LOCALAPPDATA%/pvetui
+//   - macOS: Config in $XDG_CONFIG_HOME/pvetui or ~/.config/pvetui, Cache in $XDG_CACHE_HOME/pvetui or ~/.cache/pvetui
+//   - Linux: Config in $XDG_CONFIG_HOME/pvetui or ~/.config/pvetui, Cache in $XDG_CACHE_HOME/pvetui or ~/.cache/pvetui
 //
 // Authentication Methods:
 //
@@ -76,7 +76,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/keys"
+	"github.com/devnullvoid/pvetui/internal/keys"
 	"github.com/getsops/sops/v3/decrypt"
 	"gopkg.in/yaml.v3"
 )
@@ -255,17 +255,17 @@ func NewConfig() *Config {
 		Profiles:       make(map[string]ProfileConfig),
 		DefaultProfile: "default",
 		// Read environment variables for legacy fields
-		Addr:        os.Getenv("PROXMOX_ADDR"),
-		User:        os.Getenv("PROXMOX_USER"),
-		Password:    os.Getenv("PROXMOX_PASSWORD"),
-		TokenID:     os.Getenv("PROXMOX_TOKEN_ID"),
-		TokenSecret: os.Getenv("PROXMOX_TOKEN_SECRET"),
-		Realm:       os.Getenv("PROXMOX_REALM"),
-		ApiPath:     os.Getenv("PROXMOX_API_PATH"),
-		Insecure:    strings.ToLower(os.Getenv("PROXMOX_INSECURE")) == "true",
-		SSHUser:     os.Getenv("PROXMOX_SSH_USER"),
-		Debug:       strings.ToLower(os.Getenv("PROXMOX_DEBUG")) == "true",
-		CacheDir:    os.Getenv("PROXMOX_CACHE_DIR"),
+		Addr:        os.Getenv("PVETUI_ADDR"),
+		User:        os.Getenv("PVETUI_USER"),
+		Password:    os.Getenv("PVETUI_PASSWORD"),
+		TokenID:     os.Getenv("PVETUI_TOKEN_ID"),
+		TokenSecret: os.Getenv("PVETUI_TOKEN_SECRET"),
+		Realm:       os.Getenv("PVETUI_REALM"),
+		ApiPath:     os.Getenv("PVETUI_API_PATH"),
+		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == "true",
+		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
+		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == "true",
+		CacheDir:    os.Getenv("PVETUI_CACHE_DIR"),
 		KeyBindings: DefaultKeyBindings(),
 	}
 
@@ -584,11 +584,11 @@ func (c *Config) Validate() error {
 	} else {
 		// Validate legacy configuration
 		if c.Addr == "" {
-			return errors.New("proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file")
+			return errors.New("proxmox address required: set via -addr flag, PVETUI_ADDR env var, or config file")
 		}
 
 		if c.User == "" {
-			return errors.New("proxmox username required: set via -user flag, PROXMOX_USER env var, or config file")
+			return errors.New("proxmox username required: set via -user flag, PVETUI_USER env var, or config file")
 		}
 
 		// Check that either password or token authentication is provided
@@ -596,7 +596,7 @@ func (c *Config) Validate() error {
 		hasToken := c.TokenID != "" && c.TokenSecret != ""
 
 		if !hasPassword && !hasToken {
-			return errors.New("authentication required: provide either password (-password flag, PROXMOX_PASSWORD env var) or API token (-token-id/-token-secret flags, PROXMOX_TOKEN_ID/PROXMOX_TOKEN_SECRET env vars, or config file)")
+			return errors.New("authentication required: provide either password (-password flag, PVETUI_PASSWORD env var) or API token (-token-id/-token-secret flags, PVETUI_TOKEN_ID/PVETUI_TOKEN_SECRET env vars, or config file)")
 		}
 
 		if hasPassword && hasToken {

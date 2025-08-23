@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // ClientOptions holds optional dependencies for the API client.

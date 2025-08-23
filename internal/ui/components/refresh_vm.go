@@ -3,8 +3,8 @@ package components
 import (
 	"fmt"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // refreshVMData refreshes data for the selected VM.

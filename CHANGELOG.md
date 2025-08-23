@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### MAJOR BREAKING CHANGE
+- **Project Renamed to pvetui**
+  - Rename was necessary in order to remain compliant with Proxmox trademark
+  - Old paths referencing `proxmox-tui` must be renamed to `pvetui`. For example:
+    ```
+    mv ~/.config/proxmox-tui ~/.config/pvetui
+    ```
+  - **Additional migration steps:**
+    - Update any shell aliases or scripts referencing the old binary name
+    - Update any systemd service files or cron jobs
+    - Update any documentation or bookmarks referencing the old project name
+    - **Environment Variables:** Change prefix from `PROXMOX_` to `PVETUI_` (e.g., `PROXMOX_HOST` → `PVETUI_HOST`)
+  - **Impact:** This change affects configuration paths, binary names, environment variables, and all project references
+
 ### Added
-- **Multi-platform Package Distribution**: Added comprehensive support for distributing proxmox-tui through multiple package managers
-- **32-bit builds**: Add official 32-bit binaries by request in [#25](https://github.com/devnullvoid/proxmox-tui/issues/25)
+- **Multi-platform Package Distribution**: Added comprehensive support for distributing pvetui through multiple package managers
+- **32-bit builds**: Add official 32-bit binaries by request in [#25](https://github.com/devnullvoid/pvetui/issues/25)
   - Linux: `linux/386`
   - Windows: `windows/386`
   - Included in GoReleaser config and local Makefile release target
@@ -24,6 +38,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Local Testing**: Built-in testing and validation for all package formats before publishing
   - **Makefile Integration**: New targets for package manager operations (setup, update, status, clean)
   - **Comprehensive Documentation**: Complete guide covering setup, maintenance, and troubleshooting for all platforms
+
+### Documentation
+- **README Updates**: Fixed CLI argument conventions and improved documentation
+  - Updated all CLI examples to use correct double-dash format (`--config` instead of `-config`)
+  - Added comprehensive CLI reference table with all available flags and short versions
+  - Fixed broken anchor links in navigation for better user experience
+  - Replaced problematic emojis with compatible ones for consistent anchor generation
+  - Updated project title to 'TUI for Proxmox Virtual Environment' for trademark compliance
+  - Added trademark disclaimer to clarify non-affiliation with Proxmox Server Solutions GmbH
+  - Enhanced demo section with both GIF (GitHub compatible) and WebM (high quality) options
+  - Fixed CLI examples throughout all documentation files for consistency
 
 ## [1.0.4] - 2025-08-19
 
@@ -41,15 +66,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Refactored polling functionality into dedicated function for improved maintainability
   - Fixed race condition by polling both config and cluster resources endpoints to ensure complete propagation
 - **Cross-platform config and cache paths**: Added native support for Windows config/cache directories
-  - Windows: Config in `%APPDATA%/proxmox-tui`, Cache in `%LOCALAPPDATA%/proxmox-tui`
-  - macOS: Uses XDG-style paths (`~/.config/proxmox-tui`, `~/.cache/proxmox-tui`) for consistency with other TUI applications
-  - Linux: Maintains existing XDG support (`~/.config/proxmox-tui`, `~/.cache/proxmox-tui`)
+  - Windows: Config in `%APPDATA%/pvetui`, Cache in `%LOCALAPPDATA%/pvetui`
+  - macOS: Uses XDG-style paths (`~/.config/pvetui`, `~/.cache/pvetui`) for consistency with other TUI applications
+  - Linux: Maintains existing XDG support (`~/.config/pvetui`, `~/.cache/pvetui`)
   - Maintains backward compatibility with existing XDG functions
   - Environment variables still override platform defaults when set
 
 ### Breaking Changes
 - **Windows users only**: Existing config files in XDG-style paths need to be moved to new platform-specific locations
-  - **Windows**: Move from `~/.config/proxmox-tui/` to `%APPDATA%/proxmox-tui/`
+  - **Windows**: Move from `~/.config/pvetui/` to `%APPDATA%/pvetui/`
   - **macOS/Linux**: No changes required - existing paths continue to work
   - The application will automatically use the new paths on first run after this update
 
@@ -106,7 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed input field colors to match the default theme (black instead of blue)
   - Applied to both standalone config wizard and embedded profile wizard
 - **Config Wizard Loading Issues**: Fixed config wizard to properly load existing configuration files
-  - Fixed config wizard to load from default locations (`~/.config/proxmox-tui/config.yml`)
+  - Fixed config wizard to load from default locations (`~/.config/pvetui/config.yml`)
   - Added profile resolution and application logic to config wizard flow
   - Ensured both `--config-wizard` flag and `config-wizard` subcommand work consistently
   - Fixed issue where config wizard wouldn't load existing profiles when no config file specified
@@ -169,18 +194,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes issue where selected guest would change during pending status
   - Ensures consistent user experience during long-running operations
   - Applied to VM operations (start/stop/restart) and migration operations
-- **Makefile Cross-Platform Build**: Fixed hardcoded GOOS/GOARCH in build target ([#19](https://github.com/devnullvoid/proxmox-tui/issues/19))
+- **Makefile Cross-Platform Build**: Fixed hardcoded GOOS/GOARCH in build target ([#19](https://github.com/devnullvoid/pvetui/issues/19))
   - Now builds for host platform by default instead of forcing Linux/amd64
   - Allows environment variable override for cross-compilation
   - Enables native development on macOS, Windows, and other platforms
   - Thanks to @unclesp1d3r for the detailed report and solution
-- **Go Install Documentation**: Fixed incorrect installation instructions and improved macOS guidance ([#20](https://github.com/devnullvoid/proxmox-tui/issues/20))
+- **Go Install Documentation**: Fixed incorrect installation instructions and improved macOS guidance ([#20](https://github.com/devnullvoid/pvetui/issues/20))
   - Removed non-functional `go install @latest` command (git submodule limitation)
   - Renamed misleading `install-remote` Makefile target to `install-go` for clarity
   - Added macOS Gatekeeper warning in README with direct link to troubleshooting guide
   - Updated troubleshooting documentation with correct installation methods
   - Thanks to @unclesp1d3r for reporting macOS Gatekeeper issues
-- **First-Run Configuration Issues**: Fixed app failing to launch without config file ([#21](https://github.com/devnullvoid/proxmox-tui/issues/21))
+- **First-Run Configuration Issues**: Fixed app failing to launch without config file ([#21](https://github.com/devnullvoid/pvetui/issues/21))
   - Fixed bootstrap flow to handle config wizard before profile resolution
   - Fixed profile resolution to not assume 'default' profile when no profiles exist
   - Improved onboarding flow with clear user guidance after config creation
@@ -283,11 +308,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker Image**: Added `openssh-client` to support the shell feature.
 
 ### Fixed
-- **Configuration**: The application now automatically discovers and loads the default configuration file (`config.yml` or `config.yaml`) from the XDG config directory (`~/.config/proxmox-tui/`) without requiring the `--config` flag.
+- **Configuration**: The application now automatically discovers and loads the default configuration file (`config.yml` or `config.yaml`) from the XDG config directory (`~/.config/pvetui/`) without requiring the `--config` flag.
 - **Search**: Pressing `ESC` in the search bar now clears the filter text in addition to closing the bar, providing a more intuitive, VIM-like experience.
 
 ### Improved
-- **Docker**: The Docker instructions have been completely revamped for clarity and correctness, now recommending `docker compose run --rm proxmox-tui` for an improved user experience.
+- **Docker**: The Docker instructions have been completely revamped for clarity and correctness, now recommending `docker compose run --rm pvetui` for an improved user experience.
 - Robust selection restoration for both VM and Node lists after per-item and global refreshes. Selection is now always restored by name, not index, fixing issues with selection jumping to the top after refreshes.
 
 ## [v0.8.0]
@@ -413,7 +438,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Users can now successfully return to the application after all suspend operations
 - **Unified Logging System**: Fixed all packages to use unified log file instead of separate log files
   - Implemented global logger system that all packages (scripts, VNC services, etc.) now use
-  - All components now log to the same `proxmox-tui.log` file in the configured cache directory
+  - All components now log to the same `pvetui.log` file in the configured cache directory
   - Eliminated multiple log files being created in current directory (scripts, VNC components)
   - Proper cache directory initialization ensures consistent logging location across all packages
 
@@ -524,7 +549,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Improved logging efficiency**: Session count only logged when it changes, not continuously
 - **Unified Logging System**: Fixed all packages to use unified log file instead of separate log files
   - Implemented global logger system that all packages (scripts, VNC services, etc.) now use
-  - All components now log to the same `proxmox-tui.log` file in the configured cache directory
+  - All components now log to the same `pvetui.log` file in the configured cache directory
   - Eliminated multiple log files being created in current directory (scripts, VNC components)
   - Proper cache directory initialization ensures consistent logging location across all packages
   - Eliminates confusion from multiple log files and significantly improves debugging experience

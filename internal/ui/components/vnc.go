@@ -3,8 +3,8 @@ package components
 import (
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
-	"github.com/devnullvoid/proxmox-tui/internal/vnc"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/vnc"
 )
 
 // GetVNCService returns the VNC service instance.

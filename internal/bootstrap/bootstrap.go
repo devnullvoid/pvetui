@@ -10,14 +10,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/internal/app"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/internal/onboarding"
-	"github.com/devnullvoid/proxmox-tui/internal/profile"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/components"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
-	"github.com/devnullvoid/proxmox-tui/internal/version"
+	"github.com/devnullvoid/pvetui/internal/app"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/internal/onboarding"
+	"github.com/devnullvoid/pvetui/internal/profile"
+	"github.com/devnullvoid/pvetui/internal/ui/components"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/version"
 )
 
 // BootstrapOptions contains all the options for bootstrapping the application.
@@ -70,27 +70,27 @@ func ParseFlags() BootstrapOptions {
 	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagCacheDir string
 	var flagInsecure, flagDebug bool
 
-	flag.StringVar(&flagAddr, "addr", "", "Proxmox API URL (env PROXMOX_ADDR)")
+	flag.StringVar(&flagAddr, "addr", "", "Proxmox API URL (env PVETUI_ADDR)")
 	flag.StringVar(&flagAddr, "a", "", "Short for --addr")
-	flag.StringVar(&flagUser, "user", "", "Proxmox username (env PROXMOX_USER)")
+	flag.StringVar(&flagUser, "user", "", "Proxmox username (env PVETUI_USER)")
 	flag.StringVar(&flagUser, "u", "", "Short for --user")
-	flag.StringVar(&flagPassword, "password", "", "Proxmox password (env PROXMOX_PASSWORD)")
+	flag.StringVar(&flagPassword, "password", "", "Proxmox password (env PVETUI_PASSWORD)")
 	flag.StringVar(&flagPassword, "pass", "", "Short for --password")
-	flag.StringVar(&flagTokenID, "token-id", "", "Proxmox API token ID (env PROXMOX_TOKEN_ID)")
+	flag.StringVar(&flagTokenID, "token-id", "", "Proxmox API token ID (env PVETUI_TOKEN_ID)")
 	flag.StringVar(&flagTokenID, "tid", "", "Short for --token-id")
-	flag.StringVar(&flagTokenSecret, "token-secret", "", "Proxmox API token secret (env PROXMOX_TOKEN_SECRET)")
+	flag.StringVar(&flagTokenSecret, "token-secret", "", "Proxmox API token secret (env PVETUI_TOKEN_SECRET)")
 	flag.StringVar(&flagTokenSecret, "ts", "", "Short for --token-secret")
-	flag.StringVar(&flagRealm, "realm", "", "Proxmox realm (env PROXMOX_REALM)")
+	flag.StringVar(&flagRealm, "realm", "", "Proxmox realm (env PVETUI_REALM)")
 	flag.StringVar(&flagRealm, "r", "", "Short for --realm")
-	flag.BoolVar(&flagInsecure, "insecure", false, "Skip TLS verification (env PROXMOX_INSECURE)")
+	flag.BoolVar(&flagInsecure, "insecure", false, "Skip TLS verification (env PVETUI_INSECURE)")
 	flag.BoolVar(&flagInsecure, "i", false, "Short for --insecure")
-	flag.StringVar(&flagApiPath, "api-path", "", "Proxmox API path (env PROXMOX_API_PATH)")
+	flag.StringVar(&flagApiPath, "api-path", "", "Proxmox API path (env PVETUI_API_PATH)")
 	flag.StringVar(&flagApiPath, "ap", "", "Short for --api-path")
-	flag.StringVar(&flagSSHUser, "ssh-user", "", "SSH username (env PROXMOX_SSH_USER)")
+	flag.StringVar(&flagSSHUser, "ssh-user", "", "SSH username (env PVETUI_SSH_USER)")
 	flag.StringVar(&flagSSHUser, "su", "", "Short for --ssh-user")
-	flag.BoolVar(&flagDebug, "debug", false, "Enable debug logging (env PROXMOX_DEBUG)")
+	flag.BoolVar(&flagDebug, "debug", false, "Enable debug logging (env PVETUI_DEBUG)")
 	flag.BoolVar(&flagDebug, "d", false, "Short for --debug")
-	flag.StringVar(&flagCacheDir, "cache-dir", "", "Cache directory path (env PROXMOX_CACHE_DIR)")
+	flag.StringVar(&flagCacheDir, "cache-dir", "", "Cache directory path (env PVETUI_CACHE_DIR)")
 	flag.StringVar(&flagCacheDir, "cd", "", "Short for --cache-dir")
 
 	flag.Parse()
@@ -124,7 +124,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, nil
 	}
 
-	fmt.Println("🚀 Starting Proxmox TUI...")
+	fmt.Println("🚀 Starting pvetui...")
 
 	// Initialize configuration
 	cfg := config.NewConfig()
@@ -352,7 +352,7 @@ func handleStartupError(err error, cfg *config.Config) error {
 // printVersion prints version information.
 func printVersion() {
 	info := version.GetBuildInfo()
-	fmt.Printf("proxmox-tui version %s\n", info.Version)
+	fmt.Printf("pvetui version %s\n", info.Version)
 	fmt.Printf("Build date: %s\n", info.BuildDate)
 	fmt.Printf("Commit: %s\n", info.Commit)
 	fmt.Printf("Go version: %s\n", info.GoVersion)

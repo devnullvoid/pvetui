@@ -1,8 +1,8 @@
 package components
 
 import (
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/config"
 )
 
 // ResolveProfile determines which profile to use based on command line flags,
@@ -20,7 +20,7 @@ func ResolveProfile(flagProfile string, cfg *config.Config) (string, error) {
 	}
 
 	// Check environment variable
-	if envProfile := os.Getenv("PROXMOX_TUI_PROFILE"); envProfile != "" {
+	if envProfile := os.Getenv("PVETUI_PROFILE"); envProfile != "" {
 		return envProfile, nil
 	}
 

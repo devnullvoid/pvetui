@@ -7,8 +7,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/theme"
-	"github.com/devnullvoid/proxmox-tui/internal/version"
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/version"
 )
 
 // CreateLoginForm creates a login form dialog.
@@ -219,7 +219,7 @@ func CreateAboutDialog(versionInfo *version.BuildInfo, onClose func()) *tview.Mo
 	}
 
 	// Create about text with dynamic information
-	aboutText := fmt.Sprintf(`Proxmox TUI
+	aboutText := fmt.Sprintf(`pvetui
 
 A terminal user interface for Proxmox VE
 

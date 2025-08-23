@@ -1,6 +1,6 @@
 # Screenshots
 
-This page showcases screenshots of Proxmox TUI in action, demonstrating its various features and interface elements.
+This page showcases screenshots of pvetui in action, demonstrating its various features and interface elements.
 
 ## 📸 Application Screenshots
 
@@ -36,10 +36,10 @@ This page showcases screenshots of Proxmox TUI in action, demonstrating its vari
 
 ### Live Demo
 ![Live Demo](demo.gif)
-*Live demonstration of Proxmox TUI in action - Watch the interface respond to user interactions*
+*Live demonstration of pvetui in action - Watch the interface respond to user interactions*
 
 ### Video Demo
-[Watch Demo Video](demo.webm)
+[Watch Demo Video](../demo.webm) (WebM format - higher quality than GIF)
 *Comprehensive video demonstration showing key features and workflows*
 
 ## 🎨 Interface Features
@@ -105,9 +105,9 @@ This page showcases screenshots of Proxmox TUI in action, demonstrating its vari
 
 - **[Configuration Guide](CONFIGURATION.md)** - Learn how to customize the interface
 - **[Theming Guide](THEMING.md)** - Customize colors and appearance
-- **[Main README](../README.md)** - Get started with Proxmox TUI
+- **[Main README](../README.md)** - Get started with pvetui
 - **[Docker Guide](DOCKER.md)** - Deploy using containers
 
 ---
 
-*Screenshots are taken from actual Proxmox TUI sessions and represent the current interface design. The appearance may vary slightly based on your terminal emulator and theme settings.*
+*Screenshots are taken from actual pvetui sessions and represent the current interface design. The appearance may vary slightly based on your terminal emulator and theme settings.*

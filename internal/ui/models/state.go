@@ -7,9 +7,9 @@ import (
 
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // SearchState holds the state for a search operation.

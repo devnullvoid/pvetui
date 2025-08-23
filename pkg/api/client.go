@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // Cache TTLs for different types of data.

@@ -28,17 +28,17 @@ func TestNewConfig(t *testing.T) {
 		{
 			name: "all environment variables set",
 			envVars: map[string]string{
-				"PROXMOX_ADDR":         "https://proxmox.example.com:8006",
-				"PROXMOX_USER":         "testuser",
-				"PROXMOX_PASSWORD":     "testpass",
-				"PROXMOX_TOKEN_ID":     "testtoken",
-				"PROXMOX_TOKEN_SECRET": "testsecret",
-				"PROXMOX_REALM":        "ldap",
-				"PROXMOX_API_PATH":     "/api2/json/custom",
-				"PROXMOX_INSECURE":     "true",
-				"PROXMOX_SSH_USER":     "sshuser",
-				"PROXMOX_DEBUG":        "true",
-				"PROXMOX_CACHE_DIR":    "/tmp/cache",
+				"PVETUI_ADDR":         "https://proxmox.example.com:8006",
+				"PVETUI_USER":         "testuser",
+				"PVETUI_PASSWORD":     "testpass",
+				"PVETUI_TOKEN_ID":     "testtoken",
+				"PVETUI_TOKEN_SECRET": "testsecret",
+				"PVETUI_REALM":        "ldap",
+				"PVETUI_API_PATH":     "/api2/json/custom",
+				"PVETUI_INSECURE":     "true",
+				"PVETUI_SSH_USER":     "sshuser",
+				"PVETUI_DEBUG":        "true",
+				"PVETUI_CACHE_DIR":    "/tmp/cache",
 			},
 			expected: &Config{
 				Addr:        "https://proxmox.example.com:8006",
@@ -57,8 +57,8 @@ func TestNewConfig(t *testing.T) {
 		{
 			name: "boolean environment variables with different cases",
 			envVars: map[string]string{
-				"PROXMOX_INSECURE": "TRUE",
-				"PROXMOX_DEBUG":    "True",
+				"PVETUI_INSECURE": "TRUE",
+				"PVETUI_DEBUG":    "True",
 			},
 			expected: &Config{
 				Realm:    "pam",
@@ -416,7 +416,7 @@ func TestConfig_SetDefaults(t *testing.T) {
 
 	// Test that cache directory is set to XDG-compliant path
 	assert.NotEmpty(t, config.CacheDir)
-	assert.Contains(t, config.CacheDir, "proxmox-tui")
+	assert.Contains(t, config.CacheDir, "pvetui")
 }
 
 // testXDGPathHelper runs tests for XDG path functions with common setup and teardown.
@@ -440,7 +440,7 @@ func testXDGPathHelper(t *testing.T, envVar string, testFunc func() string, expe
 			name:           envVar + " set",
 			envValue:       "/custom/path",
 			home:           "/home/user",
-			expectedSuffix: "/custom/path/proxmox-tui",
+			expectedSuffix: "/custom/path/pvetui",
 		},
 		{
 			name:           "HOME set, no " + envVar,
@@ -462,19 +462,19 @@ func testXDGPathHelper(t *testing.T, envVar string, testFunc func() string, expe
 }
 
 func TestGetXDGCacheDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CACHE_HOME", getXDGCacheDir, "/home/user/.cache/proxmox-tui")
+	testXDGPathHelper(t, "XDG_CACHE_HOME", getXDGCacheDir, "/home/user/.cache/pvetui")
 }
 
 func TestGetXDGConfigDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CONFIG_HOME", getXDGConfigDir, "/home/user/.config/proxmox-tui")
+	testXDGPathHelper(t, "XDG_CONFIG_HOME", getXDGConfigDir, "/home/user/.config/pvetui")
 }
 
 func TestGetCacheDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CACHE_HOME", getCacheDir, "/home/user/.cache/proxmox-tui")
+	testXDGPathHelper(t, "XDG_CACHE_HOME", getCacheDir, "/home/user/.cache/pvetui")
 }
 
 func TestGetConfigDir(t *testing.T) {
-	testXDGPathHelper(t, "XDG_CONFIG_HOME", getConfigDir, "/home/user/.config/proxmox-tui")
+	testXDGPathHelper(t, "XDG_CONFIG_HOME", getConfigDir, "/home/user/.config/pvetui")
 }
 
 func TestValidateKeyBindings(t *testing.T) {
@@ -561,7 +561,7 @@ func TestConfig_ProfileBasedConfiguration(t *testing.T) {
 				DefaultProfile: "default",
 			},
 			expectError: true,
-			errorMsg:    "proxmox address required: set via -addr flag, PROXMOX_ADDR env var, or config file",
+			errorMsg:    "proxmox address required: set via -addr flag, PVETUI_ADDR env var, or config file",
 		},
 	}
 
@@ -781,17 +781,17 @@ cache_dir: "/tmp/test-cache"
 // Helper function to clear all Proxmox environment variables.
 func clearProxmoxEnvVars() {
 	envVars := []string{
-		"PROXMOX_ADDR",
-		"PROXMOX_USER",
-		"PROXMOX_PASSWORD",
-		"PROXMOX_TOKEN_ID",
-		"PROXMOX_TOKEN_SECRET",
-		"PROXMOX_REALM",
-		"PROXMOX_API_PATH",
-		"PROXMOX_INSECURE",
-		"PROXMOX_SSH_USER",
-		"PROXMOX_DEBUG",
-		"PROXMOX_CACHE_DIR",
+		"PVETUI_ADDR",
+		"PVETUI_USER",
+		"PVETUI_PASSWORD",
+		"PVETUI_TOKEN_ID",
+		"PVETUI_TOKEN_SECRET",
+		"PVETUI_REALM",
+		"PVETUI_API_PATH",
+		"PVETUI_INSECURE",
+		"PVETUI_SSH_USER",
+		"PVETUI_DEBUG",
+		"PVETUI_CACHE_DIR",
 	}
 
 	for _, envVar := range envVars {

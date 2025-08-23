@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Automated Release Script for proxmox-tui
+# Automated Release Script for pvetui
 # This script automates the complete release process:
 # 1. Updates changelog (moves Unreleased to new version)
 # 2. Commits changelog changes
@@ -277,11 +277,11 @@ create_github_release() {
 
 Choose the appropriate binary for your platform:
 
-- **Linux AMD64**: `proxmox-tui-linux-amd64.tar.gz`
-- **Linux ARM64**: `proxmox-tui-linux-arm64.tar.gz`
-- **macOS Intel**: `proxmox-tui-darwin-amd64.tar.gz`
-- **macOS Apple Silicon**: `proxmox-tui-darwin-arm64.tar.gz`
-- **Windows**: `proxmox-tui-windows-amd64.zip`
+- **Linux AMD64**: `pvetui-linux-amd64.tar.gz`
+- **Linux ARM64**: `pvetui-linux-arm64.tar.gz`
+- **macOS Intel**: `pvetui-darwin-amd64.tar.gz`
+- **macOS Apple Silicon**: `pvetui-darwin-arm64.tar.gz`
+- **Windows**: `pvetui-windows-amd64.zip`
 
 ## 🔐 Verification
 
@@ -293,9 +293,9 @@ shasum -a 256 -c checksums.txt
 ## 📋 Installation
 
 1. Download the appropriate archive for your platform
-2. Extract the binary: `tar -xzf proxmox-tui-*.tar.gz` (or unzip for Windows)
-3. Make executable (Unix): `chmod +x proxmox-tui-*`
-4. Run: `./proxmox-tui-* --help`
+2. Extract the binary: `tar -xzf pvetui-*.tar.gz` (or unzip for Windows)
+3. Make executable (Unix): `chmod +x pvetui-*`
+4. Run: `./pvetui-* --help`
 EOF
 
     if [[ "$DRY_RUN" == "true" ]]; then

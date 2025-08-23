@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/devnullvoid/proxmox-tui/internal/ui/utils"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // SSHClient wraps SSH connection parameters and provides methods for establishing

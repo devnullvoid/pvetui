@@ -1,7 +1,7 @@
-# Makefile for proxmox-tui
+# Makefile for pvetui
 
 # Configuration
-APP_NAME := proxmox-tui
+APP_NAME := pvetui
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 REGISTRY ?=
 IMAGE_NAME := $(APP_NAME)
@@ -31,29 +31,29 @@ build: ## Build the application binary
 	@printf "$(GREEN)Building $(APP_NAME)...$(NC)\n"
 	# Use pure-Go build; only use GOAMD64=v1 and extra tags when targeting Windows/amd64
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo \
-		-ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) \
-		-X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
-		-X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
-		-o ./bin/$(APP_NAME) ./cmd/proxmox-tui
+		-ldflags="-X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) \
+		-X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+		-X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+		-o ./bin/$(APP_NAME) ./cmd/pvetui
 
 install: ## Build and install the application from source
 	@printf "$(GREEN)Building and installing $(APP_NAME) from source...$(NC)\n"
 	@printf "$(YELLOW)Installing to: $(shell go env GOPATH)/bin/$(APP_NAME)$(NC)\n"
 	@mkdir -p $(shell go env GOPATH)/bin
-	go build -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) \
-		-X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
-		-X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
-		-o $(shell go env GOPATH)/bin/$(APP_NAME) ./cmd/proxmox-tui
+	go build -ldflags="-X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) \
+		-X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+		-X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+		-o $(shell go env GOPATH)/bin/$(APP_NAME) ./cmd/pvetui
 	@printf "$(GREEN)✅ Installation complete!$(NC)\n"
 	@printf "$(YELLOW)Make sure $(shell go env GOPATH)/bin is in your PATH$(NC)\n"
 
 install-go: ## Install the application using go install from local source
 	@printf "$(GREEN)Installing $(APP_NAME) using go install...$(NC)\n"
 	@printf "$(YELLOW)Installing to: $(shell go env GOPATH)/bin/$(APP_NAME)$(NC)\n"
-	go install -ldflags="-X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) \
-		-X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
-		-X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
-		./cmd/proxmox-tui
+	go install -ldflags="-X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) \
+		-X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+		-X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+		./cmd/pvetui
 	@printf "$(GREEN)✅ Installation complete!$(NC)\n"
 	@printf "$(YELLOW)Make sure $(shell go env GOPATH)/bin is in your PATH$(NC)\n"
 
@@ -72,10 +72,10 @@ test-integration: ## Run integration tests
 	@printf "$(GREEN)Running integration tests...$(NC)\n"
 	go test -v ./test/integration/...
 
-test-integration-real: ## Run integration tests against real Proxmox (requires PROXMOX_INTEGRATION_TEST=true)
+test-integration-real: ## Run integration tests against real Proxmox (requires PVETUI_INTEGRATION_TEST=true)
 	@printf "$(GREEN)Running integration tests against real Proxmox...$(NC)\n"
-	@printf "$(YELLOW)Make sure PROXMOX_TEST_* environment variables are set$(NC)\n"
-	PROXMOX_INTEGRATION_TEST=true go test -v ./test/integration/...
+	@printf "$(YELLOW)Make sure PVETUI_TEST_* environment variables are set$(NC)\n"
+	PVETUI_INTEGRATION_TEST=true go test -v ./test/integration/...
 
 test-all: ## Run all tests (unit + integration)
 	@printf "$(GREEN)Running all tests...$(NC)\n"
@@ -347,19 +347,19 @@ release-dry-run-no-github: ## Preview release changes without GitHub (usage: mak
 release-build: ## Build release binaries for multiple platforms
 	@printf "$(GREEN)Building release binaries...$(NC)\n"
 	@mkdir -p dist
-	GOOS=linux GOARCH=386 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-386 ./cmd/proxmox-tui
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-amd64 ./cmd/proxmox-tui
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-arm64 ./cmd/proxmox-tui
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-darwin-amd64 ./cmd/proxmox-tui
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-darwin-arm64 ./cmd/proxmox-tui
-	GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-386.exe ./cmd/proxmox-tui
-	GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0 go build -tags netgo,osusergo -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-amd64.exe ./cmd/proxmox-tui
-	GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-arm64.exe ./cmd/proxmox-tui
+	GOOS=linux GOARCH=386 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-386 ./cmd/pvetui
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-amd64 ./cmd/pvetui
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-linux-arm64 ./cmd/pvetui
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-darwin-amd64 ./cmd/pvetui
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-darwin-arm64 ./cmd/pvetui
+	GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-386.exe ./cmd/pvetui
+	GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0 go build -tags netgo,osusergo -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-amd64.exe ./cmd/pvetui
+	GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-arm64.exe ./cmd/pvetui
 
 # Convenience target for local Windows compat build
 build-windows-compat: ## Build Windows amd64 with compat flags
 	@printf "$(GREEN)Building Windows amd64 (compat)...$(NC)\n"
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 GOAMD64=v1 go build -tags netgo,osusergo -ldflags="-s -w -X github.com/devnullvoid/proxmox-tui/internal/version.version=$(VERSION) -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/proxmox-tui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-amd64.exe ./cmd/proxmox-tui
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 GOAMD64=v1 go build -tags netgo,osusergo -ldflags="-s -w -X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) -X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) -X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" -o dist/$(APP_NAME)-windows-amd64.exe ./cmd/pvetui
 
 # Utility targets
 version: ## Show version information

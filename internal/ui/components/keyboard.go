@@ -6,10 +6,10 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/keys"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/keys"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // keyMatch checks if an event matches a key specification string.

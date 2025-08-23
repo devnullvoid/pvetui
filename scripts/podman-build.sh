@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Podman build script for proxmox-tui
+# Podman build script for pvetui
 set -e
 
 # Configuration
-IMAGE_NAME="proxmox-tui"
+IMAGE_NAME="pvetui"
 VERSION=${VERSION:-latest}
 REGISTRY=${REGISTRY:-""}
 
@@ -40,7 +40,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Change to project root
 cd "$PROJECT_ROOT"
 
-log_info "Building Podman image for proxmox-tui..."
+log_info "Building Podman image for pvetui..."
 
 # Get current user's UID and GID
 USER_ID=$(id -u)
@@ -92,4 +92,4 @@ if [ "$RUN_TESTS" = "true" ]; then
     log_info "Running basic container test..."
     podman run --rm "$FULL_IMAGE_NAME" --help > /dev/null
     log_info "Container test passed!"
-fi 
+fi

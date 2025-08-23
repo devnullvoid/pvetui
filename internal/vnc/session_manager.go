@@ -31,8 +31,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // SessionType represents the type of VNC session.

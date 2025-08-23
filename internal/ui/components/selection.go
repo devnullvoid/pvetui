@@ -1,6 +1,6 @@
 package components
 
-import "github.com/devnullvoid/proxmox-tui/internal/ui/models"
+import "github.com/devnullvoid/pvetui/internal/ui/models"
 
 // restoreSelection restores node and VM selections after a refresh.
 func (a *App) restoreSelection(hasVM bool, vmID int, vmNode string, vmState *models.SearchState,

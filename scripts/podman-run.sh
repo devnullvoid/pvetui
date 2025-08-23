@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Podman run script for proxmox-tui
+# Podman run script for pvetui
 set -e
 
 # Configuration
-IMAGE_NAME="proxmox-tui:latest"
-CONTAINER_NAME="proxmox-tui"
+IMAGE_NAME="pvetui:latest"
+CONTAINER_NAME="pvetui"
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,7 +61,7 @@ if podman ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     podman rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
 fi
 
-log_info "Starting proxmox-tui container with Podman..."
+log_info "Starting pvetui container with Podman..."
 
 # Run the container with proper TTY settings for TUI
 # Note: Podman runs rootless by default, which is great for security
@@ -75,4 +75,4 @@ podman run \
     "$IMAGE_NAME" \
     "$@"
 
-log_info "Container stopped." 
+log_info "Container stopped."

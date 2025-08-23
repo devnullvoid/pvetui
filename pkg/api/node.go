@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	// "github.com/devnullvoid/proxmox-tui/pkg/config".
+	// "github.com/devnullvoid/pvetui/pkg/config".
 )
 
 // Ensure config package is properly imported

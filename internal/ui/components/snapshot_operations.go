@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // SnapshotOperations handles snapshot CRUD operations.

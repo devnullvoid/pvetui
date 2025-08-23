@@ -1,11 +1,11 @@
-# Contributing to Proxmox TUI
+# Contributing to pvetui
 
-Thank you for your interest in contributing to Proxmox TUI! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to pvetui! This document provides guidelines for contributing to the project.
 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/yourusername/proxmox-tui.git`
+2. Clone your fork: `git clone https://github.com/yourusername/pvetui.git`
 3. Create a feature branch: `git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes
@@ -23,14 +23,14 @@ Thank you for your interest in contributing to Proxmox TUI! This document provid
 ### Building
 ```bash
 # Clone the repository
-git clone https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone https://github.com/devnullvoid/pvetui.git
+cd pvetui
 
 # Build the application
-go build -o proxmox-tui ./cmd/proxmox-tui
+go build -o pvetui ./cmd/pvetui
 
 # Run with your config
-./proxmox-tui -config ./configs/config.yml
+./pvetui --config ./configs/config.yml
 ```
 
 ### Running Tests
@@ -53,7 +53,7 @@ golangci-lint run --timeout=5m
 go fmt ./...
 
 # Fix imports
-goimports -local github.com/devnullvoid/proxmox-tui -w .
+goimports -local github.com/devnullvoid/pvetui -w .
 ```
 
 ## Code Style
@@ -67,8 +67,8 @@ goimports -local github.com/devnullvoid/proxmox-tui -w .
 
 ### Project Structure
 ```
-proxmox-tui/
-├── cmd/proxmox-tui/     # Application entrypoint
+pvetui/
+├── cmd/pvetui/     # Application entrypoint
 ├── internal/            # Internal application code
 │   ├── adapters/        # External service adapters
 │   ├── cache/           # Caching implementation
@@ -242,4 +242,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 Feel free to open an issue for questions or reach out to the maintainers.
 
-Thank you for contributing to Proxmox TUI! 🚀
+Thank you for contributing to pvetui! 🚀

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api"
 
-	// "github.com/devnullvoid/proxmox-tui/pkg/config".
-	"github.com/devnullvoid/proxmox-tui/internal/ssh"
-	"github.com/devnullvoid/proxmox-tui/internal/ui/models"
-	"github.com/devnullvoid/proxmox-tui/internal/vnc"
+	// "github.com/devnullvoid/pvetui/pkg/config".
+	"github.com/devnullvoid/pvetui/internal/ssh"
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/vnc"
 )
 
 // openNodeShell opens an SSH session to the currently selected node.

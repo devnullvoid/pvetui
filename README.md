@@ -1,36 +1,39 @@
+
+
+<h1 align="center">pvetui</h1>
 <p align="center">
-  <img src="docs/proxmox-tui-gopher-logo.png" alt="Proxmox TUI Logo" width="300">
+  <strong>A Terminal User Interface For Proxmox Virtual Environment</strong>
+</p>
+<p align="center">
+  <em>Pronounced: peeve-tooey</em>
 </p>
 
-<h1 align="center">Proxmox TUI</h1>
 <p align="center">
-  <strong>A powerful Terminal User Interface for Proxmox VE clusters</strong>
-</p>
-
-<p align="center">
-  <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#configuration">Configuration</a> •
-  <a href="#usage">Usage</a> •
-  <a href="#theming">Theming</a> •
-  <a href="#vnc-console-access">VNC Console</a>
+  <a href="#-features">Features</a> •
+  <a href="#-screenshots">Screenshots</a> •
+  <a href="#-installation">Installation</a> •
+  <a href="#-configuration">Configuration</a> •
+  <a href="#-usage">Usage</a> •
+  <a href="#-theming">Theming</a> •
+  <a href="#-vnc-console-access">VNC Console</a>
 </p>
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/devnullvoid/proxmox-tui" alt="GitHub release">
-  <img src="https://img.shields.io/github/license/devnullvoid/proxmox-tui" alt="License">
-  <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/proxmox-tui" alt="Go Version">
-  <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/proxmox-tui/ci.yml?branch=master" alt="Build Status">
-  <img src="https://img.shields.io/github/downloads/devnullvoid/proxmox-tui/total" alt="Total Downloads">
+  <img src="https://img.shields.io/github/v/release/devnullvoid/pvetui" alt="GitHub release">
+  <img src="https://img.shields.io/github/license/devnullvoid/pvetui" alt="License">
+  <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/pvetui" alt="Go Version">
+  <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/pvetui/ci.yml?branch=master" alt="Build Status">
+  <img src="https://img.shields.io/github/downloads/devnullvoid/pvetui/total" alt="Total Downloads">
 </p>
 
 <!-- Demo GIF -->
 <p align="center">
-  <img src="docs/demo.gif" width="600" alt="Live demo of Proxmox TUI in action">
+  <img src="docs/demo.gif" width="600" alt="Live demo of pvetui in action">
   <br>
-  <em>Live demo of Proxmox TUI in action</em>
+  <em>Live demo of pvetui in action</em>
+  <br>
+  <a href="docs/demo.webm">🎥 Watch high-quality WebM demo</a>
 </p>
 
 ## 🚀 Features
@@ -66,22 +69,22 @@
 ### Quick Start
 
 **From Pre-compiled Binaries:**
-1. Download from [Releases](https://github.com/devnullvoid/proxmox-tui/releases)
-2. Extract and run: `./proxmox-tui`
+1. Download from [Releases](https://github.com/devnullvoid/pvetui/releases)
+2. Extract and run: `./pvetui`
 
 > **macOS Users**: You may encounter Gatekeeper warnings with pre-compiled binaries. See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-macos-issues) for solutions including bypassing the warning or building from source.
 
 **From Source:**
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
 make install  # Build and install from source
 # or: make install-go  # Install via Go toolchain
 ```
 
-> **Note**: The `go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
+> **Note**: The `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
 ### First Run & Interactive Config Wizard
 - On first run, the app will offer to create and edit a config file in a user-friendly TUI wizard
@@ -93,7 +96,7 @@ make install  # Build and install from source
 
 ### Configuration Format
 
-Proxmox TUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
+pvetui uses a modern multi-profile configuration format that supports multiple Proxmox connections:
 
 ```yaml
 profiles:
@@ -138,7 +141,7 @@ Access the profile manager through the global menu.
 2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
 
-> Note: Proxmox displays the Token ID in the form `user@realm!tokenid` (for example: `root@pam!mytoken`). When configuring Proxmox TUI, split those parts into separate fields:
+> Note: Proxmox displays the Token ID in the form `user@realm!tokenid` (for example: `root@pam!mytoken`). When configuring pvetui, split those parts into separate fields:
 
 ```yaml
 profiles:
@@ -151,21 +154,44 @@ profiles:
 ```
 
 ### Encrypted Configuration
-Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `-config` and it will decrypt automatically.
+Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `--config` and it will decrypt automatically.
 
 **📖 For detailed configuration options, key bindings, theming, and advanced features, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md)**
 
 **📚 Complete documentation is available in the [docs/](docs/) folder**
 
-## 🖥️ Usage
+## 🔌 Usage
 
 ```bash
-# Auto-detects config at ~/.config/proxmox-tui/config.yml
-./proxmox-tui
+# Auto-detects config at ~/.config/pvetui/config.yml
+./pvetui
 
 # Or specify custom config
-./proxmox-tui -config /path/to/config.yml
+./pvetui --config /path/to/config.yml
 ```
+
+### Command Line Options
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--config` | `-c` | Path to YAML config file |
+| `--profile` | `-p` | Connection profile to use (overrides default_profile) |
+| `--no-cache` | `-n` | Disable caching |
+| `--version` | `-v` | Show version information |
+| `--config-wizard` | `-w` | Launch interactive config wizard and exit |
+| `--addr` | | Proxmox API URL |
+| `--user` | | Proxmox username |
+| `--password` | | Proxmox password |
+| `--token-id` | | Proxmox API token ID |
+| `--token-secret` | | Proxmox API token secret |
+| `--realm` | | Proxmox realm |
+| `--insecure` | | Skip TLS verification |
+| `--api-path` | | Proxmox API path |
+| `--ssh-user` | | SSH username |
+| `--debug` | | Enable debug logging |
+| `--cache-dir` | | Cache directory path |
+
+**Environment Variables**: All flags can also be set via environment variables with `PVETUI_` prefix (e.g., `PVETUI_ADDR`, `PVETUI_USER`).
 
 ### Key Bindings
 
@@ -180,13 +206,13 @@ Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point t
 
 Customize keys via the `key_bindings` section in your config. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
 
-## Theming
+## 🎨 Theming
 
-Proxmox TUI supports semantic theming with automatic adaptation to your terminal's color scheme.
+pvetui supports semantic theming with automatic adaptation to your terminal's color scheme.
 
 **📖 For detailed theming options, built-in themes, and color customization, see [docs/CONFIGURATION.md#theming](docs/CONFIGURATION.md#theming) and [docs/THEMING.md](docs/THEMING.md)**
 
-## 🖥️ VNC Console Access
+## 📺 VNC Console Access
 
 Built-in noVNC client provides seamless console access:
 - **Zero Configuration**: Works out of the box
@@ -226,18 +252,22 @@ Check our **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to 
 ## 🐳 Docker Usage
 
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
 cp .env.example .env  # Edit with your Proxmox details
-docker compose run --rm proxmox-tui
+docker compose run --rm pvetui
 ```
 
 See [docs/DOCKER.md](docs/DOCKER.md) for advanced usage.
 
 ## 🤝 Contributing
 
-Contributions welcome! Check the [issues page](https://github.com/devnullvoid/proxmox-tui/issues).
+Contributions welcome! Check the [issues page](https://github.com/devnullvoid/pvetui/issues).
 
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+## ™️ Trademark Notice
+
+**Proxmox®** is a registered trademark of Proxmox Server Solutions GmbH in the EU, the U.S., and other countries. This project is not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH. "Proxmox" is used solely to describe compatibility with Proxmox Virtual Environment software.

@@ -5,8 +5,9 @@ before:
     - git submodule update --init --recursive
 
 builds:
-  - id: proxmox-tui
-    main: ./cmd/proxmox-tui
+  # General build for all platforms except windows/amd64
+  - id: pvetui
+    main: ./cmd/pvetui
     env:
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]
@@ -16,12 +17,13 @@ builds:
         goarch: amd64
     ldflags:
       - -s -w
-      - -X github.com/devnullvoid/proxmox-tui/internal/version.version={{.Version}}
-      - -X github.com/devnullvoid/proxmox-tui/internal/version.commit={{.Commit}}
-      - -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate={{.Date}}
+      - -X github.com/devnullvoid/pvetui/internal/version.version={{.Version}}
+      - -X github.com/devnullvoid/pvetui/internal/version.commit={{.Commit}}
+      - -X github.com/devnullvoid/pvetui/internal/version.buildDate={{.Date}}
 
-  - id: proxmox-tui-windows-amd64
-    main: ./cmd/proxmox-tui
+  # Windows/amd64 build with extra compatibility settings
+  - id: pvetui-windows-amd64
+    main: ./cmd/pvetui
     env:
       - CGO_ENABLED=0
     goos: [windows]
@@ -30,12 +32,13 @@ builds:
     tags: [netgo, osusergo]
     ldflags:
       - -s -w
-      - -X github.com/devnullvoid/proxmox-tui/internal/version.version={{.Version}}
-      - -X github.com/devnullvoid/proxmox-tui/internal/version.commit={{.Commit}}
-      - -X github.com/devnullvoid/proxmox-tui/internal/version.buildDate={{.Date}}
+      - -X github.com/devnullvoid/pvetui/internal/version.version={{.Version}}
+      - -X github.com/devnullvoid/pvetui/internal/version.commit={{.Commit}}
+      - -X github.com/devnullvoid/pvetui/internal/version.buildDate={{.Date}}
 
 archives:
   - id: default
+    builds: [pvetui, pvetui-windows-amd64]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE

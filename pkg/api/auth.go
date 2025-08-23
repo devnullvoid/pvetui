@@ -67,7 +67,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // AuthToken represents a Proxmox authentication token containing session information.
@@ -296,7 +296,7 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "proxmox-tui")
+	req.Header.Set("User-Agent", "pvetui")
 
 	am.logger.Debug("Sending authentication request to: %s", am.httpClient.baseURL+authURL)
 

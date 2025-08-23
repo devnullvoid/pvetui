@@ -1,13 +1,13 @@
 # Troubleshooting Guide
 
-This document provides solutions to common issues encountered when installing and running Proxmox TUI.
+This document provides solutions to common issues encountered when installing and running pvetui.
 
 ## 🍎 macOS Issues
 
 ### Gatekeeper Blocking Binary Execution
 
 **Problem**: When running the pre-built binary on macOS, you encounter errors such as:
-- `zsh: killed ./proxmox-tui-darwin-arm64`
+- `zsh: killed ./pvetui-darwin-arm64`
 - Binary exits with code 137 (SIGKILL)
 - macOS shows security warnings about unsigned applications
 
@@ -17,7 +17,7 @@ This document provides solutions to common issues encountered when installing an
 
 #### Option 1: Remove Quarantine Attribute
 ```bash
-xattr -d com.apple.quarantine ./proxmox-tui-darwin-arm64
+xattr -d com.apple.quarantine ./pvetui-darwin-arm64
 ```
 
 This removes the quarantine attribute that macOS applies to downloaded files, allowing the binary to run normally.
@@ -30,8 +30,8 @@ This removes the quarantine attribute that macOS applies to downloaded files, al
 
 #### Option 3: Build from Source (Most Secure)
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
 make install
 ```
 
@@ -39,10 +39,10 @@ Building from source avoids Gatekeeper issues entirely since the binary is compi
 
 #### Option 4: Use Go Install from Source (Recommended for Developers)
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
 make install-go
-# or: go install ./cmd/proxmox-tui
+# or: go install ./cmd/pvetui
 ```
 
 This method compiles the source code directly with all submodules, bypassing Gatekeeper restrictions.
@@ -55,11 +55,11 @@ This method compiles the source code directly with all submodules, bypassing Gat
 If you encounter permission issues when running the binary:
 
 ```bash
-chmod +x ./proxmox-tui-linux-amd64
+chmod +x ./pvetui-linux-amd64
 ```
 
 ### Missing Dependencies
-Proxmox TUI is statically compiled and should not require additional dependencies. If you encounter issues, ensure your system is up to date.
+pvetui is statically compiled and should not require additional dependencies. If you encounter issues, ensure your system is up to date.
 
 ## 🪟 Windows Issues
 
@@ -81,18 +81,18 @@ Some antivirus software may flag the binary as suspicious. This is common with u
 
 ### Go Install Issues
 
-**Problem**: Running `go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest` fails with:
+**Problem**: Running `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest` fails with:
 ```
 pattern novnc: no matching files found
 ```
 
-**Cause**: The `go install` command from a remote repository doesn't fetch git submodules, but Proxmox TUI requires the noVNC submodule for its embedded VNC client functionality.
+**Cause**: The `go install` command from a remote repository doesn't fetch git submodules, but pvetui requires the noVNC submodule for its embedded VNC client functionality.
 
 **Solution**: Use the source installation method instead:
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
-go install ./cmd/proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
+go install ./cmd/pvetui
 # or: make install-go
 ```
 
@@ -127,7 +127,7 @@ For Proxmox connection problems:
 
 If you continue to experience issues:
 
-1. **Check Existing Issues**: Search the [GitHub Issues](https://github.com/devnullvoid/proxmox-tui/issues) for similar problems
+1. **Check Existing Issues**: Search the [GitHub Issues](https://github.com/devnullvoid/pvetui/issues) for similar problems
 2. **Create New Issue**: If your problem isn't covered, create a new issue with:
    - Your operating system and architecture
    - The exact error message
@@ -137,7 +137,7 @@ If you continue to experience issues:
 3. **Include System Information**:
    ```bash
    # For version information
-   ./proxmox-tui --version
+   ./pvetui --version
 
    # For Go environment (if building from source)
    go version
@@ -158,15 +158,15 @@ Currently, the pre-built binaries are **not code-signed**. This means:
 
 **Highest Security**: Build from source after reviewing the code
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/proxmox-tui.git
-cd proxmox-tui
+git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+cd pvetui
 # Review the source code
 make install
 ```
 
 **High Security**: Use Go's built-in installation
 ```bash
-go install github.com/devnullvoid/proxmox-tui/cmd/proxmox-tui@latest
+go install github.com/devnullvoid/pvetui/cmd/pvetui@latest
 ```
 
 **Standard Security**: Use pre-built binaries with OS override (as documented above)

@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/devnullvoid/proxmox-tui/internal/adapters"
-	"github.com/devnullvoid/proxmox-tui/internal/cache"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api"
-	"github.com/devnullvoid/proxmox-tui/test/testutils"
+	"github.com/devnullvoid/pvetui/internal/adapters"
+	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api"
+	"github.com/devnullvoid/pvetui/test/testutils"
 )
 
 // TestAPIClientIntegration_MockServer tests the API client against a mock Proxmox server.

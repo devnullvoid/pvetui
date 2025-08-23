@@ -7,15 +7,15 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/devnullvoid/proxmox-tui/internal/bootstrap"
-	"github.com/devnullvoid/proxmox-tui/internal/version"
+	"github.com/devnullvoid/pvetui/internal/bootstrap"
+	"github.com/devnullvoid/pvetui/internal/version"
 )
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "proxmox-tui",
+	Use:   "pvetui",
 	Short: "A terminal user interface for Proxmox VE",
-	Long: `Proxmox TUI is a terminal user interface for managing Proxmox VE clusters.
+	Long: `pvetui is a terminal user interface for managing Proxmox VE clusters.
 
 It provides an interactive interface for managing virtual machines, containers,
 nodes, and other Proxmox resources directly from the terminal.`,
@@ -132,7 +132,7 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
 
 	// Bind flags to environment variables
-	viper.SetEnvPrefix("PROXMOX")
+	viper.SetEnvPrefix("PVETUI")
 	viper.AutomaticEnv()
 
 	// Bind each flag to its corresponding environment variable

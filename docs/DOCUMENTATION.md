@@ -1,6 +1,6 @@
-# Documentation Guide for Proxmox TUI
+# Documentation Guide for pvetui
 
-This document provides a comprehensive guide to the documentation system implemented throughout the Proxmox TUI codebase. All packages and public functions now include comprehensive GoDoc documentation following Go best practices.
+This document provides a comprehensive guide to the documentation system implemented throughout the pvetui codebase. All packages and public functions now include comprehensive GoDoc documentation following Go best practices.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ This document provides a comprehensive guide to the documentation system impleme
 
 ## Overview
 
-The Proxmox TUI project follows Go's official documentation conventions using GoDoc. Every package, type, function, and method includes comprehensive documentation that explains:
+The pvetui project follows Go's official documentation conventions using GoDoc. Every package, type, function, and method includes comprehensive documentation that explains:
 
 - **Purpose and functionality**
 - **Parameters and return values**
@@ -91,7 +91,7 @@ go install golang.org/x/tools/cmd/godoc@latest
 godoc -http=:6060
 
 # Then navigate to:
-# http://localhost:6060/pkg/github.com/devnullvoid/proxmox-tui/
+# http://localhost:6060/pkg/github.com/devnullvoid/pvetui/
 ```
 
 ### IDE Integration
@@ -215,10 +215,10 @@ import (
     "context"
     "log"
 
-    "github.com/devnullvoid/proxmox-tui/internal/config"
-    "github.com/devnullvoid/proxmox-tui/internal/logger"
-    "github.com/devnullvoid/proxmox-tui/internal/adapters"
-    "github.com/devnullvoid/proxmox-tui/pkg/api"
+    "github.com/devnullvoid/pvetui/internal/config"
+    "github.com/devnullvoid/pvetui/internal/logger"
+    "github.com/devnullvoid/pvetui/internal/adapters"
+    "github.com/devnullvoid/pvetui/pkg/api"
 )
 
 func main() {
@@ -272,10 +272,10 @@ import (
     "log"
     "time"
 
-    "github.com/devnullvoid/proxmox-tui/internal/config"
-    "github.com/devnullvoid/proxmox-tui/internal/logger"
-    "github.com/devnullvoid/proxmox-tui/internal/adapters"
-    "github.com/devnullvoid/proxmox-tui/pkg/api"
+    "github.com/devnullvoid/pvetui/internal/config"
+    "github.com/devnullvoid/pvetui/internal/logger"
+    "github.com/devnullvoid/pvetui/internal/adapters"
+    "github.com/devnullvoid/pvetui/pkg/api"
 )
 
 func main() {
@@ -347,8 +347,8 @@ import (
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/mock"
 
-    "github.com/devnullvoid/proxmox-tui/pkg/api"
-    "github.com/devnullvoid/proxmox-tui/pkg/api/testutils"
+    "github.com/devnullvoid/pvetui/pkg/api"
+    "github.com/devnullvoid/pvetui/pkg/api/testutils"
 )
 
 func TestAPIClient(t *testing.T) {
@@ -503,4 +503,4 @@ When modifying existing code:
 
 ---
 
-This documentation system ensures that the Proxmox TUI codebase is well-documented, maintainable, and accessible to both contributors and users. The comprehensive GoDoc comments provide clear guidance for using the API and understanding the system architecture.
+This documentation system ensures that the pvetui codebase is well-documented, maintainable, and accessible to both contributors and users. The comprehensive GoDoc comments provide clear guidance for using the API and understanding the system architecture.

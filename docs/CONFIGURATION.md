@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This document provides comprehensive information about configuring Proxmox TUI, including all available options and examples.
+This document provides comprehensive information about configuring pvetui, including all available options and examples.
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ This document provides comprehensive information about configuring Proxmox TUI, 
 
 ## Configuration Format
 
-Proxmox TUI uses a modern multi-profile configuration format that supports multiple Proxmox connections:
+pvetui uses a modern multi-profile configuration format that supports multiple Proxmox connections:
 
 ```yaml
 profiles:
@@ -119,7 +119,7 @@ profiles:
 
 ## Key Bindings
 
-Proxmox TUI supports fully customizable key bindings through the `key_bindings` section in your configuration file.
+pvetui supports fully customizable key bindings through the `key_bindings` section in your configuration file.
 
 ### Default Key Bindings
 
@@ -179,7 +179,7 @@ The following keys cannot be reassigned as they are used for core navigation:
 
 ## Theming
 
-Proxmox TUI supports semantic theming with automatic adaptation to your terminal's color scheme.
+pvetui supports semantic theming with automatic adaptation to your terminal's color scheme.
 
 ### Built-in Themes
 
@@ -243,7 +243,7 @@ See [THEMING.md](THEMING.md) for detailed theming information and troubleshootin
 
 ### Encrypted Configuration
 
-Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `-config` and it will decrypt automatically.
+Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `--config` and it will decrypt automatically.
 
 ### Cache Directory
 
@@ -281,16 +281,16 @@ profiles:
 
 ## Configuration File Locations
 
-Proxmox TUI looks for configuration files in the following order:
+pvetui looks for configuration files in the following order:
 
-1. File specified with `-config` flag
+1. File specified with `--config` flag
 2. Platform-appropriate config directory:
-   - **Windows**: `%APPDATA%/proxmox-tui/config.yml`
-   - **macOS**: `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
-   - **Linux**: `~/.config/proxmox-tui/config.yml` (or `$XDG_CONFIG_HOME/proxmox-tui/config.yml`)
+   - **Windows**: `%APPDATA%/pvetui/config.yml`
+- **macOS**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
+- **Linux**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
 3. `./config.yml` (current directory)
 
-> **Important**: If you're upgrading from a previous version on Windows and have existing config files in `~/.config/proxmox-tui/`, you'll need to move them to the new platform-specific location (`%APPDATA%/proxmox-tui/`). macOS and Linux users can continue using their existing config files without any changes.
+> **Important**: If you're upgrading from a previous version on Windows and have existing config files in `~/.config/pvetui/`, you'll need to move them to the new platform-specific location (`%APPDATA%/pvetui/`). macOS and Linux users can continue using their existing config files without any changes.
 
 ## First Run & Interactive Config Wizard
 

@@ -47,10 +47,10 @@ package adapters
 import (
 	"time"
 
-	"github.com/devnullvoid/proxmox-tui/internal/cache"
-	"github.com/devnullvoid/proxmox-tui/internal/config"
-	"github.com/devnullvoid/proxmox-tui/internal/logger"
-	"github.com/devnullvoid/proxmox-tui/pkg/api/interfaces"
+	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // ConfigAdapter adapts our internal config to the API interface.
