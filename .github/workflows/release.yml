@@ -45,7 +45,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --clean --release-notes /tmp/RELEASE_NOTES.md
+          args: release --clean --release-notes /tmp/RELEASE_NOTES.md --skip=aurs,aur_sources,scoops,homebrew_casks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
