@@ -1,9 +1,9 @@
 Source ./docs/common.tape
-Sleep 1.5s
+Sleep 2s
 Type "m"
 Sleep 1s
 Enter
-Sleep 1s
+Sleep 1.2s
 Type "htop"
 Enter
 Sleep 3s
@@ -56,4 +56,5 @@ Type "q"
 Enter
 Sleep 200ms
 Output docs/demo.webm
+Output docs/demo.mp4
 Output docs/demo.gif

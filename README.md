@@ -27,13 +27,9 @@
   <img src="https://img.shields.io/github/downloads/devnullvoid/pvetui/total" alt="Total Downloads">
 </p>
 
-<!-- Demo GIF -->
+<!-- Demo Video -->
 <p align="center">
-  <img src="docs/demo.gif" width="600" alt="Live demo of pvetui in action">
-  <br>
-  <em>Live demo of pvetui in action</em>
-  <br>
-  <a href="docs/demo.webm">🎥 Watch high-quality WebM demo</a>
+  <em>🎥 Demo video coming soon - will be embedded here</em>
 </p>
 
 ## 🚀 Features

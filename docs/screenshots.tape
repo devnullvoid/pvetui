@@ -1,5 +1,5 @@
 Source ./docs/common.tape
-Sleep 8s
+Sleep 10s
 Screenshot docs/screenshot-nodes.png
 Type "m"
 Sleep 1s
@@ -12,7 +12,7 @@ Screenshot docs/screenshot-global-menu.png
 Escape
 Type "]"
 Sleep 500ms
-Type "jjjjj"
+Type "jjjjjj"
 Sleep 500ms
 Screenshot docs/screenshot-guests.png
 Type "m"
