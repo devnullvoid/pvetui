@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-08-24
+
 ### MAJOR BREAKING CHANGE
 - **Project Renamed to pvetui**
   - Rename was necessary in order to remain compliant with Proxmox trademark
