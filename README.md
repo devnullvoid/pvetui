@@ -1,5 +1,3 @@
-
-
 <h1 align="center">pvetui</h1>
 <p align="center">
   <strong>A Terminal User Interface For Proxmox Virtual Environment</strong>
@@ -28,9 +26,7 @@
 </p>
 
 <!-- Demo Video -->
-<p align="center">
-  <em>🎥 Demo video coming soon - will be embedded here</em>
-</p>
+https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 
 ## 🚀 Features
 
