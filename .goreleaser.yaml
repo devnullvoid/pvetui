@@ -242,7 +242,6 @@ dockers:
     use: "buildx"
     build_flag_templates:
       - "--platform=linux/amd64"
-      - "--platform=linux/arm64"
     extra_files:
       - LICENSE
       - README.md
