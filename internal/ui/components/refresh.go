@@ -11,6 +11,12 @@ import (
 
 // manualRefresh refreshes all data manually.
 func (a *App) manualRefresh() {
+	// * Check if there are any pending operations
+	if models.GlobalState.HasPendingOperations() {
+		a.showMessageSafe("Cannot refresh data while there are pending operations in progress")
+		return
+	}
+
 	// Show loading indicator
 	a.header.ShowLoading("Refreshing data...")
 	a.footer.SetLoading(true)

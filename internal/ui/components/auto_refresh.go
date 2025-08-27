@@ -18,6 +18,11 @@ func (a *App) toggleAutoRefresh() {
 		a.header.ShowSuccess("Auto-refresh disabled")
 		uiLogger.Debug("Auto-refresh disabled by user")
 	} else {
+		// * Check if there are any pending operations before enabling auto-refresh
+		if models.GlobalState.HasPendingOperations() {
+			a.showMessageSafe("Cannot enable auto-refresh while there are pending operations in progress")
+			return
+		}
 		// Enable auto-refresh
 		a.autoRefreshEnabled = true
 		a.startAutoRefresh()

@@ -4,6 +4,8 @@ import (
 	"github.com/devnullvoid/pvetui/internal/version"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/devnullvoid/pvetui/internal/ui/models"
 )
 
 // ShowGlobalContextMenu displays the global context menu for app-wide actions.
@@ -31,6 +33,11 @@ func (a *App) ShowGlobalContextMenu() {
 		case "Connection Profiles":
 			a.showConnectionProfilesDialog()
 		case "Refresh All Data":
+			// * Check if there are any pending operations
+			if models.GlobalState.HasPendingOperations() {
+				a.showMessageSafe("Cannot refresh data while there are pending operations in progress")
+				return
+			}
 			a.manualRefresh()
 		case "Toggle Auto-Refresh":
 			a.toggleAutoRefresh()

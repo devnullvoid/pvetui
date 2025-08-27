@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
@@ -208,6 +209,12 @@ func (sm *SnapshotManager) updateInfoText(text string) {
 
 // createSnapshot shows the create snapshot dialog.
 func (sm *SnapshotManager) createSnapshot() {
+	// * Check if VM has pending operations
+	if isPending, pendingOperation := models.GlobalState.IsVMPending(sm.vm); isPending {
+		sm.app.showMessageSafe(fmt.Sprintf("Cannot create snapshot while '%s' is in progress", pendingOperation))
+		return
+	}
+
 	sm.form.ShowCreateForm(func() {
 		sm.app.SetFocus(sm)
 		sm.loadSnapshots() // Reload snapshots
@@ -216,6 +223,12 @@ func (sm *SnapshotManager) createSnapshot() {
 
 // deleteSnapshot deletes the selected snapshot.
 func (sm *SnapshotManager) deleteSnapshot() {
+	// * Check if VM has pending operations
+	if isPending, pendingOperation := models.GlobalState.IsVMPending(sm.vm); isPending {
+		sm.app.showMessageSafe(fmt.Sprintf("Cannot delete snapshot while '%s' is in progress", pendingOperation))
+		return
+	}
+
 	snapshot := sm.snapshotTable.GetSelectedSnapshot()
 	if snapshot == nil {
 		sm.updateInfoText("❌ No snapshot selected.")
@@ -234,6 +247,12 @@ func (sm *SnapshotManager) deleteSnapshot() {
 
 // rollbackSnapshot rolls back to the selected snapshot.
 func (sm *SnapshotManager) rollbackSnapshot() {
+	// * Check if VM has pending operations
+	if isPending, pendingOperation := models.GlobalState.IsVMPending(sm.vm); isPending {
+		sm.app.showMessageSafe(fmt.Sprintf("Cannot rollback snapshot while '%s' is in progress", pendingOperation))
+		return
+	}
+
 	snapshot := sm.snapshotTable.GetSelectedSnapshot()
 	if snapshot == nil {
 		sm.updateInfoText("❌ No snapshot selected.")

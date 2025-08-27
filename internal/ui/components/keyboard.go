@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -195,6 +196,11 @@ func (a *App) setupKeyboardHandlers() {
 		}
 
 		if keyMatch(event, a.config.KeyBindings.Refresh) {
+			// * Check if there are any pending operations
+			if models.GlobalState.HasPendingOperations() {
+				a.showMessageSafe("Cannot refresh data while there are pending operations in progress")
+				return nil
+			}
 			a.manualRefresh()
 
 			return nil
@@ -219,7 +225,13 @@ func (a *App) setupKeyboardHandlers() {
 				// Handle node shell session
 				a.openNodeShell()
 			} else if currentPage == api.PageGuests {
-				// Handle VM shell session
+				// Handle VM shell session - check for pending operations
+				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+					if isPending, pendingOperation := models.GlobalState.IsVMPending(selectedVM); isPending {
+						a.showMessageSafe(fmt.Sprintf("Cannot open shell while '%s' is in progress", pendingOperation))
+						return nil
+					}
+				}
 				a.openVMShell()
 			}
 
@@ -232,6 +244,13 @@ func (a *App) setupKeyboardHandlers() {
 			if currentPage == api.PageNodes {
 				a.ShowNodeContextMenu()
 			} else if currentPage == api.PageGuests {
+				// Check if selected VM has pending operations before showing menu
+				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+					if isPending, pendingOperation := models.GlobalState.IsVMPending(selectedVM); isPending {
+						a.showMessageSafe(fmt.Sprintf("Cannot open context menu while '%s' is in progress", pendingOperation))
+						return nil
+					}
+				}
 				a.ShowVMContextMenu()
 			}
 
@@ -259,7 +278,13 @@ func (a *App) setupKeyboardHandlers() {
 				// Handle node VNC shell session
 				a.openNodeVNC()
 			} else if currentPage == api.PageGuests {
-				// Handle VM VNC console session
+				// Handle VM VNC console session - check for pending operations
+				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+					if isPending, pendingOperation := models.GlobalState.IsVMPending(selectedVM); isPending {
+						a.showMessageSafe(fmt.Sprintf("Cannot open VNC while '%s' is in progress", pendingOperation))
+						return nil
+					}
+				}
 				a.openVMVNC()
 			}
 

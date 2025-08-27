@@ -325,3 +325,20 @@ func (s *State) HasPendingOperations() bool {
 
 	return len(s.PendingVMOperations) > 0 || len(s.PendingNodeOperations) > 0
 }
+
+// CanVMPerformActions checks if a VM can perform actions (no pending operations).
+// Returns true if the VM can perform actions, false otherwise.
+func (s *State) CanVMPerformActions(vm *api.VM) bool {
+	isPending, _ := s.IsVMPending(vm)
+	return !isPending
+}
+
+// GetVMPendingOperation returns the pending operation description for a VM if any.
+// Returns empty string if no operation is pending.
+func (s *State) GetVMPendingOperation(vm *api.VM) string {
+	isPending, operation := s.IsVMPending(vm)
+	if !isPending {
+		return ""
+	}
+	return operation
+}

@@ -39,6 +39,11 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 
 	// Add Resize Storage Volume button as a FormButton at the top (left-aligned)
 	resizeBtn := NewFormButton("Resize Storage Volume", func() {
+		// * Check if VM has pending operations
+		if isPending, pendingOperation := models.GlobalState.IsVMPending(vm); isPending {
+			app.showMessageSafe(fmt.Sprintf("Cannot resize storage while '%s' is in progress", pendingOperation))
+			return
+		}
 		showResizeStorageModal(app, vm)
 	}).SetAlignment(AlignLeft)
 	form.AddFormItem(resizeBtn)
@@ -122,6 +127,12 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	})
 	// Save/Cancel buttons
 	form.AddButton("Save", func() {
+		// * Check if VM has pending operations
+		if isPending, pendingOperation := models.GlobalState.IsVMPending(vm); isPending {
+			app.showMessageSafe(fmt.Sprintf("Cannot save configuration while '%s' is in progress", pendingOperation))
+			return
+		}
+
 		// Validate hostname format before saving
 		var validationError string
 		if vm.Type == api.VMTypeQemu && page.config.Name != "" {
@@ -315,6 +326,12 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 	}, nil)
 
 	modal.AddButton("Resize", func() {
+		// * Check if VM has pending operations
+		if isPending, pendingOperation := models.GlobalState.IsVMPending(vm); isPending {
+			app.showMessageSafe(fmt.Sprintf("Cannot resize storage while '%s' is in progress", pendingOperation))
+			return
+		}
+
 		amountField, ok := modal.GetFormItemByLabel("Expand by (GB)").(*tview.InputField)
 		if !ok {
 			app.showMessageSafe("Failed to get amount field.")

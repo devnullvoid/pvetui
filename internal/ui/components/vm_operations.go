@@ -126,13 +126,6 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 	a.header.ShowLoading(fmt.Sprintf("Deleting %s", vm.Name))
 
 	go func() {
-		defer func() {
-			models.GlobalState.ClearVMPending(vm)
-			a.QueueUpdateDraw(func() {
-				a.updateVMListWithSelectionPreservation()
-			})
-		}()
-
 		var err error
 
 		if forced {
@@ -147,10 +140,14 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 		}
 
 		if err != nil {
+			// * Clear pending state on error
+			models.GlobalState.ClearVMPending(vm)
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError(fmt.Sprintf("Error deleting %s: %v", vm.Name, err))
+				a.updateVMListWithSelectionPreservation()
 			})
 		} else {
+			// * Keep pending state until refresh completes
 			a.QueueUpdateDraw(func() {
 				a.header.ShowSuccess(fmt.Sprintf("Successfully deleted %s", vm.Name))
 				// Schedule a short success first, then show pre-refresh loading only if not already loading
@@ -165,9 +162,12 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 			})
 			a.client.ClearAPICache()
 
+			// * Schedule refresh and clear pending state only after refresh completes
 			go func() {
 				time.Sleep(5 * time.Second)
 				a.QueueUpdateDraw(func() {
+					// * Clear pending state before refresh to ensure clean state
+					models.GlobalState.ClearVMPending(vm)
 					a.manualRefresh()
 				})
 			}()

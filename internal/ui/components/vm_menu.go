@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 
+	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -31,6 +32,9 @@ func (a *App) ShowVMContextMenu() {
 		return
 	}
 
+	// Check if this VM has a pending operation
+	isPending, pendingOperation := models.GlobalState.IsVMPending(vm)
+
 	// Store last focused primitive
 	a.lastFocus = a.GetFocus()
 
@@ -46,25 +50,37 @@ func (a *App) ShowVMContextMenu() {
 		menuItems = append(menuItems[:1], append([]string{vmActionOpenVNC}, menuItems[1:]...)...)
 	}
 
-	if vm.Status == api.VMStatusRunning {
-		// When running, offer graceful Shutdown, force Stop, and Restart
-		menuItems = append(menuItems, vmActionShutdown, vmActionStop, vmActionRestart)
-		// Hard Reset is QEMU-only
-		if vm.Type == api.VMTypeQemu {
-			menuItems = append(menuItems, vmActionReset)
+	// * Only show lifecycle actions if no operation is pending
+	if !isPending {
+		if vm.Status == api.VMStatusRunning {
+			// When running, offer graceful Shutdown, force Stop, and Restart
+			menuItems = append(menuItems, vmActionShutdown, vmActionStop, vmActionRestart)
+			// Hard Reset is QEMU-only
+			if vm.Type == api.VMTypeQemu {
+				menuItems = append(menuItems, vmActionReset)
+			}
+		} else if vm.Status == api.VMStatusStopped {
+			menuItems = append(menuItems, vmActionStart)
 		}
-	} else if vm.Status == api.VMStatusStopped {
-		menuItems = append(menuItems, vmActionStart)
-	}
 
-	menuItems = append(menuItems, vmActionMigrate)
-	menuItems = append(menuItems, vmActionDelete)
+		menuItems = append(menuItems, vmActionMigrate)
+		menuItems = append(menuItems, vmActionDelete)
+	} else {
+		// * Show pending operation info in menu title
+		menuItems = append(menuItems, fmt.Sprintf("⚠️  %s in progress...", pendingOperation))
+	}
 
 	// Generate letter shortcuts based on menu items
 	shortcuts := generateVMShortcuts(menuItems)
 
 	menu := NewContextMenuWithShortcuts(" Guest Actions ", menuItems, shortcuts, func(index int, action string) {
 		a.CloseContextMenu()
+
+		// * Prevent actions if VM has pending operations
+		// if isPending {
+		// 	a.showMessageSafe(fmt.Sprintf("Cannot perform actions while '%s' is in progress", pendingOperation))
+		// 	return
+		// }
 
 		switch action {
 		case vmActionOpenShell:
@@ -169,6 +185,12 @@ func (a *App) ShowVMContextMenu() {
 	a.contextMenu = menuList
 	a.isMenuOpen = true
 
+	// * Update menu title to show pending status if applicable
+	menuTitle := " Guest Actions "
+	if isPending {
+		menuTitle = fmt.Sprintf(" Guest Actions (%s) ", pendingOperation)
+	}
+
 	a.pages.AddPage("contextMenu", tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
@@ -176,6 +198,9 @@ func (a *App) ShowVMContextMenu() {
 			AddItem(menuList, len(menuItems)+2, 1, true).
 			AddItem(nil, 0, 1, false), 30, 1, true).
 		AddItem(nil, 0, 1, false), true, true)
+
+	// Update the menu title to reflect pending status
+	menuList.SetTitle(menuTitle)
 	a.SetFocus(menuList)
 }
 

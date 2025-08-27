@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **VM Action Protection System**: Comprehensive protection mechanism to prevent VM actions while operations are pending
+  - **Context Menu Protection**: Lifecycle actions (start, stop, restart, delete, migrate) are hidden when VMs have pending operations
+  - **Keyboard Shortcut Protection**: Shell, VNC, and context menu shortcuts are blocked for VMs with pending operations
+  - **Visual Indicators**: Pending VMs show dimmed status with special indicators
+  - **Menu Title Updates**: Context menu titles show current pending operation status (e.g., "Guest Actions (Starting)")
+  - **Snapshot Protection**: Create, delete, and rollback snapshot operations are blocked while VMs have pending operations
+  - **Configuration Protection**: VM config editing and storage resizing are blocked during pending operations
+  - **Migration Protection**: Migration dialog is blocked for VMs with pending operations
+  - **Refresh Protection**: Individual VM refresh and global refresh are blocked while operations are pending
+  - **Auto-Refresh Protection**: Auto-refresh cannot be enabled while there are pending operations
+  - **Helper Functions**: Added `CanVMPerformActions()` and `GetVMPendingOperation()` for easier pending state checking
+  - **Thread-Safe Operations**: All pending state operations use proper mutex protection for concurrent access
+
+### Fixed
+- **VM Pending State Timing**: Fixed visual glitch where deleted VMs would briefly return to "normal" state before being removed
+  - **Delete Operations**: VMs now stay in pending state until refresh completes and they're removed from the UI
+  - **Migration Operations**: VMs stay in pending state until refresh shows them in their new location
+  - **Consistent Behavior**: All operations now maintain pending state until refresh operations complete
+  - **Better User Experience**: Users can see VMs remain in pending state until operations truly complete
+
+### Refactored
+- **VM Migration Code Organization**: Moved migration-specific functions to dedicated file
+  - **New File**: `vm_migration.go` created to house all VM migration functionality
+  - **Moved Functions**: `showMigrationDialog()` and `performMigrationOperation()` relocated from `dialogs.go`
+  - **Clean Separation**: Migration logic now properly separated from general dialog functions
+  - **Better Maintainability**: Migration features can now be developed and maintained independently
+
 ## [1.0.5] - 2025-08-24
 
 ### MAJOR BREAKING CHANGE

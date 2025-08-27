@@ -9,6 +9,12 @@ import (
 
 // refreshVMData refreshes data for the selected VM.
 func (a *App) refreshVMData(vm *api.VM) {
+	// * Check if VM has pending operations
+	if isPending, pendingOperation := models.GlobalState.IsVMPending(vm); isPending {
+		a.showMessageSafe(fmt.Sprintf("Cannot refresh VM while '%s' is in progress", pendingOperation))
+		return
+	}
+
 	// Show loading indicator
 	a.header.ShowLoading(fmt.Sprintf("Refreshing VM %s", vm.Name))
 
