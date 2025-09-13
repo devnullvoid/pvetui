@@ -29,9 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration Operations**: VMs stay in pending state until refresh shows them in their new location
   - **Consistent Behavior**: All operations now maintain pending state until refresh operations complete
   - **Better User Experience**: Users can see VMs remain in pending state until operations truly complete
-- **Docker Release Build**: Re-enabled Docker builds in release workflow by removing from skip list
-  - **GoReleaser Configuration**: Docker builds are now included in automated releases
-  - **Build Pipeline**: Streamlined release process for better Docker image distribution
+
+### Dependencies
+- **Core Dependencies**: Updated key dependencies to latest versions
+  - **github.com/stretchr/testify**: bumped from 1.10.0 to 1.11.1
+  - **github.com/rivo/tview**: bumped to 0.42.0
+  - **github.com/spf13/cobra**: bumped from 1.9.1 to 1.10.1
+  - **golang.org/x/term**: bumped from 0.34.0 to 0.35.0
+  - **github.com/gdamore/tcell/v2**: bumped from 2.8.1 to 2.9.0
+- **Build Dependencies**: Updated build and CI dependencies
+  - **golang**: bumped from 1.24.5-alpine to 1.25.1-alpine
+  - **actions/setup-go**: bumped from 5 to 6
+  - **actions/checkout**: bumped from 4 to 5
 
 ### Refactored
 - **VM Migration Code Organization**: Moved migration-specific functions to dedicated file
