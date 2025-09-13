@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2025-09-13
+
 ### Added
 - **VM Action Protection System**: Comprehensive protection mechanism to prevent VM actions while operations are pending
   - **Context Menu Protection**: Lifecycle actions (start, stop, restart, delete, migrate) are hidden when VMs have pending operations
@@ -27,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration Operations**: VMs stay in pending state until refresh shows them in their new location
   - **Consistent Behavior**: All operations now maintain pending state until refresh operations complete
   - **Better User Experience**: Users can see VMs remain in pending state until operations truly complete
+- **Docker Release Build**: Re-enabled Docker builds in release workflow by removing from skip list
+  - **GoReleaser Configuration**: Docker builds are now included in automated releases
+  - **Build Pipeline**: Streamlined release process for better Docker image distribution
 
 ### Refactored
 - **VM Migration Code Organization**: Moved migration-specific functions to dedicated file
