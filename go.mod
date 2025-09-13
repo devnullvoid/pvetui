@@ -9,7 +9,7 @@ require (
 	github.com/getsops/sops/v3 v3.10.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/rivo/tview v0.0.0-20250330220935-949945f8d922
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/term v0.35.0
@@ -121,7 +121,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/urfave/cli v1.22.16 // indirect
