@@ -1,4 +1,4 @@
-package components
+package communityscripts
 
 import (
 	"fmt"
@@ -8,12 +8,11 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
-	"github.com/devnullvoid/pvetui/internal/scripts"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 )
 
 // formatScriptInfo formats the script information for display.
-func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
+func (s *ScriptSelector) formatScriptInfo(script Script) string {
 	var sb strings.Builder
 
 	labelColor := theme.ColorToTag(theme.Colors.Warning)
@@ -62,13 +61,13 @@ func (s *ScriptSelector) formatScriptInfo(script scripts.Script) string {
 }
 
 // installScript installs the selected script.
-func (s *ScriptSelector) installScript(script scripts.Script) {
+func (s *ScriptSelector) installScript(script Script) {
 	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
 	s.app.Suspend(func() {
 		// Install the script interactively
 		fmt.Printf("Installing %s...\n", script.Name)
 
-		err := scripts.InstallScript(s.user, s.nodeIP, script.ScriptPath)
+		err := InstallScript(s.user, s.nodeIP, script.ScriptPath)
 		if err != nil {
 			fmt.Printf("\nScript installation failed: %v\n", err)
 		}
@@ -81,13 +80,13 @@ func (s *ScriptSelector) installScript(script scripts.Script) {
 	go func() {
 		time.Sleep(150 * time.Millisecond)
 		// Clear API cache, then close the selector overlay and refresh
-		s.app.client.ClearAPICache()
+		s.app.ClearAPICache()
 		s.app.QueueUpdateDraw(func() {
 			// Close selector to return to main UI before refreshing
 			s.Hide()
 		})
 		// Kick off a full refresh; it manages its own UI updates
-		s.app.manualRefresh()
+		s.app.ManualRefresh()
 	}()
 }
 
@@ -98,7 +97,7 @@ func (s *ScriptSelector) onSearchChanged(text string) {
 		s.filteredScripts = s.scripts
 	} else {
 		// Filter scripts based on search text
-		s.filteredScripts = []scripts.Script{}
+		s.filteredScripts = []Script{}
 		searchLower := strings.ToLower(text)
 
 		for _, script := range s.scripts {
@@ -141,7 +140,7 @@ func (s *ScriptSelector) onSearchChanged(text string) {
 }
 
 // fetchScriptsForCategory fetches scripts for the selected category.
-func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory) {
+func (s *ScriptSelector) fetchScriptsForCategory(category ScriptCategory) {
 	// Prevent multiple concurrent requests
 	if s.isLoading {
 		return
@@ -149,7 +148,7 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 
 	// Show loading indicator both in header and in modal
 	s.isLoading = true
-	s.app.header.ShowLoading(fmt.Sprintf("Fetching %s scripts", category.Name))
+	s.app.Header().ShowLoading(fmt.Sprintf("Fetching %s scripts", category.Name))
 
 	// Switch to loading page immediately and set focus
 	s.pages.SwitchToPage("loading")
@@ -160,20 +159,20 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 
 	// Fetch scripts in a goroutine to prevent UI blocking
 	go func() {
-		fetchedScripts, err := scripts.GetScriptsByCategory(category.Path)
+		fetchedScripts, err := GetScriptsByCategory(category.Path)
 
 		// Update UI on the main thread
 		s.app.QueueUpdateDraw(func() {
 			// Stop loading indicator and reset loading state
 			s.stopLoadingAnimation()
 			s.isLoading = false
-			s.app.header.StopLoading()
+			s.app.Header().StopLoading()
 
 			if err != nil {
 				// Show error message and go back to categories
 				s.pages.SwitchToPage("categories")
 				s.app.SetFocus(s.categoryList)
-				s.app.showMessageSafe(fmt.Sprintf("Error fetching scripts: %v", err))
+				s.app.ShowMessageSafe(fmt.Sprintf("Error fetching scripts: %v", err))
 
 				return
 			}
@@ -302,13 +301,13 @@ func (s *ScriptSelector) fetchScriptsForCategory(category scripts.ScriptCategory
 			s.app.SetFocus(s.scriptList)
 
 			// Show success message in header
-			s.app.header.ShowSuccess(fmt.Sprintf("Loaded %d %s scripts", len(fetchedScripts), category.Name))
+			s.app.Header().ShowSuccess(fmt.Sprintf("Loaded %d %s scripts", len(fetchedScripts), category.Name))
 		})
 	}()
 }
 
 // createScriptSelectFunc creates a script selection handler for a specific script.
-func (s *ScriptSelector) createScriptSelectFunc(script scripts.Script) func() {
+func (s *ScriptSelector) createScriptSelectFunc(script Script) func() {
 	return func() {
 		s.showScriptInfo(script)
 	}

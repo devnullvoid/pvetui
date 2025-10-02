@@ -100,10 +100,11 @@ type Config struct {
 	// It is not persisted to disk and is used to resolve getters when set.
 	ActiveProfile string `yaml:"-"`
 	// The following fields are global settings, not per-profile
-	Debug       bool        `yaml:"debug"`
-	CacheDir    string      `yaml:"cache_dir"`
-	KeyBindings KeyBindings `yaml:"key_bindings"`
-	Theme       ThemeConfig `yaml:"theme"`
+	Debug       bool         `yaml:"debug"`
+	CacheDir    string       `yaml:"cache_dir"`
+	KeyBindings KeyBindings  `yaml:"key_bindings"`
+	Theme       ThemeConfig  `yaml:"theme"`
+	Plugins     PluginConfig `yaml:"plugins"`
 	// Deprecated: legacy single-profile fields for migration
 	Addr        string `yaml:"addr"`
 	User        string `yaml:"user"`
@@ -144,6 +145,12 @@ type ThemeConfig struct {
 	// Colors specifies the color overrides for theme elements.
 	// Users can use any tcell-supported color value (ANSI name, W3C name, or hex code).
 	Colors map[string]string `yaml:"colors"`
+}
+
+// PluginConfig holds plugin related configuration options.
+type PluginConfig struct {
+	// Enabled lists plugin identifiers that should be activated.
+	Enabled []string `yaml:"enabled"`
 }
 
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
@@ -822,5 +829,9 @@ func (c *Config) SetDefaults() {
 	// Set default theme configuration only if not already set
 	if c.Theme.Colors == nil {
 		c.Theme.Colors = make(map[string]string)
+	}
+
+	if c.Plugins.Enabled == nil {
+		c.Plugins.Enabled = []string{"community-scripts"}
 	}
 }

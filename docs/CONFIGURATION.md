@@ -9,6 +9,7 @@ This document provides comprehensive information about configuring pvetui, inclu
 - [Authentication Methods](#authentication-methods)
 - [Key Bindings](#key-bindings)
 - [Theming](#theming)
+- [Plugins](#plugins)
 - [Advanced Options](#advanced-options)
 
 ## Configuration Format
@@ -67,6 +68,11 @@ theme:
     secondary: "gray"
     error: "red"
     # ... other color overrides
+
+# Plugin configuration
+plugins:
+  enabled:
+    - "community-scripts"  # Enable the default community scripts plugin
 ```
 
 ## Profile Management
@@ -238,6 +244,20 @@ You can override any color in a built-in theme by specifying it in the `colors` 
 - **usagecritical**: Critical usage indicators
 
 See [THEMING.md](THEMING.md) for detailed theming information and troubleshooting.
+
+## Plugins
+
+pvetui loads optional features through a plugin system. Plugins contribute UI actions and services without bloating the core binary.
+
+- The `plugins.enabled` list controls which plugins are activated at startup.
+- When omitted, pvetui enables the default `community-scripts` plugin for legacy behaviour.
+- Set `plugins.enabled: []` to disable all optional plugins (e.g., in hardened enterprise environments).
+
+```yaml
+plugins:
+  enabled:
+    - "community-scripts"  # Default plugin that exposes the community script installer
+```
 
 ## Advanced Options
 

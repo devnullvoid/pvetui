@@ -4,7 +4,6 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
-	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // showMessage displays a message to the user.
@@ -67,16 +66,4 @@ func (a *App) showConfirmationDialog(message string, onConfirm func()) {
 	})
 	a.pages.AddPage("confirmation", confirm, false, true)
 	a.SetFocus(confirm)
-}
-
-// openScriptSelector opens the script selector dialog.
-func (a *App) openScriptSelector(node *api.Node, vm *api.VM) {
-	if a.config.SSHUser == "" {
-		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
-
-		return
-	}
-
-	selector := NewScriptSelector(a, node, vm, a.config.SSHUser)
-	selector.Show()
 }

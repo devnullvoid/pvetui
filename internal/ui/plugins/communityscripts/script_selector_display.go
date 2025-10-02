@@ -1,4 +1,4 @@
-package components
+package communityscripts
 
 import (
 	"fmt"
@@ -6,13 +6,12 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/pvetui/internal/scripts"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // showScriptInfo displays the script information in a page (not modal).
-func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
+func (s *ScriptSelector) showScriptInfo(script Script) {
 	// Create a text view for the script information
 	textView := tview.NewTextView()
 	textView.SetDynamicColors(true)
@@ -27,13 +26,13 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 	// Create buttons
 	installButton := tview.NewButton("Install").
 		SetSelectedFunc(func() {
-			s.app.pages.RemovePage("scriptInfo")
+			s.app.Pages().RemovePage("scriptInfo")
 			s.installScript(script)
 		})
 
 	cancelButton := tview.NewButton("Cancel").
 		SetSelectedFunc(func() {
-			s.app.pages.RemovePage("scriptInfo")
+			s.app.Pages().RemovePage("scriptInfo")
 			s.app.SetFocus(s.scriptList)
 		})
 
@@ -71,7 +70,7 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 	// Set up input capture for navigation
 	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
-			s.app.pages.RemovePage("scriptInfo")
+			s.app.Pages().RemovePage("scriptInfo")
 			s.app.SetFocus(s.scriptList)
 
 			return nil
@@ -100,7 +99,7 @@ func (s *ScriptSelector) showScriptInfo(script scripts.Script) {
 	})
 
 	// Show the page
-	s.app.pages.AddPage("scriptInfo", layout, true, true)
+	s.app.Pages().AddPage("scriptInfo", layout, true, true)
 	s.app.SetFocus(textView)
 }
 
@@ -111,18 +110,18 @@ func (s *ScriptSelector) Hide() {
 
 	if s.isLoading {
 		s.isLoading = false
-		s.app.header.StopLoading()
+		s.app.Header().StopLoading()
 	}
 
 	// Remove the script selector page
-	s.app.pages.RemovePage("scriptSelector")
+	s.app.Pages().RemovePage("scriptSelector")
 
 	// Restore focus to the appropriate list based on current page
-	pageName, _ := s.app.pages.GetFrontPage()
+	pageName, _ := s.app.Pages().GetFrontPage()
 	if pageName == api.PageNodes {
-		s.app.SetFocus(s.app.nodeList)
+		s.app.SetFocus(s.app.NodeList())
 	} else if pageName == api.PageGuests {
-		s.app.SetFocus(s.app.vmList)
+		s.app.SetFocus(s.app.VMList())
 	}
 }
 
@@ -130,21 +129,21 @@ func (s *ScriptSelector) Hide() {
 func (s *ScriptSelector) Show() {
 	// Ensure we have a valid node IP
 	if s.nodeIP == "" {
-		s.app.showMessage("Node IP address not available. Cannot connect to install scripts.")
+		s.app.ShowMessage("Node IP address not available. Cannot connect to install scripts.")
 
 		return
 	}
 
 	// Add the script selector page to the main app
-	s.app.pages.AddPage("scriptSelector", s.Pages, true, true)
+	s.app.Pages().AddPage("scriptSelector", s.Pages, true, true)
 	s.app.SetFocus(s.categoryList)
 
 	// Set up input capture for category list
 	s.categoryList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
 			// Remove any script info page first
-			if s.app.pages.HasPage("scriptInfo") {
-				s.app.pages.RemovePage("scriptInfo")
+			if s.app.Pages().HasPage("scriptInfo") {
+				s.app.Pages().RemovePage("scriptInfo")
 				s.app.SetFocus(s.scriptList)
 
 				return nil

@@ -1,11 +1,11 @@
-package components
+package communityscripts
 
 import (
 	"time"
 
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/pvetui/internal/scripts"
+	"github.com/devnullvoid/pvetui/internal/ui/components"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
@@ -19,14 +19,14 @@ const (
 type ScriptSelector struct {
 	*tview.Pages
 
-	app             *App
+	app             *components.App
 	user            string
 	nodeIP          string
 	node            *api.Node
 	vm              *api.VM
-	categories      []scripts.ScriptCategory
-	scripts         []scripts.Script
-	filteredScripts []scripts.Script // Filtered scripts based on search
+	categories      []ScriptCategory
+	scripts         []Script
+	filteredScripts []Script // Filtered scripts based on search
 	categoryList    *tview.List
 	scriptList      *tview.List
 	searchInput     *tview.InputField // Search input field
@@ -41,7 +41,7 @@ type ScriptSelector struct {
 }
 
 // NewScriptSelector creates a new script selector.
-func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *ScriptSelector {
+func NewScriptSelector(app *components.App, node *api.Node, vm *api.VM, user string) *ScriptSelector {
 	// Create the main pages container
 	mainPages := tview.NewPages()
 
@@ -61,7 +61,7 @@ func NewScriptSelector(app *App, node *api.Node, vm *api.VM, user string) *Scrip
 	}
 
 	// Initialize the layout
-	s.categories = scripts.GetScriptCategories()
+	s.categories = GetScriptCategories()
 	s.createLayout()
 
 	return s

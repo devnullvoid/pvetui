@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 - **Secure Authentication**: API tokens or password-based auth with automatic renewal
 - **Integrated Shells**: SSH directly to nodes, VMs, and containers
 - **VNC Console Access**: Embedded noVNC client with automatic authentication
-- **Community Scripts**: Install Proxmox community scripts directly from the TUI
+- **Community Scripts (plugin)**: Install Proxmox community scripts directly from the TUI; disable via `plugins.enabled`
 - **Modern Interface**: Vim-style navigation with customizable key bindings
 - **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
 - **Comprehensive Documentation**: Detailed guides for configuration, theming, and development

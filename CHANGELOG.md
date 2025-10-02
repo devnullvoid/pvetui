@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Pluggable feature architecture for UI contributions with runtime registration and lifecycle management.
+- Community Scripts functionality extracted into the default `community-scripts` plugin; configurable via the new `plugins.enabled` setting.
+
 ## [1.0.6] - 2025-09-13
 
 ### Added

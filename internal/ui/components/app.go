@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rivo/tview"
@@ -49,6 +50,9 @@ type App struct {
 	autoRefreshStop          chan bool
 	autoRefreshCountdown     int
 	autoRefreshCountdownStop chan bool
+
+	plugins        map[string]Plugin
+	pluginRegistry *pluginRegistry
 }
 
 // removePageIfPresent removes a page by name if it exists, ignoring errors.
@@ -84,6 +88,8 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		ctx:                ctx,
 		cancel:             cancel,
 		logger:             uiLogger,
+		plugins:            make(map[string]Plugin),
+		pluginRegistry:     newPluginRegistry(),
 	}
 
 	uiLogger.Debug("Initializing UI components")
@@ -298,4 +304,107 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	uiLogger.Debug("App initialization completed successfully")
 
 	return app
+}
+
+// InitializePlugins wires the provided plugins into the application lifecycle.
+func (a *App) InitializePlugins(ctx context.Context, plugins []Plugin) error {
+	if a.pluginRegistry == nil {
+		a.pluginRegistry = newPluginRegistry()
+	}
+	if a.plugins == nil {
+		a.plugins = make(map[string]Plugin)
+	}
+
+	for _, pl := range plugins {
+		if pl == nil {
+			continue
+		}
+
+		id := pl.ID()
+		if id == "" {
+			return fmt.Errorf("plugin with empty ID cannot be registered")
+		}
+
+		if _, exists := a.plugins[id]; exists {
+			return fmt.Errorf("plugin with ID %q already registered", id)
+		}
+
+		if err := pl.Initialize(ctx, a, a.pluginRegistry); err != nil {
+			return fmt.Errorf("initialize plugin %q: %w", id, err)
+		}
+
+		a.plugins[id] = pl
+	}
+
+	return nil
+}
+
+// ShutdownPlugins gracefully tears down registered plugins.
+func (a *App) ShutdownPlugins(ctx context.Context) error {
+	for id, pl := range a.plugins {
+		if pl == nil {
+			continue
+		}
+
+		if err := pl.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown plugin %q: %w", id, err)
+		}
+	}
+
+	return nil
+}
+
+// Config returns the application's active configuration.
+func (a *App) Config() *config.Config {
+	return &a.config
+}
+
+// Client exposes the underlying API client for plugin use.
+func (a *App) Client() *api.Client {
+	return a.client
+}
+
+// Header returns the header component instance.
+func (a *App) Header() HeaderComponent {
+	return a.header
+}
+
+// Footer returns the footer component instance.
+func (a *App) Footer() FooterComponent {
+	return a.footer
+}
+
+// Pages exposes the root tview page stack.
+func (a *App) Pages() *tview.Pages {
+	return a.pages
+}
+
+// NodeList exposes the node list component.
+func (a *App) NodeList() NodeListComponent {
+	return a.nodeList
+}
+
+// VMList exposes the VM list component.
+func (a *App) VMList() VMListComponent {
+	return a.vmList
+}
+
+// ManualRefresh triggers a manual refresh cycle.
+func (a *App) ManualRefresh() {
+	a.manualRefresh()
+}
+
+// ShowMessage displays a modal message, preserving focus when dismissed.
+func (a *App) ShowMessage(message string) {
+	a.showMessage(message)
+}
+
+// ShowMessageSafe displays a modal message without queueing to avoid deadlocks.
+func (a *App) ShowMessageSafe(message string) {
+	a.showMessageSafe(message)
+}
+
+// ClearAPICache clears cached API responses.
+func (a *App) ClearAPICache() {
+	a.client.ClearAPICache()
 }

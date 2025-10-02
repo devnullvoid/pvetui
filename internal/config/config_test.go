@@ -417,6 +417,7 @@ func TestConfig_SetDefaults(t *testing.T) {
 	// Test that cache directory is set to XDG-compliant path
 	assert.NotEmpty(t, config.CacheDir)
 	assert.Contains(t, config.CacheDir, "pvetui")
+	assert.Equal(t, []string{"community-scripts"}, config.Plugins.Enabled)
 }
 
 // testXDGPathHelper runs tests for XDG path functions with common setup and teardown.
