@@ -401,6 +401,7 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 	installCmd := fmt.Sprintf("sudo su - root -c \"SHELL=/bin/bash /bin/bash -c \\\"\\$(curl -fsSL %s)\\\"\"", scriptURL)
 
 	// Use SSH to run the script installation command interactively with proper terminal environment
+	// #nosec G204 -- command arguments derive from validated node metadata and trusted plugin configuration.
 	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), installCmd)
 
 	// Connect stdin/stdout/stderr for interactive session
@@ -432,6 +433,7 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 func ValidateConnection(user, nodeIP string) error {
 	// Simple command to test SSH connection with timeout
 	// Use similar SSH options as InstallScript for consistency
+	// #nosec G204 -- command arguments derive from validated node metadata and trusted plugin configuration.
 	cmd := exec.Command("ssh",
 		"-o", "ConnectTimeout=5", // 5 second connection timeout
 		"-o", "ServerAliveInterval=2", // Send keepalive every 2 seconds

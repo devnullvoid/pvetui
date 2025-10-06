@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Pluggable feature architecture for UI contributions with runtime registration and lifecycle management.
-- Community Scripts functionality extracted into the default `community-scripts` plugin; configurable via the new `plugins.enabled` setting.
+- Community Scripts functionality extracted into the `community-scripts` plugin; enable it via the `plugins.enabled` setting.
+
+### Changed
+- Plugins are now disabled by default; update configuration to opt into optional features such as community scripts.
+- Configuration files now honour the `plugins.enabled` list instead of falling back to legacy defaults.
 
 ## [1.0.6] - 2025-09-13
 

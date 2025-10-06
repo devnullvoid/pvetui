@@ -16,8 +16,7 @@ func TestEnabledFromConfig_Default(t *testing.T) {
 	plugins, missing := EnabledFromConfig(cfg)
 
 	require.Empty(t, missing)
-	require.Len(t, plugins, 1)
-	require.Equal(t, communityscripts.PluginID, plugins[0].ID())
+	require.Empty(t, plugins)
 }
 
 func TestEnabledFromConfig_CustomList(t *testing.T) {

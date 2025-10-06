@@ -12,7 +12,7 @@ var registry = map[string]factory{
 	communityscripts.PluginID: func() components.Plugin { return communityscripts.New() },
 }
 
-var defaultEnabled = []string{communityscripts.PluginID}
+var defaultEnabled = []string{}
 
 // EnabledFromConfig resolves the effective plugin set for the provided configuration.
 func EnabledFromConfig(cfg *config.Config) ([]components.Plugin, []string) {

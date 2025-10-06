@@ -348,6 +348,9 @@ func (c *Config) MergeWithFile(path string) error {
 			Name   string            `yaml:"name"`
 			Colors map[string]string `yaml:"colors"`
 		} `yaml:"theme"`
+		Plugins struct {
+			Enabled []string `yaml:"enabled"`
+		} `yaml:"plugins"`
 		// Legacy fields for migration
 		Addr        string `yaml:"addr"`
 		User        string `yaml:"user"`
@@ -537,6 +540,11 @@ func (c *Config) MergeWithFile(path string) error {
 		if kb.Quit != "" {
 			c.KeyBindings.Quit = kb.Quit
 		}
+	}
+
+	// Merge plugin configuration if provided
+	if fileConfig.Plugins.Enabled != nil {
+		c.Plugins.Enabled = append([]string{}, fileConfig.Plugins.Enabled...)
 	}
 
 	// Merge theme configuration if provided
@@ -832,6 +840,6 @@ func (c *Config) SetDefaults() {
 	}
 
 	if c.Plugins.Enabled == nil {
-		c.Plugins.Enabled = []string{"community-scripts"}
+		c.Plugins.Enabled = []string{}
 	}
 }

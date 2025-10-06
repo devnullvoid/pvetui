@@ -372,6 +372,54 @@ invalid: yaml: content:
 	}
 }
 
+func TestConfig_MergeWithFile_Plugins(t *testing.T) {
+	tempFile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	content := `
+plugins:
+  enabled:
+    - alpha
+    - beta
+`
+
+	_, err = tempFile.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tempFile.Close())
+
+	cfg := &Config{}
+	require.NoError(t, cfg.MergeWithFile(tempFile.Name()))
+
+	assert.Equal(t, []string{"alpha", "beta"}, cfg.Plugins.Enabled)
+
+	cfg.SetDefaults()
+	assert.Equal(t, []string{"alpha", "beta"}, cfg.Plugins.Enabled)
+}
+
+func TestConfig_MergeWithFile_PluginsEmpty(t *testing.T) {
+	tempFile, err := os.CreateTemp(t.TempDir(), "config-empty-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	content := `
+plugins:
+  enabled: []
+`
+
+	_, err = tempFile.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tempFile.Close())
+
+	cfg := &Config{}
+	require.NoError(t, cfg.MergeWithFile(tempFile.Name()))
+
+	assert.Empty(t, cfg.Plugins.Enabled)
+
+	cfg.SetDefaults()
+	assert.Empty(t, cfg.Plugins.Enabled)
+}
+
 func TestConfig_MergeWithEncryptedFile(t *testing.T) {
 	if _, err := exec.LookPath("sops"); err != nil {
 		t.Skip("sops binary not available")
@@ -417,7 +465,7 @@ func TestConfig_SetDefaults(t *testing.T) {
 	// Test that cache directory is set to XDG-compliant path
 	assert.NotEmpty(t, config.CacheDir)
 	assert.Contains(t, config.CacheDir, "pvetui")
-	assert.Equal(t, []string{"community-scripts"}, config.Plugins.Enabled)
+	assert.Empty(t, config.Plugins.Enabled)
 }
 
 // testXDGPathHelper runs tests for XDG path functions with common setup and teardown.

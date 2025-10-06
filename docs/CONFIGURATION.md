@@ -250,13 +250,14 @@ See [THEMING.md](THEMING.md) for detailed theming information and troubleshootin
 pvetui loads optional features through a plugin system. Plugins contribute UI actions and services without bloating the core binary.
 
 - The `plugins.enabled` list controls which plugins are activated at startup.
-- When omitted, pvetui enables the default `community-scripts` plugin for legacy behaviour.
-- Set `plugins.enabled: []` to disable all optional plugins (e.g., in hardened enterprise environments).
+- When omitted or left empty, no plugins are loaded. Enable functionality explicitly to opt in.
+- Set `plugins.enabled: []` to keep all optional features disabled (e.g., in hardened environments).
+- See [PLUGINS.md](PLUGINS.md) for implementation details and authoring guidance.
 
 ```yaml
 plugins:
   enabled:
-    - "community-scripts"  # Default plugin that exposes the community script installer
+    - "community-scripts"  # Opt-in to the community script installer plugin
 ```
 
 ## Advanced Options
