@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Pluggable feature architecture for UI contributions with runtime registration and lifecycle management.
 - Community Scripts functionality extracted into the `community-scripts` plugin; enable it via the `plugins.enabled` setting.
+- Demo "guest list" plugin that adds a node action presenting running guests in a modal.
 
 ### Changed
 - Plugins are now disabled by default; update configuration to opt into optional features such as community scripts.

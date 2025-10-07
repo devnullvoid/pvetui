@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 - **Secure Authentication**: API tokens or password-based auth with automatic renewal
 - **Integrated Shells**: SSH directly to nodes, VMs, and containers
 - **VNC Console Access**: Embedded noVNC client with automatic authentication
-- **Plugin System**: Opt-in extensions such as the Community Scripts installer; enable via `plugins.enabled`
+- **Plugin System**: Opt-in extensions such as the Community Scripts installer and demo guest list; enable via `plugins.enabled`
 - **Modern Interface**: Vim-style navigation with customizable key bindings
 - **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
 - **Comprehensive Documentation**: Detailed guides for configuration, theming, and development

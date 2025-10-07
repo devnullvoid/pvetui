@@ -7,6 +7,7 @@ import (
 
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/ui/plugins/communityscripts"
+	"github.com/devnullvoid/pvetui/internal/ui/plugins/guestlist"
 )
 
 func TestEnabledFromConfig_Default(t *testing.T) {
@@ -35,4 +36,5 @@ func TestEnabledFromConfig_CustomList(t *testing.T) {
 func TestAvailableIDs(t *testing.T) {
 	ids := AvailableIDs()
 	require.Contains(t, ids, communityscripts.PluginID)
+	require.Contains(t, ids, guestlist.PluginID)
 }

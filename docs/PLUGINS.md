@@ -10,15 +10,23 @@ This guide explains how to work with the pvetui plugin system, including enablin
 
 ## Enabling Built-in Plugins
 
-The repository currently ships with the `community-scripts` plugin, which exposes the community script installer from the node context menu.
+The repository currently ships with two built-in plugins:
+
+- `community-scripts`: exposes the community script installer from the node context menu
+- `demo-guest-list`: adds a demo action that lists running guests for the selected node
 
 ```yaml
 plugins:
   enabled:
     - "community-scripts"
+    - "demo-guest-list"
 ```
 
 Restart pvetui after editing the configuration to apply the change. If an unknown plugin ID is listed, the application prints a warning similar to `⚠️ Unknown plugins requested: my-plugin` during startup.
+
+## Demo Guest List Plugin
+
+The `demo-guest-list` plugin is intentionally small and serves as a reference implementation. When enabled it contributes a node context menu entry labelled **Show Running Guests (Demo)**. Selecting the action opens a modal listing the running guests on the chosen node, including their IDs, types, and discovered IP addresses when available.
 
 ## Writing a New Plugin
 
