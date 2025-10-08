@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Allow post-operation refreshes to run by clearing VM pending state before triggering automatic data reloads after lifecycle actions.
+
 ## [1.0.6] - 2025-09-13
 
 ### Added
