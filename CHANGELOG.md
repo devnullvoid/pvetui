@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plugins are now disabled by default; update configuration to opt into optional features such as community scripts.
 - Configuration files now honour the `plugins.enabled` list instead of falling back to legacy defaults.
 
+### Fixed
+- Allow post-operation refreshes to run by clearing VM pending state before triggering automatic data reloads after lifecycle actions.
+
 ## [1.0.6] - 2025-09-13
 
 ### Added

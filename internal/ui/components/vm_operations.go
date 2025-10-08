@@ -63,16 +63,11 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 	}
 
 	go func() {
-		defer func() {
+		if err := operation(vm); err != nil {
 			models.GlobalState.ClearVMPending(vm)
 			a.QueueUpdateDraw(func() {
-				a.updateVMListWithSelectionPreservation()
-			})
-		}()
-
-		if err := operation(vm); err != nil {
-			a.QueueUpdateDraw(func() {
 				a.header.ShowError(fmt.Sprintf("Error %s %s: %v", strings.ToLower(operationName), vm.Name, err))
+				a.updateVMListWithSelectionPreservation()
 			})
 
 			return
@@ -104,7 +99,9 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 			}
 		})
 		time.Sleep(500 * time.Millisecond)
+		models.GlobalState.ClearVMPending(vm)
 		a.QueueUpdateDraw(func() {
+			a.updateVMListWithSelectionPreservation()
 			a.refreshVMData(vm)
 			// Also refresh tasks to show any new tasks created by the operation
 			a.loadTasksData()
