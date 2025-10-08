@@ -2,9 +2,6 @@
 <p align="center">
   <strong>A Terminal User Interface For Proxmox Virtual Environment</strong>
 </p>
-<p align="center">
-  <em>Pronounced: peeve-tooey</em>
-</p>
 
 <p align="center">
   <a href="#-features">Features</a> •
