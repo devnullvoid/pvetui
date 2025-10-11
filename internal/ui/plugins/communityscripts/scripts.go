@@ -73,6 +73,8 @@ type GitHubContent struct {
 var (
 	scriptsLogger     interfaces.Logger
 	scriptsLoggerOnce sync.Once
+	pluginCache       cache.Cache
+	pluginCacheOnce   sync.Once
 )
 
 // getScriptsLogger returns the scripts logger, initializing it if necessary.
@@ -83,6 +85,15 @@ func getScriptsLogger() interfaces.Logger {
 	})
 
 	return scriptsLogger
+}
+
+// getPluginCache returns a cache instance dedicated to the community scripts plugin.
+func getPluginCache() cache.Cache {
+	pluginCacheOnce.Do(func() {
+		pluginCache = cache.GetNamespacedCache("communityscripts")
+	})
+
+	return pluginCache
 }
 
 // GetScriptCategories returns the available script categories.
@@ -119,7 +130,7 @@ func GetScriptCategories() []ScriptCategory {
 // GetScriptMetadataFiles fetches the list of script metadata JSON files from the repository.
 func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	// Check cache first
-	c := cache.GetGlobalCache()
+	c := getPluginCache()
 
 	var cachedFiles []GitHubContent
 
@@ -210,7 +221,7 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 	cacheKey := ScriptCacheKeyPrefix + strings.ReplaceAll(metadataURL, "/", "_")
 
 	// Check cache first
-	c := cache.GetGlobalCache()
+	c := getPluginCache()
 
 	var cachedScript Script
 

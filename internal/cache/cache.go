@@ -263,11 +263,13 @@ func NewMemoryCache() *FileCache {
 
 // Global singleton cache instance.
 var (
-	globalCache     Cache
-	cacheLogger     interfaces.Logger
-	globalCacheDir  string
-	once            sync.Once
-	cacheLoggerOnce sync.Once
+	globalCache       Cache
+	cacheLogger       interfaces.Logger
+	globalCacheDir    string
+	once              sync.Once
+	cacheLoggerOnce   sync.Once
+	namespacedCaches  = make(map[string]Cache)
+	namespacedCacheMu sync.RWMutex
 )
 
 // getCacheLogger returns the cache logger, initializing it if necessary.
@@ -403,4 +405,59 @@ func GetBadgerCache() (*BadgerCache, bool) {
 	badgerCache, ok := cache.(*BadgerCache)
 
 	return badgerCache, ok
+}
+
+// GetNamespacedCache returns (and initializes if needed) a cache scoped to the provided namespace.
+// Namespaced caches live alongside the global cache but operate on their own storage so they aren't
+// affected by global cache invalidation.
+func GetNamespacedCache(namespace string) Cache {
+	namespacedCacheMu.RLock()
+	if cache, ok := namespacedCaches[namespace]; ok {
+		namespacedCacheMu.RUnlock()
+
+		return cache
+	}
+	namespacedCacheMu.RUnlock()
+
+	namespacedCacheMu.Lock()
+	defer namespacedCacheMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if cache, ok := namespacedCaches[namespace]; ok {
+		return cache
+	}
+
+	// If the global cache directory hasn't been set up yet, fall back to in-memory cache.
+	if globalCacheDir == "" {
+		memCache := NewMemoryCache()
+		namespacedCaches[namespace] = memCache
+		getCacheLogger().Debug("Using in-memory cache for namespace %s (global cache dir not set)", namespace)
+
+		return memCache
+	}
+
+	namespaceDir := filepath.Join(globalCacheDir, "plugins", namespace)
+	if err := os.MkdirAll(namespaceDir, 0o750); err != nil {
+		getCacheLogger().Debug("Failed to create namespace cache directory %s: %v", namespaceDir, err)
+		memCache := NewMemoryCache()
+		namespacedCaches[namespace] = memCache
+		getCacheLogger().Debug("Using in-memory cache for namespace %s", namespace)
+
+		return memCache
+	}
+
+	badgerCache, err := NewBadgerCache(namespaceDir)
+	if err != nil {
+		getCacheLogger().Debug("Failed to initialize namespaced cache %s: %v", namespace, err)
+		memCache := NewMemoryCache()
+		namespacedCaches[namespace] = memCache
+		getCacheLogger().Debug("Using in-memory cache for namespace %s", namespace)
+
+		return memCache
+	}
+
+	getCacheLogger().Debug("Initialized namespaced cache at %s", namespaceDir)
+	namespacedCaches[namespace] = badgerCache
+
+	return badgerCache
 }

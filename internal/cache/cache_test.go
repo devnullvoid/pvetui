@@ -3,6 +3,7 @@ package cache
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -97,5 +98,66 @@ func TestFileCache_Persistence(t *testing.T) {
 
 	if !found || v != "val" {
 		t.Fatalf("expected persisted value, got %v found %v", v, found)
+	}
+}
+
+// resetCacheState resets package-level cache state for isolated testing.
+func resetCacheState() {
+	globalCache = nil
+	cacheLogger = nil
+	globalCacheDir = ""
+	once = sync.Once{}
+	cacheLoggerOnce = sync.Once{}
+	namespacedCaches = make(map[string]Cache)
+	namespacedCacheMu = sync.RWMutex{}
+}
+
+// TestNamespacedCacheIsolation verifies that namespaced caches are not affected by clearing the global cache.
+func TestNamespacedCacheIsolation(t *testing.T) {
+	resetCacheState()
+	defer resetCacheState()
+
+	cacheDir := t.TempDir()
+
+	if err := InitGlobalCache(cacheDir); err != nil {
+		t.Fatalf("InitGlobalCache: %v", err)
+	}
+
+	global := GetGlobalCache()
+	defer func() {
+		_ = global.Close()
+	}()
+
+	nsCache := GetNamespacedCache("test-plugin")
+	defer func() {
+		_ = nsCache.Close()
+	}()
+
+	type payload struct {
+		Value string
+	}
+
+	item := payload{Value: "persist"}
+
+	if err := nsCache.Set("ns-key", item, time.Hour); err != nil {
+		t.Fatalf("namespaced set: %v", err)
+	}
+
+	if err := global.Clear(); err != nil {
+		t.Fatalf("global clear: %v", err)
+	}
+
+	var got payload
+	found, err := nsCache.Get("ns-key", &got)
+	if err != nil {
+		t.Fatalf("namespaced get: %v", err)
+	}
+
+	if !found {
+		t.Fatal("expected namespaced cache item to persist after global clear")
+	}
+
+	if got != item {
+		t.Fatalf("expected %v, got %v", item, got)
 	}
 }
