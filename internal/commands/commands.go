@@ -8,8 +8,6 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
-// TODO: implement commands for listing nodes, managing VMs/LXCs, and opening shells.
-
 // ListNodes retrieves and processes cluster nodes.
 func ListNodes(client *api.Client) ([]api.Node, error) {
 	if client == nil {

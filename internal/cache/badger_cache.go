@@ -12,7 +12,8 @@ import (
 
 // BadgerCache implements the Cache interface using Badger DB.
 type BadgerCache struct {
-	db *badger.DB
+	db     *badger.DB
+	stopGC chan struct{}
 }
 
 // NewBadgerCache creates a new Badger-based cache.
@@ -57,31 +58,74 @@ func NewBadgerCache(dir string) (*BadgerCache, error) {
 		return nil, fmt.Errorf("failed to open badger database: %w", err)
 	}
 
-	// Run garbage collection in the background
+	cache := &BadgerCache{
+		db:     db,
+		stopGC: make(chan struct{}),
+	}
+
+	// Run garbage collection in the background with proper cleanup
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			err := db.RunValueLogGC(0.5) // Run GC if 50% or more space can be reclaimed
-			if err != nil && err != badger.ErrNoRewrite {
-				getCacheLogger().Debug("Badger value log GC failed: %v", err)
+		for {
+			select {
+			case <-ticker.C:
+				err := db.RunValueLogGC(0.5) // Run GC if 50% or more space can be reclaimed
+				if err != nil && err != badger.ErrNoRewrite {
+					getCacheLogger().Debug("Badger value log GC failed: %v", err)
+				}
+			case <-cache.stopGC:
+				getCacheLogger().Debug("Stopping Badger GC goroutine")
+				return // Exit goroutine cleanly
 			}
 		}
 	}()
 
-	return &BadgerCache{
-		db: db,
-	}, nil
+	return cache, nil
 }
 
 // isLockFileStale checks if the lock file exists but no process is using it.
+// This function attempts to determine if a BadgerDB lock file is stale by
+// checking if the process that created it is still running.
 func isLockFileStale(lockFilePath string) (bool, error) {
-	// This is a simple implementation and might not be completely reliable
-	// A more robust solution would involve parsing the lock file contents
-	_, err := os.Stat(lockFilePath)
+	// Read the lock file to get the PID
+	// #nosec G304 -- lockFilePath is constructed internally, not from user input
+	data, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		// Can't read the file, consider it not stale (safer default)
+		return false, fmt.Errorf("failed to read lock file: %w", err)
+	}
 
-	return err == nil, nil
+	// BadgerDB lock files typically contain just a PID
+	// Try to parse it as an integer
+	var pid int
+	if _, err := fmt.Sscanf(string(data), "%d", &pid); err != nil {
+		// Invalid lock file format, might be corrupted - consider it stale
+		getCacheLogger().Debug("Lock file has invalid format, considering stale")
+		return true, nil
+	}
+
+	// Check if the process exists by trying to find it
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		// Process doesn't exist (on some systems FindProcess always succeeds)
+		getCacheLogger().Debug("Process %d not found, lock is stale", pid)
+		return true, nil
+	}
+
+	// On Unix systems, send signal 0 to check if process is alive
+	// Signal 0 doesn't actually send a signal, just checks if we can
+	err = process.Signal(syscall.Signal(0))
+	if err != nil {
+		// Process doesn't exist or we don't have permission to signal it
+		getCacheLogger().Debug("Cannot signal process %d: %v, lock is stale", pid, err)
+		return true, nil
+	}
+
+	// Process exists and is running, lock is NOT stale
+	getCacheLogger().Debug("Process %d is running, lock is valid", pid)
+	return false, nil
 }
 
 // isErrorTemporarilyUnavailable checks if an error is due to a resource being temporarily unavailable.
@@ -136,13 +180,8 @@ func (c *BadgerCache) Get(key string, dest interface{}) (bool, error) {
 
 			getCacheLogger().Debug("Cache hit for: %s", key)
 
-			// Unmarshal the data into the destination
-			bytes, err := json.Marshal(cacheItem.Data)
-			if err != nil {
-				return fmt.Errorf("marshal cache data: %w", err)
-			}
-
-			if err := json.Unmarshal(bytes, dest); err != nil {
+			// Unmarshal the raw JSON directly into the destination (no double marshaling)
+			if err := json.Unmarshal(cacheItem.Data, dest); err != nil {
 				return fmt.Errorf("unmarshal into destination: %w", err)
 			}
 
@@ -161,14 +200,20 @@ func (c *BadgerCache) Get(key string, dest interface{}) (bool, error) {
 
 // Set stores data in the cache.
 func (c *BadgerCache) Set(key string, data interface{}, ttl time.Duration) error {
-	// Create cache item
+	// Marshal data to JSON once (avoids double marshaling on Get)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal data: %w", err)
+	}
+
+	// Create cache item with pre-marshaled JSON
 	item := &CacheItem{
-		Data:      data,
+		Data:      jsonData,
 		Timestamp: time.Now().Unix(),
 		TTL:       int64(ttl.Seconds()),
 	}
 
-	// Convert to JSON
+	// Convert cache item to JSON
 	bytes, err := json.Marshal(item)
 	if err != nil {
 		return fmt.Errorf("marshal cache item: %w", err)
@@ -208,9 +253,13 @@ func (c *BadgerCache) Clear() error {
 	return c.db.DropAll()
 }
 
-// Close closes the badger database.
+// Close closes the badger database and stops the background GC goroutine.
 func (c *BadgerCache) Close() error {
 	getCacheLogger().Debug("Closing Badger database")
 
+	// Signal the GC goroutine to stop
+	close(c.stopGC)
+
+	// Close the database
 	return c.db.Close()
 }

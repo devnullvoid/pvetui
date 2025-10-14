@@ -68,7 +68,7 @@ cache_dir: "%s"
 `, itc.ProxmoxAddr, itc.ProxmoxUser, itc.ProxmoxPass, itc.CacheDir)
 	}
 
-	err := os.WriteFile(itc.ConfigFile, []byte(configContent), 0o644)
+	err := os.WriteFile(itc.ConfigFile, []byte(configContent), 0o600)
 	require.NoError(t, err)
 }
 

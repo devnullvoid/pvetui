@@ -107,7 +107,7 @@ invalid: [unclosed
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary config file
 			configFile := filepath.Join(itc.TempDir, "test-config.yml")
-			err := os.WriteFile(configFile, []byte(tt.configContent), 0o644)
+			err := os.WriteFile(configFile, []byte(tt.configContent), 0o600)
 			require.NoError(t, err)
 
 			// Create config and load from file
@@ -317,7 +317,7 @@ realm: "pam"
 debug: false
 `
 	configFile := filepath.Join(itc.TempDir, "merge-test.yml")
-	err := os.WriteFile(configFile, []byte(configContent), 0o644)
+	err := os.WriteFile(configFile, []byte(configContent), 0o600)
 	require.NoError(t, err)
 
 	// Set environment variables that should be overridden by file values

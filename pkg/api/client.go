@@ -19,6 +19,13 @@ const (
 	ResourceDataTTL = 1 * time.Hour
 )
 
+// Default API request timeout and retry configuration.
+const (
+	DefaultAPITimeout  = 30 * time.Second
+	DefaultRetryCount  = 3
+	DefaultMaxAttempts = DefaultRetryCount // Alias for clarity
+)
+
 // Client is a Proxmox API client with dependency injection for logging and caching.
 type Client struct {
 	httpClient  *HTTPClient
@@ -34,22 +41,31 @@ type Client struct {
 	user    string
 }
 
-// Get makes a GET request to the Proxmox API with retry logic.
+// Get makes a GET request to the Proxmox API with retry logic and timeout.
 func (c *Client) Get(path string, result *map[string]interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPITimeout)
+	defer cancel()
+
 	c.logger.Debug("API GET: %s", path)
 
-	return c.httpClient.GetWithRetry(context.Background(), path, result, 3)
+	return c.httpClient.GetWithRetry(ctx, path, result, DefaultRetryCount)
 }
 
-// GetNoRetry makes a GET request to the Proxmox API without retry logic.
+// GetNoRetry makes a GET request to the Proxmox API without retry logic but with timeout.
 func (c *Client) GetNoRetry(path string, result *map[string]interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPITimeout)
+	defer cancel()
+
 	c.logger.Debug("API GET (no retry): %s", path)
 
-	return c.httpClient.Get(context.Background(), path, result)
+	return c.httpClient.Get(ctx, path, result)
 }
 
-// Post makes a POST request to the Proxmox API.
+// Post makes a POST request to the Proxmox API with timeout.
 func (c *Client) Post(path string, data interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPITimeout)
+	defer cancel()
+
 	c.logger.Debug("API POST: %s", path)
 	// Convert data to map[string]interface{} if it's not nil
 	var postData interface{}
@@ -63,11 +79,14 @@ func (c *Client) Post(path string, data interface{}) error {
 		}
 	}
 
-	return c.httpClient.Post(context.Background(), path, postData, nil)
+	return c.httpClient.Post(ctx, path, postData, nil)
 }
 
-// PostWithResponse makes a POST request to the Proxmox API and returns the response.
+// PostWithResponse makes a POST request to the Proxmox API and returns the response with timeout.
 func (c *Client) PostWithResponse(path string, data interface{}, result *map[string]interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPITimeout)
+	defer cancel()
+
 	c.logger.Debug("API POST with response: %s", path)
 	// Convert data to map[string]interface{} if it's not nil
 	var postData interface{}
@@ -81,14 +100,17 @@ func (c *Client) PostWithResponse(path string, data interface{}, result *map[str
 		}
 	}
 
-	return c.httpClient.Post(context.Background(), path, postData, result)
+	return c.httpClient.Post(ctx, path, postData, result)
 }
 
-// Delete makes a DELETE request to the Proxmox API.
+// Delete makes a DELETE request to the Proxmox API with timeout.
 func (c *Client) Delete(path string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPITimeout)
+	defer cancel()
+
 	c.logger.Debug("API DELETE: %s", path)
 
-	return c.httpClient.Delete(context.Background(), path, nil)
+	return c.httpClient.Delete(ctx, path, nil)
 }
 
 // IsUsingTokenAuth returns true if the client is using API token authentication.
@@ -168,11 +190,14 @@ func (c *Client) GetWithCache(path string, result *map[string]interface{}, ttl t
 	return nil
 }
 
-// GetWithRetry makes a GET request with retry logic.
+// GetWithRetry makes a GET request with retry logic and timeout.
 func (c *Client) GetWithRetry(path string, result *map[string]interface{}, maxRetries int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPITimeout)
+	defer cancel()
+
 	c.logger.Debug("API GET with retry: %s", path)
 
-	return c.httpClient.GetWithRetry(context.Background(), path, result, maxRetries)
+	return c.httpClient.GetWithRetry(ctx, path, result, maxRetries)
 }
 
 // Version gets the Proxmox API version.

@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"container/list"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,21 +34,37 @@ type Cache interface {
 
 // CacheItem represents an item in the cache with TTL.
 type CacheItem struct {
-	Data      interface{} `json:"data"`
-	Timestamp int64       `json:"timestamp"`
-	TTL       int64       `json:"ttl"` // TTL in seconds, 0 means no expiration
+	Data      json.RawMessage `json:"data"` // Store as raw JSON to avoid double marshaling
+	Timestamp int64           `json:"timestamp"`
+	TTL       int64           `json:"ttl"` // TTL in seconds, 0 means no expiration
 }
 
-// FileCache implements a simple file-based cache.
+// FileCache implements a simple file-based cache with LRU eviction.
 type FileCache struct {
 	dir       string
 	mutex     sync.RWMutex
-	inMemory  map[string]*CacheItem
+	inMemory  map[string]*list.Element // Map key to list element
+	lruList   *list.List               // Doubly-linked list for LRU tracking
+	maxSize   int                      // Maximum number of items (0 = unlimited)
 	persisted bool
 }
 
-// NewFileCache creates a new file-based cache.
+// lruEntry represents an entry in the LRU cache.
+type lruEntry struct {
+	key  string
+	item *CacheItem
+}
+
+// NewFileCache creates a new file-based cache with optional size limit.
+// maxSize of 0 means unlimited cache size.
 func NewFileCache(cacheDir string, persisted bool) (*FileCache, error) {
+	return NewFileCacheWithSize(cacheDir, persisted, 0)
+}
+
+// NewFileCacheWithSize creates a new file-based cache with a maximum size limit.
+// When the cache exceeds maxSize items, least recently used items are evicted.
+// maxSize of 0 means unlimited cache size.
+func NewFileCacheWithSize(cacheDir string, persisted bool, maxSize int) (*FileCache, error) {
 	// Create cache directory if it doesn't exist
 	if err := os.MkdirAll(cacheDir, 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
@@ -55,7 +72,9 @@ func NewFileCache(cacheDir string, persisted bool) (*FileCache, error) {
 
 	cache := &FileCache{
 		dir:       cacheDir,
-		inMemory:  make(map[string]*CacheItem),
+		inMemory:  make(map[string]*list.Element),
+		lruList:   list.New(),
+		maxSize:   maxSize,
 		persisted: persisted,
 	}
 
@@ -110,29 +129,35 @@ func (c *FileCache) loadCacheFiles() error {
 			continue
 		}
 
-		// Add to in-memory cache
-		c.inMemory[key] = &item
+		// Add to in-memory cache with LRU tracking
+		entry := &lruEntry{key: key, item: &item}
+		element := c.lruList.PushFront(entry)
+		c.inMemory[key] = element
 	}
 
 	return nil
 }
 
-// Get retrieves data from the cache.
+// Get retrieves data from the cache and updates LRU order.
 func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
 	// Check if item exists in memory
-	item, exists := c.inMemory[key]
+	element, exists := c.inMemory[key]
 	if !exists {
 		getCacheLogger().Debug("Cache miss for: %s", key)
 
 		return false, nil
 	}
 
+	entry := element.Value.(*lruEntry)
+	item := entry.item
+
 	// Check if the item is expired
 	if item.TTL > 0 && time.Now().Unix()-item.Timestamp > item.TTL {
 		// Item is expired, remove it
+		c.lruList.Remove(element)
 		delete(c.inMemory, key)
 		getCacheLogger().Debug("Cache item expired: %s", key)
 
@@ -147,15 +172,13 @@ func (c *FileCache) Get(key string, dest interface{}) (bool, error) {
 		return false, nil
 	}
 
+	// Move to front (most recently used)
+	c.lruList.MoveToFront(element)
+
 	getCacheLogger().Debug("Cache hit for: %s", key)
 
-	// Unmarshal the data into the destination
-	bytes, err := json.Marshal(item.Data)
-	if err != nil {
-		return false, fmt.Errorf("failed to marshal cache data: %w", err)
-	}
-
-	if err := json.Unmarshal(bytes, dest); err != nil {
+	// Unmarshal the raw JSON directly into the destination (no double marshaling)
+	if err := json.Unmarshal(item.Data, dest); err != nil {
 		return false, fmt.Errorf("failed to unmarshal cache data: %w", err)
 	}
 
@@ -167,15 +190,35 @@ func (c *FileCache) Set(key string, data interface{}, ttl time.Duration) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	// Create cache item
+	// Marshal data to JSON once (avoids double marshaling on Get)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal data: %w", err)
+	}
+
+	// Create cache item with pre-marshaled JSON
 	item := &CacheItem{
-		Data:      data,
+		Data:      jsonData,
 		Timestamp: time.Now().Unix(),
 		TTL:       int64(ttl.Seconds()),
 	}
 
-	// Add to in-memory cache
-	c.inMemory[key] = item
+	// Check if item already exists, update it if so
+	if element, exists := c.inMemory[key]; exists {
+		entry := element.Value.(*lruEntry)
+		entry.item = item
+		c.lruList.MoveToFront(element)
+	} else {
+		// Add new item to cache
+		entry := &lruEntry{key: key, item: item}
+		element := c.lruList.PushFront(entry)
+		c.inMemory[key] = element
+
+		// Evict least recently used item if cache is full
+		if c.maxSize > 0 && c.lruList.Len() > c.maxSize {
+			c.evictLRU()
+		}
+	}
 
 	// If persisted, write to file
 	if c.persisted {
@@ -197,13 +240,39 @@ func (c *FileCache) Set(key string, data interface{}, ttl time.Duration) error {
 	return nil
 }
 
+// evictLRU removes the least recently used item from the cache.
+// Must be called with mutex held.
+func (c *FileCache) evictLRU() {
+	element := c.lruList.Back()
+	if element == nil {
+		return
+	}
+
+	entry := element.Value.(*lruEntry)
+	c.lruList.Remove(element)
+	delete(c.inMemory, entry.key)
+
+	getCacheLogger().Debug("Evicted LRU item: %s (cache size limit: %d)", entry.key, c.maxSize)
+
+	// If persisted, remove the file
+	if c.persisted {
+		filePath := filepath.Join(c.dir, entry.key+".json")
+		if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+			getCacheLogger().Debug("Failed to remove evicted cache file: %v", err)
+		}
+	}
+}
+
 // Delete removes an item from the cache.
 func (c *FileCache) Delete(key string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	// Remove from in-memory cache
-	delete(c.inMemory, key)
+	// Remove from in-memory cache and LRU list
+	if element, exists := c.inMemory[key]; exists {
+		c.lruList.Remove(element)
+		delete(c.inMemory, key)
+	}
 
 	// If persisted, remove the file
 	if c.persisted {
@@ -223,8 +292,9 @@ func (c *FileCache) Clear() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	// Clear in-memory cache
-	c.inMemory = make(map[string]*CacheItem)
+	// Clear in-memory cache and LRU list
+	c.inMemory = make(map[string]*list.Element)
+	c.lruList = list.New()
 
 	// If persisted, remove all cache files
 	if c.persisted {
@@ -256,7 +326,19 @@ func (c *FileCache) Close() error {
 // NewMemoryCache creates an in-memory only cache (no persistence).
 func NewMemoryCache() *FileCache {
 	return &FileCache{
-		inMemory:  make(map[string]*CacheItem),
+		inMemory:  make(map[string]*list.Element),
+		lruList:   list.New(),
+		maxSize:   0, // Unlimited
+		persisted: false,
+	}
+}
+
+// NewMemoryCacheWithSize creates an in-memory cache with a size limit.
+func NewMemoryCacheWithSize(maxSize int) *FileCache {
+	return &FileCache{
+		inMemory:  make(map[string]*list.Element),
+		lruList:   list.New(),
+		maxSize:   maxSize,
 		persisted: false,
 	}
 }

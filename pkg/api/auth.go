@@ -236,16 +236,17 @@ func (am *AuthManager) GetValidToken(ctx context.Context) (*AuthToken, error) {
 		}, nil
 	}
 
+	// Fast path: Check with read lock if token is valid
 	am.mu.RLock()
-	if am.authToken != nil && am.authToken.IsValid() {
-		token := am.authToken
-		am.mu.RUnlock()
-
-		return token, nil
-	}
+	token := am.authToken
 	am.mu.RUnlock()
 
+	if token != nil && token.IsValid() {
+		return token, nil
+	}
+
 	// Token is invalid or missing, need to authenticate
+	// The authenticate() method handles concurrent calls with write lock
 	return am.authenticate(ctx)
 }
 
@@ -286,7 +287,7 @@ func (am *AuthManager) authenticate(ctx context.Context) (*AuthToken, error) {
 	formData := url.Values{}
 	formData.Set("username", am.username)
 	formData.Set("password", am.password)
-	am.logger.Debug("Form data: username=%s, password=<hidden>", am.username)
+	am.logger.Debug("Sending authentication request for user: %s", am.username)
 
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, am.httpClient.baseURL+authURL, strings.NewReader(formData.Encode()))

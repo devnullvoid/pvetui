@@ -11,13 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pluggable feature architecture for UI contributions with runtime registration and lifecycle management.
 - Community Scripts functionality extracted into the `community-scripts` plugin; enable it via the `plugins.enabled` setting.
 - Demo "guest list" plugin that adds a node action presenting running guests in a modal.
+- LRU (Least Recently Used) cache eviction with configurable size limits to prevent unbounded memory growth.
+- Configurable API retry count via `DefaultRetryCount` constant for easier tuning.
 
 ### Changed
 - Plugins are now disabled by default; update configuration to opt into optional features such as community scripts.
 - Configuration files now honour the `plugins.enabled` list instead of falling back to legacy defaults.
+- Cache implementation now uses `json.RawMessage` to eliminate double JSON marshaling/unmarshaling overhead.
+- FileCache now implements LRU eviction with doubly-linked list for efficient cache management.
 
 ### Fixed
 - Allow post-operation refreshes to run by clearing VM pending state before triggering automatic data reloads after lifecycle actions.
+- Removed potential password exposure from authentication debug logs.
+- Fixed race condition in `AuthManager.GetValidToken()` method with improved locking pattern.
+- Added HTTP request timeouts to all API methods (30-second default) to prevent indefinite hangs.
+- BadgerDB goroutine leak fixed with proper cleanup channel for background garbage collection.
+- Lock file handling vulnerability fixed with proper PID validation to prevent cache corruption.
+- File permissions in test files changed from 0o644 to 0o600 for better security.
 
 ## [1.0.6] - 2025-09-13
 
