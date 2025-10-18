@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Demo "guest list" plugin that adds a node action presenting running guests in a modal.
 - LRU (Least Recently Used) cache eviction with configurable size limits to prevent unbounded memory growth.
 - Configurable API retry count via `DefaultRetryCount` constant for easier tuning.
+- Manage Plugins dialog in the global menu to toggle plugins, persist configuration changes, and flag the required restart.
 
 ### Changed
 - Plugins are now disabled by default; update configuration to opt into optional features such as community scripts.

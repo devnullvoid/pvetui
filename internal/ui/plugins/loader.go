@@ -1,6 +1,8 @@
 package plugins
 
 import (
+	"sort"
+
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/ui/components"
 	"github.com/devnullvoid/pvetui/internal/ui/plugins/communityscripts"
@@ -61,4 +63,30 @@ func AvailableIDs() []string {
 	}
 
 	return ids
+}
+
+// Info describes a plugin's identity and user-facing metadata.
+type Info struct {
+	ID          string
+	Name        string
+	Description string
+}
+
+// AvailableMetadata returns metadata for all registered plugins sorted by name.
+func AvailableMetadata() []Info {
+	infos := make([]Info, 0, len(registry))
+	for id, factory := range registry {
+		instance := factory()
+		infos = append(infos, Info{
+			ID:          id,
+			Name:        instance.Name(),
+			Description: instance.Description(),
+		})
+	}
+
+	sort.Slice(infos, func(i, j int) bool {
+		return infos[i].Name < infos[j].Name
+	})
+
+	return infos
 }

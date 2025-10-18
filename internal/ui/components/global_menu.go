@@ -16,6 +16,7 @@ func (a *App) ShowGlobalContextMenu() {
 	// Create menu items for global actions
 	menuItems := []string{
 		"Connection Profiles",
+		"Manage Plugins",
 		"Refresh All Data",
 		"Toggle Auto-Refresh",
 		"Help",
@@ -24,7 +25,7 @@ func (a *App) ShowGlobalContextMenu() {
 	}
 
 	// Define custom shortcuts for global menu
-	shortcuts := []rune{'p', 'r', 'a', '?', 'i', 'q'}
+	shortcuts := []rune{'p', 'm', 'r', 'a', '?', 'i', 'q'}
 
 	menu := NewContextMenuWithShortcuts(" Global Actions ", menuItems, shortcuts, func(index int, action string) {
 		a.CloseContextMenu()
@@ -32,6 +33,8 @@ func (a *App) ShowGlobalContextMenu() {
 		switch action {
 		case "Connection Profiles":
 			a.showConnectionProfilesDialog()
+		case "Manage Plugins":
+			a.showManagePluginsDialog()
 		case "Refresh All Data":
 			// * Check if there are any pending operations
 			if models.GlobalState.HasPendingOperations() {

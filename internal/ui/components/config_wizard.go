@@ -22,6 +22,7 @@ type CleanConfig struct {
 	CacheDir       string                          `yaml:"cache_dir,omitempty"`
 	KeyBindings    config.KeyBindings              `yaml:"key_bindings,omitempty"`
 	Theme          config.ThemeConfig              `yaml:"theme,omitempty"`
+	Plugins        config.PluginConfig             `yaml:"plugins"`
 	// Legacy fields only included when no profiles are defined
 	Addr        string `yaml:"addr,omitempty"`
 	User        string `yaml:"user,omitempty"`
@@ -43,6 +44,7 @@ func configToYAML(cfg *config.Config) ([]byte, error) {
 		CacheDir:       cfg.CacheDir,
 		KeyBindings:    cfg.KeyBindings,
 		Theme:          cfg.Theme,
+		Plugins:        cfg.Plugins,
 	}
 
 	// Only include legacy fields if no profiles are defined (for backward compatibility)

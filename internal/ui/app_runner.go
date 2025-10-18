@@ -16,6 +16,17 @@ import (
 func RunApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string) error {
 	app := components.NewApp(ctx, client, cfg, configPath)
 
+	metadata := plugins.AvailableMetadata()
+	catalog := make([]components.PluginInfo, len(metadata))
+	for i, entry := range metadata {
+		catalog[i] = components.PluginInfo{
+			ID:          entry.ID,
+			Name:        entry.Name,
+			Description: entry.Description,
+		}
+	}
+	app.SetPluginCatalog(catalog)
+
 	pluginInstances, missing := plugins.EnabledFromConfig(cfg)
 	if len(missing) > 0 {
 		fmt.Printf("⚠️ Unknown plugins requested: %s\n", strings.Join(missing, ", "))

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/devnullvoid/pvetui/internal/config"
 )
 
@@ -84,5 +86,50 @@ func TestFindSOPSRule(t *testing.T) {
 
 	if !findSOPSRule(subdir) {
 		t.Error("expected true when .sops.yaml present in parent")
+	}
+}
+
+func TestConfigToYAML_PreservesPluginsSection(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.SetDefaults()
+	cfg.Plugins.Enabled = []string{"community-scripts"}
+
+	data, err := configToYAML(cfg)
+	if err != nil {
+		t.Fatalf("configToYAML error: %v", err)
+	}
+
+	var decoded struct {
+		Plugins struct {
+			Enabled []string `yaml:"enabled"`
+		} `yaml:"plugins"`
+	}
+
+	if err := yaml.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal yaml: %v", err)
+	}
+
+	if len(decoded.Plugins.Enabled) != 1 || decoded.Plugins.Enabled[0] != "community-scripts" {
+		t.Fatalf("expected enabled plugin to be preserved, got %v", decoded.Plugins.Enabled)
+	}
+}
+
+func TestConfigToYAML_RetainsPluginsKeyWhenEmpty(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.SetDefaults()
+	cfg.Plugins.Enabled = nil
+
+	data, err := configToYAML(cfg)
+	if err != nil {
+		t.Fatalf("configToYAML error: %v", err)
+	}
+
+	var decoded map[string]any
+	if err := yaml.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal yaml: %v", err)
+	}
+
+	if _, ok := decoded["plugins"]; !ok {
+		t.Fatalf("expected plugins key to be present even when empty")
 	}
 }

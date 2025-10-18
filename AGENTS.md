@@ -64,3 +64,9 @@ The following conventions must be followed for any changes in this repository.
 - Integration tests: Real system interactions (separate from unit tests)
 - Use `make test-quick` for fast feedback during development
 - Ensure tests are deterministic and can run in parallel
+
+## Project-Specific Notes
+- Manage plugins from the global menu (`showManagePluginsDialog` in `internal/ui/components/plugins_manager.go`). Changes persist to the main config via `SaveConfigToFile` and will trigger SOPS re-encryption if the original file was encrypted—avoid duplicating this logic elsewhere.
+- Plugin metadata (ID, name, description) is exposed through `plugins.AvailableMetadata()`, which returns instances sorted by name. Use this helper instead of instantiating plugins manually when building management UIs.
+- UI save operations that touch the config expect a restart warning when plugin states change; keep user messaging consistent with `header.ShowSuccess`.
+- Shared agent notes live in the Basic Memory project named `pvetui` at `.notes/`; record new discoveries there while exploring the codebase.

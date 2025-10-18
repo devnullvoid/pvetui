@@ -38,3 +38,33 @@ func TestAvailableIDs(t *testing.T) {
 	require.Contains(t, ids, communityscripts.PluginID)
 	require.Contains(t, ids, guestlist.PluginID)
 }
+
+func TestAvailableMetadata(t *testing.T) {
+	infos := AvailableMetadata()
+	require.GreaterOrEqual(t, len(infos), 2)
+
+	var prevName string
+	var foundCommunity, foundGuest bool
+
+	for _, info := range infos {
+		require.NotEmpty(t, info.ID)
+		require.NotEmpty(t, info.Name)
+		require.NotEmpty(t, info.Description)
+
+		if prevName != "" {
+			require.LessOrEqual(t, prevName, info.Name)
+		}
+
+		if info.ID == communityscripts.PluginID {
+			foundCommunity = true
+		}
+		if info.ID == guestlist.PluginID {
+			foundGuest = true
+		}
+
+		prevName = info.Name
+	}
+
+	require.True(t, foundCommunity)
+	require.True(t, foundGuest)
+}

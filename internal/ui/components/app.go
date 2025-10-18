@@ -53,6 +53,7 @@ type App struct {
 
 	plugins        map[string]Plugin
 	pluginRegistry *pluginRegistry
+	pluginCatalog  []PluginInfo
 }
 
 // removePageIfPresent removes a page by name if it exists, ignoring errors.
@@ -304,6 +305,23 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	uiLogger.Debug("App initialization completed successfully")
 
 	return app
+}
+
+// PluginInfo describes user-facing metadata for a plugin.
+type PluginInfo struct {
+	ID          string
+	Name        string
+	Description string
+}
+
+// SetPluginCatalog stores metadata about available plugins for later UI use.
+func (a *App) SetPluginCatalog(catalog []PluginInfo) {
+	a.pluginCatalog = append([]PluginInfo(nil), catalog...)
+}
+
+// pluginCatalogSnapshot returns a copy of the stored plugin catalog.
+func (a *App) pluginCatalogSnapshot() []PluginInfo {
+	return append([]PluginInfo(nil), a.pluginCatalog...)
 }
 
 // InitializePlugins wires the provided plugins into the application lifecycle.
