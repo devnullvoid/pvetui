@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 
@@ -12,8 +13,10 @@ import (
 
 // BadgerCache implements the Cache interface using Badger DB.
 type BadgerCache struct {
-	db     *badger.DB
-	stopGC chan struct{}
+	db        *badger.DB
+	stopGC    chan struct{}
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // NewBadgerCache creates a new Badger-based cache.
@@ -255,11 +258,17 @@ func (c *BadgerCache) Clear() error {
 
 // Close closes the badger database and stops the background GC goroutine.
 func (c *BadgerCache) Close() error {
-	getCacheLogger().Debug("Closing Badger database")
+	c.closeOnce.Do(func() {
+		getCacheLogger().Debug("Closing Badger database")
 
-	// Signal the GC goroutine to stop
-	close(c.stopGC)
+		if c.stopGC != nil {
+			close(c.stopGC)
+		}
 
-	// Close the database
-	return c.db.Close()
+		if c.db != nil {
+			c.closeErr = c.db.Close()
+		}
+	})
+
+	return c.closeErr
 }

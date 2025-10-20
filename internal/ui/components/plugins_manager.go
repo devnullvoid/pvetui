@@ -137,7 +137,15 @@ func (a *App) showManagePluginsDialog() {
 		toggleAt(index)
 	})
 
+	navigationCapture := createNavigationInputCapture(a, nil, nil)
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if navigationCapture != nil {
+			event = navigationCapture(event)
+			if event == nil {
+				return nil
+			}
+		}
+
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
@@ -166,7 +174,7 @@ func (a *App) showManagePluginsDialog() {
 	})
 
 	helpText := tview.NewTextView()
-	helpText.SetText("space: toggle  s:save  c:cancel  Changes require an application restart to take effect.")
+	helpText.SetText("space: toggle  s:save  c:cancel")
 	helpText.SetTextAlign(tview.AlignCenter)
 	helpText.SetDynamicColors(true)
 	helpText.SetTextColor(theme.Colors.Secondary)

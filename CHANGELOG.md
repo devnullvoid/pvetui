@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration files now honour the `plugins.enabled` list instead of falling back to legacy defaults.
 - Cache implementation now uses `json.RawMessage` to eliminate double JSON marshaling/unmarshaling overhead.
 - FileCache now implements LRU eviction with doubly-linked list for efficient cache management.
+- Manage Plugins dialog list now supports Vim-style `j`/`k` navigation keys for faster keyboard control.
 
 ### Fixed
 - Allow post-operation refreshes to run by clearing VM pending state before triggering automatic data reloads after lifecycle actions.
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed race condition in `AuthManager.GetValidToken()` method with improved locking pattern.
 - Added HTTP request timeouts to all API methods (30-second default) to prevent indefinite hangs.
 - BadgerDB goroutine leak fixed with proper cleanup channel for background garbage collection.
+- Badger cache close routine is now idempotent to avoid `close of closed channel` panics during integration tests.
 - Lock file handling vulnerability fixed with proper PID validation to prevent cache corruption.
 - File permissions in test files changed from 0o644 to 0o600 for better security.
 
