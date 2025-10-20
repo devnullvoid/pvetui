@@ -25,8 +25,9 @@
           src = ./.;
 
           postUnpack = ''
-            cp -r ${novnc} $sourceRoot/internal/vnc/novnc
-            chmod -R u+w $sourceRoot/internal/vnc/novnc
+              rm -rf $sourceRoot/internal/vnc/novnc
+              cp -r ${novnc} $sourceRoot/internal/vnc/novnc
+              chmod -R u+w $sourceRoot/internal/vnc/novnc
           '';
 
           vendorHash = "sha256-quGKUBmX4ebrykhWRnp71yYt/cUeISN0wPu13m8lNsM=";
