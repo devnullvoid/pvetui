@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 - **Secure Authentication**: API tokens or password-based auth with automatic renewal
 - **Integrated Shells**: SSH directly to nodes, VMs, and containers
 - **VNC Console Access**: Embedded noVNC client with automatic authentication
-- **Plugin System**: Opt-in extensions such as the Community Scripts installer and demo guest list; enable via `plugins.enabled`
+- **Plugin System**: Opt-in extensions including the Community Scripts installer; enable via Manage Plugins dialog or config file
 - **Modern Interface**: Vim-style navigation with customizable key bindings
 - **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
 - **Comprehensive Documentation**: Detailed guides for configuration, theming, and development
@@ -114,7 +114,38 @@ default_profile: "default"
 debug: false
 ```
 
-See [docs/PLUGINS.md](docs/PLUGINS.md) for details on enabling optional plugins and writing new ones.
+### Plugins
+
+pvetui includes an opt-in plugin system for optional features. Plugins are **disabled by default** and must be explicitly enabled.
+
+#### Built-in Plugins
+
+- **`community-scripts`**: Adds the popular Community Scripts installer to node context menus
+- **`demo-guest-list`**: Example plugin showing running guests (for reference/testing)
+
+#### Enabling Plugins
+
+**Method 1: Manage Plugins Dialog (Recommended)**
+
+1. Press `g` to open the Global Menu
+2. Select **Manage Plugins**
+3. Use arrow keys or `j`/`k` to navigate the plugin list
+4. Press `Space` to toggle plugins on/off
+5. Press `Enter` to save changes
+6. Restart pvetui for changes to take effect
+
+**Method 2: Configuration File**
+
+Add plugin IDs to your config file:
+
+```yaml
+plugins:
+  enabled:
+    - "community-scripts"
+    - "demo-guest-list"
+```
+
+**📖 For plugin development and advanced details, see [docs/PLUGINS.md](docs/PLUGINS.md)**
 
 ### Profile Management
 
