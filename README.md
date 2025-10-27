@@ -63,6 +63,35 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 
 > **macOS Users**: You may encounter Gatekeeper warnings with pre-compiled binaries. See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-macos-issues) for solutions including bypassing the warning or building from source.
 
+### Package Managers
+
+**Arch Linux (AUR):**
+```bash
+# Binary package (recommended)
+yay -S pvetui-bin
+
+# OR build from source
+yay -S pvetui-git
+```
+
+**macOS (Homebrew):**
+```bash
+# Add the tap repository
+brew tap devnullvoid/pvetui
+
+# Install pvetui
+brew install pvetui
+```
+
+**Windows (Scoop):**
+```bash
+# Add the bucket
+scoop bucket add pvetui https://github.com/devnullvoid/scoop-pvetui
+
+# Install pvetui
+scoop install pvetui
+```
+
 **From Source:**
 ```bash
 git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
