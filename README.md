@@ -57,6 +57,14 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 
 ### Quick Start
 
+### **Install via Go** (Go 1.24+)
+
+> **Recommended for Go users**: pvetui now supports one-command install using Go modules!
+
+```bash
+go install github.com/devnullvoid/pvetui/cmd/pvetui@latest
+```
+
 **From Pre-compiled Binaries:**
 1. Download from [Releases](https://github.com/devnullvoid/pvetui/releases)
 2. Extract and run: `./pvetui`
@@ -100,7 +108,6 @@ make install  # Build and install from source
 # or: make install-go  # Install via Go toolchain
 ```
 
-> **Note**: `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest` is now fully supported. All dependencies, including the embedded noVNC client, are present in the repository; no submodules or extra fetch steps are required.
 
 ## 🔧 Configuration
 

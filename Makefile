@@ -19,7 +19,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc
 
 # Default target
 help: ## Show this help message
@@ -377,3 +377,10 @@ screenshots: ## Run the VHS screenshots tape
 	vhs ./docs/screenshots.tape
 
 .DEFAULT_GOAL := help
+
+# Update novnc subtree and prune after update
+update-novnc: ## Update embedded novnc client from upstream and prune unnecessary files
+	git subtree pull --prefix=internal/vnc/novnc https://github.com/novnc/noVNC.git master --squash
+	./scripts/prune_novnc.sh
+	git add internal/vnc/novnc
+	@printf "$(GREEN)novnc subtree updated and pruned.$(NC)\n"
