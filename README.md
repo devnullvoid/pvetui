@@ -94,13 +94,13 @@ scoop install pvetui
 
 **From Source:**
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+git clone https://github.com/devnullvoid/pvetui.git
 cd pvetui
 make install  # Build and install from source
 # or: make install-go  # Install via Go toolchain
 ```
 
-> **Note**: The `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest` command does not work because it doesn't fetch git submodules required for the embedded noVNC client. Use the source installation method above instead.
+> **Note**: `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest` is now fully supported. All dependencies, including the embedded noVNC client, are present in the repository; no submodules or extra fetch steps are required.
 
 ## 🔧 Configuration
 
@@ -303,7 +303,7 @@ Check our **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to 
 ## 🐳 Docker Usage
 
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+git clone https://github.com/devnullvoid/pvetui.git
 cd pvetui
 cp .env.example .env  # Edit with your Proxmox details
 docker compose run --rm pvetui
@@ -322,3 +322,13 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## ™️ Trademark Notice
 
 **Proxmox®** is a registered trademark of Proxmox Server Solutions GmbH in the EU, the U.S., and other countries. This project is not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH. "Proxmox" is used solely to describe compatibility with Proxmox Virtual Environment software.
+
+---
+### Upgrading Embedded noVNC
+This repository includes the noVNC HTML/JS client under `internal/vnc/novnc` via [git subtree](https://www.atlassian.com/git/tutorials/git-subtree). To upgrade to a newer noVNC version, run:
+
+```bash
+git subtree pull --prefix=internal/vnc/novnc https://github.com/novnc/noVNC.git <tag-or-commit> --squash
+```
+
+Replace `<tag-or-commit>` with the desired version. After updating, prune unnecessary files if you only need the built assets. Commit the results to share the update with all users.

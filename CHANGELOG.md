@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Switched noVNC integration from a git submodule to a git subtree rooted at internal/vnc/novnc, ensuring full compatibility with `go install` and other Go tooling.
+- All noVNC assets are now tracked directly in the repository. The update process is now documented in the README, and updating to new versions uses `git subtree pull`.
+
 ## [1.0.7] - 2025-10-21
 
 ### Added
