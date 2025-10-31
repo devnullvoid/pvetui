@@ -20,6 +20,7 @@
   <img src="https://img.shields.io/github/go-mod/go-version/devnullvoid/pvetui" alt="Go Version">
   <img src="https://img.shields.io/github/actions/workflow/status/devnullvoid/pvetui/ci.yml?branch=master" alt="Build Status">
   <img src="https://img.shields.io/github/downloads/devnullvoid/pvetui/total" alt="Total Downloads">
+  <a href="https://deepwiki.com/devnullvoid/pvetui"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
 
 <!-- Demo Video -->
