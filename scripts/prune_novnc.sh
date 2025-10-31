@@ -5,6 +5,9 @@ set -euo pipefail
 NOVNC_DIR="$(dirname "$0")/../internal/vnc/novnc"
 
 rm -rf \
+  "$NOVNC_DIR/.github" \
+  "$NOVNC_DIR/.gitignore" \
+  "$NOVNC_DIR/.gitmodules" \
   "$NOVNC_DIR/tests" \
   "$NOVNC_DIR/docs" \
   "$NOVNC_DIR/snap" \
