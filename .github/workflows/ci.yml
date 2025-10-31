@@ -21,8 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive  # Checkout submodules for novnc embedding
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -57,8 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive  # Checkout submodules for novnc embedding
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v6
@@ -97,8 +93,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive  # Checkout submodules for novnc embedding
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v6
