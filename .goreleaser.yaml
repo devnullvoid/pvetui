@@ -1,9 +1,5 @@
 version: 2
 
-before:
-  hooks:
-    - git submodule update --init --recursive
-
 builds:
   # General build for all platforms except windows/amd64
   - id: pvetui
