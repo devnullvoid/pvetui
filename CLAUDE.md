@@ -33,8 +33,8 @@ The following conventions must be followed for any changes in this repository.
 
 ## Initial Setup
 
-1. Ensure git submodules are initialized: `git submodule update --init --recursive`.
-2. Run development setup: `make dev-setup` (installs required tools and validates environment).
+1. Run development setup: `make dev-setup` (installs required tools and validates environment).
+2. The embedded noVNC client lives in a git subtree; sync it with upstream when needed via `make update-novnc`.
 3. For enhanced development experience (optional):
    - Install direnv: `sudo pacman -S direnv` or equivalent
    - Copy `.envrc.example` to `.envrc` and configure as needed

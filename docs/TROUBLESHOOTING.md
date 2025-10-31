@@ -30,22 +30,22 @@ This removes the quarantine attribute that macOS applies to downloaded files, al
 
 #### Option 3: Build from Source (Most Secure)
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+git clone https://github.com/devnullvoid/pvetui.git
 cd pvetui
 make install
 ```
 
-Building from source avoids Gatekeeper issues entirely since the binary is compiled locally.
+Building from source avoids Gatekeeper issues entirely since the binary is compiled locally. The embedded noVNC client is vendored via git subtree, so no additional clone flags are required.
 
 #### Option 4: Use Go Install from Source (Recommended for Developers)
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+git clone https://github.com/devnullvoid/pvetui.git
 cd pvetui
 make install-go
 # or: go install ./cmd/pvetui
 ```
 
-This method compiles the source code directly with all submodules, bypassing Gatekeeper restrictions.
+This method compiles the source code directly with the vendored noVNC client.
 
 **Why This Happens**: The pre-built binaries are not code-signed with an Apple Developer certificate ($99/year requirement). Code signing would eliminate these warnings but requires an Apple Developer Program membership.
 
@@ -86,17 +86,11 @@ Some antivirus software may flag the binary as suspicious. This is common with u
 pattern novnc: no matching files found
 ```
 
-**Cause**: The `go install` command from a remote repository doesn't fetch git submodules, but pvetui requires the noVNC submodule for its embedded VNC client functionality.
+**Cause**: Releases prior to October 2025 embedded noVNC via a git submodule. Current versions vendor the client with a git subtree, so this error usually means you're building an older tag or your checkout predates the subtree migration.
 
-**Solution**: Use the source installation method instead:
-```bash
-git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
-cd pvetui
-go install ./cmd/pvetui
-# or: make install-go
-```
-
-The `--recurse-submodules` flag ensures that the noVNC client files are downloaded, allowing the `//go:embed` directive to find the required files.
+**Solutions**:
+- Upgrade to the latest tag or main branch; `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest` now works without extra flags.
+- If you must build an older release, clone with `--recurse-submodules` to populate the legacy noVNC dependency.
 
 ### Binary Won't Start
 1. **Check Architecture**: Ensure you downloaded the correct binary for your system:
@@ -158,7 +152,7 @@ Currently, the pre-built binaries are **not code-signed**. This means:
 
 **Highest Security**: Build from source after reviewing the code
 ```bash
-git clone --recurse-submodules https://github.com/devnullvoid/pvetui.git
+git clone https://github.com/devnullvoid/pvetui.git
 cd pvetui
 # Review the source code
 make install

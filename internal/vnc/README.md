@@ -2,65 +2,47 @@
 
 This directory contains the VNC integration for pvetui, including an embedded noVNC client.
 
-## noVNC Submodule
+## noVNC Subtree
 
-The noVNC client is included as a git submodule from the official [noVNC repository](https://github.com/novnc/noVNC) and is embedded directly into the compiled binary using Go's `embed` directive.
+The noVNC client is vendored via a git subtree rooted at [`internal/vnc/novnc/`](https://github.com/novnc/noVNC) and embedded directly into the compiled binary using Go's `embed` directive. No extra Git configuration is required when cloning the repository.
 
-### Current Version
+### Current Source
 
-- **noVNC Version**: v1.6.0 (latest stable release)
-- **Location**: `internal/vnc/novnc/`
-- **Repository**: https://github.com/novnc/noVNC.git
+- **Upstream repository**: https://github.com/novnc/noVNC.git
+- **Location in tree**: `internal/vnc/novnc/`
 - **Embedding**: Files are embedded at compile time using `//go:embed novnc`
 
-### Working with the Submodule
+### Updating the Subtree
 
-#### Initial Setup (for new clones)
-
-When cloning the repository, initialize the submodule:
+The preferred workflow is:
 
 ```bash
-git submodule update --init --recursive
+make update-novnc
 ```
 
-#### Updating noVNC to a New Version
+This target runs `git subtree pull --prefix=internal/vnc/novnc https://github.com/novnc/noVNC.git master --squash`, then executes `scripts/prune_novnc.sh` to drop development-only assets such as tests, docs, npm tooling, and upstream workflow files.
 
-To update to a newer version of noVNC:
+If you need to update manually:
 
-1. Navigate to the submodule directory:
-   ```bash
-   cd internal/vnc/novnc
-   ```
+1. Run the `git subtree pull` command above.
+2. Execute `./scripts/prune_novnc.sh` to remove non-runtime files.
+3. Stage the cleaned subtree: `git add internal/vnc/novnc`.
 
-2. Fetch the latest tags:
-   ```bash
-   git fetch --tags
-   ```
+### Checking the Embedded Version
 
-3. Check available versions:
-   ```bash
-   git tag | grep "^v" | sort -V | tail -10
-   ```
-
-4. Checkout the desired version (e.g., v1.7.0):
-   ```bash
-   git checkout v1.7.0
-   ```
-
-5. Return to the project root and commit the submodule update:
-   ```bash
-   cd ../../..
-   git add internal/vnc/novnc
-   git commit -m "feat: update noVNC to v1.7.0"
-   ```
-
-#### Checking Current Version
-
-To see which version is currently checked out:
+Because the subtree history is squashed, pvetui tracks the upstream commit in the merge message. To see the latest synced commit:
 
 ```bash
-cd internal/vnc/novnc
-git describe --tags
+git log --oneline --grep="Squashed 'internal/vnc/novnc/'" | head -n 1
+```
+
+For a deeper diff against upstream, split the subtree onto a temporary branch and compare:
+
+```bash
+git subtree split --prefix=internal/vnc/novnc -b novnc-split
+git log -1 novnc-split
+# ...perform comparisons...
+git branch -D novnc-split
 ```
 
 ### Integration Details
@@ -73,14 +55,13 @@ The noVNC client files are embedded directly into the compiled binary using Go's
 
 The VNC server (`internal/vnc/server.go`) serves the embedded files using Go's `http.FS` with the embedded filesystem.
 
-### Benefits of Using Embedded Submodules
+### Benefits of Vendoring via Subtree
 
-1. **Easy Updates**: Update to new noVNC versions with simple git commands
-2. **Version Control**: Track exactly which version of noVNC is being used
-3. **Upstream Tracking**: Stay connected to the official noVNC repository
-4. **Self-Contained Binary**: All files embedded at compile time
-5. **Reproducible Builds**: Anyone cloning the repository gets the exact same noVNC version
-6. **No Manual File Management**: Files are automatically included in the binary
+1. **Zero extra setup**: Contributors clone the repository without special flags.
+2. **Reproducible builds**: All required runtime assets live in-tree and are embedded during compilation.
+3. **Controlled footprint**: `scripts/prune_novnc.sh` keeps only the assets needed at runtime.
+4. **Straightforward updates**: A single Make target manages pulling, pruning, and staging newer upstream versions.
+5. **Upstream traceability**: Subtree commits retain upstream history in merge messages for auditability.
 
 ### Testing
 
