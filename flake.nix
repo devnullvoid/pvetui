@@ -11,24 +11,11 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        novnc = pkgs.fetchFromGitHub {
-          owner = "novnc";
-          repo = "noVNC";
-          rev = "4cb5aa45ae559f8fa85fe2b424abbc6ef6d4c6f9";
-          hash = "sha256-14LN0Pr6xKck4PvRYHwTOLTO68WKMey+Z0LWRbkyWb8=";
-        };
-
         pvetui = pkgs.buildGoModule {
           pname = "pvetui";
           version = if (self ? rev) then self.shortRev else "dev";
 
           src = ./.;
-
-          postUnpack = ''
-              rm -rf $sourceRoot/internal/vnc/novnc
-              cp -r ${novnc} $sourceRoot/internal/vnc/novnc
-              chmod -R u+w $sourceRoot/internal/vnc/novnc
-          '';
 
           vendorHash = "sha256-quGKUBmX4ebrykhWRnp71yYt/cUeISN0wPu13m8lNsM=";
 
