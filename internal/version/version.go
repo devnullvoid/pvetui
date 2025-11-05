@@ -3,6 +3,8 @@ package version
 import (
 	"fmt"
 	"runtime"
+	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -16,7 +18,7 @@ type BuildInfo struct {
 	Arch      string
 }
 
-// Global build info variables that will be set at build time
+// Global build info variables that will be set at build time via -ldflags
 var (
 	version   = "dev"
 	buildDate = "unknown"
@@ -24,8 +26,10 @@ var (
 )
 
 // GetBuildInfo returns the current build information
+// It first checks ldflags-injected values, then falls back to debug.ReadBuildInfo()
+// for version information when installed via `go install`
 func GetBuildInfo() *BuildInfo {
-	return &BuildInfo{
+	info := &BuildInfo{
 		Version:   version,
 		BuildDate: buildDate,
 		Commit:    commit,
@@ -33,6 +37,32 @@ func GetBuildInfo() *BuildInfo {
 		OS:        runtime.GOOS,
 		Arch:      runtime.GOARCH,
 	}
+
+	// If version is still "dev", try to get it from build info (for go install)
+	if info.Version == "dev" {
+		if buildInfo, ok := debug.ReadBuildInfo(); ok {
+			// Try to extract version from module info
+			if buildInfo.Main.Version != "" && buildInfo.Main.Version != "(devel)" {
+				info.Version = strings.TrimPrefix(buildInfo.Main.Version, "v")
+			}
+
+			// Extract VCS info if available
+			for _, setting := range buildInfo.Settings {
+				switch setting.Key {
+				case "vcs.revision":
+					if info.Commit == "unknown" && len(setting.Value) >= 7 {
+						info.Commit = setting.Value[:7]
+					}
+				case "vcs.time":
+					if info.BuildDate == "unknown" {
+						info.BuildDate = setting.Value
+					}
+				}
+			}
+		}
+	}
+
+	return info
 }
 
 // GetVersionString returns a formatted version string
