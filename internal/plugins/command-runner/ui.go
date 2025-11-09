@@ -229,9 +229,9 @@ func (u *UIManager) ShowResultModal(result ExecutionResult, onClose func()) {
 		return event
 	})
 
-	// Add button bar at bottom (escape brackets for tview)
+	// Add button bar at bottom with color tags
 	buttons := tview.NewTextView().
-		SetText(" [[ESC]] Close | [[↑/↓]] Scroll ").
+		SetText(" [primary]ESC[-] Close | [primary]↑/↓[-] Scroll ").
 		SetTextAlign(tview.AlignCenter).
 		SetDynamicColors(true)
 

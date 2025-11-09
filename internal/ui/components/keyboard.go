@@ -111,7 +111,13 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("contextMenu") ||
 			a.pages.HasPage("about") ||
 			a.pages.HasPage("snapshots") ||
-			a.pages.HasPage("createSnapshot")
+			a.pages.HasPage("createSnapshot") ||
+			// Command runner plugin pages (check front page)
+			pageName == "commandMenu" ||
+			pageName == "parameterForm" ||
+			pageName == "commandResult" ||
+			pageName == "commandError" ||
+			pageName == "executingCommand"
 
 		// If search is active, let the search input handle the keys
 		if searchActive {
