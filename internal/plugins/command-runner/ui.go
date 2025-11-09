@@ -63,11 +63,28 @@ func (u *UIManager) ShowCommandMenu(targetType TargetType, host string, onClose 
 	// Add cancel option
 	list.AddItem("Cancel", "Press to close", 'q', closeMenu)
 
-	// Set input handler for Esc key
+	// Set input handler for Esc key and vi-style navigation
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			closeMenu()
 			return nil
+		}
+		// Vi-style navigation
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case 'j': // Down
+				currentItem := list.GetCurrentItem()
+				if currentItem < list.GetItemCount()-1 {
+					list.SetCurrentItem(currentItem + 1)
+				}
+				return nil
+			case 'k': // Up
+				currentItem := list.GetCurrentItem()
+				if currentItem > 0 {
+					list.SetCurrentItem(currentItem - 1)
+				}
+				return nil
+			}
 		}
 		return event
 	})

@@ -76,7 +76,7 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 	registrar.RegisterNodeAction(components.NodeAction{
 		ID:       "commandrunner.run_command",
 		Label:    "Run Command (SSH)",
-		Shortcut: 'c', // 'c' for command
+		Shortcut: 'C', // 'C' for command
 		IsAvailable: func(node *api.Node) bool {
 			return node != nil && node.Online
 		},
@@ -87,7 +87,7 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 	registrar.RegisterGuestAction(components.GuestAction{
 		ID:       "commandrunner.run_container_command",
 		Label:    "Run Command in Container (SSH)",
-		Shortcut: 'C', // Shift+c for container command
+		Shortcut: 'C', // 'C' for command (same as host)
 		IsAvailable: func(node *api.Node, guest *api.VM) bool {
 			// Only available for LXC containers on online nodes
 			return node != nil && node.Online && guest != nil && guest.Type == "lxc"
