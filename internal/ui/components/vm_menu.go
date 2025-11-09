@@ -32,6 +32,9 @@ func (a *App) ShowVMContextMenu() {
 		return
 	}
 
+	// Get the node for this VM
+	node := a.vmList.GetNodeForVM(vm)
+
 	// Check if this VM has a pending operation
 	isPending, pendingOperation := models.GlobalState.IsVMPending(vm)
 
@@ -48,6 +51,15 @@ func (a *App) ShowVMContextMenu() {
 
 	if (vm.Type == api.VMTypeQemu || vm.Type == api.VMTypeLXC) && vm.Status == api.VMStatusRunning {
 		menuItems = append(menuItems[:1], append([]string{vmActionOpenVNC}, menuItems[1:]...)...)
+	}
+
+	// Add plugin-contributed guest actions
+	var pluginActions []GuestAction
+	if a.pluginRegistry != nil && node != nil {
+		pluginActions = a.pluginRegistry.GuestActionsForGuest(node, vm)
+		for _, action := range pluginActions {
+			menuItems = append(menuItems, action.Label)
+		}
 	}
 
 	// * Only show lifecycle actions if no operation is pending
@@ -71,7 +83,7 @@ func (a *App) ShowVMContextMenu() {
 	}
 
 	// Generate letter shortcuts based on menu items
-	shortcuts := generateVMShortcuts(menuItems)
+	shortcuts := generateVMShortcuts(menuItems, pluginActions)
 
 	menu := NewContextMenuWithShortcuts(" Guest Actions ", menuItems, shortcuts, func(index int, action string) {
 		a.CloseContextMenu()
@@ -81,6 +93,21 @@ func (a *App) ShowVMContextMenu() {
 		// 	a.showMessageSafe(fmt.Sprintf("Cannot perform actions while '%s' is in progress", pendingOperation))
 		// 	return
 		// }
+
+		// Check if this is a plugin action
+		for _, pluginAction := range pluginActions {
+			if action == pluginAction.Label {
+				// Execute plugin action handler
+				go func() {
+					if err := pluginAction.Handler(a.ctx, a, node, vm); err != nil {
+						a.QueueUpdateDraw(func() {
+							a.showMessageSafe(fmt.Sprintf("Plugin action failed: %v", err))
+						})
+					}
+				}()
+				return
+			}
+		}
 
 		switch action {
 		case vmActionOpenShell:
@@ -205,11 +232,25 @@ func (a *App) ShowVMContextMenu() {
 }
 
 // generateVMShortcuts generates letter shortcuts for VM menu items.
-func generateVMShortcuts(menuItems []string) []rune {
+func generateVMShortcuts(menuItems []string, pluginActions []GuestAction) []rune {
 	shortcuts := make([]rune, len(menuItems))
 
 	// Define shortcuts based on menu item names
 	for i, item := range menuItems {
+		// Check if this is a plugin action first
+		var isPluginAction bool
+		for _, action := range pluginActions {
+			if item == action.Label {
+				shortcuts[i] = action.Shortcut
+				isPluginAction = true
+				break
+			}
+		}
+
+		if isPluginAction {
+			continue
+		}
+
 		switch item {
 		case vmActionOpenShell:
 			shortcuts[i] = 's'

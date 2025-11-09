@@ -23,6 +23,7 @@ type VMListComponent interface {
 	SetVMs([]*api.VM)
 	GetSelectedVM() *api.VM
 	GetVMs() []*api.VM
+	GetNodeForVM(*api.VM) *api.Node
 	SetVMSelectedFunc(func(*api.VM))
 	SetVMChangedFunc(func(*api.VM))
 	SetCurrentItem(int) *tview.List

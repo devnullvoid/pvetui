@@ -155,6 +155,23 @@ func (vl *VMList) GetSelectedVM() *api.VM {
 	return nil
 }
 
+// GetNodeForVM returns the node object for a given VM by looking it up from the app's node list.
+func (vl *VMList) GetNodeForVM(vm *api.VM) *api.Node {
+	if vm == nil || vl.app == nil {
+		return nil
+	}
+
+	// Get nodes from the app's node list
+	nodes := vl.app.nodeList.GetNodes()
+	for _, node := range nodes {
+		if node != nil && node.Name == vm.Node {
+			return node
+		}
+	}
+
+	return nil
+}
+
 // GetVMs returns the internal sorted VMs slice.
 func (vl *VMList) GetVMs() []*api.VM {
 	return vl.vms
