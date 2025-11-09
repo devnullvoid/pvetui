@@ -177,6 +177,17 @@ func (u *UIManager) executeAndShowResult(targetType TargetType, target, command 
 				} else {
 					result = u.executor.ExecuteTemplatedContainerCommand(ctx, node, containerID, command, params)
 				}
+			case TargetVM:
+				// Parse target format: "node/vmid"
+				vm, err := parseVMTarget(target)
+				if err != nil {
+					result = ExecutionResult{
+						Command: command,
+						Error:   fmt.Errorf("invalid target format: %w", err),
+					}
+				} else {
+					result = u.executor.ExecuteTemplatedVMCommand(ctx, vm, command, params)
+				}
 			default:
 				result = ExecutionResult{
 					Command: command,
@@ -198,6 +209,17 @@ func (u *UIManager) executeAndShowResult(targetType TargetType, target, command 
 					}
 				} else {
 					result = u.executor.ExecuteContainerCommand(ctx, node, containerID, command)
+				}
+			case TargetVM:
+				// Parse target format: "node/vmid"
+				vm, err := parseVMTarget(target)
+				if err != nil {
+					result = ExecutionResult{
+						Command: command,
+						Error:   fmt.Errorf("invalid target format: %w", err),
+					}
+				} else {
+					result = u.executor.ExecuteVMCommand(ctx, vm, command)
 				}
 			default:
 				result = ExecutionResult{
@@ -328,4 +350,28 @@ func parseContainerTarget(target string) (node string, containerID int, err erro
 	}
 
 	return parts[0], vmid, nil
+}
+
+// parseVMTarget parses a VM target string in the format "node/vmid"
+// and returns a VM struct for guest agent execution.
+func parseVMTarget(target string) (VM, error) {
+	parts := strings.Split(target, "/")
+	if len(parts) != 2 {
+		return VM{}, fmt.Errorf("expected format 'node/vmid', got: %s", target)
+	}
+
+	var vmid int
+	if _, err := fmt.Sscanf(parts[1], "%d", &vmid); err != nil {
+		return VM{}, fmt.Errorf("invalid VM ID '%s': %w", parts[1], err)
+	}
+
+	// Return minimal VM struct (additional fields should be set by caller if needed)
+	return VM{
+		ID:           vmid,
+		Node:         parts[0],
+		Type:         "qemu",    // Assume QEMU for VM targets
+		Status:       "running", // Assume running since we're executing commands
+		AgentEnabled: true,      // Must be enabled to execute commands
+		AgentRunning: true,      // Assume running
+	}, nil
 }

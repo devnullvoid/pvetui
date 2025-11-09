@@ -13,12 +13,12 @@ type Plugin struct {
 }
 
 // NewPlugin creates a new command runner plugin
-func NewPlugin(config Config, sshClient SSHClient, app UIApp) (*Plugin, error) {
+func NewPlugin(config Config, sshClient SSHClient, apiClient ProxmoxAPIClient, app UIApp) (*Plugin, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	executor := NewExecutor(config, sshClient)
+	executor := NewExecutor(config, sshClient, apiClient)
 	uiManager := NewUIManager(app, executor)
 
 	return &Plugin{

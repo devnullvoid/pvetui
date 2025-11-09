@@ -50,7 +50,7 @@ func TestExecutor_ExecuteHostCommand(t *testing.T) {
 				},
 			}
 
-			executor := NewExecutor(config, mockClient)
+			executor := NewExecutor(config, mockClient, nil) // nil API client for SSH-only tests
 			result := executor.ExecuteHostCommand(context.Background(), "test-host", tt.command)
 
 			if (result.Error != nil) != tt.wantErr {
@@ -81,7 +81,7 @@ func TestExecutor_ExecuteTemplatedCommand(t *testing.T) {
 		},
 	}
 
-	executor := NewExecutor(config, mockClient)
+	executor := NewExecutor(config, mockClient, nil) // nil API client for SSH-only tests
 
 	tests := []struct {
 		name       string
@@ -140,7 +140,7 @@ func TestExecutor_ExecuteTemplatedCommand(t *testing.T) {
 
 func TestExecutor_GetAllowedCommands(t *testing.T) {
 	config := DefaultConfig()
-	executor := NewExecutor(config, &MockSSHClient{})
+	executor := NewExecutor(config, &MockSSHClient{}, nil)
 
 	hostCommands := executor.GetAllowedCommands(TargetHost)
 	if len(hostCommands) == 0 {
@@ -174,7 +174,7 @@ func TestExecutor_ContextTimeout(t *testing.T) {
 		},
 	}
 
-	executor := NewExecutor(config, mockClient)
+	executor := NewExecutor(config, mockClient, nil) // nil API client for SSH-only tests
 	result := executor.ExecuteHostCommand(context.Background(), "test-host", "uptime")
 
 	if result.Error == nil {

@@ -21,6 +21,7 @@ type Executor struct {
 	config    Config
 	validator *Validator
 	sshClient SSHClient
+	apiClient ProxmoxAPIClient
 }
 
 // SSHClient interface for SSH command execution (abstraction for testing)
@@ -29,12 +30,28 @@ type SSHClient interface {
 	ExecuteContainerCommand(ctx context.Context, host string, containerID int, command string) (output string, err error)
 }
 
+// ProxmoxAPIClient interface for Proxmox API operations (abstraction for testing)
+type ProxmoxAPIClient interface {
+	ExecuteGuestAgentCommand(ctx context.Context, vm VM, command []string, timeout time.Duration) (stdout, stderr string, exitCode int, err error)
+}
+
+// VM represents a minimal VM structure needed for guest agent execution
+type VM struct {
+	ID           int
+	Node         string
+	Type         string
+	Status       string
+	AgentEnabled bool
+	AgentRunning bool
+}
+
 // NewExecutor creates a new command executor
-func NewExecutor(config Config, sshClient SSHClient) *Executor {
+func NewExecutor(config Config, sshClient SSHClient, apiClient ProxmoxAPIClient) *Executor {
 	return &Executor{
 		config:    config,
 		validator: NewValidator(config),
 		sshClient: sshClient,
+		apiClient: apiClient,
 	}
 }
 
@@ -117,6 +134,67 @@ func (e *Executor) ExecuteContainerCommand(ctx context.Context, host string, con
 	return result
 }
 
+// ExecuteVMCommand executes a command in a QEMU VM via guest agent
+func (e *Executor) ExecuteVMCommand(ctx context.Context, vm VM, command string) ExecutionResult {
+	start := time.Now()
+
+	result := ExecutionResult{
+		Command: command,
+	}
+
+	// Validate command against whitelist
+	if err := e.validator.ValidateCommand(TargetVM, command); err != nil {
+		result.Error = err
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Check API client is available
+	if e.apiClient == nil {
+		result.Error = fmt.Errorf("API client not configured")
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(ctx, e.config.Timeout)
+	defer cancel()
+
+	// Split command into array for guest agent
+	// Simple split by spaces (could be enhanced with proper shell parsing)
+	cmdParts := []string{"/bin/sh", "-c", command}
+
+	// Execute command via guest agent
+	stdout, stderr, exitCode, err := e.apiClient.ExecuteGuestAgentCommand(ctx, vm, cmdParts, e.config.Timeout)
+	result.Duration = time.Since(start)
+	result.ExitCode = exitCode
+
+	if err != nil {
+		result.Error = fmt.Errorf("execution failed: %w", err)
+		// Include stderr in output if available
+		if stderr != "" {
+			result.Output = stderr
+		}
+		return result
+	}
+
+	// Combine stdout and stderr
+	output := stdout
+	if stderr != "" {
+		output = stdout + "\n--- stderr ---\n" + stderr
+	}
+
+	// Enforce output size limit
+	if len(output) > e.config.MaxOutputSize {
+		result.Output = output[:e.config.MaxOutputSize]
+		result.Truncated = true
+	} else {
+		result.Output = output
+	}
+
+	return result
+}
+
 // ExecuteTemplatedCommand executes a command with parameters filled in
 func (e *Executor) ExecuteTemplatedCommand(ctx context.Context, targetType TargetType, host string, templateCmd string, params map[string]string) ExecutionResult {
 	start := time.Now()
@@ -145,8 +223,7 @@ func (e *Executor) ExecuteTemplatedCommand(ctx context.Context, targetType Targe
 		result.Duration = time.Since(start)
 		return result
 	case TargetVM:
-		// TODO: Implement VM execution in Phase 3
-		result.Error = fmt.Errorf("VM execution not yet implemented")
+		result.Error = fmt.Errorf("use ExecuteTemplatedVMCommand for VM targets")
 		result.Duration = time.Since(start)
 		return result
 	default:
@@ -177,6 +254,29 @@ func (e *Executor) ExecuteTemplatedContainerCommand(ctx context.Context, host st
 
 	// Execute container command
 	return e.ExecuteContainerCommand(ctx, host, containerID, filledCmd)
+}
+
+// ExecuteTemplatedVMCommand executes a templated command in a QEMU VM via guest agent.
+func (e *Executor) ExecuteTemplatedVMCommand(ctx context.Context, vm VM, templateCmd string, params map[string]string) ExecutionResult {
+	start := time.Now()
+
+	result := ExecutionResult{
+		Command: templateCmd,
+	}
+
+	// Parse and fill template
+	template := ParseTemplate(templateCmd)
+	filledCmd, err := template.FillTemplate(params)
+	if err != nil {
+		result.Error = fmt.Errorf("template error: %w", err)
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	result.Command = filledCmd
+
+	// Execute VM command
+	return e.ExecuteVMCommand(ctx, vm, filledCmd)
 }
 
 // GetAllowedCommands returns the whitelist for a target type

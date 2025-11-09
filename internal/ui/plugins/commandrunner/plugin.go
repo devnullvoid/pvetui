@@ -63,9 +63,12 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 		Port:    22,
 	})
 
+	// Create API client adapter for guest agent commands
+	apiClient := commandrunner.NewAPIClientAdapter(app.Client())
+
 	// Create command runner
 	// Pass the full app which implements the UIApp interface
-	runner, err := commandrunner.NewPlugin(config, sshClient, app)
+	runner, err := commandrunner.NewPlugin(config, sshClient, apiClient, app)
 	if err != nil {
 		return fmt.Errorf("failed to initialize command runner: %w", err)
 	}
@@ -93,6 +96,19 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 			return node != nil && node.Online && guest != nil && guest.Type == "lxc"
 		},
 		Handler: p.handleRunContainerCommand,
+	})
+
+	// Register guest action for QEMU VMs with guest agent
+	registrar.RegisterGuestAction(components.GuestAction{
+		ID:       "commandrunner.run_vm_command",
+		Label:    "Run Command",
+		Shortcut: 'C', // 'C' for command (same as host and container)
+		IsAvailable: func(node *api.Node, guest *api.VM) bool {
+			// Only available for QEMU VMs with guest agent enabled and running
+			return node != nil && node.Online && guest != nil &&
+				guest.Type == "qemu" && guest.AgentEnabled && guest.AgentRunning
+		},
+		Handler: p.handleRunVMCommand,
 	})
 
 	return nil
@@ -157,6 +173,30 @@ func (p *Plugin) handleRunContainerCommand(ctx context.Context, app *components.
 
 	// Show container command menu
 	p.runner.ShowContainerCommandMenu(node.Name, guest.ID, nil)
+
+	return nil
+}
+
+// handleRunVMCommand shows the command menu for the selected QEMU VM.
+func (p *Plugin) handleRunVMCommand(ctx context.Context, app *components.App, node *api.Node, guest *api.VM) error {
+	if app == nil {
+		return fmt.Errorf("application context unavailable")
+	}
+
+	if node == nil {
+		return fmt.Errorf("no node selected")
+	}
+
+	if guest == nil {
+		return fmt.Errorf("no guest selected")
+	}
+
+	if p.runner == nil || !p.runner.Enabled() {
+		return fmt.Errorf("command runner not initialized")
+	}
+
+	// Show VM command menu
+	p.runner.ShowVMCommandMenu(node.Name, guest.ID, nil)
 
 	return nil
 }
