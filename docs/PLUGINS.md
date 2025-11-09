@@ -10,19 +10,78 @@ This guide explains how to work with the pvetui plugin system, including enablin
 
 ## Enabling Built-in Plugins
 
-The repository currently ships with two built-in plugins:
+The repository currently ships with the following built-in plugins:
 
 - `community-scripts`: exposes the community script installer from the node context menu
 - `demo-guest-list`: adds a demo action that lists running guests for the selected node
+- `command-runner`: execute whitelisted commands on Proxmox hosts via SSH
 
 ```yaml
 plugins:
   enabled:
     - "community-scripts"
     - "demo-guest-list"
+    - "command-runner"
 ```
 
 Restart pvetui after editing the configuration to apply the change. If an unknown plugin ID is listed, the application prints a warning similar to `⚠️ Unknown plugins requested: my-plugin` during startup.
+
+## Command Runner Plugin
+
+The `command-runner` plugin enables secure execution of whitelisted commands on Proxmox hosts via SSH. When enabled, it adds a **Run Command (SSH)** action (shortcut: `c`) to the node context menu that appears when a node is online.
+
+### Features
+
+- **Whitelisted commands**: Only pre-approved commands can be executed for security
+- **Template support**: Commands can include parameters (e.g., `systemctl status {service}`)
+- **Input validation**: Parameters are sanitized to prevent shell injection
+- **Output display**: Command results shown in scrollable modal with timing info
+- **Timeout protection**: Commands respect configurable timeout (default: 30s)
+- **Size limits**: Output truncated if exceeds max size (default: 1MB)
+
+### Configuration
+
+The plugin uses SSH key-based authentication by default. Ensure SSH keys are configured in `~/.ssh/` for passwordless authentication to your Proxmox hosts.
+
+SSH username is taken from the `ssh_user` field in your pvetui config, falling back to the Proxmox API username if not specified:
+
+```yaml
+ssh_user: root  # SSH username for command execution
+```
+
+### Default Whitelisted Commands
+
+**For Proxmox hosts:**
+- `uptime` - System uptime
+- `df -h` - Disk space usage
+- `free -h` - Memory usage
+- `systemctl status {service}` - Service status (with parameter)
+- `journalctl -n 50` - Last 50 journal entries
+
+**For containers:**
+- `ps aux` - Process list
+- `df -h` - Disk usage
+- `apt list --upgradable` - Available updates
+
+**For VMs:**
+- `systemctl status {service}` - Service status (with parameter)
+
+### Security Considerations
+
+- Commands are validated against a strict whitelist before execution
+- Parameters cannot contain shell metacharacters (`;`, `|`, `$`, `` ` ``, etc.)
+- SSH uses `InsecureIgnoreHostKey` in the initial implementation (TODO: implement proper known_hosts verification)
+- All output is size-limited to prevent memory exhaustion
+
+### Usage
+
+1. Enable the plugin in your config (see above)
+2. Restart pvetui
+3. Navigate to a node in the Nodes view
+4. Press `c` (or select from context menu) to run a command
+5. Choose from the list of whitelisted commands
+6. If the command has parameters (e.g., `{service}`), fill in the form
+7. View the output in the scrollable result modal
 
 ## Demo Guest List Plugin
 

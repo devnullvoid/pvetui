@@ -158,6 +158,7 @@ pvetui includes an opt-in plugin system for optional features. Plugins are **dis
 #### Built-in Plugins
 
 - **`community-scripts`**: Adds the popular Community Scripts installer to node context menus
+- **`command-runner`**: Execute whitelisted commands on Proxmox hosts via SSH (requires SSH key setup)
 - **`demo-guest-list`**: Example plugin showing running guests (for reference/testing)
 
 #### Enabling Plugins
@@ -179,6 +180,7 @@ Add plugin IDs to your config file:
 plugins:
   enabled:
     - "community-scripts"
+    - "command-runner"
     - "demo-guest-list"
 ```
 
