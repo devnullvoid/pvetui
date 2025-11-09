@@ -123,10 +123,15 @@ func (c *Client) GetGuestAgentExecStatus(vm *VM, pid int) (*GuestAgentExecStatus
 		return nil, fmt.Errorf("guest agent commands only supported for QEMU VMs")
 	}
 
-	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/exec-status?pid=%d", vm.Node, vm.ID, pid)
+	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/exec-status", vm.Node, vm.ID)
+
+	// Proxmox expects PID in request body, not query parameter
+	reqData := map[string]interface{}{
+		"pid": pid,
+	}
 
 	var res map[string]interface{}
-	if err := c.Get(endpoint, &res); err != nil {
+	if err := c.PostWithResponse(endpoint, reqData, &res); err != nil {
 		return nil, fmt.Errorf("failed to get guest agent exec status: %w", err)
 	}
 
