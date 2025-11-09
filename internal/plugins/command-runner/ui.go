@@ -135,7 +135,7 @@ func (u *UIManager) showParameterForm(targetType TargetType, host, command strin
 }
 
 // executeAndShowResult executes the command and displays the result
-func (u *UIManager) executeAndShowResult(targetType TargetType, host, command string, params map[string]string, onClose func()) {
+func (u *UIManager) executeAndShowResult(targetType TargetType, target, command string, params map[string]string, onClose func()) {
 	// Show "executing" modal
 	u.showExecutingModal(command)
 
@@ -145,12 +145,44 @@ func (u *UIManager) executeAndShowResult(targetType TargetType, host, command st
 		ctx := context.Background() // TODO: Get context from app if available
 
 		if params != nil {
-			result = u.executor.ExecuteTemplatedCommand(ctx, targetType, host, command, params)
+			// Has template parameters
+			switch targetType {
+			case TargetHost:
+				result = u.executor.ExecuteTemplatedCommand(ctx, targetType, target, command, params)
+			case TargetContainer:
+				// Parse target format: "node/vmid"
+				node, containerID, err := parseContainerTarget(target)
+				if err != nil {
+					result = ExecutionResult{
+						Command: command,
+						Error:   fmt.Errorf("invalid target format: %w", err),
+					}
+				} else {
+					result = u.executor.ExecuteTemplatedContainerCommand(ctx, node, containerID, command, params)
+				}
+			default:
+				result = ExecutionResult{
+					Command: command,
+					Error:   fmt.Errorf("unsupported target type: %s", targetType),
+				}
+			}
 		} else {
-			// For non-templated commands, execute directly based on target type
-			if targetType == TargetHost {
-				result = u.executor.ExecuteHostCommand(ctx, host, command)
-			} else {
+			// No template parameters, execute directly based on target type
+			switch targetType {
+			case TargetHost:
+				result = u.executor.ExecuteHostCommand(ctx, target, command)
+			case TargetContainer:
+				// Parse target format: "node/vmid"
+				node, containerID, err := parseContainerTarget(target)
+				if err != nil {
+					result = ExecutionResult{
+						Command: command,
+						Error:   fmt.Errorf("invalid target format: %w", err),
+					}
+				} else {
+					result = u.executor.ExecuteContainerCommand(ctx, node, containerID, command)
+				}
+			default:
 				result = ExecutionResult{
 					Command: command,
 					Error:   fmt.Errorf("unsupported target type: %s", targetType),
@@ -263,4 +295,20 @@ func (u *UIManager) ShowErrorModal(title, message string, onClose func()) {
 		})
 
 	pages.AddPage("commandError", modal, true, true)
+}
+
+// parseContainerTarget parses a container target string in the format "node/vmid"
+// and returns the node name and container ID.
+func parseContainerTarget(target string) (node string, containerID int, err error) {
+	parts := strings.Split(target, "/")
+	if len(parts) != 2 {
+		return "", 0, fmt.Errorf("expected format 'node/vmid', got: %s", target)
+	}
+
+	var vmid int
+	if _, err := fmt.Sscanf(parts[1], "%d", &vmid); err != nil {
+		return "", 0, fmt.Errorf("invalid container ID '%s': %w", parts[1], err)
+	}
+
+	return parts[0], vmid, nil
 }

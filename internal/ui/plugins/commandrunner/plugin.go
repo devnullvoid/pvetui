@@ -83,6 +83,18 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 		Handler: p.handleRunCommand,
 	})
 
+	// Register guest action for containers
+	registrar.RegisterGuestAction(components.GuestAction{
+		ID:       "commandrunner.run_container_command",
+		Label:    "Run Command in Container (SSH)",
+		Shortcut: 'C', // Shift+c for container command
+		IsAvailable: func(node *api.Node, guest *api.VM) bool {
+			// Only available for LXC containers on online nodes
+			return node != nil && node.Online && guest != nil && guest.Type == "lxc"
+		},
+		Handler: p.handleRunContainerCommand,
+	})
+
 	return nil
 }
 
@@ -121,6 +133,30 @@ func (p *Plugin) handleRunCommand(ctx context.Context, app *components.App, node
 
 	// Show command menu
 	p.runner.ShowHostCommandMenu(node.Name, nil)
+
+	return nil
+}
+
+// handleRunContainerCommand shows the command menu for the selected container.
+func (p *Plugin) handleRunContainerCommand(ctx context.Context, app *components.App, node *api.Node, guest *api.VM) error {
+	if app == nil {
+		return fmt.Errorf("application context unavailable")
+	}
+
+	if node == nil {
+		return fmt.Errorf("no node selected")
+	}
+
+	if guest == nil {
+		return fmt.Errorf("no guest selected")
+	}
+
+	if p.runner == nil || !p.runner.Enabled() {
+		return fmt.Errorf("command runner not initialized")
+	}
+
+	// Show container command menu
+	p.runner.ShowContainerCommandMenu(node.Name, guest.ID, nil)
 
 	return nil
 }

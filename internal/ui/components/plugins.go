@@ -26,10 +26,30 @@ type NodeAction struct {
 	IsAvailable func(node *api.Node) bool
 }
 
+// GuestActionHandler executes a plugin-provided guest-level action.
+//
+// Implementations receive the application instance along with the node and guest
+// information, allowing access to both the host node and the specific VM/container.
+type GuestActionHandler func(ctx context.Context, app *App, node *api.Node, guest *api.VM) error
+
+// GuestAction describes a menu action contributed by a plugin for guest targets
+// (VMs and containers).
+//
+// If Shortcut is zero, no keyboard shortcut is registered. When IsAvailable is
+// nil the action is always shown for the selected guest.
+type GuestAction struct {
+	ID          string
+	Label       string
+	Shortcut    rune
+	Handler     GuestActionHandler
+	IsAvailable func(node *api.Node, guest *api.VM) bool
+}
+
 // PluginRegistrar exposes registration hooks a plugin can use to contribute to
 // the UI. It is provided to plugins during initialization.
 type PluginRegistrar interface {
 	RegisterNodeAction(action NodeAction)
+	RegisterGuestAction(action GuestAction)
 }
 
 // Plugin defines the lifecycle hooks required to extend the UI through the
@@ -56,6 +76,7 @@ type Plugin interface {
 type pluginRegistry struct {
 	mu             sync.RWMutex
 	nodeActions    []NodeAction
+	guestActions   []GuestAction
 	modalPageNames []string
 }
 
@@ -71,6 +92,14 @@ func (r *pluginRegistry) RegisterNodeAction(action NodeAction) {
 	defer r.mu.Unlock()
 
 	r.nodeActions = append(r.nodeActions, action)
+}
+
+// RegisterGuestAction registers a plugin-provided guest action.
+func (r *pluginRegistry) RegisterGuestAction(action GuestAction) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.guestActions = append(r.guestActions, action)
 }
 
 // NodeActions returns a snapshot of all registered node actions.
@@ -97,6 +126,37 @@ func (r *pluginRegistry) NodeActionsForNode(node *api.Node) []NodeAction {
 	var filtered []NodeAction
 	for _, action := range r.nodeActions {
 		if action.IsAvailable == nil || action.IsAvailable(node) {
+			filtered = append(filtered, action)
+		}
+	}
+
+	return filtered
+}
+
+// GuestActions returns a snapshot of all registered guest actions.
+func (r *pluginRegistry) GuestActions() []GuestAction {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	actions := make([]GuestAction, len(r.guestActions))
+	copy(actions, r.guestActions)
+
+	return actions
+}
+
+// GuestActionsForGuest filters registered guest actions by availability for the
+// provided node and guest.
+func (r *pluginRegistry) GuestActionsForGuest(node *api.Node, guest *api.VM) []GuestAction {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if len(r.guestActions) == 0 {
+		return nil
+	}
+
+	var filtered []GuestAction
+	for _, action := range r.guestActions {
+		if action.IsAvailable == nil || action.IsAvailable(node, guest) {
 			filtered = append(filtered, action)
 		}
 	}
