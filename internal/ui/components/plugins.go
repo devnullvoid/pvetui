@@ -38,22 +38,31 @@ type PluginRegistrar interface {
 // Initialize is called once during application startup. Shutdown is invoked as
 // part of application teardown and should release any resources acquired by the
 // plugin.
+//
+// ModalPageNames returns a list of page names that this plugin adds to the
+// application's page stack. These pages will be treated as modals by the global
+// keyboard handler, preventing global keybindings from firing when they are active.
+// Return an empty slice if the plugin doesn't add any modal pages.
 type Plugin interface {
 	ID() string
 	Name() string
 	Description() string
 	Initialize(ctx context.Context, app *App, registrar PluginRegistrar) error
 	Shutdown(ctx context.Context) error
+	ModalPageNames() []string
 }
 
 // pluginRegistry stores plugin contributions and ensures thread-safe access.
 type pluginRegistry struct {
-	mu          sync.RWMutex
-	nodeActions []NodeAction
+	mu             sync.RWMutex
+	nodeActions    []NodeAction
+	modalPageNames []string
 }
 
 func newPluginRegistry() *pluginRegistry {
-	return &pluginRegistry{}
+	return &pluginRegistry{
+		modalPageNames: make([]string, 0),
+	}
 }
 
 // RegisterNodeAction registers a plugin-provided node action.
@@ -93,4 +102,28 @@ func (r *pluginRegistry) NodeActionsForNode(node *api.Node) []NodeAction {
 	}
 
 	return filtered
+}
+
+// RegisterModalPageNames registers modal page names from a plugin.
+// This should be called during plugin initialization.
+func (r *pluginRegistry) RegisterModalPageNames(pageNames []string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.modalPageNames = append(r.modalPageNames, pageNames...)
+}
+
+// IsPluginModal checks if the given page name is registered as a plugin modal.
+// Returns true if any plugin has registered this page name as a modal.
+func (r *pluginRegistry) IsPluginModal(pageName string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, name := range r.modalPageNames {
+		if name == pageName {
+			return true
+		}
+	}
+
+	return false
 }

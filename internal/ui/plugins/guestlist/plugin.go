@@ -55,6 +55,12 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 	return nil
 }
 
+// ModalPageNames returns the list of modal page names this plugin registers.
+// This plugin doesn't add any custom modal pages.
+func (p *Plugin) ModalPageNames() []string {
+	return []string{}
+}
+
 // Shutdown releases resources associated with the plugin.
 func (p *Plugin) Shutdown(ctx context.Context) error {
 	p.app = nil

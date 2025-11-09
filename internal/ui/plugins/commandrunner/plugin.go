@@ -94,6 +94,17 @@ func (p *Plugin) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// ModalPageNames returns the list of modal page names this plugin registers.
+func (p *Plugin) ModalPageNames() []string {
+	return []string{
+		"commandMenu",
+		"parameterForm",
+		"commandResult",
+		"commandError",
+		"executingCommand",
+	}
+}
+
 // handleRunCommand shows the command menu for the selected node.
 func (p *Plugin) handleRunCommand(ctx context.Context, app *components.App, node *api.Node) error {
 	if app == nil {
