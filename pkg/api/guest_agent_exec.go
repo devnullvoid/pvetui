@@ -18,7 +18,7 @@ type GuestAgentExecResponse struct {
 
 // GuestAgentExecStatus represents the status and output of an executed command.
 type GuestAgentExecStatus struct {
-	Exited   bool   `json:"exited"`        // Whether the process has exited
+	Exited   int    `json:"exited"`        // Whether the process has exited (0 or 1)
 	ExitCode *int   `json:"exitcode"`      // Exit code (only if exited)
 	OutData  string `json:"out-data"`      // Stdout data (base64 encoded by Proxmox)
 	ErrData  string `json:"err-data"`      // Stderr data (base64 encoded by Proxmox)
@@ -51,6 +51,7 @@ func (c *Client) ExecuteGuestAgentCommand(ctx context.Context, vm *VM, command [
 	// Poll for command completion
 	pollInterval := 500 * time.Millisecond
 	deadline := time.Now().Add(timeout)
+	pollCount := 0
 
 	for {
 		select {
@@ -63,23 +64,28 @@ func (c *Client) ExecuteGuestAgentCommand(ctx context.Context, vm *VM, command [
 			return "", "", -1, fmt.Errorf("command execution timed out after %v", timeout)
 		}
 
+		pollCount++
+		c.logger.Debug("=== Poll %d: Calling exec-status for PID %d ===", pollCount, pid)
+
 		status, err := c.GetGuestAgentExecStatus(vm, pid)
 		if err != nil {
-			return "", "", -1, fmt.Errorf("failed to get command status: %w", err)
+			c.logger.Debug("=== Poll %d: FAILED with error: %v ===", pollCount, err)
+			return "", "", -1, fmt.Errorf("failed to get command status (PID: %d): %w", pid, err)
 		}
 
-		if status.Exited {
+		c.logger.Debug("=== Poll %d: SUCCESS - exited=%d ===", pollCount, status.Exited)
+
+		if status.Exited == 1 {
 			code := -1
 			if status.ExitCode != nil {
 				code = *status.ExitCode
 			}
 
-			// Note: Proxmox returns base64-encoded data, but the API client
-			// should handle decoding. If not, we may need to decode here.
+			c.logger.Debug("Command completed with exit code %d", code)
 			return status.OutData, status.ErrData, code, nil
 		}
 
-		// Wait before polling again
+		c.logger.Debug("=== Poll %d: Process still running, sleeping %v ===", pollCount, pollInterval)
 		time.Sleep(pollInterval)
 	}
 }
@@ -123,17 +129,15 @@ func (c *Client) GetGuestAgentExecStatus(vm *VM, pid int) (*GuestAgentExecStatus
 		return nil, fmt.Errorf("guest agent commands only supported for QEMU VMs")
 	}
 
-	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/exec-status", vm.Node, vm.ID)
+	endpoint := fmt.Sprintf("/nodes/%s/qemu/%d/agent/exec-status?pid=%d", vm.Node, vm.ID, pid)
 
-	// Proxmox expects PID in request body, not query parameter
-	reqData := map[string]interface{}{
-		"pid": pid,
-	}
-
+	// Use GetNoRetry to prevent multiple calls - exec-status can only be called once per PID
 	var res map[string]interface{}
-	if err := c.PostWithResponse(endpoint, reqData, &res); err != nil {
+	if err := c.GetNoRetry(endpoint, &res); err != nil {
 		return nil, fmt.Errorf("failed to get guest agent exec status: %w", err)
 	}
+
+	c.logger.Debug("exec-status raw response: %+v", res)
 
 	// Extract status from response
 	data, ok := res["data"].(map[string]interface{})
@@ -141,11 +145,13 @@ func (c *Client) GetGuestAgentExecStatus(vm *VM, pid int) (*GuestAgentExecStatus
 		return nil, fmt.Errorf("unexpected response format: missing 'data' field")
 	}
 
+	c.logger.Debug("exec-status data field: %+v", data)
+
 	status := &GuestAgentExecStatus{}
 
 	// Parse exited status
-	if exited, ok := data["exited"].(bool); ok {
-		status.Exited = exited
+	if exited, ok := data["exited"].(float64); ok {
+		status.Exited = int(exited)
 	}
 
 	// Parse exit code (only present if exited)

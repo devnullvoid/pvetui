@@ -55,7 +55,13 @@ func DefaultConfig() Config {
 				"ss -tulpn",
 			},
 			VM: []string{
+				"uptime",
+				"df -h",
+				"free -h",
 				"systemctl status {service}",
+				"journalctl -u {service} -n 50",
+				"ps aux | head -20",
+				"ip addr show",
 			},
 		},
 	}
