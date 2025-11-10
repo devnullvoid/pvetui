@@ -155,7 +155,9 @@ The following conventions must be followed for any changes in this repository.
   - `client.go` - Main API client with methods for all Proxmox operations
   - `auth.go` - Authentication manager supporting both password and API token auth
   - `http.go` - HTTP client with retry logic and timeout handling
+  - `guest_agent_exec.go` - QEMU guest agent command execution with polling
   - Constants: `DefaultAPITimeout = 30s`, `DefaultRetryCount = 3`
+  - **Important**: Proxmox returns boolean-like fields as integers (0/1), not JSON booleans - parse as `float64` and convert
 
 - **`internal/cache/`** - Caching layer with BadgerDB and in-memory implementations
   - `badger_cache.go` - Persistent cache using BadgerDB with proper goroutine cleanup
@@ -195,6 +197,7 @@ Comprehensive code review resulted in these fixes (Oct 2025):
 - **`cmd/pvetui/main.go`** - Entry point, CLI setup with Cobra
 - **`internal/config/config.go`** - Configuration management with SOPS/age encryption support
 - **`pkg/api/interfaces/interfaces.go`** - Core interfaces for Logger, Cache, Config
+- **`pkg/api/guest_agent_exec.go`** - QEMU guest agent command execution
 - **`test/testutils/integration_helpers.go`** - Integration test utilities with mock Proxmox server
 
 ### Authentication
@@ -262,6 +265,7 @@ Key architectural decisions and rationale:
 - Never log sensitive information (passwords, tokens, API keys)
 - Always defer Close() calls immediately after successful resource acquisition
 - Use context.WithTimeout() for all external calls, not context.Background()
+- **Proxmox API responses**: Boolean-like fields return as integers (0/1), not JSON booleans - parse as `float64` and convert to `bool`
 - **Plugin modals**: Always implement `ModalPageNames()` in plugins to prevent global keybindings from firing in plugin modals
 - **Keyboard events**: Use `SetInputCapture()` on focused elements (e.g., input fields, text views) not flex containers to properly consume events
 - **UI text**: Use tview color tags `[primary]text[-]` for colored text; brackets need escaping as `[[` or use color tags instead
