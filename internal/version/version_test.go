@@ -59,7 +59,7 @@ func TestGetFullVersionString(t *testing.T) {
 func TestGetBuildDate(t *testing.T) {
 	info := GetBuildInfo()
 
-	if info.BuildDate == "unknown" {
+	if info.BuildDate == unknownBuildValue {
 		// If build date is unknown, the function should return an error
 		_, err := GetBuildDate()
 		if err == nil {

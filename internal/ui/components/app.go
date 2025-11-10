@@ -351,10 +351,22 @@ func (a *App) InitializePlugins(ctx context.Context, plugins []Plugin) error {
 			return fmt.Errorf("initialize plugin %q: %w", id, err)
 		}
 
+		// Register plugin's modal page names for global keyboard handling
+		if modalPages := pl.ModalPageNames(); len(modalPages) > 0 {
+			a.pluginRegistry.RegisterModalPageNames(modalPages)
+		}
+
 		a.plugins[id] = pl
 	}
 
 	return nil
+}
+
+// IsPluginModal checks if the given page name is registered as a plugin modal.
+// This is used by the global keyboard handler to determine if global keybindings
+// should be suppressed when a plugin modal is active.
+func (a *App) IsPluginModal(pageName string) bool {
+	return a.pluginRegistry.IsPluginModal(pageName)
 }
 
 // ShutdownPlugins gracefully tears down registered plugins.

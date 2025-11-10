@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// unknownBuildValue is used for build metadata fields that are not available
+const unknownBuildValue = "unknown"
+
 // BuildInfo contains build-time information
 type BuildInfo struct {
 	Version   string
@@ -21,8 +24,8 @@ type BuildInfo struct {
 // Global build info variables that will be set at build time via -ldflags
 var (
 	version   = "dev"
-	buildDate = "unknown"
-	commit    = "unknown"
+	buildDate = unknownBuildValue
+	commit    = unknownBuildValue
 )
 
 // GetBuildInfo returns the current build information
@@ -50,11 +53,11 @@ func GetBuildInfo() *BuildInfo {
 			for _, setting := range buildInfo.Settings {
 				switch setting.Key {
 				case "vcs.revision":
-					if info.Commit == "unknown" && len(setting.Value) >= 7 {
+					if info.Commit == unknownBuildValue && len(setting.Value) >= 7 {
 						info.Commit = setting.Value[:7]
 					}
 				case "vcs.time":
-					if info.BuildDate == "unknown" {
+					if info.BuildDate == unknownBuildValue {
 						info.BuildDate = setting.Value
 					}
 				}
@@ -80,7 +83,7 @@ func GetFullVersionString() string {
 // GetBuildDate returns the build date as a time.Time
 func GetBuildDate() (time.Time, error) {
 	info := GetBuildInfo()
-	if info.BuildDate == "unknown" {
+	if info.BuildDate == unknownBuildValue {
 		return time.Time{}, fmt.Errorf("build date not available")
 	}
 	return time.Parse(time.RFC3339, info.BuildDate)

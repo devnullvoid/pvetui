@@ -11,11 +11,16 @@ import (
 )
 
 type stubRegistrar struct {
-	actions []components.NodeAction
+	nodeActions  []components.NodeAction
+	guestActions []components.GuestAction
 }
 
 func (s *stubRegistrar) RegisterNodeAction(action components.NodeAction) {
-	s.actions = append(s.actions, action)
+	s.nodeActions = append(s.nodeActions, action)
+}
+
+func (s *stubRegistrar) RegisterGuestAction(action components.GuestAction) {
+	s.guestActions = append(s.guestActions, action)
 }
 
 func TestRunningGuestSummaries(t *testing.T) {
@@ -40,6 +45,6 @@ func TestPluginRegistersNodeAction(t *testing.T) {
 	registrar := &stubRegistrar{}
 
 	require.NoError(t, plugin.Initialize(context.Background(), &components.App{}, registrar))
-	require.Len(t, registrar.actions, 1)
-	require.Equal(t, "demo.guestlist.show", registrar.actions[0].ID)
+	require.Len(t, registrar.nodeActions, 1)
+	require.Equal(t, "demo.guestlist.show", registrar.nodeActions[0].ID)
 }

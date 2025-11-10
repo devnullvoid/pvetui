@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Command Runner Plugin - QEMU VM Support**: Execute whitelisted commands on QEMU VMs via guest agent
+  - Commands execute via `/nodes/{node}/qemu/{vmid}/agent/exec` and `/agent/exec-status` endpoints
+  - Support for templated commands with parameters (e.g., `systemctl status {service}`)
+  - 'C' keyboard shortcut on VMs with guest agent enabled and running
+  - Expanded VM command whitelist: `uptime`, `df -h`, `free -h`, `systemctl status`, `journalctl`, `ps aux`, `ip addr show`
+  - Polling logic to wait for command completion with proper timeout handling
+  - API client adapter to bridge plugin VM struct with full API client types
+  - Commands wrapped in `["/bin/sh", "-c", "command"]` for shell feature support
+
+### Fixed
+- **Guest Agent Response Parsing**: Fixed critical bug where Proxmox returns `exited` field as integer (0/1) but code attempted to parse as boolean, causing infinite polling loop and "Invalid parameter 'pid'" errors on second poll
+
 ## [1.0.8] - 2025-11-04
 
 ### Changed

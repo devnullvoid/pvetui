@@ -96,6 +96,7 @@ func (a *App) setupKeyboardHandlers() {
 
 		// Check if any modal page is active
 		pageName, _ := a.pages.GetFrontPage()
+		// Core application modals
 		modalActive := strings.HasPrefix(pageName, "script") ||
 			a.pages.HasPage("scriptInfo") ||
 			a.pages.HasPage("scriptSelector") ||
@@ -111,7 +112,9 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("contextMenu") ||
 			a.pages.HasPage("about") ||
 			a.pages.HasPage("snapshots") ||
-			a.pages.HasPage("createSnapshot")
+			a.pages.HasPage("createSnapshot") ||
+			// Check if current page is a plugin modal
+			a.IsPluginModal(pageName)
 
 		// If search is active, let the search input handle the keys
 		if searchActive {

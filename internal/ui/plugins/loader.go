@@ -5,6 +5,7 @@ import (
 
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/ui/components"
+	"github.com/devnullvoid/pvetui/internal/ui/plugins/commandrunner"
 	"github.com/devnullvoid/pvetui/internal/ui/plugins/communityscripts"
 	"github.com/devnullvoid/pvetui/internal/ui/plugins/guestlist"
 )
@@ -12,6 +13,7 @@ import (
 type factory func() components.Plugin
 
 var registry = map[string]factory{
+	commandrunner.PluginID:    func() components.Plugin { return commandrunner.New() },
 	communityscripts.PluginID: func() components.Plugin { return communityscripts.New() },
 	guestlist.PluginID:        func() components.Plugin { return guestlist.New() },
 }

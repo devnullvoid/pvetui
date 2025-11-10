@@ -155,7 +155,9 @@ The following conventions must be followed for any changes in this repository.
   - `client.go` - Main API client with methods for all Proxmox operations
   - `auth.go` - Authentication manager supporting both password and API token auth
   - `http.go` - HTTP client with retry logic and timeout handling
+  - `guest_agent_exec.go` - QEMU guest agent command execution with polling
   - Constants: `DefaultAPITimeout = 30s`, `DefaultRetryCount = 3`
+  - **Important**: Proxmox returns boolean-like fields as integers (0/1), not JSON booleans - parse as `float64` and convert
 
 - **`internal/cache/`** - Caching layer with BadgerDB and in-memory implementations
   - `badger_cache.go` - Persistent cache using BadgerDB with proper goroutine cleanup
@@ -195,6 +197,7 @@ Comprehensive code review resulted in these fixes (Oct 2025):
 - **`cmd/pvetui/main.go`** - Entry point, CLI setup with Cobra
 - **`internal/config/config.go`** - Configuration management with SOPS/age encryption support
 - **`pkg/api/interfaces/interfaces.go`** - Core interfaces for Logger, Cache, Config
+- **`pkg/api/guest_agent_exec.go`** - QEMU guest agent command execution
 - **`test/testutils/integration_helpers.go`** - Integration test utilities with mock Proxmox server
 
 ### Authentication
@@ -228,15 +231,18 @@ Comprehensive code review resulted in these fixes (Oct 2025):
 
 When developing new plugins:
 
-1. **Location**: Place plugins in `internal/plugins/<plugin-name>/`
-2. **Interface**: Implement the plugin interface defined in `internal/plugins/interface.go`
-3. **Caching**: Use namespaced cache: `cache.GetNamespaced("plugin:<plugin-name>")`
-4. **Registration**: Register plugin in `internal/plugins/registry.go`
+1. **Location**: Place plugins in `internal/plugins/<plugin-name>/` (core logic) and `internal/ui/plugins/<plugin-name>/` (UI integration)
+2. **Interface**: Implement the plugin interface defined in `internal/ui/components/plugins.go`
+3. **Registration**: Register plugin in `internal/ui/plugins/loader.go` factory map
+4. **Caching**: Use namespaced cache: `cache.GetNamespaced("plugin:<plugin-name>")`
 5. **Documentation**: Document plugin configuration in `README.md` and `.env.example`
 6. **Testing**: Test plugin independently with mocked dependencies
 7. **Graceful degradation**: Plugins must gracefully handle being disabled
 8. **Configuration**: All plugin settings should have reasonable defaults
 9. **Error handling**: Return errors rather than panicking; let the host handle display
+10. **Modal Pages**: Implement `ModalPageNames() []string` to declare plugin modal pages for proper keyboard event handling
+11. **UI Display**: Use color tags for keyboard shortcuts in UI text: `[primary]ESC[-]` not `[[ESC]]`
+12. **Input Handling**: Set `SetInputCapture()` on the focused element (not container) to properly consume events
 
 ### Architectural Decision Log
 
@@ -248,6 +254,7 @@ Key architectural decisions and rationale:
 - **Plugin opt-in model**: Disabled by default to maintain security and performance baselines; users explicitly enable
 - **Interface-driven design**: All public APIs accept interfaces for maximum testability and flexibility
 - **Namespaced plugin caching**: Prevents cache key collisions and allows per-plugin cache management
+- **Plugin modal page registration**: Plugins declare modal pages via `ModalPageNames()` method instead of modifying core keyboard handler; maintains separation of concerns and enables self-contained plugins
 
 ## Common Pitfalls
 
@@ -258,6 +265,10 @@ Key architectural decisions and rationale:
 - Never log sensitive information (passwords, tokens, API keys)
 - Always defer Close() calls immediately after successful resource acquisition
 - Use context.WithTimeout() for all external calls, not context.Background()
+- **Proxmox API responses**: Boolean-like fields return as integers (0/1), not JSON booleans - parse as `float64` and convert to `bool`
+- **Plugin modals**: Always implement `ModalPageNames()` in plugins to prevent global keybindings from firing in plugin modals
+- **Keyboard events**: Use `SetInputCapture()` on focused elements (e.g., input fields, text views) not flex containers to properly consume events
+- **UI text**: Use tview color tags `[primary]text[-]` for colored text; brackets need escaping as `[[` or use color tags instead
 
 ## Troubleshooting
 
