@@ -171,6 +171,7 @@ homebrew_casks:
     repository:
       owner: "devnullvoid"
       name: "homebrew-pvetui"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     commit_author:
       name: "GoReleaser Bot"
       email: "noreply@github.com"
@@ -193,6 +194,7 @@ scoops:
     repository:
       owner: "devnullvoid"
       name: "scoop-pvetui"
+      token: "{{ .Env.SCOOP_GITHUB_TOKEN }}"
     commit_author:
       name: "GoReleaser Bot"
       email: "noreply@github.com"
