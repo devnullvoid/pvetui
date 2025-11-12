@@ -267,18 +267,5 @@ nfpms:
           - "kitty"
           - "alacritty"
 
-# Docker Images
-dockers:
-  - image_templates:
-      - "ghcr.io/devnullvoid/pvetui:{{ .Version }}"
-      - "ghcr.io/devnullvoid/pvetui:latest"
-    dockerfile: "Dockerfile.release"
-    use: "buildx"
-    build_flag_templates:
-      - "--platform=linux/amd64"
-    extra_files:
-      - LICENSE
-      - README.md
-      - THIRD_PARTY_LICENSES.md
-      - internal/vnc/novnc/LICENSE.txt
-      - internal/vnc/novnc/vendor/pako/LICENSE
+# Docker Images (temporarily disabled until GHCR auth is fixed)
+dockers: []
