@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2025-11-12
+
 ### Added
 - **Command Runner Plugin - QEMU VM Support**: Execute whitelisted commands on QEMU VMs via guest agent
   - Commands execute via `/nodes/{node}/qemu/{vmid}/agent/exec` and `/agent/exec-status` endpoints
