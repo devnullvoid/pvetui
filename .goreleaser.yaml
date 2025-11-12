@@ -1,5 +1,10 @@
 version: 2
 
+source:
+  enabled: true
+  name_template: "{{ .ProjectName }}_{{ .Version }}_source"
+  format: tar.gz
+
 builds:
   # General build for all platforms except windows/amd64
   - id: pvetui
