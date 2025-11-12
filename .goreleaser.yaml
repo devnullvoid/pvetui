@@ -45,10 +45,6 @@ archives:
       - README.md
       - THIRD_PARTY_LICENSES.md
       - internal/vnc/novnc/LICENSE.txt
-      - internal/vnc/novnc/docs/LICENSE.MPL-2.0
-      - internal/vnc/novnc/docs/LICENSE.BSD-2-Clause
-      - internal/vnc/novnc/docs/LICENSE.BSD-3-Clause
-      - internal/vnc/novnc/docs/LICENSE.OFL-1.1
       - internal/vnc/novnc/vendor/pako/LICENSE
 
 checksum:
@@ -109,10 +105,6 @@ aurs:
       install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
       install -Dm644 "./THIRD_PARTY_LICENSES.md" "${pkgdir}/usr/share/licenses/pvetui/THIRD_PARTY_LICENSES.md"
       install -Dm644 "./internal/vnc/novnc/LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
-      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.MPL-2.0" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.MPL-2.0"
-      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.BSD-2-Clause" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-2-Clause"
-      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.BSD-3-Clause" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-3-Clause"
-      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.OFL-1.1" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.OFL-1.1"
       install -Dm644 "./internal/vnc/novnc/vendor/pako/LICENSE" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
 
       # Install documentation
@@ -160,10 +152,6 @@ aur_sources:
         install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
         install -Dm644 THIRD_PARTY_LICENSES.md "${pkgdir}/usr/share/licenses/pvetui/THIRD_PARTY_LICENSES.md"
         install -Dm644 internal/vnc/novnc/LICENSE.txt "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
-        install -Dm644 internal/vnc/novnc/docs/LICENSE.MPL-2.0 "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.MPL-2.0"
-        install -Dm644 internal/vnc/novnc/docs/LICENSE.BSD-2-Clause "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-2-Clause"
-        install -Dm644 internal/vnc/novnc/docs/LICENSE.BSD-3-Clause "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-3-Clause"
-        install -Dm644 internal/vnc/novnc/docs/LICENSE.OFL-1.1 "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.OFL-1.1"
         install -Dm644 internal/vnc/novnc/vendor/pako/LICENSE "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
         install -Dm644 README.md "${pkgdir}/usr/share/doc/pvetui/README.md"
         install -Dm644 THIRD_PARTY_LICENSES.md "${pkgdir}/usr/share/doc/pvetui/THIRD_PARTY_LICENSES.md"
@@ -229,18 +217,6 @@ nfpms:
       - src: "internal/vnc/novnc/LICENSE.txt"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.txt"
         type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.MPL-2.0"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.MPL-2.0"
-        type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.BSD-2-Clause"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-2-Clause"
-        type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.BSD-3-Clause"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-3-Clause"
-        type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.OFL-1.1"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.OFL-1.1"
-        type: "doc"
       - src: "internal/vnc/novnc/vendor/pako/LICENSE"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.pako"
         type: "doc"
@@ -275,18 +251,6 @@ nfpms:
       - src: "internal/vnc/novnc/LICENSE.txt"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.txt"
         type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.MPL-2.0"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.MPL-2.0"
-        type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.BSD-2-Clause"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-2-Clause"
-        type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.BSD-3-Clause"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-3-Clause"
-        type: "doc"
-      - src: "internal/vnc/novnc/docs/LICENSE.OFL-1.1"
-        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.OFL-1.1"
-        type: "doc"
       - src: "internal/vnc/novnc/vendor/pako/LICENSE"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.pako"
         type: "doc"
@@ -312,8 +276,4 @@ dockers:
       - README.md
       - THIRD_PARTY_LICENSES.md
       - internal/vnc/novnc/LICENSE.txt
-      - internal/vnc/novnc/docs/LICENSE.MPL-2.0
-      - internal/vnc/novnc/docs/LICENSE.BSD-2-Clause
-      - internal/vnc/novnc/docs/LICENSE.BSD-3-Clause
-      - internal/vnc/novnc/docs/LICENSE.OFL-1.1
       - internal/vnc/novnc/vendor/pako/LICENSE
