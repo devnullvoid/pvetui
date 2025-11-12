@@ -272,7 +272,7 @@ dockers:
   - image_templates:
       - "ghcr.io/devnullvoid/pvetui:{{ .Version }}"
       - "ghcr.io/devnullvoid/pvetui:latest"
-    dockerfile: "Dockerfile"
+    dockerfile: "Dockerfile.release"
     use: "buildx"
     build_flag_templates:
       - "--platform=linux/amd64"
