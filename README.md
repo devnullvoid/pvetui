@@ -83,13 +83,10 @@ yay -S pvetui-bin
 yay -S pvetui-git
 ```
 
-**macOS (Homebrew):**
+**macOS (Homebrew Cask):**
 ```bash
-# Add the tap repository
-brew tap devnullvoid/pvetui
-
-# Install pvetui
-brew install pvetui
+# Install directly from the tap (brew will auto-clone devnullvoid/homebrew-pvetui)
+brew install --cask devnullvoid/pvetui/pvetui
 ```
 
 **Windows (Scoop):**
@@ -328,6 +325,8 @@ Contributions welcome! Check the [issues page](https://github.com/devnullvoid/pv
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+This repository vendors assets from [noVNC](https://github.com/novnc/noVNC) under MPL-2.0, BSD, SIL OFL, MIT, and CC BY-SA licenses. Refer to [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for a full breakdown and include that file plus `internal/vnc/novnc/LICENSE.txt` (and sub-licenses) with any binary release artifacts to satisfy attribution and redistribution requirements.
 
 ## ™️ Trademark Notice
 

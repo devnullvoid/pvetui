@@ -43,6 +43,13 @@ archives:
     files:
       - LICENSE
       - README.md
+      - THIRD_PARTY_LICENSES.md
+      - internal/vnc/novnc/LICENSE.txt
+      - internal/vnc/novnc/docs/LICENSE.MPL-2.0
+      - internal/vnc/novnc/docs/LICENSE.BSD-2-Clause
+      - internal/vnc/novnc/docs/LICENSE.BSD-3-Clause
+      - internal/vnc/novnc/docs/LICENSE.OFL-1.1
+      - internal/vnc/novnc/vendor/pako/LICENSE
 
 checksum:
   name_template: "checksums_{{ .Version }}.txt"
@@ -82,6 +89,8 @@ aurs:
     maintainers:
       - "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
+    private_key: "{{ .Env.AUR_PRIVATE_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/pvetui-bin.git"
     conflicts:
       - "pvetui"
       - "pvetui-git"
@@ -98,9 +107,17 @@ aurs:
 
       # Install license
       install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
+      install -Dm644 "./THIRD_PARTY_LICENSES.md" "${pkgdir}/usr/share/licenses/pvetui/THIRD_PARTY_LICENSES.md"
+      install -Dm644 "./internal/vnc/novnc/LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
+      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.MPL-2.0" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.MPL-2.0"
+      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.BSD-2-Clause" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-2-Clause"
+      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.BSD-3-Clause" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-3-Clause"
+      install -Dm644 "./internal/vnc/novnc/docs/LICENSE.OFL-1.1" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.OFL-1.1"
+      install -Dm644 "./internal/vnc/novnc/vendor/pako/LICENSE" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
 
       # Install documentation
       install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/pvetui/README.md"
+      install -Dm644 "./THIRD_PARTY_LICENSES.md" "${pkgdir}/usr/share/doc/pvetui/THIRD_PARTY_LICENSES.md"
 
 # AUR Package (Source)
 aur_sources:
@@ -110,6 +127,8 @@ aur_sources:
     maintainers:
       - "devnullvoid <devnullvoid.space@gmail.com>"
     license: "MIT"
+    private_key: "{{ .Env.AUR_PRIVATE_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/pvetui-git.git"
     conflicts:
       - "pvetui-bin"
       - "pvetui"
@@ -135,11 +154,19 @@ aur_sources:
       export CGO_LDFLAGS="${LDFLAGS}"
       export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
       go build -ldflags="-w -s -linkmode=external -X github.com/devnullvoid/pvetui/internal/version.version=${pkgver}" ./cmd/pvetui
-    package: |-
-      cd "${pkgname}-${pkgver}"
-      install -Dm755 ./pvetui "${pkgdir}/usr/bin/pvetui"
-      install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
-      install -Dm644 README.md "${pkgdir}/usr/share/doc/pvetui/README.md"
+      package: |-
+        cd "${pkgname}-${pkgver}"
+        install -Dm755 ./pvetui "${pkgdir}/usr/bin/pvetui"
+        install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
+        install -Dm644 THIRD_PARTY_LICENSES.md "${pkgdir}/usr/share/licenses/pvetui/THIRD_PARTY_LICENSES.md"
+        install -Dm644 internal/vnc/novnc/LICENSE.txt "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
+        install -Dm644 internal/vnc/novnc/docs/LICENSE.MPL-2.0 "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.MPL-2.0"
+        install -Dm644 internal/vnc/novnc/docs/LICENSE.BSD-2-Clause "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-2-Clause"
+        install -Dm644 internal/vnc/novnc/docs/LICENSE.BSD-3-Clause "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.BSD-3-Clause"
+        install -Dm644 internal/vnc/novnc/docs/LICENSE.OFL-1.1 "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.OFL-1.1"
+        install -Dm644 internal/vnc/novnc/vendor/pako/LICENSE "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
+        install -Dm644 README.md "${pkgdir}/usr/share/doc/pvetui/README.md"
+        install -Dm644 THIRD_PARTY_LICENSES.md "${pkgdir}/usr/share/doc/pvetui/THIRD_PARTY_LICENSES.md"
 
 # Homebrew Casks
 homebrew_casks:
@@ -196,6 +223,27 @@ nfpms:
       - src: "README.md"
         dst: "/usr/share/doc/pvetui/README.md"
         type: "doc"
+      - src: "THIRD_PARTY_LICENSES.md"
+        dst: "/usr/share/doc/pvetui/THIRD_PARTY_LICENSES.md"
+        type: "doc"
+      - src: "internal/vnc/novnc/LICENSE.txt"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.txt"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.MPL-2.0"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.MPL-2.0"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.BSD-2-Clause"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-2-Clause"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.BSD-3-Clause"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-3-Clause"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.OFL-1.1"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.OFL-1.1"
+        type: "doc"
+      - src: "internal/vnc/novnc/vendor/pako/LICENSE"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.pako"
+        type: "doc"
     overrides:
       deb:
         dependencies:
@@ -221,6 +269,27 @@ nfpms:
       - src: "README.md"
         dst: "/usr/share/doc/pvetui/README.md"
         type: "doc"
+      - src: "THIRD_PARTY_LICENSES.md"
+        dst: "/usr/share/doc/pvetui/THIRD_PARTY_LICENSES.md"
+        type: "doc"
+      - src: "internal/vnc/novnc/LICENSE.txt"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.txt"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.MPL-2.0"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.MPL-2.0"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.BSD-2-Clause"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-2-Clause"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.BSD-3-Clause"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.BSD-3-Clause"
+        type: "doc"
+      - src: "internal/vnc/novnc/docs/LICENSE.OFL-1.1"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.OFL-1.1"
+        type: "doc"
+      - src: "internal/vnc/novnc/vendor/pako/LICENSE"
+        dst: "/usr/share/doc/pvetui/noVNC/LICENSE.pako"
+        type: "doc"
     overrides:
       rpm:
         dependencies:
@@ -241,3 +310,10 @@ dockers:
     extra_files:
       - LICENSE
       - README.md
+      - THIRD_PARTY_LICENSES.md
+      - internal/vnc/novnc/LICENSE.txt
+      - internal/vnc/novnc/docs/LICENSE.MPL-2.0
+      - internal/vnc/novnc/docs/LICENSE.BSD-2-Clause
+      - internal/vnc/novnc/docs/LICENSE.BSD-3-Clause
+      - internal/vnc/novnc/docs/LICENSE.OFL-1.1
+      - internal/vnc/novnc/vendor/pako/LICENSE

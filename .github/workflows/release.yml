@@ -2,7 +2,7 @@ name: release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: "1.24"
       - name: Generate release notes from CHANGELOG.md
         id: notes
         run: |
@@ -44,7 +44,10 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --clean --release-notes /tmp/RELEASE_NOTES.md --skip=aur,aur-source,homebrew,scoop,docker
+          args: release --clean --release-notes /tmp/RELEASE_NOTES.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          SCOOP_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          AUR_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
