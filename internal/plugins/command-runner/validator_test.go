@@ -102,3 +102,31 @@ func TestValidator_GetAllowedCommands(t *testing.T) {
 		})
 	}
 }
+
+func TestValidator_ValidateVMCommandByOSType(t *testing.T) {
+	config := DefaultConfig()
+	config.AllowedCommands.VMLinux = []string{"linux-cmd"}
+	config.AllowedCommands.VMWindows = []string{"Get-Service"}
+	config.AllowedCommands.VM = []string{"fallback"}
+	validator := NewValidator(config)
+
+	linuxVM := VM{OSType: "l26"}
+	if err := validator.ValidateVMCommand(linuxVM, "linux-cmd"); err != nil {
+		t.Fatalf("expected linux command to be allowed, got %v", err)
+	}
+
+	windowsVM := VM{OSType: "win11"}
+	if err := validator.ValidateVMCommand(windowsVM, "Get-Service"); err != nil {
+		t.Fatalf("expected windows command to be allowed, got %v", err)
+	}
+
+	if err := validator.ValidateVMCommand(windowsVM, "linux-cmd"); err == nil {
+		t.Fatalf("expected linux command to be rejected on windows VM")
+	}
+
+	defaultVM := VM{OSType: "unknown"}
+	allowed := validator.GetAllowedVMCommands(defaultVM)
+	if len(allowed) != 1 || allowed[0] != "fallback" {
+		t.Fatalf("expected fallback VM commands, got %v", allowed)
+	}
+}

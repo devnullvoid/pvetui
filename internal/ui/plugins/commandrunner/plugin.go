@@ -195,8 +195,18 @@ func (p *Plugin) handleRunVMCommand(ctx context.Context, app *components.App, no
 		return fmt.Errorf("command runner not initialized")
 	}
 
+	vmCtx := commandrunner.VM{
+		ID:           guest.ID,
+		Node:         node.Name,
+		Type:         guest.Type,
+		Status:       guest.Status,
+		AgentEnabled: guest.AgentEnabled,
+		AgentRunning: guest.AgentRunning,
+		OSType:       guest.OSType,
+	}
+
 	// Show VM command menu
-	p.runner.ShowVMCommandMenu(node.Name, guest.ID, nil)
+	p.runner.ShowVMCommandMenu(vmCtx, nil)
 
 	return nil
 }

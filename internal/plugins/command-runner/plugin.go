@@ -50,9 +50,8 @@ func (p *Plugin) ShowContainerCommandMenu(node string, vmid int, onClose func())
 }
 
 // ShowVMCommandMenu displays the command menu for a VM
-func (p *Plugin) ShowVMCommandMenu(node string, vmid int, onClose func()) {
-	target := fmt.Sprintf("%s/%d", node, vmid)
-	p.uiManager.ShowCommandMenu(TargetVM, target, onClose)
+func (p *Plugin) ShowVMCommandMenu(vm VM, onClose func()) {
+	p.uiManager.ShowVMCommandMenu(vm, onClose)
 }
 
 // ExecuteHostCommand executes a command on a host and returns the result

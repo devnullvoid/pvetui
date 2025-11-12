@@ -137,3 +137,33 @@ func (v *Validator) GetAllowedCommands(targetType TargetType) []string {
 		return nil
 	}
 }
+
+// ValidateVMCommand applies OS-aware validation for VM commands.
+func (v *Validator) ValidateVMCommand(vm VM, command string) error {
+	allowed := v.allowedCommandsForVM(vm)
+	for _, pattern := range allowed {
+		if v.matchesPattern(command, pattern) {
+			return nil
+		}
+	}
+	return fmt.Errorf("command not in whitelist: %s", command)
+}
+
+// GetAllowedVMCommands returns the whitelist for a VM after considering its OS.
+func (v *Validator) GetAllowedVMCommands(vm VM) []string {
+	return append([]string{}, v.allowedCommandsForVM(vm)...)
+}
+
+func (v *Validator) allowedCommandsForVM(vm VM) []string {
+	switch detectOSFamily(vm.OSType) {
+	case OSFamilyWindows:
+		if len(v.config.AllowedCommands.VMWindows) > 0 {
+			return v.config.AllowedCommands.VMWindows
+		}
+	case OSFamilyLinux:
+		if len(v.config.AllowedCommands.VMLinux) > 0 {
+			return v.config.AllowedCommands.VMLinux
+		}
+	}
+	return v.config.AllowedCommands.VM
+}

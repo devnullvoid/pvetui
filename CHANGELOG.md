@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - API client adapter to bridge plugin VM struct with full API client types
   - Commands wrapped in `["/bin/sh", "-c", "command"]` for shell feature support
 
+- **Command Runner Plugin - OS-Aware VM Commands**: Detect QEMU guest operating systems and show Linux shell or Windows PowerShell command lists automatically.
+
 ### Fixed
 - **Guest Agent Response Parsing**: Fixed critical bug where Proxmox returns `exited` field as integer (0/1) but code attempted to parse as boolean, causing infinite polling loop and "Invalid parameter 'pid'" errors on second poll
 - **Version Detection**: `go install` builds now report the correct semantic version by using `debug.ReadBuildInfo()` to extract module metadata instead of hard-coding "vdev".

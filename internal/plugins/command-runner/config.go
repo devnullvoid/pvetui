@@ -19,10 +19,31 @@ type AllowedCommands struct {
 	Host      []string `yaml:"host"`
 	Container []string `yaml:"container"`
 	VM        []string `yaml:"vm"`
+	VMLinux   []string `yaml:"vm_linux,omitempty"`
+	VMWindows []string `yaml:"vm_windows,omitempty"`
 }
 
 // DefaultConfig returns the default configuration for the command runner plugin
 func DefaultConfig() Config {
+	linuxVMCommands := []string{
+		"uptime",
+		"df -h",
+		"free -h",
+		"systemctl status {service}",
+		"journalctl -u {service} -n 50",
+		"ps aux | head -20",
+		"ip addr show",
+	}
+	windowsVMCommands := []string{
+		"Get-ComputerInfo | Select-Object CsName, OsName, OsVersion, WindowsProductName",
+		"Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, CPU, PM | Format-Table",
+		"Get-Service | Sort-Object Status, DisplayName | Format-Table -AutoSize -First 40",
+		"Get-EventLog -LogName System -Newest 50 | Format-Table TimeGenerated, EntryType, Source, Message -AutoSize",
+		"Get-Volume | Select-Object DriveLetter, FileSystemLabel, FileSystem, SizeRemaining, Size | Format-Table -AutoSize",
+		"Get-NetIPAddress | Select-Object InterfaceAlias, IPAddress, PrefixLength | Format-Table -AutoSize",
+		"Get-NetAdapter | Select-Object Name, InterfaceDescription, Status, LinkSpeed | Format-Table -AutoSize",
+	}
+
 	return Config{
 		Enabled:       false, // Opt-in by default
 		Timeout:       30 * time.Second,
@@ -54,15 +75,9 @@ func DefaultConfig() Config {
 				"netstat -tulpn",
 				"ss -tulpn",
 			},
-			VM: []string{
-				"uptime",
-				"df -h",
-				"free -h",
-				"systemctl status {service}",
-				"journalctl -u {service} -n 50",
-				"ps aux | head -20",
-				"ip addr show",
-			},
+			VM:        append([]string{}, linuxVMCommands...),
+			VMLinux:   linuxVMCommands,
+			VMWindows: windowsVMCommands,
 		},
 	}
 }

@@ -37,6 +37,7 @@ The `command-runner` plugin enables secure execution of whitelisted commands on 
 - **Input validation**: Parameters are sanitized to prevent shell injection
 - **Output display**: Command results shown in scrollable modal with timing info
 - **Timeout protection**: Commands respect configurable timeout (default: 30s)
+- **OS-aware guest commands**: The VM menu automatically switches between Linux shell and Windows PowerShell snippets based on the guest OS reported by Proxmox.
 - **Size limits**: Output truncated if exceeds max size (default: 1MB)
 
 ### Configuration
@@ -64,7 +65,8 @@ ssh_user: root  # SSH username for command execution
 - `apt list --upgradable` - Available updates
 
 **For VMs:**
-- `systemctl status {service}` - Service status (with parameter)
+- **Linux guests**: reuse the shell whitelist (e.g., `uptime`, `systemctl status {service}`, `journalctl -u {service} -n 50`).
+- **Windows guests**: commands execute via PowerShell (`Get-ComputerInfo`, `Get-Service`, `Get-Volume`, `Get-NetAdapter`, etc.) with the proper guest agent invocation.
 
 ### Security Considerations
 

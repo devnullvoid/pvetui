@@ -18,21 +18,35 @@ type UIApp interface {
 
 // UIManager handles UI interactions for the command runner plugin
 type UIManager struct {
-	app      UIApp
-	executor *Executor
+	app       UIApp
+	executor  *Executor
+	vmTargets map[string]VM
 }
 
 // NewUIManager creates a new UI manager
 func NewUIManager(app UIApp, executor *Executor) *UIManager {
 	return &UIManager{
-		app:      app,
-		executor: executor,
+		app:       app,
+		executor:  executor,
+		vmTargets: make(map[string]VM),
 	}
 }
 
 // ShowCommandMenu displays a list of available commands for selection
-func (u *UIManager) ShowCommandMenu(targetType TargetType, host string, onClose func()) {
+func (u *UIManager) ShowCommandMenu(targetType TargetType, target string, onClose func()) {
 	commands := u.executor.GetAllowedCommands(targetType)
+	u.showCommandMenu(targetType, target, commands, onClose)
+}
+
+// ShowVMCommandMenu displays a list of commands tailored to a VM's OS.
+func (u *UIManager) ShowVMCommandMenu(vm VM, onClose func()) {
+	target := fmt.Sprintf("%s/%d", vm.Node, vm.ID)
+	u.vmTargets[target] = vm
+	commands := u.executor.GetAllowedVMCommands(vm)
+	u.showCommandMenu(TargetVM, target, commands, onClose)
+}
+
+func (u *UIManager) showCommandMenu(targetType TargetType, target string, commands []string, onClose func()) {
 	if len(commands) == 0 {
 		u.ShowErrorModal("No commands available", "No commands configured for this target type", onClose)
 		return
@@ -51,12 +65,12 @@ func (u *UIManager) ShowCommandMenu(targetType TargetType, host string, onClose 
 	// Create list of commands
 	list := tview.NewList()
 	list.SetBorder(true)
-	list.SetTitle(fmt.Sprintf(" Run Command on %s (%s) ", host, targetType))
+	list.SetTitle(fmt.Sprintf(" Run Command on %s (%s) ", target, targetType))
 
 	for _, cmd := range commands {
 		cmdCopy := cmd // Capture for closure
 		list.AddItem(cmdCopy, "", 0, func() {
-			u.handleCommandSelection(targetType, host, cmdCopy, closeMenu)
+			u.handleCommandSelection(targetType, target, cmdCopy, closeMenu)
 		})
 	}
 
@@ -93,20 +107,20 @@ func (u *UIManager) ShowCommandMenu(targetType TargetType, host string, onClose 
 }
 
 // handleCommandSelection processes command selection and prompts for parameters if needed
-func (u *UIManager) handleCommandSelection(targetType TargetType, host, command string, onClose func()) {
+func (u *UIManager) handleCommandSelection(targetType TargetType, target, command string, onClose func()) {
 	template := ParseTemplate(command)
 
 	if len(template.Parameters) == 0 {
 		// No parameters, execute directly
-		u.executeAndShowResult(targetType, host, command, nil, onClose)
+		u.executeAndShowResult(targetType, target, command, nil, onClose)
 	} else {
 		// Has parameters, show input form
-		u.showParameterForm(targetType, host, command, template, onClose)
+		u.showParameterForm(targetType, target, command, template, onClose)
 	}
 }
 
 // showParameterForm displays a form to collect parameter values
-func (u *UIManager) showParameterForm(targetType TargetType, host, command string, template CommandTemplate, onClose func()) {
+func (u *UIManager) showParameterForm(targetType TargetType, target, command string, template CommandTemplate, onClose func()) {
 	pages := u.app.Pages()
 
 	// Close function that removes the form page
@@ -134,7 +148,7 @@ func (u *UIManager) showParameterForm(targetType TargetType, host, command strin
 	// Add buttons
 	form.AddButton("Execute", func() {
 		pages.RemovePage("parameterForm")
-		u.executeAndShowResult(targetType, host, command, params, onClose)
+		u.executeAndShowResult(targetType, target, command, params, onClose)
 	})
 
 	form.AddButton("Cancel", closeForm)
@@ -179,7 +193,7 @@ func (u *UIManager) executeAndShowResult(targetType TargetType, target, command 
 				}
 			case TargetVM:
 				// Parse target format: "node/vmid"
-				vm, err := parseVMTarget(target)
+				vm, err := u.vmFromTarget(target)
 				if err != nil {
 					result = ExecutionResult{
 						Command: command,
@@ -212,7 +226,7 @@ func (u *UIManager) executeAndShowResult(targetType TargetType, target, command 
 				}
 			case TargetVM:
 				// Parse target format: "node/vmid"
-				vm, err := parseVMTarget(target)
+				vm, err := u.vmFromTarget(target)
 				if err != nil {
 					result = ExecutionResult{
 						Command: command,
@@ -374,4 +388,11 @@ func parseVMTarget(target string) (VM, error) {
 		AgentEnabled: true,      // Must be enabled to execute commands
 		AgentRunning: true,      // Assume running
 	}, nil
+}
+
+func (u *UIManager) vmFromTarget(target string) (VM, error) {
+	if vm, ok := u.vmTargets[target]; ok {
+		return vm, nil
+	}
+	return parseVMTarget(target)
 }
