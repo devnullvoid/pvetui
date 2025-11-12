@@ -63,9 +63,15 @@ ssh_user: root  # SSH username for command execution
 - `ps aux` - Process list
 - `df -h` - Disk usage
 - `apt list --upgradable` - Available updates
+- `journalctl -n 50` - Last 50 log entries
+- `systemctl list-units --type=service --state=running` - Running services overview
+- `systemctl list-unit-files --state=enabled` - Enabled services
+- `who` - Logged in users
+- `last -n 20` - Recent login sessions
 
 **For VMs:**
 - **Linux guests**: reuse the shell whitelist (e.g., `uptime`, `systemctl status {service}`, `journalctl -u {service} -n 50`).
+  - Extra helpers: `journalctl -n 50`, `systemctl list-units --type=service --state=running`, `systemctl list-unit-files --state=enabled`, `who`, `last -n 20`.
 - **Windows guests**: commands execute via PowerShell (`Get-ComputerInfo`, `Get-Service`, `Get-Volume`, `Get-NetAdapter`, etc.) with the proper guest agent invocation.
 
 ### Security Considerations
