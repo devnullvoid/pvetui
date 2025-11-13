@@ -1,0 +1,21 @@
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S appgroup \
+    && adduser -S -G appgroup appuser
+
+WORKDIR /app
+
+COPY pvetui /usr/local/bin/pvetui
+COPY LICENSE README.md THIRD_PARTY_LICENSES.md /usr/share/doc/pvetui/
+COPY internal/vnc/novnc/LICENSE.txt /usr/share/doc/pvetui/noVNC/LICENSE.txt
+COPY internal/vnc/novnc/vendor/pako/LICENSE /usr/share/doc/pvetui/noVNC/LICENSE.pako
+
+RUN chown -R appuser:appgroup /usr/share/doc/pvetui && \
+    mkdir -p /app/cache && chown -R appuser:appgroup /app
+
+USER appuser
+
+ENV CACHE_DIR=/app/cache
+
+ENTRYPOINT ["/usr/local/bin/pvetui"]
