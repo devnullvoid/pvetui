@@ -214,6 +214,8 @@ profiles:
 ### Encrypted Configuration
 Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `--config` and it will decrypt automatically.
 
+Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secret` values in plain YAML configs and rewrites the file with encrypted blobs (while updating the running config) as soon as you connect successfully. That keeps legacy configs safe without forcing you to adopt a new workflow.
+
 **📖 For detailed configuration options, key bindings, theming, and advanced features, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md)**
 
 **📚 Complete documentation is available in the [docs/](docs/) folder**

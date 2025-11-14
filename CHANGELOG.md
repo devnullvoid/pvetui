@@ -7,18 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- Replaced the demo-oriented guest list plugin with a "Guest Insights" experience featuring a sortable/filterable table, jump-to-guest navigation, and on-demand metric refreshes so node actions are actually useful during day-to-day ops.
-- Fixed the Guest Insights modal layout so the table stretches to the available height instead of collapsing to a few rows.
-- Jump-to-guest now closes the modal, switches to the Guests page, and restores focus asynchronously, so navigation continues without needing to cycle pages manually.
-- Guest Insights refreshes clear cached metrics so the ΣCPU/ΣMem summaries actually move when you press `r`, and the node action/menu labels now simply read "Guest Insights" with an `I` shortcut instead of the outdated demo wording.
-
 ### Added
-- Table-driven unit tests covering guest list filtering, sorting, and summarisation helpers to guard the new behaviour.
+
+- Plaintext `password`/`token_secret` values in non-SOPS configs are now auto-encrypted on startup, so sensitive fields never linger in cleartext on disk once you've successfully connected.
+
+### Changed
+
+- Replaced the demo-oriented guest list plugin with a "Guest Insights" experience featuring a sortable/filterable table, jump-to-guest navigation, and on-demand metric refreshes so node actions are actually useful during day-to-day ops.
 
 ## [1.0.9] - 2025-11-12
 
 ### Added
+
 - **Command Runner Plugin - QEMU VM Support**: Execute whitelisted commands on QEMU VMs via guest agent
   - Commands execute via `/nodes/{node}/qemu/{vmid}/agent/exec` and `/agent/exec-status` endpoints
   - Support for templated commands with parameters (e.g., `systemctl status {service}`)
@@ -33,19 +33,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Command Runner Plugin - Expanded Linux/LXC Utilities**: Added `journalctl -n 50`, `systemctl list-units --type=service --state=running`, `systemctl list-unit-files --state=enabled`, `who`, and `last -n 20` to the default Linux VM and LXC whitelists for faster troubleshooting.
 
 ### Fixed
+
 - **Guest Agent Response Parsing**: Fixed critical bug where Proxmox returns `exited` field as integer (0/1) but code attempted to parse as boolean, causing infinite polling loop and "Invalid parameter 'pid'" errors on second poll
 - **Version Detection**: `go install` builds now report the correct semantic version by using `debug.ReadBuildInfo()` to extract module metadata instead of hard-coding "vdev".
-
 
 ## [1.0.8] - 2025-11-04
 
 ### Changed
+
 - Switched noVNC integration from a git submodule to a git subtree rooted at internal/vnc/novnc, ensuring full compatibility with `go install` and other Go tooling.
 - All noVNC assets are now tracked directly in the repository. The update process is now documented in the README, and updating to new versions uses `git subtree pull`.
 
 ## [1.0.7] - 2025-10-21
 
 ### Added
+
 - Pluggable feature architecture for UI contributions with runtime registration and lifecycle management.
 - Community Scripts functionality extracted into the `community-scripts` plugin; enable it via the `plugins.enabled` setting.
 - Demo "guest list" plugin that adds a node action presenting running guests in a modal.
@@ -54,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manage Plugins dialog in the global menu to toggle plugins, persist configuration changes, and flag the required restart.
 
 ### Changed
+
 - Plugins are now disabled by default; update configuration to opt into optional features such as community scripts.
 - Configuration files now honour the `plugins.enabled` list instead of falling back to legacy defaults.
 - Cache implementation now uses `json.RawMessage` to eliminate double JSON marshaling/unmarshaling overhead.
@@ -61,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manage Plugins dialog list now supports Vim-style `j`/`k` navigation keys for faster keyboard control.
 
 ### Fixed
+
 - Allow post-operation refreshes to run by clearing VM pending state before triggering automatic data reloads after lifecycle actions.
 - Removed potential password exposure from authentication debug logs.
 - Fixed race condition in `AuthManager.GetValidToken()` method with improved locking pattern.
@@ -73,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.6] - 2025-09-13
 
 ### Added
+
 - **VM Action Protection System**: Comprehensive protection mechanism to prevent VM actions while operations are pending
   - **Context Menu Protection**: Lifecycle actions (start, stop, restart, delete, migrate) are hidden when VMs have pending operations
   - **Keyboard Shortcut Protection**: Shell, VNC, and context menu shortcuts are blocked for VMs with pending operations
@@ -87,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Thread-Safe Operations**: All pending state operations use proper mutex protection for concurrent access
 
 ### Fixed
+
 - **VM Pending State Timing**: Fixed visual glitch where deleted VMs would briefly return to "normal" state before being removed
   - **Delete Operations**: VMs now stay in pending state until refresh completes and they're removed from the UI
   - **Migration Operations**: VMs stay in pending state until refresh shows them in their new location
@@ -94,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Better User Experience**: Users can see VMs remain in pending state until operations truly complete
 
 ### Dependencies
+
 - **Core Dependencies**: Updated key dependencies to latest versions
   - **github.com/stretchr/testify**: bumped from 1.10.0 to 1.11.1
   - **github.com/rivo/tview**: bumped to 0.42.0
@@ -106,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **actions/checkout**: bumped from 4 to 5
 
 ### Refactored
+
 - **VM Migration Code Organization**: Moved migration-specific functions to dedicated file
   - **New File**: `vm_migration.go` created to house all VM migration functionality
   - **Moved Functions**: `showMigrationDialog()` and `performMigrationOperation()` relocated from `dialogs.go`
@@ -115,12 +123,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.5] - 2025-08-24
 
 ### MAJOR BREAKING CHANGE
+
 - **Project Renamed to pvetui**
   - Rename was necessary in order to remain compliant with Proxmox trademark
   - Old paths referencing `proxmox-tui` must be renamed to `pvetui`. For example:
+
     ```
     mv ~/.config/proxmox-tui ~/.config/pvetui
     ```
+
   - **Additional migration steps:**
     - Update any shell aliases or scripts referencing the old binary name
     - Update any systemd service files or cron jobs
@@ -129,6 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact:** This change affects configuration paths, binary names, environment variables, and all project references
 
 ### Added
+
 - **Multi-platform Package Distribution**: Added comprehensive support for distributing pvetui through multiple package managers
 - **32-bit builds**: Add official 32-bit binaries by request in [#25](https://github.com/devnullvoid/pvetui/issues/25)
   - Linux: `linux/386`
@@ -147,6 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Comprehensive Documentation**: Complete guide covering setup, maintenance, and troubleshooting for all platforms
 
 ### Documentation
+
 - **README Updates**: Fixed CLI argument conventions and improved documentation
   - Updated all CLI examples to use correct double-dash format (`--config` instead of `-config`)
   - Added comprehensive CLI reference table with all available flags and short versions
@@ -160,6 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.4] - 2025-08-19
 
 ### Added
+
 - **Guest name editing**: Added ability to change QEMU VM names and LXC container hostnames from the config page
   - QEMU VMs: Edit the "name" field which updates the VM display name
   - LXC containers: Edit the "hostname" field which updates the container hostname
@@ -180,12 +194,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Environment variables still override platform defaults when set
 
 ### Breaking Changes
+
 - **Windows users only**: Existing config files in XDG-style paths need to be moved to new platform-specific locations
   - **Windows**: Move from `~/.config/pvetui/` to `%APPDATA%/pvetui/`
   - **macOS/Linux**: No changes required - existing paths continue to work
   - The application will automatically use the new paths on first run after this update
 
 ### Fixed
+
 - Community Scripts: returning from installation no longer blanks the screen. The selector now closes before refresh and a brief post-resume delay ensures stable UI restore.
 - Data Refresh: new containers/VMs created by community scripts are shown immediately without restarting. After install we trigger a hard refresh (cache cleared) and the manual refresh rebuilds the guest list from fresh cluster data.
 - Header: eliminated brief spinner flash that could reappear after success/error messages.
@@ -196,9 +212,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.3] - 2025-08-09
 
 ### Added
+
 - **Guest power actions:** Added Shutdown (graceful), Stop (force), and Reset (hard, QEMU-only) alongside Restart/Start in the guest context menu, with clear confirmations and shortcuts.
 
 ### Fixed
+
 - **Windows: Saving profiles could fail with "The system cannot find the path specified"**
   - Ensure config directory creation uses OS-agnostic path handling when saving from the config/profile wizards and menu actions.
   - Fixes saving when adding/editing profiles and when setting default profile on Windows.
@@ -211,6 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.2] - 2025-08-07
 
 ### Fixed
+
 - **Profile Switching: Separate Active vs Default profile**
   - Introduced a non-persisted runtime `ActiveProfile` distinct from the persisted `default_profile` in config.
   - Switching profiles in the UI now updates only the active profile; the default indicator and config file are not overwritten.
@@ -276,6 +295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2025-08-06
 
 ### Added
+
 - **Cobra CLI Framework**: Migrated from Go's standard flag package to cobra for enhanced CLI experience
   - Much better help text formatting with proper descriptions and organization
   - Environment variable support with automatic binding to `PROXMOX_*` variables
@@ -289,6 +309,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Delete and migration operations already refresh tasks via manualRefresh()
 
 ### Fixed
+
 - **Data Refresh Issues**: Improved data refresh after volume resize and snapshot rollback operations
   - Volume resize now shows updated volume size immediately and displays the resize task
   - Snapshot rollback now shows updated VM status and displays the rollback task
@@ -323,6 +344,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2025-08-03
 
 ### Added
+
 - **Snapshot Management**: Added comprehensive snapshot management for VMs and containers
   - Full CRUD operations: create, delete, and rollback snapshots
   - Proper API integration with Proxmox snapshot endpoints
@@ -358,6 +380,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All onboarding and config editing flows now use consistent, user-friendly modals and prompts.
 
 ### Changed
+
 - **Major Code Refactoring**: Comprehensive refactoring to improve code organization and maintainability
   - Split large UI component files into focused, single-responsibility modules
   - Improved separation of concerns across all UI components
@@ -367,6 +390,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UI Simplification**: Removed redundant Global menu hotkey from footer display since Esc opens the global menu
 
 ### Fixed
+
 - Node details panel and API now support displaying multiple storage pools per node, instead of only one. All storage pools are shown with usage stats and theming.
 - **FormButton Theming**: Fixed FormButton styling to use proper theme colors instead of hardcoded tview.Styles colors, ensuring consistent appearance with other UI elements
 - **FormButton Refactoring**: Refactored FormButton to embed a real tview.Button, providing proper button styling, behavior, and theme consistency
@@ -377,6 +401,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] - 2025-07-16
 
 ### Changed
+
 - **Major Refactor:** Split context menu, VM operations, and refresh logic into separate files for improved maintainability and DRYness.
 - Improved form and modal UX, including better keyboard navigation and consistent input handling.
 - Async feedback and pending state for all VM operations, including migration, with robust UI refresh and error handling.
@@ -386,6 +411,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All changes maintain code quality and pass all tests.
 
 ### Added
+
 - **Guest configuration editor:** Edit CPU, memory, and description for both QEMU and LXC guests.
 - **Storage volume resize:** Resize disks from the config editor, with robust filtering for resizable volumes only.
 - **Interactive First-Run Setup**: Added user-friendly configuration wizard for new users
@@ -404,6 +430,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a reusable custom FormItem (FormButton) for use in forms.
 
 ### Fixed
+
 - **VNC Connectivity**: Fixed issue where VNC failed to connect when using SSH port forwarding (e.g., in VS Code). The noVNC client now uses a relative URL, allowing it to connect correctly through forwarded ports.
 - Fixed: Auto-refresh countdown and periodic refresh now work correctly after a manual refresh or config edit. Enabling auto-refresh after a manual refresh no longer leaves the UI stuck in 'Refreshing...' state.
 - Cleaned up auto-refresh logic: startAutoRefresh only starts ticker/goroutines if not already running, and toggleAutoRefresh only calls stopAutoRefresh when disabling.
@@ -412,19 +439,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.1] - 2025-07-10
 
 ### Added
+
 - **Docker Image**: Added `openssh-client` to support the shell feature.
 
 ### Fixed
+
 - **Configuration**: The application now automatically discovers and loads the default configuration file (`config.yml` or `config.yaml`) from the XDG config directory (`~/.config/pvetui/`) without requiring the `--config` flag.
 - **Search**: Pressing `ESC` in the search bar now clears the filter text in addition to closing the bar, providing a more intuitive, VIM-like experience.
 
 ### Improved
+
 - **Docker**: The Docker instructions have been completely revamped for clarity and correctness, now recommending `docker compose run --rm pvetui` for an improved user experience.
 - Robust selection restoration for both VM and Node lists after per-item and global refreshes. Selection is now always restored by name, not index, fixing issues with selection jumping to the top after refreshes.
 
 ## [v0.8.0]
 
 ### Added
+
 - **Configurable Key Bindings**: Added support for customizing all major actions via the `key_bindings` section in the config file.
 - **View Switching with Brackets**: Changed default view switching keys to `]` (forward) and `[` (reverse) for better reliability across terminals.
 - Support for SOPS/age encrypted configuration files with automatic key lookup
@@ -437,7 +468,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Maintains backward compatibility with standard LXC containers
   - Enhanced user feedback showing "NixOS LXC container" vs "LXC container" during connection
   - Comprehensive test coverage for all container types
+
 ### Fixed
+
 - **Keybinding Reliability**: Overhauled the keybinding system to correctly handle modifier keys (`Ctrl`, `Alt`, `Shift`), fixing numerous issues with custom shortcuts.
 - **Shell Connection Issues**: Fixed VM shell connections that were failing due to broken QEMU guest agent approach.
 - **GitHub Workflow Fixes**: Added `submodules: recursive` to all GitHub Actions checkout steps to properly handle noVNC submodule during builds.
@@ -448,6 +481,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refresh VNC session `LastUsed` timestamp on all WebSocket proxy traffic to prevent unexpected timeouts
 
 ### Improved
+
 - **Code Quality Workflow**: Added `go vet` to CI pipeline and development workflow for enhanced static analysis
   - New `make vet` target for running Go's built-in static analyzer
   - New `make code-quality` target combining `go vet` and `golangci-lint` for comprehensive checks
@@ -456,12 +490,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.1] - 2025-07-01
 
 ### Fixed
+
 - **noVNC Files Embedding**: Fixed noVNC files to be properly embedded in compiled binary using Go's `//go:embed` directive instead of runtime filesystem access
 - **Windows URL Truncation**: Fixed VNC URLs being truncated in Windows browser address bar by replacing `cmd /c start` with `rundll32 url.dll,FileProtocolHandler` to avoid command line length limitations
 
 ## [0.7.0] - 2025-06-30
 
 ### Added
+
 - **VM/Container Migration**: Added comprehensive migration functionality
   - **Context Menu Integration**: Added "Migrate" option to VM context menu (accessible via 'M' key)
   - **Simplified Migration Dialog**: Streamlined dialog matching Proxmox UI design
@@ -490,6 +526,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Help documentation updated to include migration information
 
 ### Fixed
+
 - **Search Filter Persistence**: Fixed issue where search/filtered lists would reset to unfiltered state during auto-refresh and after guest agent data loading
   - Search filters now properly preserved across all refresh operations (manual, auto-refresh, and guest agent enrichment)
   - Fixed key mismatch between search state storage and retrieval (was using lowercase strings instead of proper page constants)
@@ -499,6 +536,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2025-06-23
 
 ### Added
+
 - Automated release script with full workflow automation
 - Makefile integration for release commands
 - **VM/Container Deletion**: Added delete option to VM/LXC context menu with confirmation
@@ -537,6 +575,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Integrated with existing search system used by Nodes and Guests pages
 
 ### Fixed
+
 - **TUI Suspend/Resume Issue**: Fixed critical issue where users couldn't return to TUI after script installation or SSH sessions
   - Added `app.Sync()` calls after `app.Suspend()` to properly restore terminal state
   - Resolves the problem where "Press Enter to return to the TUI..." would not work
@@ -550,6 +589,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proper cache directory initialization ensures consistent logging location across all packages
 
 ### Improved
+
 - **Press Enter to Return**: Re-implemented "Press Enter to return to TUI" functionality for both script installation and SSH sessions
   - Users can now see complete script output and error messages before returning to the application
   - Status messages show success (✅) or failure (❌) with clear feedback
@@ -574,6 +614,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - 2025-06-22
 
 ### Added
+
 - Guest data loading indicator on app startup
 - Enhanced VM details panel with network interface and storage configuration
 - Quit confirmation for active VNC sessions
@@ -583,6 +624,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build tags for examples to prevent linting conflicts
 
 ### Fixed
+
 - VM selection and search filter preservation during operations and refreshes
   - VM operations (start/stop/restart) now preserve selected VM position even when status changes
   - Search filters remain active after VM operations and manual refreshes
@@ -597,6 +639,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Container runtime prioritization (Podman first, Docker fallback)
 
 ### Improved
+
 - Network interface display layout in VM details
 - Storage configuration display layout
 - Footer layout with right-aligned status indicators
@@ -606,6 +649,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] - 2025-06-20
 
 ### Added
+
 - **Concurrent VNC Sessions**: Support for multiple simultaneous VNC connections
   - Session management system allows connecting to multiple VMs and nodes simultaneously
   - Each VNC session runs on its own dedicated port with independent WebSocket proxy
@@ -624,6 +668,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Migrated from embedded filesystem to direct filesystem serving for better flexibility
 
 ### Fixed
+
 - **VNC Session Auto-Disconnect**: Removed automatic 30-minute session timeout
   - VNC sessions now remain active for 24 hours instead of 30 minutes
   - Cleanup process runs every 30 minutes instead of every 5 minutes for efficiency
@@ -664,6 +709,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2025-06-20
 
 ### Added
+
 - **Embedded noVNC Client**: Revolutionary VNC console access without requiring Proxmox web UI login
   - Self-contained noVNC client embedded directly in the application
   - Automatic authentication handling for both API token and password authentication
@@ -685,6 +731,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Message-level debugging for WebSocket communication (configurable verbosity)
 
 ### Fixed
+
 - **Configuration Realm Handling**: Fixed critical bug where config file realm setting was ignored
   - Configuration files now properly merge the `realm` field from YAML config
   - API authentication now uses correct realm (e.g., 'pve' instead of defaulting to 'pam')
@@ -698,10 +745,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2025-06-11
 
 ### Added
+
 - **VI-like Navigation**: Added comprehensive hjkl key support throughout the interface
   - `h` = left/go back, `j` = down, `k` = up, `l` = right
 
 ### Fixed
+
 - **Node Storage Display**: Fixed node details showing "0.00 GB" for storage values
   - Resolved inconsistent storage units between cluster and individual node data
   - Node storage values now consistently stored in GB (converted from bytes)
