@@ -91,9 +91,9 @@ ssh_user: root  # SSH username for command execution
 6. If the command has parameters (e.g., `{service}`), fill in the form
 7. View the output in the scrollable result modal
 
-## Demo Guest List Plugin
+## Guest Insights Plugin
 
-The `demo-guest-list` plugin is intentionally small and serves as a reference implementation. When enabled it contributes a node context menu entry labelled **Show Running Guests (Demo)**. Selecting the action opens a modal listing the running guests on the chosen node, including their IDs, types, and discovered IP addresses when available.
+The `demo-guest-list` plugin has grown into the fully supported **Guest Insights** experience. When enabled it adds an `I` shortcut (and node context menu entry) to launch a modal that shows live metrics for every guest on the selected node. The table supports filtering (`/`), sorting (`n/c/m/u/i`), toggling stopped guests (`a`), and jump-to-guest navigation (`enter`/`g`). Refresh with `r` to pull fresh CPU/memory stats, and press `enter` or `g` on a row to close the modal, switch to the Guests page, and focus the highlighted VM.
 
 ## Writing a New Plugin
 
