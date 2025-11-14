@@ -86,9 +86,22 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 			addr = profile.Addr
 			user = profile.User
+			// Decrypt password and tokenSecret for display in the form
 			password = profile.Password
+			if password != "" {
+				if decrypted, err := config.DecryptField(password); err == nil {
+					password = decrypted
+				}
+				// If decryption failed, keep the encrypted value (user can see it's encrypted)
+			}
 			tokenID = profile.TokenID
 			tokenSecret = profile.TokenSecret
+			if tokenSecret != "" {
+				if decrypted, err := config.DecryptField(tokenSecret); err == nil {
+					tokenSecret = decrypted
+				}
+				// If decryption failed, keep the encrypted value (user can see it's encrypted)
+			}
 			realm = profile.Realm
 			apiPath = profile.ApiPath
 			insecure = profile.Insecure
@@ -98,9 +111,20 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		// Use legacy fields
 		addr = cfg.Addr
 		user = cfg.User
+		// Decrypt password and tokenSecret for display in the form
 		password = cfg.Password
+		if password != "" {
+			if decrypted, err := config.DecryptField(password); err == nil {
+				password = decrypted
+			}
+		}
 		tokenID = cfg.TokenID
 		tokenSecret = cfg.TokenSecret
+		if tokenSecret != "" {
+			if decrypted, err := config.DecryptField(tokenSecret); err == nil {
+				tokenSecret = decrypted
+			}
+		}
 		realm = cfg.Realm
 		apiPath = cfg.ApiPath
 		insecure = cfg.Insecure

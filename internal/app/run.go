@@ -100,6 +100,57 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 
 	fmt.Println("✅ Connected successfully")
 	fmt.Println("✅ Authentication successful")
+
+	// Auto-encrypt and save sensitive fields if not using SOPS and config file exists
+	if configPath != "" {
+		// nolint:gosec // configPath is validated and comes from trusted sources (user input or default paths)
+		if data, err := os.ReadFile(configPath); err == nil {
+			if !config.IsSOPSEncrypted(configPath, data) {
+				// Check if there are any cleartext sensitive fields that need encryption
+				hasCleartext := false
+				for _, profile := range cfg.Profiles {
+					if (profile.Password != "" && !strings.HasPrefix(profile.Password, "age1:")) ||
+						(profile.TokenSecret != "" && !strings.HasPrefix(profile.TokenSecret, "age1:")) {
+						hasCleartext = true
+						break
+					}
+				}
+				if !hasCleartext {
+					if (cfg.Password != "" && !strings.HasPrefix(cfg.Password, "age1:")) ||
+						(cfg.TokenSecret != "" && !strings.HasPrefix(cfg.TokenSecret, "age1:")) {
+						hasCleartext = true
+					}
+				}
+
+				if hasCleartext {
+					// Create a copy to avoid modifying the original config in memory
+					cfgCopy := *cfg
+					cfgCopy.Profiles = make(map[string]config.ProfileConfig)
+					for k, v := range cfg.Profiles {
+						cfgCopy.Profiles[k] = v
+					}
+
+					// Encrypt and save config
+					if err := config.SaveConfigFile(&cfgCopy, configPath); err == nil {
+						fmt.Println("🔐 Encrypted sensitive fields in config file")
+						// Update the in-memory config with encrypted values
+						cfg.Password = cfgCopy.Password
+						cfg.TokenSecret = cfgCopy.TokenSecret
+						for k, v := range cfgCopy.Profiles {
+							if profile, exists := cfg.Profiles[k]; exists {
+								profile.Password = v.Password
+								profile.TokenSecret = v.TokenSecret
+								cfg.Profiles[k] = profile
+							}
+						}
+					} else if config.DebugEnabled {
+						fmt.Printf("⚠️  Warning: Failed to encrypt and save config: %v\n", err)
+					}
+				}
+			}
+		}
+	}
+
 	fmt.Println("🖥️  Loading interface...")
 	fmt.Println()
 

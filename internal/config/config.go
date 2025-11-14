@@ -555,6 +555,17 @@ func (c *Config) MergeWithFile(path string) error {
 		c.Theme.Colors[k] = v
 	}
 
+	// Decrypt sensitive fields if not using SOPS
+	// SOPS handles encryption/decryption itself, so we only decrypt age-encrypted fields
+	if !IsSOPSEncrypted(path, data) {
+		if err := DecryptConfigSensitiveFields(c); err != nil {
+			// Log error but don't fail - allow cleartext to work
+			if DebugEnabled {
+				fmt.Printf("⚠️  Warning: Failed to decrypt some fields: %v\n", err)
+			}
+		}
+	}
+
 	return nil
 }
 

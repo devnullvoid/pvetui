@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/logger"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed config.tpl.yml
@@ -166,4 +167,44 @@ func FindSOPSRule(startDir string) bool {
 		current = parent
 	}
 	return false
+}
+
+// SaveConfigFile saves the config to a file with optional encryption (if not using SOPS).
+// This is a lower-level function that can be used from packages that can't import UI components.
+func SaveConfigFile(cfg *Config, path string) error {
+	// Check if SOPS is being used
+	data, err := os.ReadFile(path)
+	isSOPS := false
+	if err == nil {
+		isSOPS = IsSOPSEncrypted(path, data)
+	}
+
+	// If not using SOPS, encrypt sensitive fields before saving
+	if !isSOPS {
+		if err := EncryptConfigSensitiveFields(cfg); err != nil {
+			// Log warning but continue - allow saving even if encryption fails
+			if DebugEnabled {
+				fmt.Printf("⚠️  Warning: Failed to encrypt some fields: %v\n", err)
+			}
+		}
+	}
+
+	// Marshal to YAML
+	data, err = yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal config to YAML: %w", err)
+	}
+
+	// Ensure the target directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+
+	// Write file
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("write config file: %w", err)
+	}
+
+	return nil
 }

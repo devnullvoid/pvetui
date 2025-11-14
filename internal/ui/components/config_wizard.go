@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,9 +166,22 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 			addr = profile.Addr
 			user = profile.User
+			// Decrypt password and tokenSecret for display in the form
 			password = profile.Password
+			if password != "" {
+				if decrypted, err := config.DecryptField(password); err == nil {
+					password = decrypted
+				}
+				// If decryption failed, keep the encrypted value (user can see it's encrypted)
+			}
 			tokenID = profile.TokenID
 			tokenSecret = profile.TokenSecret
+			if tokenSecret != "" {
+				if decrypted, err := config.DecryptField(tokenSecret); err == nil {
+					tokenSecret = decrypted
+				}
+				// If decryption failed, keep the encrypted value (user can see it's encrypted)
+			}
 			realm = profile.Realm
 			apiPath = profile.ApiPath
 			insecure = profile.Insecure
@@ -177,9 +191,20 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		// Use legacy fields
 		addr = cfg.Addr
 		user = cfg.User
+		// Decrypt password and tokenSecret for display in the form
 		password = cfg.Password
+		if password != "" {
+			if decrypted, err := config.DecryptField(password); err == nil {
+				password = decrypted
+			}
+		}
 		tokenID = cfg.TokenID
 		tokenSecret = cfg.TokenSecret
+		if tokenSecret != "" {
+			if decrypted, err := config.DecryptField(tokenSecret); err == nil {
+				tokenSecret = decrypted
+			}
+		}
 		realm = cfg.Realm
 		apiPath = cfg.ApiPath
 		insecure = cfg.Insecure
@@ -478,8 +503,36 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 // SaveConfigToFile writes the config to the given path in YAML format.
 func SaveConfigToFile(cfg *config.Config, path string) error {
+	// Check if SOPS is being used (read file to check)
+	data, err := os.ReadFile(path)
+	isSOPS := false
+	if err == nil {
+		isSOPS = config.IsSOPSEncrypted(path, data)
+	}
+
+	// If not using SOPS, encrypt sensitive fields before saving
+	if !isSOPS {
+		// Create a copy of the config to encrypt (don't modify the original)
+		cfgCopy := *cfg
+		cfgCopy.Profiles = make(map[string]config.ProfileConfig)
+		for k, v := range cfg.Profiles {
+			cfgCopy.Profiles[k] = v
+		}
+
+		// Encrypt sensitive fields
+		if err := config.EncryptConfigSensitiveFields(&cfgCopy); err != nil {
+			// Log warning but continue - allow saving even if encryption fails
+			// This allows users to save cleartext if they prefer
+			if config.DebugEnabled {
+				fmt.Printf("⚠️  Warning: Failed to encrypt some fields: %v\n", err)
+			}
+		} else {
+			cfg = &cfgCopy
+		}
+	}
+
 	// Use the config package's YAML marshaling
-	data, err := configToYAML(cfg)
+	data, err = configToYAML(cfg)
 	if err != nil {
 		return err
 	}
