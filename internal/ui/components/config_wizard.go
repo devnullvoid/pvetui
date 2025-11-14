@@ -162,6 +162,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	var insecure bool
 
 	// If we have profiles and a default profile, use profile data
+	//nolint:dupl // Shared with profile wizard to keep legacy/profile editing consistent
 	if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 			addr = profile.Addr

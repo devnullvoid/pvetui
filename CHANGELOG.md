@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Replaced the demo-oriented guest list plugin with a "Guest Insights" experience featuring a sortable/filterable table, jump-to-guest navigation, and on-demand metric refreshes so node actions are actually useful during day-to-day ops.
+- Fixed the Guest Insights modal layout so the table stretches to the available height instead of collapsing to a few rows.
+- Jump-to-guest now closes the modal, switches to the Guests page, and restores focus asynchronously, so navigation continues without needing to cycle pages manually.
+- Guest Insights refreshes clear cached metrics so the ΣCPU/ΣMem summaries actually move when you press `r`, and the node action/menu labels now simply read "Guest Insights" with an `I` shortcut instead of the outdated demo wording.
+
+### Added
+- Table-driven unit tests covering guest list filtering, sorting, and summarisation helpers to guard the new behaviour.
+
 ## [1.0.9] - 2025-11-12
 
 ### Added

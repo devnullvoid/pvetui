@@ -2,6 +2,7 @@ package guestlist
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,21 +24,22 @@ func (s *stubRegistrar) RegisterGuestAction(action components.GuestAction) {
 	s.guestActions = append(s.guestActions, action)
 }
 
-func TestRunningGuestSummaries(t *testing.T) {
+func TestBuildGuestRows(t *testing.T) {
 	node := &api.Node{
 		Name: "pve01",
 		VMs: []*api.VM{
 			{ID: 100, Name: "db", Type: api.VMTypeQemu, Status: api.VMStatusRunning, IP: "10.0.0.10"},
-			{ID: 101, Name: "app", Type: api.VMTypeQemu, Status: api.VMStatusStopped},
+			{ID: 101, Name: "app", Type: api.VMTypeQemu, Status: api.VMStatusStopped, Template: true},
 			{ID: 102, Name: "cache", Type: api.VMTypeLXC, Status: api.VMStatusRunning},
 		},
 	}
 
-	summaries := runningGuestSummaries(node)
-
-	require.Len(t, summaries, 2)
-	require.Contains(t, summaries, "cache (ID 102, LXC)")
-	require.Contains(t, summaries, "db (ID 100, QEMU) [10.0.0.10]")
+	rows := buildGuestRows(node)
+	require.Len(t, rows, 2)
+	require.Equal(t, 100, rows[0].id)
+	require.Equal(t, "10.0.0.10", rows[0].ip)
+	require.Equal(t, 102, rows[1].id)
+	require.Equal(t, strings.ToUpper(api.VMTypeLXC), rows[1].typeLabel)
 }
 
 func TestPluginRegistersNodeAction(t *testing.T) {
@@ -47,4 +49,6 @@ func TestPluginRegistersNodeAction(t *testing.T) {
 	require.NoError(t, plugin.Initialize(context.Background(), &components.App{}, registrar))
 	require.Len(t, registrar.nodeActions, 1)
 	require.Equal(t, "demo.guestlist.show", registrar.nodeActions[0].ID)
+	require.Equal(t, "Guest Insights", registrar.nodeActions[0].Label)
+	require.Equal(t, 'I', registrar.nodeActions[0].Shortcut)
 }

@@ -82,6 +82,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	var insecure bool
 
 	// If we have profiles and a default profile, use profile data
+	//nolint:dupl // Shared with config wizard but kept inline for clarity
 	if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 			addr = profile.Addr
