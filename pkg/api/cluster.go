@@ -497,6 +497,14 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	cluster.MemoryTotal = totalMem
 	cluster.MemoryUsed = usedMem
 
+	// Some standalone installations are not part of a formal cluster, so the
+	// Proxmox API reports zero total nodes. Fall back to the discovered node
+	// count so downstream UI components can show sensible ratios instead of
+	// 1/0 style values.
+	if cluster.TotalNodes == 0 && len(cluster.Nodes) > 0 {
+		cluster.TotalNodes = len(cluster.Nodes)
+	}
+
 	// Calculate storage totals using StorageManager (handles deduplication)
 	cluster.StorageUsed = cluster.StorageManager.GetTotalUsage()
 	cluster.StorageTotal = cluster.StorageManager.GetTotalCapacity()

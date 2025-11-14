@@ -103,22 +103,29 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 
 	cs.SummaryTable.SetCell(2, 0, tview.NewTableCell("Nodes Online").SetTextColor(theme.Colors.HeaderText))
 
+	totalNodes := cluster.TotalNodes
+	if totalNodes == 0 && len(cluster.Nodes) > 0 {
+		totalNodes = len(cluster.Nodes)
+	}
+
+	singleNode := totalNodes <= 1
+
 	// Show different indicators based on node status with proper colors
 	var nodeStatusText string
 
 	var nodeStatusColor tcell.Color
 
-	if cluster.OnlineNodes == cluster.TotalNodes {
+	if cluster.OnlineNodes == totalNodes {
 		// All nodes online
-		nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, totalNodes)
 		nodeStatusColor = theme.Colors.StatusRunning
 	} else if cluster.OnlineNodes > 0 {
 		// Some nodes offline
-		nodeStatusText = fmt.Sprintf("%d/%d ⚠️", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("%d/%d ⚠️", cluster.OnlineNodes, totalNodes)
 		nodeStatusColor = theme.Colors.Warning
 	} else {
 		// All nodes offline (critical)
-		nodeStatusText = fmt.Sprintf("%d/%d 🔴", cluster.OnlineNodes, cluster.TotalNodes)
+		nodeStatusText = fmt.Sprintf("%d/%d 🔴", cluster.OnlineNodes, totalNodes)
 		nodeStatusColor = theme.Colors.StatusStopped
 	}
 
@@ -131,7 +138,10 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 
 	var quorateColor tcell.Color
 
-	if cluster.Quorate {
+	if singleNode {
+		quorateText = "Not required (single node)"
+		quorateColor = theme.Colors.Info
+	} else if cluster.Quorate {
 		quorateText = "Yes 🟢"
 		quorateColor = theme.Colors.StatusRunning
 	} else {
