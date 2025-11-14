@@ -139,7 +139,7 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 	var quorateColor tcell.Color
 
 	if singleNode {
-		quorateText = "Not required (single node)"
+		quorateText = api.StringNA
 		quorateColor = theme.Colors.Info
 	} else if cluster.Quorate {
 		quorateText = "Yes 🟢"

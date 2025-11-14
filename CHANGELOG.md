@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Replaced the demo-oriented guest list plugin with a "Guest Insights" experience featuring a sortable/filterable table, jump-to-guest navigation, and on-demand metric refreshes so node actions are actually useful during day-to-day ops.
-- Cluster status view now recognizes single-node installs, showing a sane 1/1 node count and a "quorum not required" message instead of a scary "No" status.
+- Cluster status view now recognizes single-node installs, showing a sane 1/1 node count and a "Quorate: N/A" message instead of a scary "No" status.
 
 ## [1.0.9] - 2025-11-12
 
