@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.10] - 2025-11-14
+
 ### Added
 
 - Plaintext `password`/`token_secret` values in non-SOPS configs are now auto-encrypted on startup, so sensitive fields never linger in cleartext on disk once you've successfully connected.
