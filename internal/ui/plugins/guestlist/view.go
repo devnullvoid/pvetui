@@ -16,10 +16,6 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
-const (
-	guestListModalWidth = 120
-)
-
 type guestListView struct {
 	app  *components.App
 	node *api.Node
@@ -63,8 +59,7 @@ func (v *guestListView) show(ctx context.Context) {
 	v.buildLayout()
 	v.applyState()
 
-	modal := centerModal(v.frame, guestListModalWidth)
-	v.app.Pages().AddPage(guestListModalPageName, modal, true, true)
+	v.app.Pages().AddPage(guestListModalPageName, v.frame, true, true)
 	v.app.SetFocus(v.table)
 
 	v.refreshMetrics(ctx, true)
@@ -471,22 +466,6 @@ func (v *guestListView) closeWithFocus(next tview.Primitive) {
 	if target != nil {
 		v.app.SetFocus(target)
 	}
-}
-
-const (
-	modalVerticalPadding = 2
-)
-
-func centerModal(content tview.Primitive, width int) tview.Primitive {
-	column := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(nil, modalVerticalPadding, 0, false).
-		AddItem(content, 0, 1, true).
-		AddItem(nil, modalVerticalPadding, 0, false)
-
-	return tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(column, width, 0, true).
-		AddItem(nil, 0, 1, false)
 }
 
 func formatGuestLabel(row guestRow) string {
