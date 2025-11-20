@@ -79,6 +79,9 @@ go install github.com/devnullvoid/pvetui/cmd/pvetui@latest
 # Binary package (recommended)
 yay -S pvetui-bin
 
+# Build release package from source
+yay -S pvetui
+
 # OR build from source
 yay -S pvetui-git
 ```
