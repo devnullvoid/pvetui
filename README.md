@@ -75,6 +75,9 @@ go install github.com/devnullvoid/pvetui/cmd/pvetui@latest
 ### Package Managers
 
 **Arch Linux (AUR):**
+[![pvetui-bin on AUR](https://img.shields.io/aur/version/pvetui-bin?label=pvetui-bin)](https://aur.archlinux.org/packages/pvetui-git/)
+[![pvetui on AUR](https://img.shields.io/aur/version/pvetui?label=pvetui)](https://aur.archlinux.org/packages/pvetui/)
+[![pvetui-git on AUR](https://img.shields.io/aur/version/pvetui-git?label=pvetui-git)](https://aur.archlinux.org/packages/pvetui-git/)
 ```bash
 # Binary package (recommended)
 yay -S pvetui-bin
