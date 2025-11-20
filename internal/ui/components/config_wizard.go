@@ -15,58 +15,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// CleanConfig represents a clean config structure without legacy fields when profiles are used
-type CleanConfig struct {
-	Profiles       map[string]config.ProfileConfig `yaml:"profiles,omitempty"`
-	DefaultProfile string                          `yaml:"default_profile,omitempty"`
-	Debug          bool                            `yaml:"debug,omitempty"`
-	CacheDir       string                          `yaml:"cache_dir,omitempty"`
-	KeyBindings    config.KeyBindings              `yaml:"key_bindings,omitempty"`
-	Theme          config.ThemeConfig              `yaml:"theme,omitempty"`
-	Plugins        config.PluginConfig             `yaml:"plugins"`
-	// Legacy fields only included when no profiles are defined
-	Addr        string `yaml:"addr,omitempty"`
-	User        string `yaml:"user,omitempty"`
-	Password    string `yaml:"password,omitempty"`
-	TokenID     string `yaml:"token_id,omitempty"`
-	TokenSecret string `yaml:"token_secret,omitempty"`
-	Realm       string `yaml:"realm,omitempty"`
-	ApiPath     string `yaml:"api_path,omitempty"`
-	Insecure    bool   `yaml:"insecure,omitempty"`
-	SSHUser     string `yaml:"ssh_user,omitempty"`
-}
-
-func configToYAML(cfg *config.Config) ([]byte, error) {
-	// Create a clean config structure
-	cleanConfig := CleanConfig{
-		Profiles:       cfg.Profiles,
-		DefaultProfile: cfg.DefaultProfile,
-		Debug:          cfg.Debug,
-		CacheDir:       cfg.CacheDir,
-		KeyBindings:    cfg.KeyBindings,
-		Theme:          cfg.Theme,
-		Plugins:        cfg.Plugins,
-	}
-
-	// Only include legacy fields if no profiles are defined (for backward compatibility)
-	// When profiles are used, legacy fields should be omitted entirely
-	if len(cfg.Profiles) == 0 {
-		// Legacy mode - include legacy fields
-		cleanConfig.Addr = cfg.Addr
-		cleanConfig.User = cfg.User
-		cleanConfig.Password = cfg.Password
-		cleanConfig.TokenID = cfg.TokenID
-		cleanConfig.TokenSecret = cfg.TokenSecret
-		cleanConfig.Realm = cfg.Realm
-		cleanConfig.ApiPath = cfg.ApiPath
-		cleanConfig.Insecure = cfg.Insecure
-		cleanConfig.SSHUser = cfg.SSHUser
-	}
-	// Note: When profiles are used, legacy fields are completely omitted
-
-	return yaml.Marshal(cleanConfig)
-}
-
 // Update showWizardModal to accept an onClose callback.
 func showWizardModal(pages *tview.Pages, form *tview.Form, app *tview.Application, kind, message string, onClose func()) {
 	cb := func() {
@@ -533,7 +481,7 @@ func SaveConfigToFile(cfg *config.Config, path string) error {
 	}
 
 	// Use the config package's YAML marshaling
-	data, err = configToYAML(cfg)
+	data, err = yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}

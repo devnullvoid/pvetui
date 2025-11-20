@@ -99,6 +99,9 @@ type Config struct {
 	// ActiveProfile holds the currently active profile at runtime.
 	// It is not persisted to disk and is used to resolve getters when set.
 	ActiveProfile string `yaml:"-"`
+	// hasCleartextSensitive tracks whether the last-loaded config file contained
+	// unencrypted sensitive data. It is ignored by YAML marshaling.
+	hasCleartextSensitive bool `yaml:"-"`
 	// The following fields are global settings, not per-profile
 	Debug       bool         `yaml:"debug"`
 	CacheDir    string       `yaml:"cache_dir"`
@@ -115,6 +118,14 @@ type Config struct {
 	ApiPath     string `yaml:"api_path"`
 	Insecure    bool   `yaml:"insecure"`
 	SSHUser     string `yaml:"ssh_user"`
+}
+
+func (c *Config) HasCleartextSensitiveData() bool {
+	return c.hasCleartextSensitive
+}
+
+func (c *Config) MarkSensitiveDataEncrypted() {
+	c.hasCleartextSensitive = false
 }
 
 // KeyBindings defines customizable key mappings for common actions.
@@ -305,12 +316,16 @@ func (c *Config) MergeWithFile(path string) error {
 		return nil
 	}
 
+	// Reset cleartext tracking; it will be re-evaluated based on file contents.
+	c.hasCleartextSensitive = false
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 
-	if IsSOPSEncrypted(path, data) {
+	isSOPSEncrypted := IsSOPSEncrypted(path, data)
+	if isSOPSEncrypted {
 		decrypted, derr := decrypt.File(path, "yaml")
 		if derr != nil {
 			return derr
@@ -365,6 +380,10 @@ func (c *Config) MergeWithFile(path string) error {
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
 		return err
+	}
+
+	if !isSOPSEncrypted && detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret) {
+		c.hasCleartextSensitive = true
 	}
 
 	// Load profiles and default_profile
@@ -567,6 +586,26 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	return nil
+}
+
+func detectCleartextSensitive(profiles map[string]ProfileConfig, legacyPassword, legacyTokenSecret string) bool {
+	if hasCleartextSensitiveProfiles(profiles) {
+		return true
+	}
+	return hasCleartextSensitiveValue(legacyPassword) || hasCleartextSensitiveValue(legacyTokenSecret)
+}
+
+func hasCleartextSensitiveProfiles(profiles map[string]ProfileConfig) bool {
+	for _, profile := range profiles {
+		if hasCleartextSensitiveValue(profile.Password) || hasCleartextSensitiveValue(profile.TokenSecret) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasCleartextSensitiveValue(value string) bool {
+	return value != "" && !isEncrypted(value)
 }
 
 func (c *Config) Validate() error {

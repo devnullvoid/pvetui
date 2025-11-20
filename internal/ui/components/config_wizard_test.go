@@ -94,9 +94,9 @@ func TestConfigToYAML_PreservesPluginsSection(t *testing.T) {
 	cfg.SetDefaults()
 	cfg.Plugins.Enabled = []string{"community-scripts"}
 
-	data, err := configToYAML(cfg)
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
-		t.Fatalf("configToYAML error: %v", err)
+		t.Fatalf("yaml marshal error: %v", err)
 	}
 
 	var decoded struct {
@@ -119,9 +119,9 @@ func TestConfigToYAML_RetainsPluginsKeyWhenEmpty(t *testing.T) {
 	cfg.SetDefaults()
 	cfg.Plugins.Enabled = nil
 
-	data, err := configToYAML(cfg)
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
-		t.Fatalf("configToYAML error: %v", err)
+		t.Fatalf("yaml marshal error: %v", err)
 	}
 
 	var decoded map[string]any

@@ -9,7 +9,10 @@ import (
 	"filippo.io/age"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
+
+const testDefaultProfile = "default"
 
 func TestNewConfig(t *testing.T) {
 	tests := []struct {
@@ -827,6 +830,64 @@ cache_dir: "/tmp/test-cache"
 	assert.NoError(t, err)
 }
 
+func TestConfigMarshalYAMLOmitsLegacyFieldsForProfiles(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]ProfileConfig{
+			"default": {
+				Addr:     "https://example.test",
+				User:     "root",
+				Password: "secret",
+			},
+		},
+		DefaultProfile: "default",
+		Addr:           "https://legacy",
+		User:           "legacy",
+		Password:       "legacy-pass",
+	}
+
+	data, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+
+	var decoded map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &decoded))
+
+	if _, ok := decoded["addr"]; ok {
+		t.Fatalf("expected legacy addr field to be omitted when profiles exist")
+	}
+	if _, ok := decoded["user"]; ok {
+		t.Fatalf("expected legacy user field to be omitted when profiles exist")
+	}
+
+	profiles, ok := decoded["profiles"].(map[string]any)
+	require.True(t, ok, "profiles map should be present")
+	defaultProfile, ok := profiles["default"].(map[string]any)
+	require.True(t, ok, "default profile should exist")
+	if _, ok := defaultProfile["addr"]; !ok {
+		t.Fatalf("expected profile addr to remain serialized")
+	}
+}
+
+func TestConfigMarshalYAMLIncludesLegacyFieldsWithoutProfiles(t *testing.T) {
+	cfg := &Config{
+		Addr:     "https://legacy",
+		User:     "legacy",
+		Password: "legacy-pass",
+	}
+
+	data, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+
+	var decoded map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &decoded))
+
+	if _, ok := decoded["addr"]; !ok {
+		t.Fatalf("expected legacy addr field to be serialized when no profiles exist")
+	}
+	if _, ok := decoded["user"]; !ok {
+		t.Fatalf("expected legacy user field to be serialized when no profiles exist")
+	}
+}
+
 // Helper function to clear all Proxmox environment variables.
 func clearProxmoxEnvVars() {
 	envVars := []string{
@@ -846,4 +907,44 @@ func clearProxmoxEnvVars() {
 	for _, envVar := range envVars {
 		os.Unsetenv(envVar)
 	}
+}
+
+func TestMergeWithFileMarksCleartextSensitive(t *testing.T) {
+	cfg := NewConfig()
+	cfg.Profiles = make(map[string]ProfileConfig)
+	cfg.DefaultProfile = testDefaultProfile
+
+	content := `profiles:
+    default:
+        addr: https://local
+        user: root
+        password: secret
+        token_id: id
+        token_secret: secret
+`
+	path := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	require.NoError(t, cfg.MergeWithFile(path))
+	require.True(t, cfg.HasCleartextSensitiveData(), "expected cleartext detection when passwords are unencrypted")
+}
+
+func TestMergeWithFileSkipsEncryptedSensitive(t *testing.T) {
+	cfg := NewConfig()
+	cfg.Profiles = make(map[string]ProfileConfig)
+	cfg.DefaultProfile = testDefaultProfile
+
+	content := `profiles:
+    default:
+        addr: https://local
+        user: root
+        password: age1:abc
+        token_id: id
+        token_secret: age1:def
+`
+	path := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	require.NoError(t, cfg.MergeWithFile(path))
+	require.False(t, cfg.HasCleartextSensitiveData(), "encrypted values should not trigger auto-encrypt")
 }

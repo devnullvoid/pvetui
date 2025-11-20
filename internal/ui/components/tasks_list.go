@@ -21,6 +21,22 @@ type TasksList struct {
 
 var _ TasksListComponent = (*TasksList)(nil)
 
+// tasksTableColumns defines the header labels and expansion factors for each
+// column. Expansion values control how the table distributes leftover width so
+// that the Tasks table spans the entire page.
+var tasksTableColumns = []struct {
+	title     string
+	expansion int
+}{
+	{title: "Time", expansion: 2},
+	{title: "Node", expansion: 2},
+	{title: "Type", expansion: 2},
+	{title: "Status", expansion: 1},
+	{title: "User", expansion: 2},
+	{title: "ID", expansion: 3},
+	{title: "Duration", expansion: 1},
+}
+
 // NewTasksList creates a new tasks list panel.
 func NewTasksList() *TasksList {
 	table := tview.NewTable()
@@ -77,7 +93,8 @@ func (tl *TasksList) Select(row, column int) *tview.Table {
 func (tl *TasksList) noTasksCell() *tview.TableCell {
 	return tview.NewTableCell("No tasks available").
 		SetTextColor(theme.Colors.Warning).
-		SetAlign(tview.AlignCenter)
+		SetAlign(tview.AlignCenter).
+		SetExpansion(1)
 }
 
 // Clear clears the tasks list.
@@ -105,13 +122,13 @@ func (tl *TasksList) updateTable() {
 		return sortedTasks[i].StartTime > sortedTasks[j].StartTime
 	})
 
-	// Set headers: Time, Node, Type, Status, User, ID, Duration
-	headers := []string{"Time", "Node", "Type", "Status", "User", "ID", "Duration"}
-	for i, header := range headers {
-		tc := tview.NewTableCell(header).
+	// Set headers with proportional expansion so the table fills the full width.
+	for i, column := range tasksTableColumns {
+		tc := tview.NewTableCell(column.title).
 			SetTextColor(theme.Colors.HeaderText).
 			SetAlign(tview.AlignLeft).
-			SetSelectable(false)
+			SetSelectable(false).
+			SetExpansion(column.expansion)
 		tl.SetCell(0, i, tc)
 	}
 
@@ -125,7 +142,10 @@ func (tl *TasksList) updateTable() {
 			startTime = time.Unix(task.StartTime, 0).Format("01-02-2006 15:04:05")
 		}
 
-		tl.SetCell(row, 0, tview.NewTableCell(startTime).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 0, tview.NewTableCell(startTime).
+			SetTextColor(theme.Colors.Secondary).
+			SetAlign(tview.AlignLeft).
+			SetExpansion(tasksTableColumns[0].expansion))
 
 		// Node (truncate if too long)
 		node := task.Node
@@ -133,7 +153,10 @@ func (tl *TasksList) updateTable() {
 			node = node[:13] + "..."
 		}
 
-		tl.SetCell(row, 1, tview.NewTableCell(node).SetTextColor(theme.Colors.Primary).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 1, tview.NewTableCell(node).
+			SetTextColor(theme.Colors.Primary).
+			SetAlign(tview.AlignLeft).
+			SetExpansion(tasksTableColumns[1].expansion))
 
 		// Type (friendly name)
 		typeStr := formatTaskType(task.Type)
@@ -141,10 +164,14 @@ func (tl *TasksList) updateTable() {
 			typeStr = typeStr[:13] + "..."
 		}
 
-		tl.SetCell(row, 2, tview.NewTableCell(typeStr).SetTextColor(theme.Colors.Info).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 2, tview.NewTableCell(typeStr).
+			SetTextColor(theme.Colors.Info).
+			SetAlign(tview.AlignLeft).
+			SetExpansion(tasksTableColumns[2].expansion))
 
 		// Status with color coding
 		statusCell := createStatusCell(task.Status)
+		statusCell.SetExpansion(tasksTableColumns[3].expansion)
 		tl.SetCell(row, 3, statusCell)
 
 		// User (cleaned up)
@@ -153,7 +180,10 @@ func (tl *TasksList) updateTable() {
 			user = user[:15] + "..."
 		}
 
-		tl.SetCell(row, 4, tview.NewTableCell(user).SetTextColor(theme.Colors.Tertiary).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 4, tview.NewTableCell(user).
+			SetTextColor(theme.Colors.Tertiary).
+			SetAlign(tview.AlignLeft).
+			SetExpansion(tasksTableColumns[4].expansion))
 
 		// ID (truncate if too long)
 		id := task.ID
@@ -161,7 +191,10 @@ func (tl *TasksList) updateTable() {
 			id = id[:21] + "..."
 		}
 
-		tl.SetCell(row, 5, tview.NewTableCell(id).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 5, tview.NewTableCell(id).
+			SetTextColor(theme.Colors.Secondary).
+			SetAlign(tview.AlignLeft).
+			SetExpansion(tasksTableColumns[5].expansion))
 
 		// Duration (friendly)
 		duration := "N/A"
@@ -178,7 +211,10 @@ func (tl *TasksList) updateTable() {
 			duration = formatDuration(durationTime)
 		}
 
-		tl.SetCell(row, 6, tview.NewTableCell(duration).SetTextColor(theme.Colors.Secondary).SetAlign(tview.AlignLeft))
+		tl.SetCell(row, 6, tview.NewTableCell(duration).
+			SetTextColor(theme.Colors.Secondary).
+			SetAlign(tview.AlignLeft).
+			SetExpansion(tasksTableColumns[6].expansion))
 	}
 
 	// Select first task if available

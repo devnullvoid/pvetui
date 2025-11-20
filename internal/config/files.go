@@ -206,5 +206,9 @@ func SaveConfigFile(cfg *Config, path string) error {
 		return fmt.Errorf("write config file: %w", err)
 	}
 
+	if cfg != nil {
+		cfg.hasCleartextSensitive = false
+	}
+
 	return nil
 }

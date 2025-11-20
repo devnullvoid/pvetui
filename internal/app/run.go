@@ -114,7 +114,7 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 }
 
 func autoEncryptConfig(cfg *config.Config, configPath string) {
-	if configPath == "" {
+	if configPath == "" || !cfg.HasCleartextSensitiveData() {
 		return
 	}
 
@@ -125,25 +125,7 @@ func autoEncryptConfig(cfg *config.Config, configPath string) {
 	}
 
 	if config.IsSOPSEncrypted(configPath, data) {
-		return
-	}
-
-	hasCleartext := false
-	for _, profile := range cfg.Profiles {
-		if (profile.Password != "" && !strings.HasPrefix(profile.Password, "age1:")) ||
-			(profile.TokenSecret != "" && !strings.HasPrefix(profile.TokenSecret, "age1:")) {
-			hasCleartext = true
-			break
-		}
-	}
-	if !hasCleartext {
-		if (cfg.Password != "" && !strings.HasPrefix(cfg.Password, "age1:")) ||
-			(cfg.TokenSecret != "" && !strings.HasPrefix(cfg.TokenSecret, "age1:")) {
-			hasCleartext = true
-		}
-	}
-
-	if !hasCleartext {
+		cfg.MarkSensitiveDataEncrypted()
 		return
 	}
 
@@ -161,13 +143,5 @@ func autoEncryptConfig(cfg *config.Config, configPath string) {
 	}
 
 	fmt.Println("🔐 Encrypted sensitive fields in config file")
-	cfg.Password = cfgCopy.Password
-	cfg.TokenSecret = cfgCopy.TokenSecret
-	for k, v := range cfgCopy.Profiles {
-		if profile, exists := cfg.Profiles[k]; exists {
-			profile.Password = v.Password
-			profile.TokenSecret = v.TokenSecret
-			cfg.Profiles[k] = profile
-		}
-	}
+	cfg.MarkSensitiveDataEncrypted()
 }
