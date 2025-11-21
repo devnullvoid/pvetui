@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.11] - 2025-11-20
+
 ### Changed
 
 - Guest Insights plugin now uses the full main panel dimensions so its table matches other plugin experiences.
