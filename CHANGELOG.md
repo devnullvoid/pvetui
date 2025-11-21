@@ -10,10 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Guest Insights plugin now uses the full main panel dimensions so its table matches other plugin experiences.
+- Tasks page table now expands to the full page width so its columns no longer appear cramped on larger terminals.
 
 ### Fixed
 
-- Tasks page table now expands to the full page width so its columns no longer appear cramped on larger terminals.
 - Startup auto-encryption now runs only when plain-text secrets are actually detected, eliminating the repeating “Encrypted sensitive fields” banner and unnecessary config rewrites.
 - Non-SOPS config saves no longer duplicate the active connection at the bottom of `config.yml`; sensitive-field encryption now keeps values inside their profile only.
 
