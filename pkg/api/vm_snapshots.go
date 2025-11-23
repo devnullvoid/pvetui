@@ -140,12 +140,18 @@ func (c *Client) CreateSnapshot(vm *VM, name string, options *SnapshotOptions) e
 	return nil
 }
 
-// waitForTaskCompletion polls for task completion and returns an error if the task failed.
-func (c *Client) waitForTaskCompletion(upid string, operationName string) error {
-	c.logger.Debug("Waiting for task completion: %s", upid)
+// WaitForTaskCompletion polls for task completion and returns an error if the task failed.
+// This is a public wrapper that allows specifying a custom timeout.
+//
+// Parameters:
+//   - upid: The Proxmox task UPID to monitor
+//   - operationName: A human-readable name for the operation (used in error messages)
+//   - maxWait: Maximum time to wait for the task to complete
+//
+// Returns an error if the task fails or times out.
+func (c *Client) WaitForTaskCompletion(upid string, operationName string, maxWait time.Duration) error {
+	c.logger.Debug("Waiting for task completion: %s (timeout: %v)", upid, maxWait)
 
-	// Poll for up to 2 minutes
-	maxWait := 2 * time.Minute
 	pollInterval := 2 * time.Second
 	start := time.Now()
 
@@ -179,6 +185,12 @@ func (c *Client) waitForTaskCompletion(upid string, operationName string) error 
 	}
 
 	return fmt.Errorf("%s timed out waiting for task %s", operationName, upid)
+}
+
+// waitForTaskCompletion is a private wrapper for backward compatibility with snapshots.
+func (c *Client) waitForTaskCompletion(upid string, operationName string) error {
+	// Snapshots typically complete within 2 minutes
+	return c.WaitForTaskCompletion(upid, operationName, 2*time.Minute)
 }
 
 // DeleteSnapshot deletes a snapshot from a VM or container.

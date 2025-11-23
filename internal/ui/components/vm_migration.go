@@ -180,7 +180,9 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 			// because the VM still exists (just on a different node)
 		}()
 
-		if err := a.client.MigrateVM(vm, options); err != nil {
+		// Initiate migration and get the task UPID
+		upid, err := a.client.MigrateVM(vm, options)
+		if err != nil {
 			// Update message with detailed error on main thread
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError(fmt.Sprintf("Migration failed: %v", err))
@@ -193,50 +195,25 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 		}
 
 		// Migration started successfully
-		// Now poll for migration completion
-		maxWaitTime := 5 * time.Minute
-		checkInterval := 3 * time.Second
-		startTime := time.Now()
-		migrationComplete := false
+		// Wait for the migration task to complete using the UPID
+		// Migrations can take several minutes depending on VM size and network speed
+		maxWaitTime := 10 * time.Minute
+		migrationErr := a.client.WaitForTaskCompletion(upid, "VM migration", maxWaitTime)
 
-		for time.Since(startTime) < maxWaitTime {
-			migratedVM := &api.VM{ID: vm.ID, Node: options.Target, Type: vm.Type}
-			freshVM, err := a.client.RefreshVMData(migratedVM, nil)
+		if migrationErr != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Migration error: %v", migrationErr))
+				a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
+					strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, migrationErr))
+			})
 
-			if err == nil && freshVM != nil {
-				migratedVM = freshVM
-			}
-
-			if migratedVM != nil {
-				if vm.Type == api.VMTypeLXC || (vm.Type == api.VMTypeQemu && (options.Online == nil || !*options.Online)) {
-					// LXC or offline QEMU: consider migration complete as soon as uptime is > 0
-					if migratedVM.Uptime > 0 {
-						migrationComplete = true
-
-						break
-					}
-				} else if vm.Type == api.VMTypeQemu && options.Online != nil && *options.Online {
-					// Online QEMU: wait for status to be running
-					if migratedVM.Status == api.VMStatusRunning {
-						migrationComplete = true
-
-						break
-					}
-				}
-			}
-
-			time.Sleep(checkInterval)
+			return
 		}
 
-		if migrationComplete {
-			a.QueueUpdateDraw(func() {
-				a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s completed successfully", vm.Name, options.Target))
-			})
-		} else {
-			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Migration of %s to %s timed out", vm.Name, options.Target))
-			})
-		}
+		// Migration task completed successfully
+		a.QueueUpdateDraw(func() {
+			a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s completed successfully", vm.Name, options.Target))
+		})
 
 		// Clear API cache to ensure fresh data is loaded
 		a.client.ClearAPICache()

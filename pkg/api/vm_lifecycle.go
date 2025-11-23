@@ -126,9 +126,8 @@ type MigrationOptions struct {
 //   - Target node is different from the source node
 //   - Target node is online and available
 //
-// Migration is an asynchronous operation. The function returns immediately
-// after initiating the migration, and the actual progress can be monitored
-// via the cluster tasks API.
+// Migration is an asynchronous operation. The function returns a task UPID
+// that can be monitored via the WaitForTaskCompletion method or the cluster tasks API.
 //
 // Example usage:
 //
@@ -137,16 +136,21 @@ type MigrationOptions struct {
 //		Online: &[]bool{true}[0], // Enable online migration
 //		BandwidthLimit: 1000,     // Limit to 1000 KB/s
 //	}
-//	err := client.MigrateVM(vm, options)
+//	upid, err := client.MigrateVM(vm, options)
+//	if err != nil {
+//		return err
+//	}
+//	// Wait for migration to complete (migrations can take several minutes)
+//	err = client.WaitForTaskCompletion(upid, "VM migration", 10*time.Minute)
 //
 // Parameters:
 //   - vm: The VM or container to migrate
 //   - options: Migration configuration options
 //
-// Returns an error if the migration cannot be initiated.
-func (c *Client) MigrateVM(vm *VM, options *MigrationOptions) error {
+// Returns the task UPID and an error if the migration cannot be initiated.
+func (c *Client) MigrateVM(vm *VM, options *MigrationOptions) (string, error) {
 	if options == nil || options.Target == "" {
-		return fmt.Errorf("target node is required for migration")
+		return "", fmt.Errorf("target node is required for migration")
 	}
 
 	// Validate target node exists
@@ -162,7 +166,7 @@ func (c *Client) MigrateVM(vm *VM, options *MigrationOptions) error {
 		}
 
 		if !targetExists {
-			return fmt.Errorf("target node '%s' not found in cluster", options.Target)
+			return "", fmt.Errorf("target node '%s' not found in cluster", options.Target)
 		}
 	}
 
@@ -227,12 +231,25 @@ func (c *Client) MigrateVM(vm *VM, options *MigrationOptions) error {
 	if err := c.PostWithResponse(path, data, &response); err != nil {
 		c.logger.Error("Migration API call failed: %v", err)
 
-		return err
+		return "", err
 	}
 
 	c.logger.Info("Migration API response: %+v", response)
 
-	return nil
+	// Extract UPID from response
+	upid := ""
+	if dataField, ok := response["data"]; ok {
+		if upidStr, ok := dataField.(string); ok && strings.HasPrefix(upidStr, "UPID:") {
+			upid = upidStr
+			c.logger.Debug("Migration task queued with UPID: %s", upid)
+		}
+	}
+
+	if upid == "" {
+		c.logger.Debug("Migration initiated but no UPID returned in response")
+	}
+
+	return upid, nil
 }
 
 // DeleteVM permanently deletes a VM or container
