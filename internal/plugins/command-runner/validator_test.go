@@ -23,7 +23,7 @@ func TestValidator_ValidateCommand(t *testing.T) {
 		{
 			name:       "valid host command - with args",
 			targetType: TargetHost,
-			command:    "df -h",
+			command:    "df -Th",
 			wantErr:    false,
 		},
 		{

@@ -52,27 +52,30 @@ ssh_user: root  # SSH username for command execution
 
 ### Default Whitelisted Commands
 
-**For Proxmox hosts:**
-- `uptime` - System uptime
-- `df -h` - Disk space usage
-- `free -h` - Memory usage
-- `systemctl status {service}` - Service status (with parameter)
-- `journalctl -n 50` - Last 50 journal entries
+**For Proxmox hosts, containers, and Linux VMs:**
+- `uptime` / `df -Th` / `lsblk` / `free -h` - System, disk, and memory snapshots
+- `ps aux`, `top -bn1 | head -20`, `ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%cpu | head -20`, `ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%mem | head -20` - Process and resource hotspots
+- `systemctl list-units --type=service --state=running`, `systemctl list-unit-files --state=enabled`, `systemctl status {service}` - Service visibility (parameterized)
+- `journalctl -u {service} -n 50`, `journalctl -n 100` - Targeted vs general logs
+- `dpkg -l | grep {package}` - Quick package presence check (parameterized)
+- `ip addr show`, `ip route show`, `ip link show` - Interface & routing state
+- `ss -tulpn`, `ss -s`, `netstat -tulpn` - Socket listeners and summaries
+- `cat /etc/resolv.conf`, `resolvectl status 2>/dev/null || systemd-resolve --status 2>/dev/null` - DNS configuration / systemd resolver status
+- `who`, `last -n 20` - Active and historical sessions
 
-**For containers:**
-- `ps aux` - Process list
-- `df -h` - Disk usage
-- `apt list --upgradable` - Available updates
-- `journalctl -n 50` - Last 50 log entries
-- `systemctl list-units --type=service --state=running` - Running services overview
-- `systemctl list-unit-files --state=enabled` - Enabled services
-- `who` - Logged in users
-- `last -n 20` - Recent login sessions
+**Host-only extras:**
+- `pveversion -v` - Proxmox build details
+- `iostat -x 1 5` - Block device performance stats
 
-**For VMs:**
-- **Linux guests**: reuse the shell whitelist (e.g., `uptime`, `systemctl status {service}`, `journalctl -u {service} -n 50`).
-  - Extra helpers: `journalctl -n 50`, `systemctl list-units --type=service --state=running`, `systemctl list-unit-files --state=enabled`, `who`, `last -n 20`.
-- **Windows guests**: commands execute via PowerShell (`Get-ComputerInfo`, `Get-Service`, `Get-Volume`, `Get-NetAdapter`, etc.) with the proper guest agent invocation.
+**For Windows guests:**
+- `Get-ComputerInfo`, `Get-Volume`, `Get-NetAdapter`, `Get-NetIPAddress`, `Get-NetIPConfiguration` - System, disk, adapter, and address inventory
+- `Get-Process | Sort-Object CPU/PM -Descending` - CPU vs memory burners
+- `Get-Service | Sort-Object Status, DisplayName` - Service inventory
+- `Get-EventLog -LogName System -Newest 50` - Recent system log entries
+- `Get-NetRoute` - Routing table snapshot
+- `Get-DnsClientServerAddress`, `ipconfig /all` - DNS servers and general interface info
+- `netstat -ano | findstr LISTEN` - Listening ports
+- `Test-NetConnection -ComputerName {hostname} -InformationLevel Detailed`, `Resolve-DnsName {hostname} -Type A` - Connectivity & DNS resolution probes (parameterized)
 
 ### Security Considerations
 
@@ -89,7 +92,7 @@ ssh_user: root  # SSH username for command execution
 4. Press `c` (or select from context menu) to run a command
 5. Choose from the list of whitelisted commands
 6. If the command has parameters (e.g., `{service}`), fill in the form
-7. View the output in the scrollable result modal
+7. View the output in the scrollable result modal; closing it drops you back into the command list so you can run another command immediately.
 
 ## Guest Insights Plugin
 

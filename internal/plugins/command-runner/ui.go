@@ -67,10 +67,14 @@ func (u *UIManager) showCommandMenu(targetType TargetType, target string, comman
 	list.SetBorder(true)
 	list.SetTitle(fmt.Sprintf(" Run Command on %s (%s) ", target, targetType))
 
+	returnToMenu := func() {
+		u.app.SetFocus(list)
+	}
+
 	for _, cmd := range commands {
 		cmdCopy := cmd // Capture for closure
 		list.AddItem(cmdCopy, "", 0, func() {
-			u.handleCommandSelection(targetType, target, cmdCopy, closeMenu)
+			u.handleCommandSelection(targetType, target, cmdCopy, returnToMenu)
 		})
 	}
 
@@ -104,30 +108,31 @@ func (u *UIManager) showCommandMenu(targetType TargetType, target string, comman
 	})
 
 	pages.AddPage("commandMenu", list, true, true)
+	u.app.SetFocus(list)
 }
 
 // handleCommandSelection processes command selection and prompts for parameters if needed
-func (u *UIManager) handleCommandSelection(targetType TargetType, target, command string, onClose func()) {
+func (u *UIManager) handleCommandSelection(targetType TargetType, target, command string, onResultClosed func()) {
 	template := ParseTemplate(command)
 
 	if len(template.Parameters) == 0 {
 		// No parameters, execute directly
-		u.executeAndShowResult(targetType, target, command, nil, onClose)
+		u.executeAndShowResult(targetType, target, command, nil, onResultClosed)
 	} else {
 		// Has parameters, show input form
-		u.showParameterForm(targetType, target, command, template, onClose)
+		u.showParameterForm(targetType, target, command, template, onResultClosed)
 	}
 }
 
 // showParameterForm displays a form to collect parameter values
-func (u *UIManager) showParameterForm(targetType TargetType, target, command string, template CommandTemplate, onClose func()) {
+func (u *UIManager) showParameterForm(targetType TargetType, target, command string, template CommandTemplate, onReturn func()) {
 	pages := u.app.Pages()
 
 	// Close function that removes the form page
 	closeForm := func() {
 		pages.RemovePage("parameterForm")
-		if onClose != nil {
-			onClose()
+		if onReturn != nil {
+			onReturn()
 		}
 	}
 
@@ -148,7 +153,7 @@ func (u *UIManager) showParameterForm(targetType TargetType, target, command str
 	// Add buttons
 	form.AddButton("Execute", func() {
 		pages.RemovePage("parameterForm")
-		u.executeAndShowResult(targetType, target, command, params, onClose)
+		u.executeAndShowResult(targetType, target, command, params, onReturn)
 	})
 
 	form.AddButton("Cancel", closeForm)

@@ -25,28 +25,67 @@ type AllowedCommands struct {
 
 // DefaultConfig returns the default configuration for the command runner plugin
 func DefaultConfig() Config {
-	linuxVMCommands := []string{
+	linuxCommonCommands := []string{
+		// System overview
 		"uptime",
-		"df -h",
+		"df -Th",
+		"lsblk",
 		"free -h",
-		"systemctl status {service}",
-		"journalctl -u {service} -n 50",
-		"ps aux | head -20",
-		"ip addr show",
-		"journalctl -n 50",
+
+		// Process and resource inspection
+		"ps aux",
+		"top -bn1 | head -20",
+		"ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%cpu | head -20",
+		"ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%mem | head -20",
+
+		// Services, logs, packages
 		"systemctl list-units --type=service --state=running",
 		"systemctl list-unit-files --state=enabled",
+		"systemctl status {service}",
+		"journalctl -n 100",
+		"journalctl -u {service} -n 50",
+		"dpkg -l | grep {package}",
+
+		// Networking & connectivity
+		"ip addr show",
+		"ip route show",
+		"ip link show",
+		"ss -tulpn",
+		"ss -s",
+		"netstat -tulpn",
+		"cat /etc/resolv.conf",
+		"resolvectl status 2>/dev/null || systemd-resolve --status 2>/dev/null",
+		"curl https://ifconfig.me/all",
+		"nslookup {hostname}",
+
+		// User activity
 		"who",
 		"last -n 20",
 	}
+	hostCommands := append([]string{}, linuxCommonCommands...)
+	hostCommands = append(hostCommands,
+		"pveversion -v",
+		"iostat -x 1 5",
+	)
+	containerCommands := append([]string{}, linuxCommonCommands...)
+	linuxVMCommands := append([]string{}, linuxCommonCommands...)
 	windowsVMCommands := []string{
 		"Get-ComputerInfo | Select-Object CsName, OsName, OsVersion, WindowsProductName",
 		"Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, CPU, PM | Format-Table",
+		"Get-Process | Sort-Object PM -Descending | Select-Object -First 15 Name, CPU, PM | Format-Table",
 		"Get-Service | Sort-Object Status, DisplayName | Format-Table -AutoSize -First 40",
 		"Get-EventLog -LogName System -Newest 50 | Format-Table TimeGenerated, EntryType, Source, Message -AutoSize",
 		"Get-Volume | Select-Object DriveLetter, FileSystemLabel, FileSystem, SizeRemaining, Size | Format-Table -AutoSize",
 		"Get-NetIPAddress | Select-Object InterfaceAlias, IPAddress, PrefixLength | Format-Table -AutoSize",
 		"Get-NetAdapter | Select-Object Name, InterfaceDescription, Status, LinkSpeed | Format-Table -AutoSize",
+		"Get-NetIPConfiguration | Format-Table -AutoSize",
+		"Get-NetRoute | Sort-Object DestinationPrefix | Format-Table -AutoSize",
+		"Get-DnsClientServerAddress | Select-Object InterfaceAlias, ServerAddresses | Format-Table -AutoSize",
+		"ipconfig /all",
+		"netstat -ano | findstr LISTEN",
+		"Test-NetConnection -ComputerName {hostname} -InformationLevel Detailed",
+		"Resolve-DnsName {hostname} -Type A",
+		"Invoke-RestMethod -Uri http://ifconfig.me/all",
 	}
 
 	return Config{
@@ -54,37 +93,8 @@ func DefaultConfig() Config {
 		Timeout:       30 * time.Second,
 		MaxOutputSize: 1048576, // 1MB
 		AllowedCommands: AllowedCommands{
-			Host: []string{
-				"uptime",
-				"df -h",
-				"free -h",
-				"pveversion -v",
-				"systemctl status {service}",
-				"journalctl -u {service} -n 50",
-				"top -bn1 | head -20",
-				"iostat -x 1 5",
-				"netstat -tulpn",
-				"ss -tulpn",
-				"ip addr show",
-			},
-			Container: []string{
-				"uptime",
-				"df -h",
-				"free -h",
-				"ps aux",
-				"top -bn1 | head -20",
-				"systemctl status {service}",
-				"journalctl -u {service} -n 50",
-				"journalctl -n 50",
-				"dpkg -l | grep {package}",
-				"ip addr show",
-				"netstat -tulpn",
-				"ss -tulpn",
-				"systemctl list-units --type=service --state=running",
-				"systemctl list-unit-files --state=enabled",
-				"who",
-				"last -n 20",
-			},
+			Host:      hostCommands,
+			Container: containerCommands,
 			VM:        append([]string{}, linuxVMCommands...),
 			VMLinux:   linuxVMCommands,
 			VMWindows: windowsVMCommands,

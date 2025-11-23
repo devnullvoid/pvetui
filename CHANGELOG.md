@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Command Runner Plugin**: Standardized the Linux host/container/guest command sets and added richer troubleshooting helpers (process sorters, `ip route/link show`, resolver dumps, etc.) plus expanded Windows networking/DNS commands so you can capture CPU, memory, and connectivity data from the same menu.
+
+### Changed
+
+- **Command Runner Plugin**: After closing the command output modal you now land back in the command list, making it much faster to run multiple commands back-to-back.
+
 ### Fixed
 
 - **VM Migration Polling**: Fixed migration operations to properly wait for Proxmox task completion via UPID before attempting to poll the target node, eliminating "Configuration file does not exist" errors during active migrations
