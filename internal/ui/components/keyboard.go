@@ -87,10 +87,10 @@ func createNavigationInputCapture(app *App, leftTarget, rightTarget tview.Primit
 // setupKeyboardHandlers configures global keyboard shortcuts.
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if config.DebugEnabled {
-			key, r, mod := keys.NormalizeEvent(event)
-			models.GetUILogger().Debug("input key=%d rune=%q mod=%d", key, r, mod)
-		}
+		// if config.DebugEnabled {
+		// 	key, r, mod := keys.NormalizeEvent(event)
+		// 	models.GetUILogger().Debug("input key=%d rune=%q mod=%d", key, r, mod)
+		// }
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
 
