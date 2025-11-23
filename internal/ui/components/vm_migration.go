@@ -227,22 +227,15 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 			a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s completed successfully", vm.Name, options.Target))
 		})
 
+		// Clear pending state BEFORE refresh so manualRefresh doesn't block
+		models.GlobalState.ClearVMPending(vm)
+
 		// Clear API cache to ensure fresh data is loaded
 		a.client.ClearAPICache()
 
-		// Final refresh after migration
+		// Final refresh after migration - now that pending state is clear
 		a.QueueUpdateDraw(func() {
 			a.manualRefresh() // Refresh all data to show updated VM location and tasks
 		})
-
-		// * Clear pending state after the final refresh completes
-		// This ensures the VM remains in pending state until the refresh shows the updated location
-		go func() {
-			time.Sleep(6 * time.Second) // Wait for manualRefresh to complete
-			a.QueueUpdateDraw(func() {
-				models.GlobalState.ClearVMPending(vm)
-				a.updateVMListWithSelectionPreservation()
-			})
-		}()
 	}()
 }
