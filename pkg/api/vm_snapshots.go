@@ -143,6 +143,11 @@ func (c *Client) CreateSnapshot(vm *VM, name string, options *SnapshotOptions) e
 // WaitForTaskCompletion polls for task completion and returns an error if the task failed.
 // This is a public wrapper that allows specifying a custom timeout.
 //
+// Proxmox task completion is determined by checking the EndTime field:
+//   - If EndTime > 0, the task has finished
+//   - If Status == "OK", the task succeeded
+//   - If Status != "OK", the task failed and Status contains the error message
+//
 // Parameters:
 //   - upid: The Proxmox task UPID to monitor
 //   - operationName: A human-readable name for the operation (used in error messages)
@@ -166,17 +171,24 @@ func (c *Client) WaitForTaskCompletion(upid string, operationName string, maxWai
 		// Find our task
 		for _, task := range tasks {
 			if task.UPID == upid {
-				c.logger.Debug("Found task %s, status: %s", upid, task.Status)
+				c.logger.Debug("Found task %s, status: %q, endtime: %d", upid, task.Status, task.EndTime)
 
-				// Check if task is complete
-				if task.Status == "OK" {
-					c.logger.Debug("Task %s completed successfully", upid)
-					return nil
-				} else if task.Status == "ERROR" || strings.Contains(task.Status, "error") || strings.Contains(task.Status, "not available") {
-					c.logger.Debug("Task %s failed with status: %s", upid, task.Status)
-					return fmt.Errorf("%s failed: %s", operationName, task.Status)
+				// Task is complete when EndTime > 0
+				if task.EndTime > 0 {
+					// Check if task succeeded
+					if task.Status == "OK" {
+						c.logger.Debug("Task %s completed successfully", upid)
+						return nil
+					}
+					// Task completed but failed - Status contains error message
+					errorMsg := task.Status
+					if errorMsg == "" {
+						errorMsg = "unknown error (empty status)"
+					}
+					c.logger.Debug("Task %s failed with status: %s", upid, errorMsg)
+					return fmt.Errorf("%s failed: %s", operationName, errorMsg)
 				}
-				// Task is still running, continue polling
+				// Task is still running (EndTime == 0), continue polling
 				break
 			}
 		}
@@ -184,7 +196,7 @@ func (c *Client) WaitForTaskCompletion(upid string, operationName string, maxWai
 		time.Sleep(pollInterval)
 	}
 
-	return fmt.Errorf("%s timed out waiting for task %s", operationName, upid)
+	return fmt.Errorf("%s timed out after %v waiting for task %s", operationName, maxWait, upid)
 }
 
 // waitForTaskCompletion is a private wrapper for backward compatibility with snapshots.

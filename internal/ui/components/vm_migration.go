@@ -196,8 +196,8 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 
 		// Migration started successfully
 		// Wait for the migration task to complete using the UPID
-		// Migrations can take several minutes depending on VM size and network speed
-		maxWaitTime := 10 * time.Minute
+		// Most migrations complete within 2-3 minutes; timeout at 3 minutes
+		maxWaitTime := 3 * time.Minute
 		migrationErr := a.client.WaitForTaskCompletion(upid, "VM migration", maxWaitTime)
 
 		if migrationErr != nil {
