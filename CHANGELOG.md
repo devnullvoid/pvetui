@@ -11,9 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **VM Migration Polling**: Fixed migration operations to properly wait for Proxmox task completion via UPID before attempting to poll the target node, eliminating "Configuration file does not exist" errors during active migrations
 - **Task Completion Detection**: Improved task completion detection to use the `EndTime` field instead of status string matching, ensuring all task failures (including "migration problems" and other non-standard error messages) are properly caught
-- **Migration Error Display**: Fixed deadlock that occurred when displaying migration error messages by separating `QueueUpdateDraw` calls for header updates and modal dialogs, preventing nested queue calls
 - **Post-Operation Refresh Blocking**: Fixed "Cannot refresh data while there are pending operations in progress" message appearing after successful VM operations by clearing pending state immediately after operation completion for all VM lifecycle actions (start, stop, shutdown, restart, reset, delete, and migrate)
-- **Migration Timeout**: Reduced migration timeout from 10 minutes to 3 minutes based on typical migration completion times, preventing excessive waiting periods
 
 ## [1.0.11] - 2025-11-20
 
