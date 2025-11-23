@@ -183,12 +183,17 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 		// Initiate migration and get the task UPID
 		upid, err := a.client.MigrateVM(vm, options)
 		if err != nil {
-			// Update message with detailed error on main thread
+			// Update header with error
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError(fmt.Sprintf("Migration failed: %v", err))
-				// Also show a modal with more details
-				a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
-					strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, err))
+			})
+			// Show message dialog (showMessage has its own QueueUpdateDraw, don't nest)
+			a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
+				strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, err))
+			// Clear pending state on error
+			models.GlobalState.ClearVMPending(vm)
+			a.QueueUpdateDraw(func() {
+				a.updateVMListWithSelectionPreservation()
 			})
 
 			return
@@ -201,10 +206,17 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 		migrationErr := a.client.WaitForTaskCompletion(upid, "VM migration", maxWaitTime)
 
 		if migrationErr != nil {
+			// Update header with error
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError(fmt.Sprintf("Migration error: %v", migrationErr))
-				a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
-					strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, migrationErr))
+			})
+			// Show message dialog (showMessage has its own QueueUpdateDraw, don't nest)
+			a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
+				strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, migrationErr))
+			// Clear pending state on error
+			models.GlobalState.ClearVMPending(vm)
+			a.QueueUpdateDraw(func() {
+				a.updateVMListWithSelectionPreservation()
 			})
 
 			return
