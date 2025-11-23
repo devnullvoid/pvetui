@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** January 2025 | **For:** pvetui - Proxmox TUI
+**Last Updated:** November 2025 | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -26,6 +26,7 @@
   - [Architectural Decision Log](#architectural-decision-log)
 - [Common Pitfalls](#common-pitfalls)
 - [Troubleshooting](#troubleshooting)
+- [Maintaining This Document](#maintaining-this-document)
 
 ---
 
@@ -98,6 +99,10 @@ The following conventions must be followed for any changes in this repository.
 ## Documentation Requirements
 
 - Update `CHANGELOG.md` under **[Unreleased]** section with user-visible changes.
+  - **Important**: Only document changes from the previous release, not intermediate development steps
+  - Example: If you change a timeout from 5min → 10min → 3min during development, only document the final change (5min → 3min)
+  - Focus on user-visible bug fixes, features, and breaking changes
+  - Avoid documenting internal refactorings or temporary fixes made during development
 - Add GoDoc examples for complex public APIs.
 - Update relevant documentation files when changing behavior.
 
@@ -266,9 +271,12 @@ Key architectural decisions and rationale:
 - Always defer Close() calls immediately after successful resource acquisition
 - Use context.WithTimeout() for all external calls, not context.Background()
 - **Proxmox API responses**: Boolean-like fields return as integers (0/1), not JSON booleans - parse as `float64` and convert to `bool`
+- **Proxmox task completion**: Use the `EndTime` field to detect completion (EndTime > 0 means done), not status string matching - status can be empty while running
 - **Plugin modals**: Always implement `ModalPageNames()` in plugins to prevent global keybindings from firing in plugin modals
 - **Keyboard events**: Use `SetInputCapture()` on focused elements (e.g., input fields, text views) not flex containers to properly consume events
 - **UI text**: Use tview color tags `[primary]text[-]` for colored text; brackets need escaping as `[[` or use color tags instead
+- **tview QueueUpdateDraw deadlocks**: Never call functions that use `QueueUpdateDraw` from within another `QueueUpdateDraw` callback - this creates nested calls that deadlock tview. Always separate UI updates into sequential, non-nested calls.
+- **Pending state and refreshes**: Always clear pending state BEFORE calling refresh functions (`manualRefresh`, `refreshVMData`), as these functions check for pending operations and will block if any exist
 
 ## Troubleshooting
 
@@ -338,3 +346,26 @@ Key architectural decisions and rationale:
 1. Cache directory should be 0o700: `chmod 700 ~/.cache/pvetui`
 2. Sensitive config files should be 0o600: `chmod 600 ~/.config/pvetui/config.yaml`
 3. Check that the application is creating files with correct permissions in the first place
+
+---
+
+## Maintaining This Document
+
+**When to Update:** After completing significant work on the codebase, update this document with lessons learned and patterns discovered.
+
+**What to Add:**
+- New patterns discovered in the codebase
+- Common pitfalls encountered during development
+- Architectural decisions and their rationale
+- Troubleshooting steps for new classes of issues
+- Updates to development workflows or tooling
+
+**Format:**
+- Add concrete, actionable information
+- Include examples where helpful
+- Keep entries concise but complete
+- Update the "Last Updated" date at the top
+- Update the Table of Contents if adding new sections
+
+**For Future Agents:**
+After completing your work session, review your changes and add relevant learnings to the appropriate sections above. This ensures institutional knowledge is preserved and future development is more efficient.
