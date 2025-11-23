@@ -91,15 +91,13 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 		a.QueueUpdateDraw(func() {
 			a.header.ShowSuccess(fmt.Sprintf("%s %s completed successfully", operationName, vm.Name))
 		})
-		time.Sleep(1500 * time.Millisecond)
-		a.QueueUpdateDraw(func() {
-			// Only show the pre-refresh loading if we're not already loading for another reason
-			if !a.header.IsLoading() {
-				a.header.ShowLoading("Preparing refresh...")
-			}
-		})
-		time.Sleep(500 * time.Millisecond)
+
+		// Clear pending state immediately after operation completes
 		models.GlobalState.ClearVMPending(vm)
+
+		// Small delay before refresh to let success message show
+		time.Sleep(500 * time.Millisecond)
+
 		a.QueueUpdateDraw(func() {
 			a.updateVMListWithSelectionPreservation()
 			a.refreshVMData(vm)
@@ -144,30 +142,23 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 				a.updateVMListWithSelectionPreservation()
 			})
 		} else {
-			// * Keep pending state until refresh completes
 			a.QueueUpdateDraw(func() {
 				a.header.ShowSuccess(fmt.Sprintf("Successfully deleted %s", vm.Name))
-				// Schedule a short success first, then show pre-refresh loading only if not already loading
-				go func() {
-					time.Sleep(2005 * time.Millisecond)
-					a.QueueUpdateDraw(func() {
-						if !a.header.IsLoading() {
-							a.header.ShowLoading("Preparing refresh...")
-						}
-					})
-				}()
 			})
+
+			// Clear pending state immediately after successful deletion
+			models.GlobalState.ClearVMPending(vm)
+
+			// Clear API cache
 			a.client.ClearAPICache()
 
-			// * Schedule refresh and clear pending state only after refresh completes
-			go func() {
-				time.Sleep(5 * time.Second)
-				a.QueueUpdateDraw(func() {
-					// * Clear pending state before refresh to ensure clean state
-					models.GlobalState.ClearVMPending(vm)
-					a.manualRefresh()
-				})
-			}()
+			// Small delay before refresh to let success message show
+			time.Sleep(500 * time.Millisecond)
+
+			// Refresh to update the UI (VM should be gone)
+			a.QueueUpdateDraw(func() {
+				a.manualRefresh()
+			})
 		}
 	}()
 }
