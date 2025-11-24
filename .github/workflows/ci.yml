@@ -33,7 +33,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
@@ -67,7 +67,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
@@ -105,7 +105,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
