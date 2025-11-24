@@ -27,13 +27,19 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      - name: Compute Go cache key
+        id: gomod
+        run: |
+          echo "key=${RUNNER_OS}-go-$(git hash-object go.sum)" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
             ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          key: ${{ steps.gomod.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-go-
 
@@ -61,13 +67,19 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      - name: Compute Go cache key
+        id: gomod
+        run: |
+          echo "key=${RUNNER_OS}-go-$(git hash-object go.sum)" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
             ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          key: ${{ steps.gomod.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-go-
 
@@ -99,13 +111,19 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      - name: Compute Go cache key
+        id: gomod
+        run: |
+          echo "key=${RUNNER_OS}-go-$(git hash-object go.sum)" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
             ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          key: ${{ steps.gomod.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-go-
 
