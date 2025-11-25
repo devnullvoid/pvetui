@@ -15,8 +15,8 @@ rm -rf \
   "$NOVNC_DIR/karma.conf.cjs" \
   "$NOVNC_DIR/po" \
   "$NOVNC_DIR/utils" \
-  "$NOVNC_DIR/README.md" \
-  "$NOVNC_DIR/package.json" \
   "$NOVNC_DIR/AUTHORS"
+# "$NOVNC_DIR/README.md" \
+# "$NOVNC_DIR/package.json" \
 
 echo "[*] Pruned unnecessary files from $NOVNC_DIR."
