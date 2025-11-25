@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -233,7 +234,11 @@ func (c *SSHClientImpl) ExecuteContainerCommand(ctx context.Context, host string
 
 	// Build the pct exec command
 	// Note: Using 'pct exec' instead of 'pct enter' for non-interactive command execution
-	pctCommand := fmt.Sprintf("sudo pct exec %d -- %s", containerID, command)
+	basePctCommand := fmt.Sprintf("pct exec %d -- %s", containerID, command)
+	pctCommand := basePctCommand
+	if !strings.EqualFold(c.username, "root") {
+		pctCommand = fmt.Sprintf("sudo %s", basePctCommand)
+	}
 
 	// Execute command with context timeout
 	errChan := make(chan error, 1)

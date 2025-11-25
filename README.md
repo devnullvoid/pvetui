@@ -301,7 +301,7 @@ Built-in noVNC client provides seamless console access:
 ## 💡 Tips
 
 - **Use SSH keys for authentication**: For best security and convenience, set up SSH key-based authentication with your Proxmox hosts. Avoid password-based SSH logins.
-- **Passwordless pct access**: Add a sudoers rule on your Proxmox hosts to allow your user to run `pct enter` and `pct exec` without being prompted for a password. Example sudoers line:
+- **Passwordless pct access**: Add a sudoers rule on your Proxmox hosts to allow your user to run `pct enter` and `pct exec` without being prompted for a password. Proxmox VE does **not** install `sudo` by default, so either install it (and grant your non-root `ssh_user` rights) or connect as `root` so commands run without `sudo`. Example sudoers line:
   ```
   youruser ALL=(ALL) NOPASSWD: /usr/sbin/pct enter *, /usr/sbin/pct exec *
   ```

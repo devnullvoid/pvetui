@@ -50,6 +50,8 @@ SSH username is taken from the `ssh_user` field in your pvetui config, falling b
 ssh_user: root  # SSH username for command execution
 ```
 
+> **Note:** Stock Proxmox VE installs do not include `sudo`. If you configure `ssh_user` to a non-root account, install `sudo` on each host and grant that account permission to run `pct exec`/`pct enter`. When connecting as `root`, the plugin skips `sudo` entirely.
+
 ### Default Whitelisted Commands
 
 **For Proxmox hosts, containers, and Linux VMs:**
