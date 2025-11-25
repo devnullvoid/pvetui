@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.12] - 2025-11-24
+
 ### Added
 
 - **Command Runner Plugin**: Standardized the Linux host/container/guest command sets and added richer troubleshooting helpers (process sorters, `ip route/link show`, resolver dumps, etc.) plus expanded Windows networking/DNS commands so you can capture CPU, memory, and connectivity data from the same menu.
