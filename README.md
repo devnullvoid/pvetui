@@ -140,6 +140,7 @@ profiles:
     token_secret: "your-secret"
     insecure: false
     ssh_user: "your-ssh-user"
+    vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VM shells
 
   work:
     addr: "https://work-proxmox:8006"
@@ -149,10 +150,13 @@ profiles:
     realm: "pam"
     insecure: false
     ssh_user: "workuser"
+    vm_ssh_user: "work-vm-user"
 
 default_profile: "default"
 debug: false
 ```
+
+`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles.
 
 ### Plugins
 

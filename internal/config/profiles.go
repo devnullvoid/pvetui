@@ -20,6 +20,7 @@ type ProfileConfig struct {
 	ApiPath     string `yaml:"api_path"`
 	Insecure    bool   `yaml:"insecure"`
 	SSHUser     string `yaml:"ssh_user"`
+	VMSSHUser   string `yaml:"vm_ssh_user"`
 }
 
 // ApplyProfile applies the settings from a named profile to the main config.
@@ -43,6 +44,7 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.ApiPath = profile.ApiPath
 	c.Insecure = profile.Insecure
 	c.SSHUser = profile.SSHUser
+	c.VMSSHUser = profile.VMSSHUser
 
 	// Mark runtime active profile so getters resolve to this profile without changing persisted default
 	c.ActiveProfile = profileName
@@ -55,7 +57,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	// Check if we have legacy fields but no profiles
 	hasLegacyFields := c.Addr != "" || c.User != "" || c.Password != "" ||
 		c.TokenID != "" || c.TokenSecret != "" || c.Realm != "" ||
-		c.ApiPath != "" || c.SSHUser != ""
+		c.ApiPath != "" || c.SSHUser != "" || c.VMSSHUser != ""
 
 	if !hasLegacyFields || len(c.Profiles) > 0 {
 		return false
@@ -77,6 +79,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 		ApiPath:     c.ApiPath,
 		Insecure:    c.Insecure,
 		SSHUser:     c.SSHUser,
+		VMSSHUser:   c.VMSSHUser,
 	}
 
 	// Set default profile
@@ -92,6 +95,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	c.ApiPath = ""
 	c.Insecure = false
 	c.SSHUser = ""
+	c.VMSSHUser = ""
 
 	return true
 }

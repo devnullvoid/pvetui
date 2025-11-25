@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Command Runner Plugin**: Standardized the Linux host/container/guest command sets and added richer troubleshooting helpers (process sorters, `ip route/link show`, resolver dumps, etc.) plus expanded Windows networking/DNS commands so you can capture CPU, memory, and connectivity data from the same menu.
+- **VM SSH User Override**: New `vm_ssh_user` config/flag/env option lets you specify a different SSH username for QEMU VM shells while keeping `ssh_user` for node/LXC access (falls back automatically when omitted).
 
 ### Changed
 

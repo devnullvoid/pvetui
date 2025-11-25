@@ -118,6 +118,7 @@ type Config struct {
 	ApiPath     string `yaml:"api_path"`
 	Insecure    bool   `yaml:"insecure"`
 	SSHUser     string `yaml:"ssh_user"`
+	VMSSHUser   string `yaml:"vm_ssh_user"`
 }
 
 func (c *Config) HasCleartextSensitiveData() bool {
@@ -376,6 +377,7 @@ func (c *Config) MergeWithFile(path string) error {
 		ApiPath     string `yaml:"api_path"`
 		Insecure    *bool  `yaml:"insecure"`
 		SSHUser     string `yaml:"ssh_user"`
+		VMSSHUser   string `yaml:"vm_ssh_user"`
 	}
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
@@ -429,6 +431,9 @@ func (c *Config) MergeWithFile(path string) error {
 				if fileProfile.SSHUser != "" {
 					existingProfile.SSHUser = fileProfile.SSHUser
 				}
+				if fileProfile.VMSSHUser != "" {
+					existingProfile.VMSSHUser = fileProfile.VMSSHUser
+				}
 
 				c.Profiles[name] = existingProfile
 			}
@@ -469,6 +474,9 @@ func (c *Config) MergeWithFile(path string) error {
 
 		if fileConfig.SSHUser != "" {
 			c.SSHUser = fileConfig.SSHUser
+		}
+		if fileConfig.VMSSHUser != "" {
+			c.VMSSHUser = fileConfig.VMSSHUser
 		}
 	}
 

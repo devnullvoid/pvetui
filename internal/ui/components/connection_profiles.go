@@ -192,6 +192,7 @@ func (a *App) showAddProfileDialog() {
 		ApiPath:     "/api2/json",
 		Insecure:    false,
 		SSHUser:     "",
+		VMSSHUser:   "",
 	}
 
 	// Create a temporary config for the wizard
@@ -208,6 +209,7 @@ func (a *App) showAddProfileDialog() {
 		ApiPath:     newProfile.ApiPath,
 		Insecure:    newProfile.Insecure,
 		SSHUser:     newProfile.SSHUser,
+		VMSSHUser:   newProfile.VMSSHUser,
 		Debug:       a.config.Debug,
 		CacheDir:    a.config.CacheDir,
 		Theme:       a.config.Theme,

@@ -106,7 +106,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	})
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser string
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
 	var insecure bool
 
 	// If we have profiles and a default profile, use profile data
@@ -135,6 +135,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			apiPath = profile.ApiPath
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
+			vmSSHUser = profile.VMSSHUser
 		}
 	} else {
 		// Use legacy fields
@@ -158,6 +159,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		apiPath = cfg.ApiPath
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
+		vmSSHUser = cfg.VMSSHUser
 	}
 
 	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
@@ -250,6 +252,17 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			}
 		} else {
 			cfg.SSHUser = strings.TrimSpace(text)
+		}
+	})
+	form.AddInputField("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
+		value := strings.TrimSpace(text)
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.VMSSHUser = value
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.VMSSHUser = value
 		}
 	})
 	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })

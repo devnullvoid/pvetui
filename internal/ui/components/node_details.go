@@ -16,7 +16,6 @@ import (
 const (
 	statusRunning = "running"
 	statusStopped = "stopped"
-	vmTypeLXC     = "lxc"
 )
 
 // NodeDetails encapsulates the node details panel.

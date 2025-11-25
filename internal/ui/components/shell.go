@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devnullvoid/pvetui/pkg/api"
-
-	// "github.com/devnullvoid/pvetui/pkg/config".
 	"github.com/devnullvoid/pvetui/internal/ssh"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/vnc"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // openNodeShell opens an SSH session to the currently selected node.
@@ -215,17 +213,27 @@ func (a *App) openVMVNC() {
 }
 
 // openVMShell opens a shell session to the currently selected VM/container.
+
 func (a *App) openVMShell() {
-	if a.config.SSHUser == "" {
-		a.showMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
-
-		return
-	}
-
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
 		a.showMessageSafe("Selected VM not found")
 
+		return
+	}
+
+	vmShellUser := a.config.VMSSHUser
+	if vmShellUser == "" {
+		vmShellUser = a.config.SSHUser
+	}
+
+	hostShellUser := a.config.SSHUser
+	if vm.Type == vmTypeLXC && hostShellUser == "" {
+		a.showMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+		return
+	}
+	if vm.Type == vmTypeQEMU && vmShellUser == "" {
+		a.showMessageSafe("VM SSH user not configured. Set vm_ssh_user (or fallback ssh_user) to use VM shells.")
 		return
 	}
 
@@ -247,7 +255,7 @@ func (a *App) openVMShell() {
 	}
 
 	// Check for QEMU VMs without IP address before suspending UI
-	if vm.Type == "qemu" && vm.IP == "" {
+	if vm.Type == vmTypeQEMU && vm.IP == "" {
 		// Show error dialog for QEMU VMs without IP
 		errorModal := CreateErrorDialog("Cannot Open Shell",
 			fmt.Sprintf("Cannot open shell: No IP address available for VM %s (ID: %d)\n\nTo connect to this VM:\n1. Configure the VM's network to obtain an IP address\n2. Use VNC console instead (if available)\n3. Check VM network configuration and ensure it's properly started", vm.Name, vm.ID),
@@ -260,7 +268,8 @@ func (a *App) openVMShell() {
 
 	// Temporarily suspend the UI
 	a.Suspend(func() {
-		if vm.Type == "lxc" {
+
+		if vm.Type == vmTypeLXC {
 			// Determine container type for display
 			containerType := "LXC container"
 			if vm.OSType == "nixos" || vm.OSType == "nix" {
@@ -271,16 +280,16 @@ func (a *App) openVMShell() {
 				containerType, vm.Name, vm.ID, vm.Node, nodeIP)
 
 			// Execute LXC shell command with NixOS detection
-			err := ssh.ExecuteLXCShellWithVM(a.config.SSHUser, nodeIP, vm)
+			err := ssh.ExecuteLXCShellWithVM(hostShellUser, nodeIP, vm)
 			if err != nil {
 				fmt.Printf("\nError connecting to %s: %v\n", containerType, err)
 			}
-		} else if vm.Type == "qemu" {
+		} else if vm.Type == vmTypeQEMU {
 			// For QEMU VMs, use direct SSH connection
-			fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH at %s...\n",
-				vm.Name, vm.ID, vm.IP)
+			fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH as %s@%s...\n",
+				vm.Name, vm.ID, vmShellUser, vm.IP)
 
-			err := ssh.ExecuteQemuShell(a.config.SSHUser, vm.IP)
+			err := ssh.ExecuteQemuShell(vmShellUser, vm.IP)
 			if err != nil {
 				fmt.Printf("\nFailed to SSH to VM: %v\n", err)
 			}

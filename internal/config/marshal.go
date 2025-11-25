@@ -18,6 +18,7 @@ type marshaledConfig struct {
 	ApiPath        string                   `yaml:"api_path,omitempty"`
 	Insecure       bool                     `yaml:"insecure,omitempty"`
 	SSHUser        string                   `yaml:"ssh_user,omitempty"`
+	VMSSHUser      string                   `yaml:"vm_ssh_user,omitempty"`
 }
 
 // MarshalYAML implements yaml.Marshaler to ensure legacy single-profile fields
@@ -47,6 +48,7 @@ func (cfg *Config) MarshalYAML() (any, error) {
 		clean.ApiPath = cfg.ApiPath
 		clean.Insecure = cfg.Insecure
 		clean.SSHUser = cfg.SSHUser
+		clean.VMSSHUser = cfg.VMSSHUser
 	}
 
 	return clean, nil

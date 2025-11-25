@@ -37,6 +37,7 @@ type BootstrapOptions struct {
 	FlagInsecure    bool
 	FlagApiPath     string
 	FlagSSHUser     string
+	FlagVMSSHUser   string
 	FlagDebug       bool
 	FlagCacheDir    string
 }
@@ -67,7 +68,7 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&configWizard, "w", false, "Short for --config-wizard")
 
 	// Config flags (these will be applied to the config object later)
-	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagCacheDir string
+	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagCacheDir string
 	var flagInsecure, flagDebug bool
 
 	flag.StringVar(&flagAddr, "addr", "", "Proxmox API URL (env PVETUI_ADDR)")
@@ -88,6 +89,8 @@ func ParseFlags() BootstrapOptions {
 	flag.StringVar(&flagApiPath, "ap", "", "Short for --api-path")
 	flag.StringVar(&flagSSHUser, "ssh-user", "", "SSH username (env PVETUI_SSH_USER)")
 	flag.StringVar(&flagSSHUser, "su", "", "Short for --ssh-user")
+	flag.StringVar(&flagVMSSHUser, "vm-ssh-user", "", "QEMU VM SSH username (env PVETUI_VM_SSH_USER)")
+	flag.StringVar(&flagVMSSHUser, "vsu", "", "Short for --vm-ssh-user")
 	flag.BoolVar(&flagDebug, "debug", false, "Enable debug logging (env PVETUI_DEBUG)")
 	flag.BoolVar(&flagDebug, "d", false, "Short for --debug")
 	flag.StringVar(&flagCacheDir, "cache-dir", "", "Cache directory path (env PVETUI_CACHE_DIR)")
@@ -111,6 +114,7 @@ func ParseFlags() BootstrapOptions {
 		FlagInsecure:    flagInsecure,
 		FlagApiPath:     flagApiPath,
 		FlagSSHUser:     flagSSHUser,
+		FlagVMSSHUser:   flagVMSSHUser,
 		FlagDebug:       flagDebug,
 		FlagCacheDir:    flagCacheDir,
 	}
@@ -216,6 +220,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			if opts.FlagSSHUser != "" {
 				profile.SSHUser = opts.FlagSSHUser
 			}
+			if opts.FlagVMSSHUser != "" {
+				profile.VMSSHUser = opts.FlagVMSSHUser
+			}
 			cfg.Profiles[selectedProfile] = profile
 		}
 	}
@@ -270,6 +277,9 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 	}
 	if opts.FlagSSHUser != "" {
 		cfg.SSHUser = opts.FlagSSHUser
+	}
+	if opts.FlagVMSSHUser != "" {
+		cfg.VMSSHUser = opts.FlagVMSSHUser
 	}
 	if opts.FlagDebug {
 		cfg.Debug = true

@@ -696,12 +696,13 @@ debug: true
 func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 	// Test that legacy configuration gets migrated to profile-based
 	cfg := &Config{
-		Addr:     "https://test.example.com:8006",
-		User:     "testuser",
-		Password: "testpass",
-		Realm:    "pam",
-		Insecure: true,
-		SSHUser:  "sshuser",
+		Addr:      "https://test.example.com:8006",
+		User:      "testuser",
+		Password:  "testpass",
+		Realm:     "pam",
+		Insecure:  true,
+		SSHUser:   "sshuser",
+		VMSSHUser: "vmuser",
 	}
 
 	// Initially should have no profiles
@@ -725,6 +726,7 @@ func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 	assert.Equal(t, "pam", defaultProfile.Realm)
 	assert.True(t, defaultProfile.Insecure)
 	assert.Equal(t, "sshuser", defaultProfile.SSHUser)
+	assert.Equal(t, "vmuser", defaultProfile.VMSSHUser)
 
 	// Legacy fields should be cleared
 	assert.Equal(t, "", cfg.Addr)
@@ -733,6 +735,7 @@ func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 	assert.Equal(t, "", cfg.Realm)
 	assert.False(t, cfg.Insecure)
 	assert.Equal(t, "", cfg.SSHUser)
+	assert.Equal(t, "", cfg.VMSSHUser)
 }
 
 func TestConfig_MigrateLegacyToProfiles_NoLegacyFields(t *testing.T) {
@@ -785,6 +788,7 @@ password: "legacypass"
 realm: "pam"
 insecure: true
 ssh_user: "sshuser"
+vm_ssh_user: "vmuser"
 debug: true
 cache_dir: "/tmp/test-cache"
 `
@@ -812,6 +816,7 @@ cache_dir: "/tmp/test-cache"
 	assert.Equal(t, "pam", defaultProfile.Realm)
 	assert.True(t, defaultProfile.Insecure)
 	assert.Equal(t, "sshuser", defaultProfile.SSHUser)
+	assert.Equal(t, "vmuser", defaultProfile.VMSSHUser)
 
 	// Legacy fields should be cleared
 	assert.Equal(t, "", cfg.Addr)
@@ -820,6 +825,7 @@ cache_dir: "/tmp/test-cache"
 	assert.Equal(t, "", cfg.Realm)
 	assert.False(t, cfg.Insecure)
 	assert.Equal(t, "", cfg.SSHUser)
+	assert.Equal(t, "", cfg.VMSSHUser)
 
 	// Global settings should be preserved
 	assert.True(t, cfg.Debug)
