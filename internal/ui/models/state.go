@@ -191,6 +191,20 @@ func FilterVMs(filter string) {
 
 			continue
 		}
+
+		// Check VM IP address
+		if strings.Contains(strings.ToLower(vm.IP), filter) {
+			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+
+			continue
+		}
+
+		// Check VM tags
+		if strings.Contains(strings.ToLower(vm.Tags), filter) {
+			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+
+			continue
+		}
 	}
 	// GetUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
 	//
