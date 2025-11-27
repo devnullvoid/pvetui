@@ -41,16 +41,18 @@ archives:
   - id: default
     # ids: [pvetui, pvetui-windows-amd64]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    formats: [ 'tar.gz' ]
+    formats: ["tar.gz"]
     format_overrides:
       - goos: windows
-        formats: [ 'zip' ]
+        formats: ["zip"]
     files:
       - LICENSE
       - README.md
       - THIRD_PARTY_LICENSES.md
-      - internal/vnc/novnc/LICENSE.txt
-      - internal/vnc/novnc/vendor/pako/LICENSE
+      - src: internal/vnc/novnc/LICENSE.txt
+        dst: NOVNC_LICENSE.txt
+      - src: internal/vnc/novnc/lib/pako/LICENSE
+        dst: PAKO_LICENSE.txt
 
 checksum:
   name_template: "checksums_{{ .Version }}.txt"
@@ -59,10 +61,10 @@ changelog:
   use: git
   filters:
     exclude:
-      - '^chore:'
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
+      - "^chore:"
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
       - Merge pull request
       - Merge branch
 
