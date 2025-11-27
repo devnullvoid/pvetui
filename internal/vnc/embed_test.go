@@ -14,7 +14,7 @@ func TestNoVNCFilesEmbedded(t *testing.T) {
 		"vnc_lite.html",
 		"app/ui.js",
 		"core/rfb.js",
-		"vendor/pako/lib/zlib/inflate.js",
+		"lib/pako/lib/zlib/inflate.js",
 	}
 
 	novncFS, err := fs.Sub(novncFiles, "novnc")
