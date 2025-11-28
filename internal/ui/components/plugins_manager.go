@@ -51,7 +51,7 @@ func (a *App) showManagePluginsDialog() {
 		ShowSecondaryText(true)
 	list.SetBorder(false)
 	list.SetHighlightFullLine(true)
-	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
+	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse))
 
 	updateList := func() {
 		current := list.GetCurrentItem()

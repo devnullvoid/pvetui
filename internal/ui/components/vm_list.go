@@ -33,7 +33,7 @@ func NewVMList() *VMList {
 	list.ShowSecondaryText(false)
 	list.SetBorder(true)
 	list.SetTitle(" Guests ")
-	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
+	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse))
 
 	return &VMList{
 		List: list,

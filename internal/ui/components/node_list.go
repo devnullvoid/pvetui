@@ -32,7 +32,7 @@ func NewNodeList() *NodeList {
 	list.ShowSecondaryText(false)
 	list.SetBorder(true)
 	list.SetTitle(" Nodes ")
-	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
+	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse))
 
 	return &NodeList{
 		List:  list,

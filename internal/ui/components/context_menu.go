@@ -46,7 +46,7 @@ func (cm *ContextMenu) Show() *tview.List {
 	list.ShowSecondaryText(false)
 	list.SetBorder(true)
 	list.SetTitle(cm.title)
-	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
+	list.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse))
 
 	for i, action := range cm.menuItems {
 		var shortcut rune

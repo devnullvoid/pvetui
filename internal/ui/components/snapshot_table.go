@@ -27,7 +27,7 @@ func NewSnapshotTable(app *App, vm *api.VM) *SnapshotTable {
 	st.Table = tview.NewTable().
 		SetSelectable(true, false).
 		SetFixed(1, 0).
-		SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary)).
+		SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse)).
 		SetDoneFunc(func(key tcell.Key) {
 			// Go back to VM list when Escape is pressed
 			if key == tcell.KeyEsc {

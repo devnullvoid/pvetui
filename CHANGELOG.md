@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **noVNC Assets with go install**: Fixed missing noVNC vendor files (pako compression library) when installing via `go install` by renaming `vendor/` to `lib/` (Go's embed package excludes directories named 'vendor' by design). The `prune_novnc.sh` script now automatically handles this transformation after updating the noVNC subtree from upstream.
+- **Selection Visibility on Windows**: Added reverse video attribute to selected items for better visibility on Windows Terminal with black backgrounds (Vintage, Campbell, IBM 5153 color schemes). Selected nodes/VMs now use inverted colors that work regardless of theme or terminal settings.
 
 ## [1.0.12] - 2025-11-24
 

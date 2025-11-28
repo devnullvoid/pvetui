@@ -46,7 +46,7 @@ func NewTasksList() *TasksList {
 	table.SetSelectable(true, false)
 	table.SetFixed(1, 0) // Fix the header row
 	// Set selection style
-	table.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
+	table.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse))
 
 	tl := &TasksList{
 		Table: table,
