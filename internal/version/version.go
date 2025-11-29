@@ -41,25 +41,23 @@ func GetBuildInfo() *BuildInfo {
 		Arch:      runtime.GOARCH,
 	}
 
-	// If version is still "dev", try to get it from build info (for go install)
-	if info.Version == "dev" {
-		if buildInfo, ok := debug.ReadBuildInfo(); ok {
-			// Try to extract version from module info
-			if buildInfo.Main.Version != "" && buildInfo.Main.Version != "(devel)" {
-				info.Version = strings.TrimPrefix(buildInfo.Main.Version, "v")
-			}
+	// Backfill missing metadata from build info (supports go install without ldflags).
+	if buildInfo, ok := debug.ReadBuildInfo(); ok {
+		// Populate version from module tag when not provided via ldflags.
+		if info.Version == "dev" && buildInfo.Main.Version != "" && buildInfo.Main.Version != "(devel)" {
+			info.Version = strings.TrimPrefix(buildInfo.Main.Version, "v")
+		}
 
-			// Extract VCS info if available
-			for _, setting := range buildInfo.Settings {
-				switch setting.Key {
-				case "vcs.revision":
-					if info.Commit == unknownBuildValue && len(setting.Value) >= 7 {
-						info.Commit = setting.Value[:7]
-					}
-				case "vcs.time":
-					if info.BuildDate == unknownBuildValue {
-						info.BuildDate = setting.Value
-					}
+		// Extract VCS info if available.
+		for _, setting := range buildInfo.Settings {
+			switch setting.Key {
+			case "vcs.revision":
+				if info.Commit == unknownBuildValue && len(setting.Value) >= 7 {
+					info.Commit = setting.Value[:7]
+				}
+			case "vcs.time":
+				if info.BuildDate == unknownBuildValue {
+					info.BuildDate = setting.Value
 				}
 			}
 		}
