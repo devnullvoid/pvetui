@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.13] - 2025-11-29
+
 ### Added
 
 - **Enhanced Guest Search**: Guest search now includes IP addresses and tags in addition to name, ID, type, status, and node name for more comprehensive filtering
