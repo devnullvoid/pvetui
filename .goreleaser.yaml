@@ -53,9 +53,6 @@ archives:
         dst: NOVNC_LICENSE.txt
       - src: internal/vnc/novnc/lib/pako/LICENSE
         dst: PAKO_LICENSE.txt
-      # Keep original paths for AUR packaging (binary tarball install scripts)
-      - src: internal/vnc/novnc/LICENSE.txt
-      - src: internal/vnc/novnc/lib/pako/LICENSE
 
 checksum:
   name_template: "checksums_{{ .Version }}.txt"
@@ -181,10 +178,10 @@ nfpms:
       - src: "THIRD_PARTY_LICENSES.md"
         dst: "/usr/share/doc/pvetui/THIRD_PARTY_LICENSES.md"
         type: "doc"
-      - src: "internal/vnc/novnc/LICENSE.txt"
+      - src: "NOVNC_LICENSE.txt"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.txt"
         type: "doc"
-      - src: "internal/vnc/novnc/lib/pako/LICENSE"
+      - src: "PAKO_LICENSE.txt"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.pako"
         type: "doc"
     overrides:
@@ -215,10 +212,10 @@ nfpms:
       - src: "THIRD_PARTY_LICENSES.md"
         dst: "/usr/share/doc/pvetui/THIRD_PARTY_LICENSES.md"
         type: "doc"
-      - src: "internal/vnc/novnc/LICENSE.txt"
+      - src: "NOVNC_LICENSE.txt"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.txt"
         type: "doc"
-      - src: "internal/vnc/novnc/lib/pako/LICENSE"
+      - src: "PAKO_LICENSE.txt"
         dst: "/usr/share/doc/pvetui/noVNC/LICENSE.pako"
         type: "doc"
     overrides:
