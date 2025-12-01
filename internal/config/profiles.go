@@ -6,6 +6,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -21,6 +22,17 @@ type ProfileConfig struct {
 	Insecure    bool   `yaml:"insecure"`
 	SSHUser     string `yaml:"ssh_user"`
 	VMSSHUser   string `yaml:"vm_ssh_user"`
+
+	// Aggregate is an optional group identifier for aggregate cluster mode.
+	// Profiles with the same non-empty Aggregate value will be combined
+	// into a single "aggregate cluster" view, showing all nodes and VMs
+	// from all grouped profiles together.
+	//
+	// Example: Setting aggregate: "homelab" on multiple profiles will
+	// allow selecting "homelab" as an aggregate view in the profile picker.
+	//
+	// Leave empty for standalone profile behavior (default).
+	Aggregate string `yaml:"aggregate,omitempty"`
 }
 
 // ApplyProfile applies the settings from a named profile to the main config.
@@ -157,4 +169,81 @@ func (c *Config) GetActiveProfile() string {
 		return c.ActiveProfile
 	}
 	return c.DefaultProfile
+}
+
+// GetAggregateGroups returns a map of aggregate group names to their member profile names.
+// Only includes profiles that have a non-empty Aggregate field.
+func (c *Config) GetAggregateGroups() map[string][]string {
+	groups := make(map[string][]string)
+
+	for name, profile := range c.Profiles {
+		if profile.Aggregate != "" {
+			groups[profile.Aggregate] = append(groups[profile.Aggregate], name)
+		}
+	}
+
+	// Sort profile names within each group for consistent ordering
+	for groupName := range groups {
+		sort.Strings(groups[groupName])
+	}
+
+	return groups
+}
+
+// GetProfilesInAggregate returns all profiles belonging to a specific aggregate group.
+func (c *Config) GetProfilesInAggregate(aggregateName string) []ProfileConfig {
+	var profiles []ProfileConfig
+
+	for _, profile := range c.Profiles {
+		if profile.Aggregate == aggregateName {
+			profiles = append(profiles, profile)
+		}
+	}
+
+	return profiles
+}
+
+// GetProfileNamesInAggregate returns profile names belonging to a specific aggregate group.
+func (c *Config) GetProfileNamesInAggregate(aggregateName string) []string {
+	var names []string
+
+	for name, profile := range c.Profiles {
+		if profile.Aggregate == aggregateName {
+			names = append(names, name)
+		}
+	}
+
+	sort.Strings(names)
+	return names
+}
+
+// IsAggregateGroup checks if a name refers to an aggregate group rather than a profile.
+func (c *Config) IsAggregateGroup(name string) bool {
+	groups := c.GetAggregateGroups()
+	_, exists := groups[name]
+	return exists
+}
+
+// HasAggregateGroups returns true if any profiles are configured with aggregate groups.
+func (c *Config) HasAggregateGroups() bool {
+	for _, profile := range c.Profiles {
+		if profile.Aggregate != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateAggregateGroups checks that aggregate group configurations are valid.
+func (c *Config) ValidateAggregateGroups() error {
+	groups := c.GetAggregateGroups()
+
+	for groupName := range groups {
+		// Check for naming conflicts between profiles and aggregate groups
+		if _, exists := c.Profiles[groupName]; exists {
+			return fmt.Errorf("aggregate group name '%s' conflicts with profile name", groupName)
+		}
+	}
+
+	return nil
 }
