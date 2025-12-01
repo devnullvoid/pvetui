@@ -53,6 +53,9 @@ archives:
         dst: NOVNC_LICENSE.txt
       - src: internal/vnc/novnc/lib/pako/LICENSE
         dst: PAKO_LICENSE.txt
+      # Keep original paths for AUR packaging (binary tarball install scripts)
+      - src: internal/vnc/novnc/LICENSE.txt
+      - src: internal/vnc/novnc/lib/pako/LICENSE
 
 checksum:
   name_template: "checksums_{{ .Version }}.txt"
@@ -111,8 +114,8 @@ aurs:
       # Install license
       install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
       install -Dm644 "./THIRD_PARTY_LICENSES.md" "${pkgdir}/usr/share/licenses/pvetui/THIRD_PARTY_LICENSES.md"
-      install -Dm644 "./internal/vnc/novnc/LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
-      install -Dm644 "./internal/vnc/novnc/lib/pako/LICENSE" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
+      install -Dm644 "./NOVNC_LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
+      install -Dm644 "./PAKO_LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
 
       # Install documentation
       install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/pvetui/README.md"
