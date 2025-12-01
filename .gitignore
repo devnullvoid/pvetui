@@ -42,3 +42,7 @@ Thumbs.db
 
 /docs/local
 .notes/
+# Generated API specs (kept locally, not committed)
+docs/api/pve-openapi.yaml
+docs/api/pve-openapi.json
+docs/api/paths-index.json

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **API spec generation**: New `gen-openapi` Make target and `pve-openapi-gen` tool generate an OpenAPI 3 spec from `docs/local/apidoc.js`, making Proxmox endpoints easier to consume and keep in sync.
+
 ### Fixed
 
 - **About dialog metadata**: Widened the About modal so GitHub links no longer wrap/break and backfilled commit/build date when ldflags aren't provided (e.g., `go install`).
