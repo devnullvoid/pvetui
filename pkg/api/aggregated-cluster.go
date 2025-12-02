@@ -269,3 +269,54 @@ func (m *AggregateClientManager) FindNodeByName(ctx context.Context, nodeName st
 
 	return nil, "", fmt.Errorf("node with name %s not found in any profile", nodeName)
 }
+
+// GetAggregatedTasks retrieves tasks from all connected profiles in the aggregate.
+// Each task's SourceProfile field is set to identify which profile it came from.
+// Returns a combined list of all tasks across all profiles.
+func (m *AggregateClientManager) GetAggregatedTasks(ctx context.Context) ([]*ClusterTask, error) {
+	operation := func(profileName string, client *Client) (interface{}, error) {
+		tasks, err := client.GetClusterTasks()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get cluster tasks: %w", err)
+		}
+
+		// Set SourceProfile for each task
+		for _, task := range tasks {
+			task.SourceProfile = profileName
+		}
+
+		return tasks, nil
+	}
+
+	aggregateFunc := func(results []ProfileResult) (interface{}, error) {
+		var allTasks []*ClusterTask
+
+		for _, result := range results {
+			if tasks, ok := result.Data.([]*ClusterTask); ok {
+				allTasks = append(allTasks, tasks...)
+			}
+		}
+
+		// Sort tasks by StartTime desc
+		sort.Slice(allTasks, func(i, j int) bool {
+			if allTasks[i] == nil || allTasks[j] == nil {
+				return allTasks[i] != nil
+			}
+			return allTasks[i].StartTime > allTasks[j].StartTime
+		})
+
+		return allTasks, nil
+	}
+
+	data, err := m.GetAggregatedData(ctx, operation, aggregateFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	tasks, ok := data.([]*ClusterTask)
+	if !ok {
+		return nil, fmt.Errorf("unexpected data type returned from aggregation")
+	}
+
+	return tasks, nil
+}

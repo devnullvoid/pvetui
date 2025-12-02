@@ -56,9 +56,12 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 	var originalUptime int64 = -1
 
 	if op := strings.ToLower(operationName); op == "restarting" {
-		freshVM, err := a.client.RefreshVMData(vm, nil)
+		client, err := a.getClientForVM(vm)
 		if err == nil {
-			originalUptime = freshVM.Uptime
+			freshVM, err := client.RefreshVMData(vm, nil)
+			if err == nil {
+				originalUptime = freshVM.Uptime
+			}
 		}
 	}
 
@@ -122,16 +125,20 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 
 	go func() {
 		var err error
+		var client *api.Client
 
-		if forced {
-			options := &api.DeleteVMOptions{
-				Force:                    true,
-				DestroyUnreferencedDisks: true,
-				Purge:                    true,
+		client, err = a.getClientForVM(vm)
+		if err == nil {
+			if forced {
+				options := &api.DeleteVMOptions{
+					Force:                    true,
+					DestroyUnreferencedDisks: true,
+					Purge:                    true,
+				}
+				err = client.DeleteVMWithOptions(vm, options)
+			} else {
+				err = client.DeleteVM(vm)
 			}
-			err = a.client.DeleteVMWithOptions(vm, options)
-		} else {
-			err = a.client.DeleteVM(vm)
 		}
 
 		if err != nil {
@@ -149,8 +156,10 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 			// Clear pending state immediately after successful deletion
 			models.GlobalState.ClearVMPending(vm)
 
-			// Clear API cache
-			a.client.ClearAPICache()
+			// Clear API cache for the specific client
+			if client != nil {
+				client.ClearAPICache()
+			}
 
 			// Small delay before refresh to let success message show
 			time.Sleep(500 * time.Millisecond)
@@ -177,9 +186,14 @@ func (a *App) waitForVMRestartCompletionWithRefresh(vm *api.VM, originalUptime i
 
 	const pollInterval = 2 * time.Second
 
+	client, err := a.getClientForVM(vm)
+	if err != nil {
+		return
+	}
+
 	start := time.Now()
 	for time.Since(start) < maxWait {
-		freshVM, err := a.client.RefreshVMData(vm, nil)
+		freshVM, err := client.RefreshVMData(vm, nil)
 		if err == nil && freshVM != nil && freshVM.Uptime > 0 && freshVM.Uptime < originalUptime-10 {
 			break
 		}
@@ -194,9 +208,14 @@ func (a *App) waitForVMOperationCompletionWithRefresh(vm *api.VM, operationName 
 
 	const pollInterval = 2 * time.Second
 
+	client, err := a.getClientForVM(vm)
+	if err != nil {
+		return
+	}
+
 	start := time.Now()
 	for time.Since(start) < maxWait {
-		freshVM, err := a.client.RefreshVMData(vm, nil)
+		freshVM, err := client.RefreshVMData(vm, nil)
 		if err == nil && freshVM != nil {
 			if strings.ToLower(operationName) == "stopping" && freshVM.Status != api.VMStatusRunning {
 				break

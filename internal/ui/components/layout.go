@@ -39,7 +39,7 @@ func (a *App) createMainLayout() *tview.Flex {
 // setupComponentConnections wires up the interactions between components.
 func (a *App) setupComponentConnections() {
 	// Update cluster status
-	a.clusterStatus.Update(a.client.Cluster)
+	a.clusterStatus.Update(a.getDisplayCluster())
 
 	// Configure node list - check for existing search filters
 	nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
@@ -54,11 +54,11 @@ func (a *App) setupComponentConnections() {
 
 	a.nodeList.SetApp(a)
 	a.nodeList.SetNodeSelectedFunc(func(node *api.Node) {
-		a.nodeDetails.Update(node, a.client.Cluster.Nodes)
+		a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
 		// No longer filtering VM list based on node selection
 	})
 	a.nodeList.SetNodeChangedFunc(func(node *api.Node) {
-		a.nodeDetails.Update(node, a.client.Cluster.Nodes)
+		a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
 		// No longer filtering VM list based on node selection
 	})
 
@@ -68,7 +68,7 @@ func (a *App) setupComponentConnections() {
 	// Select first node to populate node details on startup
 	// Use the selected node from the node list (which is sorted) instead of raw original nodes
 	if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
-		a.nodeDetails.Update(selectedNode, a.client.Cluster.Nodes)
+		a.nodeDetails.Update(selectedNode, models.GlobalState.OriginalNodes)
 	}
 
 	// Set up VM list with all VMs

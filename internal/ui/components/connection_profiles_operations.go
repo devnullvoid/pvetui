@@ -212,14 +212,37 @@ func (a *App) switchToAggregate(aggregateName string) {
 
 			// Update cluster status (create a summary cluster object)
 			if len(nodes) > 0 {
-				cluster := &api.Cluster{
-					Name:  aggregateName,
-					Nodes: nodes,
+				// We need to construct a synthetic cluster to calculate totals correctly
+				// The App's createSyntheticCluster method handles this calculation
+				// but we need to update the cluster status component with it
+				syntheticCluster := a.createSyntheticCluster(nodes)
+				a.clusterStatus.Update(syntheticCluster)
+			}
+
+			// Update selection and details
+			if len(nodes) > 0 {
+				a.nodeList.SetCurrentItem(0)
+				if selected := a.nodeList.GetSelectedNode(); selected != nil {
+					a.nodeDetails.Update(selected, nodes)
 				}
-				a.clusterStatus.Update(cluster)
+			} else {
+				a.nodeDetails.Clear()
+			}
+
+			if len(vms) > 0 {
+				a.vmList.SetCurrentItem(0)
+				if selected := a.vmList.GetSelectedVM(); selected != nil {
+					a.vmDetails.Update(selected)
+				}
+			} else {
+				a.vmDetails.Clear()
 			}
 
 			uiLogger.Debug("Aggregate data loaded successfully")
+
+			// Refresh tasks from all profiles
+			uiLogger.Debug("Loading aggregate tasks")
+			a.loadTasksData()
 		})
 	}()
 }

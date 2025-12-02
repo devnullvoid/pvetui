@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -48,19 +49,84 @@ func (a *App) manualRefresh() {
 		// This ensures we get fresh data after configuration updates
 		time.Sleep(500 * time.Millisecond)
 
-		// Fetch fresh data bypassing cache
-		cluster, err := a.client.GetFreshClusterStatus()
-		if err != nil {
+		if a.isAggregateMode {
+			// Aggregate mode logic
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			nodes, vms, err := a.aggregateManager.GetAggregatedClusterResources(ctx)
+			if err != nil {
+				a.QueueUpdateDraw(func() {
+					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
+					a.footer.SetLoading(false)
+				})
+
+				return
+			}
+
 			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
+				// Update GlobalState nodes
+				models.GlobalState.OriginalNodes = nodes
+
+				// Apply node filter if active
+				if nodeState := models.GlobalState.GetSearchState(api.PageNodes); nodeState != nil && nodeState.Filter != "" {
+					models.FilterNodes(nodeState.Filter)
+				} else {
+					models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+					copy(models.GlobalState.FilteredNodes, nodes)
+				}
+				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+
+				// Update GlobalState VMs
+				models.GlobalState.OriginalVMs = vms
+
+				// Apply VM filter if active
+				if vmState := models.GlobalState.GetSearchState(api.PageGuests); vmState != nil && vmState.Filter != "" {
+					models.FilterVMs(vmState.Filter)
+					a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+				} else {
+					models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+					copy(models.GlobalState.FilteredVMs, vms)
+					a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+				}
+
+				// Restore selection and search UI
+				nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+
+				a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
+					hasSelectedNode, selectedNodeName, nodeSearchState)
+
+				if node := a.nodeList.GetSelectedNode(); node != nil {
+					a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+				}
+
+				a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
+
+				// Update cluster status with aggregated data
+				a.clusterStatus.Update(a.getDisplayCluster())
+
+				a.header.ShowSuccess("Data refreshed successfully")
+				a.footer.SetLoading(false)
+				a.loadTasksData()
 			})
+		} else {
+			// Single profile logic
+			// Fetch fresh data bypassing cache
+			cluster, err := a.client.GetFreshClusterStatus()
+			if err != nil {
+				a.QueueUpdateDraw(func() {
+					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
+					a.footer.SetLoading(false)
+				})
 
-			return
+				return
+			}
+
+			// Initial UI update and enrichment
+			a.applyInitialClusterUpdate(cluster)
+			a.enrichNodesSequentially(cluster, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
 		}
-
-		// Initial UI update and enrichment
-		a.applyInitialClusterUpdate(cluster)
-		a.enrichNodesSequentially(cluster, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
 	}()
 }
 
@@ -262,7 +328,16 @@ func (a *App) refreshNodeData(node *api.Node) {
 	}
 
 	go func() {
-		freshNode, err := a.client.RefreshNodeData(node.Name)
+		var freshNode *api.Node
+		var err error
+
+		client, clientErr := a.getClientForNode(node)
+		if clientErr != nil {
+			err = clientErr
+		} else {
+			freshNode, err = client.RefreshNodeData(node.Name)
+		}
+
 		a.QueueUpdateDraw(func() {
 			if err != nil {
 				a.header.ShowError(fmt.Sprintf("Error refreshing node %s: %v", node.Name, err))
@@ -272,6 +347,10 @@ func (a *App) refreshNodeData(node *api.Node) {
 			// Update node in global state
 			for i, n := range models.GlobalState.OriginalNodes {
 				if n != nil && n.Name == node.Name {
+					// In aggregate mode, ensure SourceProfile is preserved/set
+					if a.isAggregateMode {
+						freshNode.SourceProfile = node.SourceProfile
+					}
 					models.GlobalState.OriginalNodes[i] = freshNode
 
 					break
@@ -280,6 +359,10 @@ func (a *App) refreshNodeData(node *api.Node) {
 
 			for i, n := range models.GlobalState.FilteredNodes {
 				if n != nil && n.Name == node.Name {
+					// In aggregate mode, ensure SourceProfile is preserved/set
+					if a.isAggregateMode {
+						freshNode.SourceProfile = node.SourceProfile
+					}
 					models.GlobalState.FilteredNodes[i] = freshNode
 
 					break
@@ -322,7 +405,18 @@ func (a *App) refreshNodeData(node *api.Node) {
 // loadTasksData loads and updates task data with proper filtering.
 func (a *App) loadTasksData() {
 	go func() {
-		tasks, err := a.client.GetClusterTasks()
+		var tasks []*api.ClusterTask
+		var err error
+
+		if a.isAggregateMode {
+			// Create context with timeout for aggregate operations
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			tasks, err = a.aggregateManager.GetAggregatedTasks(ctx)
+		} else {
+			tasks, err = a.client.GetClusterTasks()
+		}
+
 		if err == nil {
 			a.QueueUpdateDraw(func() {
 				// Update global state with tasks

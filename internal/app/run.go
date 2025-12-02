@@ -17,7 +17,8 @@ import (
 
 // Options configures the Run function.
 type Options struct {
-	NoCache bool
+	NoCache          bool
+	InitialAggregate string
 }
 
 // RunWithStartupVerification constructs the API client, performs connectivity verification with user feedback, and starts the TUI.
@@ -104,13 +105,16 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 	autoEncryptConfig(cfg, configPath)
 
 	fmt.Println("🖥️  Loading interface...")
+	if opts.InitialAggregate != "" {
+		fmt.Printf("🔄 Will automatically switch to aggregate mode: %s\n", opts.InitialAggregate)
+	}
 	fmt.Println()
 
 	// Start the UI
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	return ui.RunApp(ctx, client, cfg, configPath)
+	return ui.RunApp(ctx, client, cfg, configPath, opts.InitialAggregate)
 }
 
 func autoEncryptConfig(cfg *config.Config, configPath string) {

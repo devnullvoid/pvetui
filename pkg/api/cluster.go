@@ -40,6 +40,10 @@ type ClusterTask struct {
 	Saved     string `json:"saved"`
 	StartTime int64  `json:"starttime"`
 	EndTime   int64  `json:"endtime"`
+
+	// Aggregate cluster support
+	// SourceProfile is the profile name this task came from in aggregate cluster mode.
+	SourceProfile string `json:"source_profile,omitempty"`
 }
 
 // GetClusterStatus retrieves high-level cluster status and node list.

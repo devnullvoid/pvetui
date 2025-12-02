@@ -194,10 +194,15 @@ func (s *Service) GetVMVNCStatus(vm *api.VM) (bool, string) {
 
 // GetNodeVNCStatus checks if VNC shell is available for a node.
 func (s *Service) GetNodeVNCStatus(nodeName string) (bool, string) {
+	return s.GetNodeVNCStatusWithClient(s.client, nodeName)
+}
+
+// GetNodeVNCStatusWithClient checks if VNC shell is available for a node using a specific client.
+func (s *Service) GetNodeVNCStatusWithClient(client *api.Client, nodeName string) (bool, string) {
 	s.logger.Debug("Checking VNC shell status for node: %s", nodeName)
 
 	// Node VNC shells don't work with API token authentication
-	if s.client.IsUsingTokenAuth() {
+	if client.IsUsingTokenAuth() {
 		s.logger.Debug("VNC shell not available for node %s: using API token authentication", nodeName)
 
 		return false, "Node VNC shells are not supported with API token authentication.\n\nThis is a Proxmox limitation - node VNC shells require password authentication.\n\nTo use node VNC shells:\n1. Configure password authentication instead of API tokens\n2. Set PROXMOX_PASSWORD environment variable\n3. Remove PROXMOX_TOKEN_ID and PROXMOX_TOKEN_SECRET"
@@ -211,10 +216,15 @@ func (s *Service) GetNodeVNCStatus(nodeName string) (bool, string) {
 // ConnectToVMEmbedded opens an embedded VNC connection to a VM using the built-in noVNC client
 // This method supports multiple concurrent sessions - each VM gets its own session.
 func (s *Service) ConnectToVMEmbedded(vm *api.VM) (string, error) {
+	return s.ConnectToVMEmbeddedWithClient(s.client, vm)
+}
+
+// ConnectToVMEmbeddedWithClient opens an embedded VNC connection to a VM using the built-in noVNC client and specific client.
+func (s *Service) ConnectToVMEmbeddedWithClient(client *api.Client, vm *api.VM) (string, error) {
 	s.logger.Info("Starting embedded VNC connection for VM: %s (ID: %d, Type: %s, Node: %s)", vm.Name, vm.ID, vm.Type, vm.Node)
 
-	// Create or get existing session for this VM
-	session, err := s.sessionManager.CreateVMSession(vm)
+	// Create or get existing session for this VM using specific client
+	session, err := s.sessionManager.CreateVMSessionWithClient(client, vm)
 	if err != nil {
 		s.logger.Error("Failed to create VM session for %s: %v", vm.Name, err)
 
@@ -247,10 +257,15 @@ func (s *Service) ConnectToVMEmbedded(vm *api.VM) (string, error) {
 // ConnectToNodeEmbedded opens an embedded VNC shell connection to a node using the built-in noVNC client
 // This method supports multiple concurrent sessions - each node gets its own session.
 func (s *Service) ConnectToNodeEmbedded(nodeName string) (string, error) {
+	return s.ConnectToNodeEmbeddedWithClient(s.client, nodeName)
+}
+
+// ConnectToNodeEmbeddedWithClient opens an embedded VNC shell connection to a node using the built-in noVNC client and specific client.
+func (s *Service) ConnectToNodeEmbeddedWithClient(client *api.Client, nodeName string) (string, error) {
 	s.logger.Info("Starting embedded VNC shell connection for node: %s", nodeName)
 
-	// Create or get existing session for this node
-	session, err := s.sessionManager.CreateNodeSession(nodeName)
+	// Create or get existing session for this node using specific client
+	session, err := s.sessionManager.CreateNodeSessionWithClient(client, nodeName)
 	if err != nil {
 		s.logger.Error("Failed to create node session for %s: %v", nodeName, err)
 

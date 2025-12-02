@@ -67,7 +67,7 @@ func (a *App) removePageIfPresent(name string) {
 }
 
 // NewApp creates a new application instance with all UI components.
-func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string) *App {
+func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string, initialAggregate string) *App {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Creating new App instance")
 
@@ -126,6 +126,12 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		// This callback is called when background VM enrichment completes
 		uiLogger.Debug("VM enrichment callback triggered")
 		app.QueueUpdateDraw(func() {
+			// Ignore update if we've switched to aggregate mode
+			if app.isAggregateMode {
+				uiLogger.Debug("Ignoring single-profile enrichment callback due to aggregate mode")
+				return
+			}
+
 			uiLogger.Debug("Processing enriched VM data")
 
 			// Store current VM selection to preserve user's position
@@ -305,6 +311,18 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	// Register callback for immediate session count updates
 	app.registerVNCSessionCallback()
 
+	// Handle initial aggregate switch if requested
+	if initialAggregate != "" {
+		uiLogger.Debug("Scheduling switch to initial aggregate: %s", initialAggregate)
+		// Schedule it to run after current event loop to ensure UI is ready
+		go func() {
+			time.Sleep(100 * time.Millisecond) // Slight delay to let startup finish
+			app.QueueUpdateDraw(func() {
+				app.switchToAggregate(initialAggregate)
+			})
+		}()
+	}
+
 	uiLogger.Debug("App initialization completed successfully")
 
 	return app
@@ -449,5 +467,136 @@ func (a *App) ShowMessageSafe(message string) {
 
 // ClearAPICache clears cached API responses.
 func (a *App) ClearAPICache() {
-	a.client.ClearAPICache()
+	if a.isAggregateMode {
+		clients := a.aggregateManager.GetAllClients()
+		for _, pc := range clients {
+			if pc.Client != nil {
+				pc.Client.ClearAPICache()
+			}
+		}
+	} else {
+		a.client.ClearAPICache()
+	}
+}
+
+// getClientForVM returns the appropriate API client for a VM.
+// In aggregate mode, it returns the client for the VM's source profile.
+// In single-profile mode, it returns the main client.
+func (a *App) getClientForVM(vm *api.VM) (*api.Client, error) {
+	if a.isAggregateMode {
+		if vm.SourceProfile == "" {
+			return nil, fmt.Errorf("source profile not set for VM %s in aggregate mode", vm.Name)
+		}
+
+		profileClient, exists := a.aggregateManager.GetClient(vm.SourceProfile)
+		if !exists {
+			return nil, fmt.Errorf("profile '%s' not found in aggregate manager", vm.SourceProfile)
+		}
+
+		status, err := profileClient.GetStatus()
+		if status != api.ProfileStatusConnected {
+			return nil, fmt.Errorf("profile '%s' is not connected: %v (error: %v)", vm.SourceProfile, status, err)
+		}
+
+		return profileClient.Client, nil
+	}
+	return a.client, nil
+}
+
+// getClientForNode returns the appropriate API client for a Node.
+// In aggregate mode, it returns the client for the Node's source profile.
+// In single-profile mode, it returns the main client.
+func (a *App) getClientForNode(node *api.Node) (*api.Client, error) {
+	if a.isAggregateMode {
+		if node.SourceProfile == "" {
+			return nil, fmt.Errorf("source profile not set for Node %s in aggregate mode", node.Name)
+		}
+
+		profileClient, exists := a.aggregateManager.GetClient(node.SourceProfile)
+		if !exists {
+			return nil, fmt.Errorf("profile '%s' not found in aggregate manager", node.SourceProfile)
+		}
+
+		status, err := profileClient.GetStatus()
+		if status != api.ProfileStatusConnected {
+			return nil, fmt.Errorf("profile '%s' is not connected: %v (error: %v)", node.SourceProfile, status, err)
+		}
+
+		return profileClient.Client, nil
+	}
+	return a.client, nil
+}
+
+// createSyntheticCluster creates a synthetic cluster object from a list of nodes for aggregate display.
+func (a *App) createSyntheticCluster(nodes []*api.Node) *api.Cluster {
+	cluster := &api.Cluster{
+		Name:    fmt.Sprintf("Aggregate: %s", a.aggregateName),
+		Nodes:   nodes,
+		Quorate: true, // Assumed for aggregate view
+	}
+
+	// Calculate totals
+	var totalCPU, totalMem, usedMem float64
+	var onlineNodes int
+	var cpuUsageSum float64
+	var nodesWithMetrics int
+	var totalStorage, usedStorage int64
+
+	uiLogger := models.GetUILogger()
+
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		if node.Online {
+			onlineNodes++
+
+			// Debug log to check if metrics are populated
+			if node.CPUCount == 0 && node.MemoryTotal == 0 {
+				uiLogger.Debug("Aggregate Stats: Node %s is online but has 0 CPU/Mem. SourceProfile: %s", node.Name, node.SourceProfile)
+			}
+
+			if node.CPUCount > 0 {
+				totalCPU += node.CPUCount
+				totalMem += node.MemoryTotal
+				usedMem += node.MemoryUsed
+				cpuUsageSum += node.CPUUsage
+				nodesWithMetrics++
+			}
+
+			if cluster.Version == "" && node.Version != "" {
+				cluster.Version = fmt.Sprintf("Proxmox VE %s", node.Version)
+			}
+
+			totalStorage += node.TotalStorage
+			usedStorage += node.UsedStorage
+		}
+	}
+
+	cluster.TotalNodes = len(nodes)
+	cluster.OnlineNodes = onlineNodes
+	cluster.TotalCPU = totalCPU
+	cluster.MemoryTotal = totalMem
+	cluster.MemoryUsed = usedMem
+	if nodesWithMetrics > 0 {
+		cluster.CPUUsage = cpuUsageSum / float64(nodesWithMetrics)
+	}
+
+	cluster.StorageTotal = totalStorage
+	cluster.StorageUsed = usedStorage
+
+	uiLogger.Debug("Aggregate Stats: Nodes=%d/%d, CPU=%.1f, Mem=%.1f, Storage=%d",
+		onlineNodes, len(nodes), totalCPU, totalMem, totalStorage)
+
+	return cluster
+}
+
+// getDisplayCluster returns the cluster object for display.
+// In aggregate mode, it creates a synthetic cluster from global state.
+// In single-profile mode, it returns the client's cluster object.
+func (a *App) getDisplayCluster() *api.Cluster {
+	if a.isAggregateMode {
+		return a.createSyntheticCluster(models.GlobalState.OriginalNodes)
+	}
+	return a.client.Cluster
 }

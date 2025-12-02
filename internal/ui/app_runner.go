@@ -13,8 +13,8 @@ import (
 )
 
 // RunApp creates and starts the application using the component-based architecture.
-func RunApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string) error {
-	app := components.NewApp(ctx, client, cfg, configPath)
+func RunApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string, initialAggregate string) error {
+	app := components.NewApp(ctx, client, cfg, configPath, initialAggregate)
 
 	metadata := plugins.AvailableMetadata()
 	catalog := make([]components.PluginInfo, len(metadata))

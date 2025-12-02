@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Aggregate Cluster Support**: Introduced the ability to define and manage multiple Proxmox VE clusters as a single, aggregated view. Users can now:
+  - Configure aggregate groups within `config.yml` to combine multiple Proxmox profiles.
+  - Switch between individual profiles and aggregate groups via the profile picker in the UI.
+  - Launch the application directly into an aggregate group using the `--profile="group-name"` CLI flag.
+  - View aggregated CPU, memory, storage, and task information across all connected clusters.
+  - Perform VM operations (start, stop, migration, etc.) on individual VMs within the aggregate view, with operations correctly routed to the respective source cluster.
+  - Utilize VNC and SSH shell access for VMs and nodes across aggregated clusters.
+
+
+
 - **API spec generation**: New `gen-openapi` Make target and `pve-openapi-gen` tool generate an OpenAPI 3 spec from `docs/local/apidoc.js`, making Proxmox endpoints easier to consume and keep in sync.
 
 ### Fixed

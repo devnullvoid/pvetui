@@ -109,7 +109,15 @@ func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 		uiLogger := models.GetUILogger()
 		uiLogger.Debug("Starting VNC connection for node %s with client addr: %s", node.Name, a.config.GetAddr())
 
-		vncURL, err := vncService.ConnectToNodeEmbedded(node.Name)
+		var vncURL string
+		var err error
+
+		client, clientErr := a.getClientForNode(node)
+		if clientErr != nil {
+			err = clientErr
+		} else {
+			vncURL, err = vncService.ConnectToNodeEmbeddedWithClient(client, node.Name)
+		}
 
 		a.QueueUpdateDraw(func() {
 			// Clear the loading message from header
@@ -132,7 +140,15 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 		uiLogger := models.GetUILogger()
 		uiLogger.Debug("Starting VNC connection for VM %s with client addr: %s", vm.Name, a.config.GetAddr())
 
-		vncURL, err := vncService.ConnectToVMEmbedded(vm)
+		var vncURL string
+		var err error
+
+		client, clientErr := a.getClientForVM(vm)
+		if clientErr != nil {
+			err = clientErr
+		} else {
+			vncURL, err = vncService.ConnectToVMEmbeddedWithClient(client, vm)
+		}
 
 		a.QueueUpdateDraw(func() {
 			// Clear the loading message from header
@@ -164,8 +180,18 @@ func (a *App) openNodeVNC() {
 	// Use the shared VNC service instead of creating a new one
 	vncService := a.GetVNCService()
 
+	// Get client for node
+	client, err := a.getClientForNode(node)
+	if err != nil {
+		errorModal := CreateErrorDialog("VNC Error", fmt.Sprintf("Failed to get client for node: %v", err), func() {
+			a.pages.RemovePage("vnc_error")
+		})
+		a.pages.AddPage("vnc_error", errorModal, false, true)
+		return
+	}
+
 	// Check if VNC is available for this node
-	available, reason := vncService.GetNodeVNCStatus(node.Name)
+	available, reason := vncService.GetNodeVNCStatusWithClient(client, node.Name)
 	if !available {
 		// Show error in modal dialog instead of header
 		errorModal := CreateErrorDialog("VNC Not Available", reason, func() {
@@ -240,11 +266,19 @@ func (a *App) openVMShell() {
 	// Get node IP from the cluster
 	var nodeIP string
 
-	for _, node := range a.client.Cluster.Nodes {
-		if node.Name == vm.Node {
-			nodeIP = node.IP
+	client, err := a.getClientForVM(vm)
+	if err != nil {
+		a.showMessageSafe(fmt.Sprintf("Error finding VM cluster: %v", err))
+		return
+	}
 
-			break
+	if client.Cluster != nil {
+		for _, node := range client.Cluster.Nodes {
+			if node.Name == vm.Node {
+				nodeIP = node.IP
+
+				break
+			}
 		}
 	}
 
