@@ -164,12 +164,10 @@ func (a *App) switchToAggregate(aggregateName string) {
 
 		// Update app state
 		a.QueueUpdateDraw(func() {
-			// Clear old single-profile client if switching from single mode
-			if !a.isAggregateMode {
-				a.client = nil
-			}
-
 			// Set aggregate mode
+			// Note: We keep a.client around even in aggregate mode to avoid breaking callbacks
+			// that were set up during initialization. In aggregate mode, we use a.aggregateManager
+			// for operations instead of a.client.
 			a.aggregateManager = manager
 			a.isAggregateMode = true
 			a.aggregateName = aggregateName
