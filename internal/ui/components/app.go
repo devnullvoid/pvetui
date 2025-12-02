@@ -20,26 +20,29 @@ import (
 type App struct {
 	*tview.Application
 
-	client        *api.Client
-	config        config.Config
-	configPath    string
-	vncService    *vnc.Service
-	pages         *tview.Pages
-	header        HeaderComponent
-	footer        FooterComponent
-	nodeList      NodeListComponent
-	vmList        VMListComponent
-	nodeDetails   NodeDetailsComponent
-	vmDetails     VMDetailsComponent
-	tasksList     TasksListComponent
-	clusterStatus ClusterStatusComponent
-	helpModal     *HelpModal
-	mainLayout    *tview.Flex
-	searchInput   *tview.InputField
-	contextMenu   *tview.List
-	isMenuOpen    bool
-	lastFocus     tview.Primitive
-	logger        interfaces.Logger
+	client           *api.Client
+	aggregateManager *api.AggregateClientManager
+	isAggregateMode  bool
+	aggregateName    string
+	config           config.Config
+	configPath       string
+	vncService       *vnc.Service
+	pages            *tview.Pages
+	header           HeaderComponent
+	footer           FooterComponent
+	nodeList         NodeListComponent
+	vmList           VMListComponent
+	nodeDetails      NodeDetailsComponent
+	vmDetails        VMDetailsComponent
+	tasksList        TasksListComponent
+	clusterStatus    ClusterStatusComponent
+	helpModal        *HelpModal
+	mainLayout       *tview.Flex
+	searchInput      *tview.InputField
+	contextMenu      *tview.List
+	isMenuOpen       bool
+	lastFocus        tview.Primitive
+	logger           interfaces.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -392,6 +395,16 @@ func (a *App) Config() *config.Config {
 // Client exposes the underlying API client for plugin use.
 func (a *App) Client() *api.Client {
 	return a.client
+}
+
+// IsAggregateMode returns whether the app is running in aggregate cluster mode.
+func (a *App) IsAggregateMode() bool {
+	return a.isAggregateMode
+}
+
+// AggregateManager returns the aggregate client manager if in aggregate mode, nil otherwise.
+func (a *App) AggregateManager() *api.AggregateClientManager {
+	return a.aggregateManager
 }
 
 // Header returns the header component instance.

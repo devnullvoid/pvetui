@@ -117,6 +117,11 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 				mainText = statusIndicator + fmt.Sprintf("[primary]%s[-]", vmText)
 			}
 
+			// Append source profile if present (aggregate cluster mode)
+			if vm.SourceProfile != "" {
+				mainText += fmt.Sprintf(" [secondary](%s)[-]", vm.SourceProfile)
+			}
+
 			mainText = theme.ReplaceSemanticTags(mainText)
 
 			// Store node info in secondary text (not visible but used for search functionality)
