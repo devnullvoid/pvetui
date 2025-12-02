@@ -1,6 +1,8 @@
 package components
 
 import (
+	"fmt"
+
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
@@ -9,7 +11,17 @@ import (
 
 const addNewProfileText = "Add New Profile"
 
-// showConnectionProfilesDialog displays a dialog for managing connection profiles.
+// Selection type constants for profile picker
+const (
+	selectionTypeHeader          = "header"
+	selectionTypeSeparator       = "separator"
+	selectionTypeProfile         = "profile"
+	selectionTypeAggregate       = "aggregate"
+	selectionTypeAggregateMember = "aggregate-member"
+	selectionTypeAction          = "action"
+)
+
+// showConnectionProfilesDialog displays a dialog for managing connection profiles and aggregates.
 func (a *App) showConnectionProfilesDialog() {
 	// Store last focused primitive
 	a.lastFocus = a.GetFocus()
@@ -20,49 +32,129 @@ func (a *App) showConnectionProfilesDialog() {
 		profiles = make(map[string]config.ProfileConfig)
 	}
 
-	// Create profile list
-	profileNames := make([]string, 0, len(profiles))
-	for name := range profiles {
-		profileNames = append(profileNames, name)
+	// Get aggregate groups
+	aggregateGroups := a.config.GetAggregateGroups()
+
+	// Create lists for menu items and selection mapping
+	menuItems := make([]string, 0)
+	selectionMap := make([]string, 0)   // Maps menu index to profile/aggregate name
+	selectionTypes := make([]string, 0) // Maps menu index to "profile" or "aggregate"
+
+	// Add aggregate groups first (if any)
+	if len(aggregateGroups) > 0 {
+		// Add section header
+		menuItems = append(menuItems, "[::u]Aggregate Groups[::-]")
+		selectionMap = append(selectionMap, "") // Placeholder for header
+		selectionTypes = append(selectionTypes, selectionTypeHeader)
+
+		// Add each aggregate group
+		for aggName, profileNames := range aggregateGroups {
+			displayName := fmt.Sprintf("▸ %s (%d profiles)", aggName, len(profileNames))
+
+			// Check if currently connected to this aggregate
+			if a.isAggregateMode && a.aggregateName == aggName {
+				displayName = "⚡ " + displayName
+			}
+
+			menuItems = append(menuItems, displayName)
+			selectionMap = append(selectionMap, aggName)
+			selectionTypes = append(selectionTypes, selectionTypeAggregate)
+		}
+
+		// Add separator
+		menuItems = append(menuItems, "")
+		selectionMap = append(selectionMap, "")
+		selectionTypes = append(selectionTypes, selectionTypeSeparator)
 	}
 
-	// Add the "Add New Profile" option
-	menuItems := make([]string, len(profileNames))
-	for i, name := range profileNames {
-		if name == addNewProfileText {
-			menuItems[i] = "➕ " + name
-		} else {
-			// Show star for default profile, and indicate if connected
-			displayName := name
-			isDefault := name == a.config.DefaultProfile
-			isConnected := name == a.header.GetCurrentProfile()
+	// Add individual profiles section
+	menuItems = append(menuItems, "[::u]Individual Profiles[::-]")
+	selectionMap = append(selectionMap, "")
+	selectionTypes = append(selectionTypes, selectionTypeHeader)
 
-			if isConnected {
-				// Connected profile gets priority - show as connected
-				displayName = "⚡ " + name
-			}
-			if isDefault {
-				// Default profile (when not connected) shows as default
-				displayName = displayName + " ⭐"
-			}
-			menuItems[i] = displayName
+	// Get standalone profiles (not part of aggregates)
+	standaloneProfiles := make([]string, 0)
+	aggregatedProfiles := make([]string, 0)
+
+	for name, profile := range profiles {
+		if profile.Aggregate == "" {
+			standaloneProfiles = append(standaloneProfiles, name)
+		} else {
+			aggregatedProfiles = append(aggregatedProfiles, name)
 		}
 	}
 
-	// Add the "Add New Profile" option
+	// Add standalone profiles
+	for _, name := range standaloneProfiles {
+		displayName := name
+		isDefault := name == a.config.DefaultProfile
+		isConnected := name == a.header.GetCurrentProfile() && !a.isAggregateMode
+
+		if isConnected {
+			displayName = "⚡ " + displayName
+		}
+		if isDefault {
+			displayName = displayName + " ⭐"
+		}
+
+		menuItems = append(menuItems, displayName)
+		selectionMap = append(selectionMap, name)
+		selectionTypes = append(selectionTypes, selectionTypeProfile)
+	}
+
+	// Add aggregated profiles (shown dimmed, member of aggregate)
+	if len(aggregatedProfiles) > 0 {
+		menuItems = append(menuItems, "")
+		selectionMap = append(selectionMap, "")
+		selectionTypes = append(selectionTypes, selectionTypeSeparator)
+
+		menuItems = append(menuItems, "[secondary]Aggregate Members[::-]")
+		selectionMap = append(selectionMap, "")
+		selectionTypes = append(selectionTypes, selectionTypeHeader)
+
+		for _, name := range aggregatedProfiles {
+			profile := profiles[name]
+			displayName := fmt.Sprintf("[secondary]  %s (→ %s)[-]", name, profile.Aggregate)
+
+			menuItems = append(menuItems, displayName)
+			selectionMap = append(selectionMap, name)
+			selectionTypes = append(selectionTypes, selectionTypeAggregateMember)
+		}
+	}
+
+	// Add separator and "Add New Profile" option
+	menuItems = append(menuItems, "")
+	selectionMap = append(selectionMap, "")
+	selectionTypes = append(selectionTypes, selectionTypeSeparator)
+
 	menuItems = append(menuItems, addNewProfileText)
-	profileNames = append(profileNames, addNewProfileText)
+	selectionMap = append(selectionMap, addNewProfileText)
+	selectionTypes = append(selectionTypes, selectionTypeAction)
 
 	// Create the context menu
 	menu := NewContextMenu(" Connection Profiles ", menuItems, func(index int, action string) {
+		if index < 0 || index >= len(selectionMap) {
+			return
+		}
+
+		selectionType := selectionTypes[index]
+		selectionValue := selectionMap[index]
+
+		// Skip headers and separators
+		if selectionType == selectionTypeHeader || selectionType == selectionTypeSeparator {
+			return
+		}
+
 		a.CloseConnectionProfilesMenu()
 
-		profileName := profileNames[index]
-		if profileName == addNewProfileText {
+		if selectionValue == addNewProfileText {
 			a.showAddProfileDialog()
-		} else {
-			// Default action is to switch to the profile
-			a.applyConnectionProfile(profileName)
+		} else if selectionType == selectionTypeAggregate {
+			// Switch to aggregate group
+			a.switchToAggregate(selectionValue)
+		} else if selectionType == selectionTypeProfile || selectionType == selectionTypeAggregateMember {
+			// Switch to individual profile
+			a.applyConnectionProfile(selectionValue)
 		}
 	})
 	menu.SetApp(a)
@@ -81,44 +173,45 @@ func (a *App) showConnectionProfilesDialog() {
 		}
 
 		if event.Key() == tcell.KeyRune {
+			index := menuList.GetCurrentItem()
+			if index < 0 || index >= len(selectionMap) {
+				return event
+			}
+
+			selectionType := selectionTypes[index]
+			selectionValue := selectionMap[index]
+
+			// Skip actions on headers, separators, and special items
+			if selectionType == selectionTypeHeader || selectionType == selectionTypeSeparator || selectionValue == "" {
+				return event
+			}
+
 			switch event.Rune() {
 			case 'e', 'E':
-				// Edit the currently selected profile
-				index := menuList.GetCurrentItem()
-				if index >= 0 && index < len(profileNames) {
-					profileName := profileNames[index]
-					if profileName != addNewProfileText {
-						a.CloseConnectionProfilesMenu()
-						a.showEditProfileDialog(profileName)
-						return nil
-					}
+				// Edit - only works for profiles
+				if selectionType == selectionTypeProfile || selectionType == selectionTypeAggregateMember {
+					a.CloseConnectionProfilesMenu()
+					a.showEditProfileDialog(selectionValue)
+					return nil
 				}
 			case 'd', 'D':
-				// Delete the currently selected profile
-				index := menuList.GetCurrentItem()
-				if index >= 0 && index < len(profileNames) {
-					profileName := profileNames[index]
-					if profileName != addNewProfileText {
-						// Don't allow deletion if it's the only profile
-						if len(profiles) <= 1 {
-							a.showMessageSafe("Cannot delete the only profile. At least one profile must remain.")
-							return nil
-						}
-						a.CloseConnectionProfilesMenu()
-						a.showDeleteProfileDialog(profileName)
+				// Delete - only works for profiles
+				if selectionType == selectionTypeProfile || selectionType == selectionTypeAggregateMember {
+					// Don't allow deletion if it's the only standalone profile
+					if len(standaloneProfiles) <= 1 && selectionType == selectionTypeProfile {
+						a.showMessageSafe("Cannot delete the only standalone profile. At least one profile must remain.")
 						return nil
 					}
+					a.CloseConnectionProfilesMenu()
+					a.showDeleteProfileDialog(selectionValue)
+					return nil
 				}
 			case 's', 'S':
-				// Set the currently selected profile as default
-				index := menuList.GetCurrentItem()
-				if index >= 0 && index < len(profileNames) {
-					profileName := profileNames[index]
-					if profileName != addNewProfileText {
-						a.CloseConnectionProfilesMenu()
-						a.setDefaultProfile(profileName)
-						return nil
-					}
+				// Set as default - only works for standalone profiles
+				if selectionType == selectionTypeProfile {
+					a.CloseConnectionProfilesMenu()
+					a.setDefaultProfile(selectionValue)
+					return nil
 				}
 			}
 		}

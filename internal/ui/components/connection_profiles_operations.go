@@ -1,11 +1,13 @@
 package components
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/devnullvoid/pvetui/internal/adapters"
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -72,6 +74,155 @@ func (a *App) applyConnectionProfile(profileName string) {
 		// Then refresh data with new connection (this will update the UI)
 		uiLogger.Debug("Starting manual refresh with new client")
 		a.manualRefresh()
+	}()
+}
+
+// switchToAggregate switches to an aggregate cluster view.
+func (a *App) switchToAggregate(aggregateName string) {
+	// Show loading indicator
+	a.header.ShowLoading(fmt.Sprintf("Connecting to aggregate '%s'...", aggregateName))
+
+	// Run aggregate initialization in goroutine to avoid blocking UI
+	go func() {
+		uiLogger := models.GetUILogger()
+		uiLogger.Debug("Starting aggregate switch to: %s", aggregateName)
+
+		// Get profile names for this aggregate
+		profileNames := a.config.GetProfileNamesInAggregate(aggregateName)
+		if len(profileNames) == 0 {
+			uiLogger.Error("No profiles found for aggregate %s", aggregateName)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("No profiles found for aggregate '%s'", aggregateName))
+			})
+			return
+		}
+
+		uiLogger.Debug("Found %d profiles in aggregate %s: %v", len(profileNames), aggregateName, profileNames)
+
+		// Create aggregate manager
+		manager := api.NewAggregateClientManager(
+			aggregateName,
+			models.GetUILogger(),
+			a.client.GetCache(), // Use existing cache
+		)
+
+		// Build profile entries
+		var profiles []api.ProfileEntry
+		for _, name := range profileNames {
+			profile, exists := a.config.Profiles[name]
+			if !exists {
+				uiLogger.Debug("Profile %s not found in config, skipping", name)
+				continue
+			}
+
+			// Create a config object from the profile for the adapter
+			profileConfig := &config.Config{
+				Addr:        profile.Addr,
+				User:        profile.User,
+				Password:    profile.Password,
+				TokenID:     profile.TokenID,
+				TokenSecret: profile.TokenSecret,
+				Realm:       profile.Realm,
+				ApiPath:     profile.ApiPath,
+				Insecure:    profile.Insecure,
+				SSHUser:     profile.SSHUser,
+				VMSSHUser:   profile.VMSSHUser,
+				CacheDir:    a.config.CacheDir,
+				Debug:       a.config.Debug,
+			}
+
+			profiles = append(profiles, api.ProfileEntry{
+				Name:   name,
+				Config: adapters.NewConfigAdapter(profileConfig),
+			})
+		}
+
+		if len(profiles) == 0 {
+			uiLogger.Error("No valid profiles to initialize for aggregate %s", aggregateName)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError("No valid profiles found")
+			})
+			return
+		}
+
+		// Initialize aggregate manager (concurrent connection to all profiles)
+		ctx := context.Background()
+		uiLogger.Debug("Initializing aggregate manager with %d profiles", len(profiles))
+
+		if err := manager.Initialize(ctx, profiles); err != nil {
+			// All profiles failed to connect
+			uiLogger.Error("Failed to initialize aggregate %s: %v", aggregateName, err)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Failed to connect to any profiles: %v", err))
+			})
+			return
+		}
+
+		// Get connection summary
+		summary := manager.GetConnectionSummary()
+		uiLogger.Debug("Aggregate initialized: %d/%d profiles connected", summary.ConnectedCount, summary.TotalProfiles)
+
+		// Update app state
+		a.QueueUpdateDraw(func() {
+			// Clear old single-profile client if switching from single mode
+			if !a.isAggregateMode {
+				a.client = nil
+			}
+
+			// Set aggregate mode
+			a.aggregateManager = manager
+			a.isAggregateMode = true
+			a.aggregateName = aggregateName
+
+			// Update header
+			a.updateHeaderWithActiveProfile()
+
+			// Show warning if some profiles failed
+			if summary.ErrorCount > 0 {
+				a.header.ShowWarning(fmt.Sprintf("Connected to %d/%d profiles", summary.ConnectedCount, summary.TotalProfiles))
+			} else {
+				a.header.ShowSuccess(fmt.Sprintf("Connected to aggregate '%s' (%d profiles)", aggregateName, summary.ConnectedCount))
+			}
+		})
+
+		// Load aggregate data
+		uiLogger.Debug("Loading aggregate cluster resources")
+		nodes, vms, err := manager.GetAggregatedClusterResources(ctx)
+		if err != nil {
+			uiLogger.Error("Failed to load aggregate resources: %v", err)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Failed to load resources: %v", err))
+			})
+			return
+		}
+
+		uiLogger.Debug("Loaded %d nodes and %d VMs from aggregate", len(nodes), len(vms))
+
+		// Update UI with aggregate data
+		a.QueueUpdateDraw(func() {
+			// Store in global state
+			models.GlobalState.OriginalNodes = nodes
+			models.GlobalState.OriginalVMs = vms
+			models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+			models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+			copy(models.GlobalState.FilteredNodes, nodes)
+			copy(models.GlobalState.FilteredVMs, vms)
+
+			// Update lists
+			a.nodeList.SetNodes(nodes)
+			a.vmList.SetVMs(vms)
+
+			// Update cluster status (create a summary cluster object)
+			if len(nodes) > 0 {
+				cluster := &api.Cluster{
+					Name:  aggregateName,
+					Nodes: nodes,
+				}
+				a.clusterStatus.Update(cluster)
+			}
+
+			uiLogger.Debug("Aggregate data loaded successfully")
+		})
 	}()
 }
 

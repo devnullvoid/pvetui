@@ -265,6 +265,12 @@ func (c *Client) ClearAPICache() {
 	}
 }
 
+// GetCache returns the cache instance used by this client.
+// This is useful for sharing cache instances across multiple clients in aggregate mode.
+func (c *Client) GetCache() interfaces.Cache {
+	return c.cache
+}
+
 // GetFreshClusterStatus retrieves cluster status bypassing cache completely.
 func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
 	// Clear the cache first to ensure fresh data
