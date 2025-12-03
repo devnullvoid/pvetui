@@ -61,19 +61,30 @@ func (a *App) applyConnectionProfile(profileName string) {
 				a.vncService.UpdateClient(client)
 			}
 
+			// Clear aggregate mode state
+			if a.isAggregateMode {
+				uiLogger.Debug("Disabling aggregate mode")
+				if a.aggregateManager != nil {
+					a.aggregateManager.Close()
+				}
+				a.aggregateManager = nil
+				a.isAggregateMode = false
+				a.aggregateName = ""
+				// Clear tasks list to remove aggregate tasks
+				a.tasksList.Clear()
+			}
+
 			// Update the header to show the new active profile
 			uiLogger.Debug("Updating header with new active profile: %s", profileName)
 			a.header.ShowActiveProfile(profileName)
-		})
 
-		// Show success message
-		a.QueueUpdateDraw(func() {
+			// Show success message
 			a.header.ShowSuccess("Switched to profile '" + profileName + "' successfully!")
-		})
 
-		// Then refresh data with new connection (this will update the UI)
-		uiLogger.Debug("Starting manual refresh with new client")
-		a.manualRefresh()
+			// Then refresh data with new connection (this will update the UI)
+			uiLogger.Debug("Starting manual refresh with new client")
+			a.manualRefresh()
+		})
 	}()
 }
 
@@ -241,6 +252,8 @@ func (a *App) switchToAggregate(aggregateName string) {
 			uiLogger.Debug("Aggregate data loaded successfully")
 
 			// Refresh tasks from all profiles
+			// Clear existing tasks first to avoid showing stale single-profile data
+			a.tasksList.Clear()
 			uiLogger.Debug("Loading aggregate tasks")
 			a.loadTasksData()
 		})

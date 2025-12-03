@@ -170,6 +170,14 @@ func (vl *VMList) GetNodeForVM(vm *api.VM) *api.Node {
 	nodes := vl.app.nodeList.GetNodes()
 	for _, node := range nodes {
 		if node != nil && node.Name == vm.Node {
+			// In aggregate mode, ensure we match the source profile as well
+			// Node names might collide across clusters, so SourceProfile is crucial
+			if vm.SourceProfile != "" && node.SourceProfile != "" {
+				if node.SourceProfile == vm.SourceProfile {
+					return node
+				}
+				continue
+			}
 			return node
 		}
 	}
