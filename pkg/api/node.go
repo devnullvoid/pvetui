@@ -92,6 +92,7 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	// config.DebugLog("[DEBUG] Parsed node status data: %+v", data) // Log parsed data structure
 
 	node := &Node{
+		ID:            nodeName,
 		Name:          nodeName,
 		Online:        strings.EqualFold(getString(data, "status"), "online"),
 		CPUUsage:      getFloat(data, "cpu"),

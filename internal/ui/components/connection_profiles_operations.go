@@ -51,40 +51,40 @@ func (a *App) applyConnectionProfile(profileName string) {
 
 		uiLogger.Debug("New API client created successfully for profile %s", profileName)
 
+		// Update app client and VNC service immediately to ensure subsequent calls use the new client
+		// This must happen before manualRefresh() is called
+		a.client = client
+		if a.vncService != nil {
+			a.vncService.UpdateClient(client)
+		}
+
+		// Clear aggregate mode state
+		if a.isAggregateMode {
+			uiLogger.Debug("Disabling aggregate mode")
+			if a.aggregateManager != nil {
+				a.aggregateManager.Close()
+			}
+			a.aggregateManager = nil
+			a.isAggregateMode = false
+			a.aggregateName = ""
+			// Clear tasks list to remove aggregate tasks
+			a.tasksList.Clear()
+		}
+
 		a.QueueUpdateDraw(func() {
-			uiLogger.Debug("Updating app client and VNC service")
-			a.client = client
-
-			// Update VNC service with new connection details
-			if a.vncService != nil {
-				uiLogger.Debug("Updating VNC service client")
-				a.vncService.UpdateClient(client)
-			}
-
-			// Clear aggregate mode state
-			if a.isAggregateMode {
-				uiLogger.Debug("Disabling aggregate mode")
-				if a.aggregateManager != nil {
-					a.aggregateManager.Close()
-				}
-				a.aggregateManager = nil
-				a.isAggregateMode = false
-				a.aggregateName = ""
-				// Clear tasks list to remove aggregate tasks
-				a.tasksList.Clear()
-			}
-
 			// Update the header to show the new active profile
 			uiLogger.Debug("Updating header with new active profile: %s", profileName)
 			a.header.ShowActiveProfile(profileName)
-
-			// Show success message
-			a.header.ShowSuccess("Switched to profile '" + profileName + "' successfully!")
-
-			// Then refresh data with new connection (this will update the UI)
-			uiLogger.Debug("Starting manual refresh with new client")
-			a.manualRefresh()
 		})
+
+		// Show success message
+		a.QueueUpdateDraw(func() {
+			a.header.ShowSuccess("Switched to profile '" + profileName + "' successfully!")
+		})
+
+		// Then refresh data with new connection (this will update the UI)
+		uiLogger.Debug("Starting manual refresh with new client")
+		a.manualRefresh()
 	}()
 }
 

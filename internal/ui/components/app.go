@@ -568,8 +568,9 @@ func (a *App) createSyntheticCluster(nodes []*api.Node) *api.Cluster {
 				cluster.Version = fmt.Sprintf("Proxmox VE %s", node.Version)
 			}
 
-			totalStorage += node.TotalStorage
-			usedStorage += node.UsedStorage
+			// Convert GB to Bytes for cluster totals (Node struct stores storage in GB)
+			totalStorage += node.TotalStorage * 1024 * 1024 * 1024
+			usedStorage += node.UsedStorage * 1024 * 1024 * 1024
 		}
 	}
 
