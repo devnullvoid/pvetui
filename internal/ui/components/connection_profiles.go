@@ -131,8 +131,18 @@ func (a *App) showConnectionProfilesDialog() {
 	selectionMap = append(selectionMap, addNewProfileText)
 	selectionTypes = append(selectionTypes, selectionTypeAction)
 
+	// Generate shortcuts: 0 for everything except specific actions
+	shortcuts := make([]rune, len(menuItems))
+	for i := range menuItems {
+		if selectionMap[i] == addNewProfileText {
+			shortcuts[i] = 'a' // 'a' for Add
+		} else {
+			shortcuts[i] = 0 // No shortcut for others
+		}
+	}
+
 	// Create the context menu
-	menu := NewContextMenu(" Connection Profiles ", menuItems, func(index int, action string) {
+	menu := NewContextMenuWithShortcuts(" Connection Profiles ", menuItems, shortcuts, func(index int, action string) {
 		if index < 0 || index >= len(selectionMap) {
 			return
 		}
@@ -165,7 +175,6 @@ func (a *App) showConnectionProfilesDialog() {
 	menuList.SetBorder(false)
 
 	// Add input capture for additional actions
-	oldCapture := menuList.GetInputCapture()
 	menuList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || (event.Key() == tcell.KeyRune && event.Rune() == 'h') {
 			a.CloseConnectionProfilesMenu()
@@ -173,6 +182,14 @@ func (a *App) showConnectionProfilesDialog() {
 		}
 
 		if event.Key() == tcell.KeyRune {
+			// Handle navigation keys first, regardless of selection
+			switch event.Rune() {
+			case 'j':
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k':
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			}
+
 			index := menuList.GetCurrentItem()
 			if index < 0 || index >= len(selectionMap) {
 				return event
@@ -213,13 +230,14 @@ func (a *App) showConnectionProfilesDialog() {
 					a.setDefaultProfile(selectionValue)
 					return nil
 				}
+			case 'j':
+				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+			case 'k':
+				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
 			}
 		}
 
-		if oldCapture != nil {
-			return oldCapture(event)
-		}
-
+		// If not handled by special actions, let the underlying List handle it (e.g., arrow keys)
 		return event
 	})
 

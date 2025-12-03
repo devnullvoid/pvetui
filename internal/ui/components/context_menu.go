@@ -50,11 +50,15 @@ func (cm *ContextMenu) Show() *tview.List {
 
 	for i, action := range cm.menuItems {
 		var shortcut rune
-		if i < len(cm.shortcuts) {
-			shortcut = cm.shortcuts[i]
-		} else {
-			shortcut = rune('1' + i)
+
+		// If explicit shortcuts are provided, use them (even if 0)
+		if len(cm.shortcuts) > 0 {
+			if i < len(cm.shortcuts) {
+				shortcut = cm.shortcuts[i]
+			}
 		}
+
+		// If shortcut is 0, tview will not display it.
 		list.AddItem(action, "", shortcut, nil)
 	}
 
