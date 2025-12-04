@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/ssh"
@@ -283,9 +284,17 @@ func (a *App) openVMShell() {
 	}
 
 	if nodeIP == "" {
-		a.showMessageSafe("Host node IP address not available")
+		// Fallback: use API base host if cluster data lacked an IP (seen on some installs)
+		if client != nil {
+			nodeIP = client.BaseHostname()
+		}
+	}
 
-		return
+	if net.ParseIP(nodeIP) == nil && client != nil {
+		// If the reported IP is malformed (e.g., missing leading digit), fall back to API host.
+		if fallback := client.BaseHostname(); fallback != "" {
+			nodeIP = fallback
+		}
 	}
 
 	// Check for QEMU VMs without IP address before suspending UI

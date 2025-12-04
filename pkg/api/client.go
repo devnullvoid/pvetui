@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -269,6 +270,16 @@ func (c *Client) ClearAPICache() {
 // This is useful for sharing cache instances across multiple clients in group mode.
 func (c *Client) GetCache() interfaces.Cache {
 	return c.cache
+}
+
+// BaseHostname returns the hostname component of the configured API base URL.
+// Falls back to the raw baseURL string if parsing fails.
+func (c *Client) BaseHostname() string {
+	u, err := url.Parse(c.baseURL)
+	if err != nil {
+		return c.baseURL
+	}
+	return u.Hostname()
 }
 
 // GetFreshClusterStatus retrieves cluster status bypassing cache completely.
