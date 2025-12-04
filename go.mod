@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	filippo.io/age v1.2.1
 	github.com/dgraph-io/badger/v4 v4.8.0
-	github.com/gdamore/tcell/v2 v2.11.0
+	github.com/gdamore/tcell/v2 v2.13.1
 	github.com/getsops/sops/v3 v3.11.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/rivo/tview v0.42.0
