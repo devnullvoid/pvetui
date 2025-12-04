@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/config"
@@ -14,12 +15,11 @@ const addNewProfileText = "Add New Profile"
 
 // Selection type constants for profile picker
 const (
-	selectionTypeHeader      = "header"
-	selectionTypeSeparator   = "separator"
-	selectionTypeProfile     = "profile"
-	selectionTypeGroup       = "group"
-	selectionTypeGroupMember = "group-member"
-	selectionTypeAction      = "action"
+	selectionTypeHeader    = "header"
+	selectionTypeSeparator = "separator"
+	selectionTypeProfile   = "profile"
+	selectionTypeGroup     = "group"
+	selectionTypeAction    = "action"
 )
 
 // showConnectionProfilesDialog displays a dialog for managing connection profiles and groups.
@@ -73,21 +73,18 @@ func (a *App) showConnectionProfilesDialog() {
 	selectionMap = append(selectionMap, "")
 	selectionTypes = append(selectionTypes, selectionTypeHeader)
 
-	// Get standalone profiles (not part of any group)
-	standaloneProfiles := make([]string, 0)
-	groupedProfiles := make([]string, 0)
-
-	for name, profile := range profiles {
-		if len(profile.Groups) == 0 {
-			standaloneProfiles = append(standaloneProfiles, name)
-		} else {
-			groupedProfiles = append(groupedProfiles, name)
-		}
+	// Collect all profile names and sort them alphabetically
+	allProfileNames := make([]string, 0, len(profiles))
+	for name := range profiles {
+		allProfileNames = append(allProfileNames, name)
 	}
+	sort.Strings(allProfileNames)
 
-	// Add standalone profiles
-	for _, name := range standaloneProfiles {
+	// Add sorted profiles
+	for _, name := range allProfileNames {
+		profile := profiles[name]
 		displayName := name
+
 		isDefault := name == a.config.DefaultProfile
 		isConnected := name == a.header.GetCurrentProfile() && !a.isGroupMode
 
@@ -98,33 +95,15 @@ func (a *App) showConnectionProfilesDialog() {
 			displayName = displayName + " ⭐"
 		}
 
+		// Append groups if present
+		if len(profile.Groups) > 0 {
+			groupStr := strings.Join(profile.Groups, ", ")
+			displayName += fmt.Sprintf(" [secondary](%s)[-]", groupStr)
+		}
+
 		menuItems = append(menuItems, displayName)
 		selectionMap = append(selectionMap, name)
 		selectionTypes = append(selectionTypes, selectionTypeProfile)
-	}
-
-	// Add grouped profiles (shown dimmed, member of a group)
-	if len(groupedProfiles) > 0 {
-		menuItems = append(menuItems, "")
-		selectionMap = append(selectionMap, "")
-		selectionTypes = append(selectionTypes, selectionTypeSeparator)
-
-		menuItems = append(menuItems, "[secondary]Group Members[::-]")
-		selectionMap = append(selectionMap, "")
-		selectionTypes = append(selectionTypes, selectionTypeHeader)
-
-		for _, name := range groupedProfiles {
-			profile := profiles[name]
-
-			// Build group string
-			groupStr := strings.Join(profile.Groups, ", ")
-
-			displayName := fmt.Sprintf("[secondary]  %s (→ %s)[-]", name, groupStr)
-
-			menuItems = append(menuItems, displayName)
-			selectionMap = append(selectionMap, name)
-			selectionTypes = append(selectionTypes, selectionTypeGroupMember)
-		}
 	}
 
 	// Add separator and "Add New Profile" option
@@ -167,7 +146,7 @@ func (a *App) showConnectionProfilesDialog() {
 		} else if selectionType == selectionTypeGroup {
 			// Switch to group
 			a.switchToGroup(selectionValue)
-		} else if selectionType == selectionTypeProfile || selectionType == selectionTypeGroupMember {
+		} else if selectionType == selectionTypeProfile {
 			// Switch to individual profile
 			a.applyConnectionProfile(selectionValue)
 		}
@@ -211,16 +190,17 @@ func (a *App) showConnectionProfilesDialog() {
 			switch event.Rune() {
 			case 'e', 'E':
 				// Edit - only works for profiles
-				if selectionType == selectionTypeProfile || selectionType == selectionTypeGroupMember {
+				if selectionType == selectionTypeProfile {
 					a.CloseConnectionProfilesMenu()
 					a.showEditProfileDialog(selectionValue)
 					return nil
 				}
 			case 'd', 'D':
 				// Delete - only works for profiles
-				if selectionType == selectionTypeProfile || selectionType == selectionTypeGroupMember { // Don't allow deletion if it's the only standalone profile
-					if len(standaloneProfiles) <= 1 && selectionType == selectionTypeProfile {
-						a.showMessageSafe("Cannot delete the only standalone profile. At least one profile must remain.")
+				if selectionType == selectionTypeProfile {
+					// Don't allow deletion if it's the last profile
+					if len(profiles) <= 1 {
+						a.showMessageSafe("Cannot delete the only profile. At least one profile must remain.")
 						return nil
 					}
 					a.CloseConnectionProfilesMenu()
@@ -273,7 +253,7 @@ func (a *App) showConnectionProfilesDialog() {
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(frame, len(menuItems)+6, 1, true). // +6 for border + help text + extra space for full text
-			AddItem(nil, 0, 1, false), 30, 1, true).
+			AddItem(nil, 0, 1, false), 60, 1, true).
 		AddItem(nil, 0, 1, false), true, true)
 	a.SetFocus(menuList)
 }
