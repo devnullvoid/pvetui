@@ -209,6 +209,10 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 		}
 
 		r = unicode.ToLower(r)
+	} else {
+		// Non-rune keys shouldn't leak any underlying rune value tcell sets
+		// (e.g., KeyTab may carry 'i' in newer tcell versions).
+		r = 0
 	}
 
 	return key, r, mod
