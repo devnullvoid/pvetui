@@ -228,6 +228,10 @@ func (a *App) switchToGroup(groupName string) {
 				// but we need to update the cluster status component with it
 				syntheticCluster := a.createSyntheticGroup(nodes)
 				a.clusterStatus.Update(syntheticCluster)
+
+				// Start background enrichment for detailed node stats
+				// This ensures nodes get Version, Kernel, LoadAvg etc. populated
+				a.enrichGroupNodesSequentially(nodes, false, "", false, 0, "", false)
 			}
 
 			// Update selection and details

@@ -148,14 +148,22 @@ func (a *App) autoRefreshData() {
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 
-			// Update cluster status with grouped data			a.clusterStatus.Update(a.getDisplayCluster())
+			// Update cluster status with aggregated data
 
-			a.header.ShowSuccess("Data refreshed successfully")
-			a.footer.SetLoading(false)
+			a.clusterStatus.Update(a.getDisplayCluster())
+
+			// Start background enrichment for detailed node stats
+
+			a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
+
 			a.autoRefreshCountdown = 10
+
 			a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
+
 		})
+
 		return
+
 	}
 
 	// Fetch fresh cluster resources data (this includes performance metrics)

@@ -106,9 +106,8 @@ func (a *App) manualRefresh() {
 				// Update cluster status with grouped data
 				a.clusterStatus.Update(a.getDisplayCluster())
 
-				a.header.ShowSuccess("Data refreshed successfully")
-				a.footer.SetLoading(false)
-				a.loadTasksData()
+				// Start background enrichment for detailed node stats
+				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
 			})
 		} else {
 			// Single profile logic
@@ -272,6 +271,112 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 
 			// Final selection restore and search UI restoration
 			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+
+			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
+				hasSelectedNode, selectedNodeName, nodeSearchState)
+
+			if node := a.nodeList.GetSelectedNode(); node != nil {
+				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+			}
+
+			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
+			a.header.ShowSuccess("Data refreshed successfully")
+			a.footer.SetLoading(false)
+			a.loadTasksData()
+		})
+	}()
+}
+
+// enrichGroupNodesSequentially enriches group node data one-by-one and finalizes the refresh
+func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
+	go func() {
+		// Collect current node filter to avoid repeated lookups
+		nodeState := models.GlobalState.GetSearchState(api.PageNodes)
+		activeFilter := ""
+		if nodeState != nil {
+			activeFilter = nodeState.Filter
+		}
+
+		// Create a context for the enrichment process
+		ctx := context.Background()
+
+		// Enrich nodes incrementally with minimal UI updates
+		for i, node := range nodes {
+			if node == nil || node.SourceProfile == "" {
+				continue
+			}
+
+			// We need to fetch the node status from the specific profile
+			freshNode, err := a.groupManager.GetNodeFromGroup(ctx, node.SourceProfile, node.Name)
+
+			if err == nil && freshNode != nil {
+				// Ensure Online status is set to true if we got a response
+				freshNode.Online = true
+
+				// Preserve VMs from the existing node list
+				if nodes[i] != nil {
+					freshNode.VMs = nodes[i].VMs
+					// Preserve IP if missing in freshNode
+					if freshNode.IP == "" {
+						freshNode.IP = nodes[i].IP
+					}
+					// Preserve ID if missing in freshNode
+					if freshNode.ID == "" {
+						freshNode.ID = nodes[i].ID
+					}
+					// Preserve Storage if missing in freshNode
+					if freshNode.Storage == nil && nodes[i].Storage != nil {
+						freshNode.Storage = nodes[i].Storage
+					}
+				}
+
+				// Ensure SourceProfile is preserved
+				freshNode.SourceProfile = node.SourceProfile
+
+				// Update GlobalState
+				if i < len(models.GlobalState.OriginalNodes) {
+					models.GlobalState.OriginalNodes[i] = freshNode
+				}
+
+				// Update filtered list only if this node matches current filter
+				shouldUpdateFiltered := false
+				if activeFilter == "" {
+					if i < len(models.GlobalState.FilteredNodes) {
+						models.GlobalState.FilteredNodes[i] = freshNode
+						shouldUpdateFiltered = true
+					}
+				} else {
+					if a.nodeMatchesFilter(freshNode, activeFilter) {
+						models.FilterNodes(activeFilter)
+						shouldUpdateFiltered = true
+					}
+				}
+
+				// Only update UI if filtered list changed or this is the selected node
+				selected := a.nodeList.GetSelectedNode()
+				if shouldUpdateFiltered || (selected != nil && selected.Name == freshNode.Name && selected.SourceProfile == freshNode.SourceProfile) {
+					a.QueueUpdateDraw(func() {
+						if shouldUpdateFiltered {
+							a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+						}
+						// Update details if this is the currently selected node
+						if selected != nil && selected.Name == freshNode.Name && selected.SourceProfile == freshNode.SourceProfile {
+							a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
+						}
+					})
+				}
+			}
+		}
+
+		// Final update
+		a.QueueUpdateDraw(func() {
+			// Update cluster status with the enriched nodes
+			syntheticCluster := a.createSyntheticGroup(models.GlobalState.OriginalNodes)
+			a.clusterStatus.Update(syntheticCluster)
+
+			// Final selection restore and search UI restoration
+			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
 
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
