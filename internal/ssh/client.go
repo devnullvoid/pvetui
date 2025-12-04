@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -208,20 +209,31 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 	// Check if this is a NixOS container
 	isNixOS := vm != nil && (vm.OSType == "nixos" || vm.OSType == "nix")
 
+	buildPct := func(cmd string) string {
+		if strings.EqualFold(user, "root") {
+			return cmd
+		}
+		// Default to sudo for non-root users; PVE images often lack sudo, but
+		// root doesn't need it so this keeps non-root behavior unchanged.
+		return "sudo " + cmd
+	}
+
 	if isNixOS {
 		// Use the NixOS-specific command for containers
+		pctExec := buildPct(fmt.Sprintf("pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vmID))
 		sshArgs = []string{
 			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
-			fmt.Sprintf("sudo pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vmID),
+			pctExec,
 		}
 		sessionType = "NixOS LXC"
 	} else {
 		// Use the standard pct enter command
+		pctEnter := buildPct(fmt.Sprintf("pct enter %d", vmID))
 		sshArgs = []string{
 			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
-			fmt.Sprintf("sudo pct enter %d", vmID),
+			pctEnter,
 		}
 		sessionType = "LXC"
 	}

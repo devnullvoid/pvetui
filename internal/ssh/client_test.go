@@ -122,3 +122,19 @@ func TestExecuteLXCShellWithVM(t *testing.T) {
 	expectedCmd := "sudo pct exec 104 -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'"
 	require.Equal(t, []string{"testuser@192.0.2.1", "-t", expectedCmd}, me.lastArgs)
 }
+
+func TestExecuteLXCShellWith_RootUserSkipsSudo(t *testing.T) {
+	me := &mockExecutor{}
+	ctx := context.Background()
+
+	err := ExecuteLXCShellWith(ctx, me, "root", "192.0.2.1", 200, nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{"root@192.0.2.1", "-t", "pct enter 200"}, me.lastArgs)
+
+	me = &mockExecutor{}
+	vm := &api.VM{ID: 201, OSType: "nixos"}
+	err = ExecuteLXCShellWith(ctx, me, "root", "192.0.2.1", vm.ID, vm)
+	require.NoError(t, err)
+	expectedCmd := "pct exec 201 -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'"
+	require.Equal(t, []string{"root@192.0.2.1", "-t", expectedCmd}, me.lastArgs)
+}
