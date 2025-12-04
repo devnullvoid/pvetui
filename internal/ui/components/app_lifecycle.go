@@ -35,11 +35,11 @@ func (a *App) Run() error {
 	return nil
 }
 
-// updateHeaderWithActiveProfile updates the header to show the current active profile or aggregate group.
+// updateHeaderWithActiveProfile updates the header to show the current active profile or group.
 func (a *App) updateHeaderWithActiveProfile() {
-	if a.isAggregateMode {
-		// In aggregate mode, show "Aggregate: <name>"
-		a.header.ShowActiveProfile(fmt.Sprintf("Aggregate: %s", a.aggregateName))
+	if a.isGroupMode {
+		// In group mode, show "Group: <name>"
+		a.header.ShowActiveProfile(fmt.Sprintf("Group: %s", a.groupName))
 	} else {
 		profileName := a.config.GetActiveProfile()
 

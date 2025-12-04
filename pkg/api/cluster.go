@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Cluster represents aggregated Proxmox cluster metrics.
+// Cluster represents grouped Proxmox cluster metrics.
 type Cluster struct {
 	Name           string          `json:"name"`
 	Version        string          `json:"version"`
@@ -41,8 +41,8 @@ type ClusterTask struct {
 	StartTime int64  `json:"starttime"`
 	EndTime   int64  `json:"endtime"`
 
-	// Aggregate cluster support
-	// SourceProfile is the profile name this task came from in aggregate cluster mode.
+	// Group cluster support
+	// SourceProfile is the profile name this task came from in group cluster mode.
 	SourceProfile string `json:"source_profile,omitempty"`
 }
 
@@ -474,7 +474,7 @@ func (c *Client) processClusterResourcesWithCache(cluster *Cluster, ttl time.Dur
 	return nil
 }
 
-// calculateClusterTotals aggregates node metrics for cluster summary.
+// calculateClusterTotals groups node metrics for cluster summary.
 func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	var totalCPU, totalMem, usedMem float64
 

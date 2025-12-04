@@ -47,14 +47,14 @@ func (a *App) autoRefreshData() {
 	// Check if search is currently active
 	searchWasActive := a.mainLayout.GetItemCount() > 4
 
-	if a.isAggregateMode {
-		// Aggregate mode logic
+	if a.isGroupMode {
+		// Group mode logic
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
-		nodes, vms, err := a.aggregateManager.GetAggregatedClusterResources(ctx)
+		nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx)
 		if err != nil {
-			uiLogger.Debug("Auto-refresh failed (aggregate): %v", err)
+			uiLogger.Debug("Auto-refresh failed (group): %v", err)
 			a.QueueUpdateDraw(func() {
 				a.footer.SetLoading(false)
 			})
@@ -130,7 +130,7 @@ func (a *App) autoRefreshData() {
 				go func() {
 					ctxTasks, cancelTasks := context.WithTimeout(context.Background(), 10*time.Second)
 					defer cancelTasks()
-					tasks, err := a.aggregateManager.GetAggregatedTasks(ctxTasks)
+					tasks, err := a.groupManager.GetGroupTasks(ctxTasks)
 					if err == nil {
 						a.QueueUpdateDraw(func() {
 							if state := models.GlobalState.GetSearchState(api.PageTasks); state != nil && state.Filter != "" {
@@ -148,8 +148,7 @@ func (a *App) autoRefreshData() {
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 
-			// Update cluster status with aggregated data
-			a.clusterStatus.Update(a.getDisplayCluster())
+			// Update cluster status with grouped data			a.clusterStatus.Update(a.getDisplayCluster())
 
 			a.header.ShowSuccess("Data refreshed successfully")
 			a.footer.SetLoading(false)

@@ -7,10 +7,10 @@ import (
 	"sort"
 )
 
-// GetAggregatedNodes retrieves nodes from all connected profiles in the aggregate.
+// GetGroupNodes retrieves nodes from all connected profiles in the group.
 // Each node's SourceProfile field is set to identify which profile it came from.
 // Returns a combined list of all nodes across all profiles.
-func (m *AggregateClientManager) GetAggregatedNodes(ctx context.Context) ([]*Node, error) {
+func (m *GroupClientManager) GetGroupNodes(ctx context.Context) ([]*Node, error) {
 	operation := func(profileName string, client *Client) (interface{}, error) {
 		nodes, err := client.ListNodes()
 		if err != nil {
@@ -27,7 +27,7 @@ func (m *AggregateClientManager) GetAggregatedNodes(ctx context.Context) ([]*Nod
 		return nodePointers, nil
 	}
 
-	aggregateFunc := func(results []ProfileResult) (interface{}, error) {
+	groupFunc := func(results []ProfileResult) (interface{}, error) {
 		var allNodes []*Node
 
 		for _, result := range results {
@@ -51,23 +51,23 @@ func (m *AggregateClientManager) GetAggregatedNodes(ctx context.Context) ([]*Nod
 		return allNodes, nil
 	}
 
-	data, err := m.GetAggregatedData(ctx, operation, aggregateFunc)
+	data, err := m.GetGroupData(ctx, operation, groupFunc)
 	if err != nil {
 		return nil, err
 	}
 
 	nodes, ok := data.([]*Node)
 	if !ok {
-		return nil, fmt.Errorf("unexpected data type returned from aggregation")
+		return nil, fmt.Errorf("unexpected data type returned from grouping")
 	}
 
 	return nodes, nil
 }
 
-// GetAggregatedVMs retrieves VMs from all connected profiles in the aggregate.
+// GetGroupVMs retrieves VMs from all connected profiles in the group.
 // Each VM's SourceProfile field is set to identify which profile it came from.
 // Returns a combined list of all VMs across all profiles.
-func (m *AggregateClientManager) GetAggregatedVMs(ctx context.Context) ([]*VM, error) {
+func (m *GroupClientManager) GetGroupVMs(ctx context.Context) ([]*VM, error) {
 	operation := func(profileName string, client *Client) (interface{}, error) {
 		// Get cluster status to retrieve nodes with their VMs
 		cluster, err := client.GetClusterStatus()
@@ -91,7 +91,7 @@ func (m *AggregateClientManager) GetAggregatedVMs(ctx context.Context) ([]*VM, e
 		return vms, nil
 	}
 
-	aggregateFunc := func(results []ProfileResult) (interface{}, error) {
+	groupFunc := func(results []ProfileResult) (interface{}, error) {
 		var allVMs []*VM
 
 		for _, result := range results {
@@ -120,22 +120,21 @@ func (m *AggregateClientManager) GetAggregatedVMs(ctx context.Context) ([]*VM, e
 		return allVMs, nil
 	}
 
-	data, err := m.GetAggregatedData(ctx, operation, aggregateFunc)
+	data, err := m.GetGroupData(ctx, operation, groupFunc)
 	if err != nil {
 		return nil, err
 	}
 
 	vms, ok := data.([]*VM)
 	if !ok {
-		return nil, fmt.Errorf("unexpected data type returned from aggregation")
+		return nil, fmt.Errorf("unexpected data type returned from grouping")
 	}
-
 	return vms, nil
 }
 
-// GetAggregatedClusterResources retrieves cluster resources from all profiles.
+// GetGroupClusterResources retrieves cluster resources from all profiles in the group.
 // This provides a unified view of all resources across all connected profiles.
-func (m *AggregateClientManager) GetAggregatedClusterResources(ctx context.Context) ([]*Node, []*VM, error) {
+func (m *GroupClientManager) GetGroupClusterResources(ctx context.Context) ([]*Node, []*VM, error) {
 	// Use goroutines to fetch nodes and VMs concurrently for better performance
 	type result struct {
 		nodes []*Node
@@ -148,13 +147,13 @@ func (m *AggregateClientManager) GetAggregatedClusterResources(ctx context.Conte
 
 	// Fetch nodes
 	go func() {
-		nodes, err := m.GetAggregatedNodes(ctx)
+		nodes, err := m.GetGroupNodes(ctx)
 		nodesChan <- result{nodes: nodes, err: err}
 	}()
 
 	// Fetch VMs
 	go func() {
-		vms, err := m.GetAggregatedVMs(ctx)
+		vms, err := m.GetGroupVMs(ctx)
 		vmsChan <- result{vms: vms, err: err}
 	}()
 
@@ -163,20 +162,20 @@ func (m *AggregateClientManager) GetAggregatedClusterResources(ctx context.Conte
 	vmsResult := <-vmsChan
 
 	if nodesResult.err != nil {
-		return nil, nil, fmt.Errorf("failed to get aggregated nodes: %w", nodesResult.err)
+		return nil, nil, fmt.Errorf("failed to get group nodes: %w", nodesResult.err)
 	}
 
 	if vmsResult.err != nil {
-		return nil, nil, fmt.Errorf("failed to get aggregated VMs: %w", vmsResult.err)
+		return nil, nil, fmt.Errorf("failed to get group VMs: %w", vmsResult.err)
 	}
 
 	return nodesResult.nodes, vmsResult.vms, nil
 }
 
-// GetNodeFromProfile retrieves a specific node from a specific profile.
+// GetNodeFromGroup retrieves a specific node from a specific profile.
 // This is useful when you need to perform operations on a node and need to ensure
 // you're using the correct profile's client.
-func (m *AggregateClientManager) GetNodeFromProfile(
+func (m *GroupClientManager) GetNodeFromGroup(
 	ctx context.Context,
 	profileName string,
 	nodeName string,
@@ -203,10 +202,10 @@ func (m *AggregateClientManager) GetNodeFromProfile(
 	return node, nil
 }
 
-// GetVMFromProfile retrieves detailed VM information from a specific profile.
+// GetVMFromGroup retrieves detailed VM information from a specific profile.
 // This is useful when you need to perform operations on a VM and need to ensure
 // you're using the correct profile's client.
-func (m *AggregateClientManager) GetVMFromProfile(
+func (m *GroupClientManager) GetVMFromGroup(
 	ctx context.Context,
 	profileName string,
 	nodeName string,
@@ -235,11 +234,11 @@ func (m *AggregateClientManager) GetVMFromProfile(
 	return vm, nil
 }
 
-// FindVMByID searches for a VM with the given ID across all profiles.
+// FindVMByIDInGroup searches for a VM with the given ID across all profiles.
 // Returns the VM and its source profile name, or an error if not found.
 // Note: VM IDs should be unique within a profile, but may overlap across profiles.
-func (m *AggregateClientManager) FindVMByID(ctx context.Context, vmID int) (*VM, string, error) {
-	vms, err := m.GetAggregatedVMs(ctx)
+func (m *GroupClientManager) FindVMByIDInGroup(ctx context.Context, vmID int) (*VM, string, error) {
+	vms, err := m.GetGroupVMs(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -253,10 +252,10 @@ func (m *AggregateClientManager) FindVMByID(ctx context.Context, vmID int) (*VM,
 	return nil, "", fmt.Errorf("VM with ID %d not found in any profile", vmID)
 }
 
-// FindNodeByName searches for a node with the given name across all profiles.
+// FindNodeByNameInGroup searches for a node with the given name across all profiles.
 // Returns the node and its source profile name, or an error if not found.
-func (m *AggregateClientManager) FindNodeByName(ctx context.Context, nodeName string) (*Node, string, error) {
-	nodes, err := m.GetAggregatedNodes(ctx)
+func (m *GroupClientManager) FindNodeByNameInGroup(ctx context.Context, nodeName string) (*Node, string, error) {
+	nodes, err := m.GetGroupNodes(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -270,10 +269,10 @@ func (m *AggregateClientManager) FindNodeByName(ctx context.Context, nodeName st
 	return nil, "", fmt.Errorf("node with name %s not found in any profile", nodeName)
 }
 
-// GetAggregatedTasks retrieves tasks from all connected profiles in the aggregate.
+// GetGroupTasks retrieves tasks from all connected profiles in the group.
 // Each task's SourceProfile field is set to identify which profile it came from.
 // Returns a combined list of all tasks across all profiles.
-func (m *AggregateClientManager) GetAggregatedTasks(ctx context.Context) ([]*ClusterTask, error) {
+func (m *GroupClientManager) GetGroupTasks(ctx context.Context) ([]*ClusterTask, error) {
 	operation := func(profileName string, client *Client) (interface{}, error) {
 		tasks, err := client.GetClusterTasks()
 		if err != nil {
@@ -288,7 +287,7 @@ func (m *AggregateClientManager) GetAggregatedTasks(ctx context.Context) ([]*Clu
 		return tasks, nil
 	}
 
-	aggregateFunc := func(results []ProfileResult) (interface{}, error) {
+	groupFunc := func(results []ProfileResult) (interface{}, error) {
 		var allTasks []*ClusterTask
 
 		for _, result := range results {
@@ -308,14 +307,14 @@ func (m *AggregateClientManager) GetAggregatedTasks(ctx context.Context) ([]*Clu
 		return allTasks, nil
 	}
 
-	data, err := m.GetAggregatedData(ctx, operation, aggregateFunc)
+	data, err := m.GetGroupData(ctx, operation, groupFunc)
 	if err != nil {
 		return nil, err
 	}
 
 	tasks, ok := data.([]*ClusterTask)
 	if !ok {
-		return nil, fmt.Errorf("unexpected data type returned from aggregation")
+		return nil, fmt.Errorf("unexpected data type returned from grouping")
 	}
 
 	return tasks, nil

@@ -24,7 +24,7 @@ type ProfileOperation func(profileName string, client *Client) (interface{}, err
 // ExecuteOnAllProfiles executes an operation concurrently on all connected profiles.
 // Returns a slice of ProfileResult, one for each profile attempted.
 // This method does not fail if some profiles fail; it collects all results.
-func (m *AggregateClientManager) ExecuteOnAllProfiles(
+func (m *GroupClientManager) ExecuteOnAllProfiles(
 	ctx context.Context,
 	operation ProfileOperation,
 ) []ProfileResult {
@@ -80,14 +80,14 @@ func (m *AggregateClientManager) ExecuteOnAllProfiles(
 
 // ExecuteOnProfile executes an operation on a specific profile by name.
 // Returns the operation data and error.
-func (m *AggregateClientManager) ExecuteOnProfile(
+func (m *GroupClientManager) ExecuteOnProfile(
 	ctx context.Context,
 	profileName string,
 	operation ProfileOperation,
 ) (interface{}, error) {
 	pc, exists := m.GetClient(profileName)
 	if !exists {
-		return nil, fmt.Errorf("profile '%s' not found in aggregate '%s'", profileName, m.aggregateName)
+		return nil, fmt.Errorf("profile '%s' not found in group '%s'", profileName, m.groupName)
 	}
 
 	status, _ := pc.GetStatus()
@@ -107,7 +107,7 @@ func (m *AggregateClientManager) ExecuteOnProfile(
 
 // RefreshProfileConnection attempts to reconnect a failed profile.
 // This is useful for recovering from transient network errors.
-func (m *AggregateClientManager) RefreshProfileConnection(
+func (m *GroupClientManager) RefreshProfileConnection(
 	ctx context.Context,
 	profileName string,
 	profileConfig interfaces.Config,
@@ -117,7 +117,7 @@ func (m *AggregateClientManager) RefreshProfileConnection(
 
 	pc, exists := m.clients[profileName]
 	if !exists {
-		return fmt.Errorf("profile '%s' not found in aggregate '%s'", profileName, m.aggregateName)
+		return fmt.Errorf("profile '%s' not found in group '%s'", profileName, m.groupName)
 	}
 
 	// Set status to unknown while reconnecting
@@ -154,7 +154,7 @@ func (m *AggregateClientManager) RefreshProfileConnection(
 
 // RefreshAllFailedProfiles attempts to reconnect all profiles with error status.
 // Returns a map of profile names to their reconnection results (nil on success, error on failure).
-func (m *AggregateClientManager) RefreshAllFailedProfiles(
+func (m *GroupClientManager) RefreshAllFailedProfiles(
 	ctx context.Context,
 	profileConfigs map[string]interfaces.Config,
 ) map[string]error {
@@ -197,13 +197,13 @@ func (m *AggregateClientManager) RefreshAllFailedProfiles(
 	return results
 }
 
-// GetAggregatedData is a helper for executing an operation and aggregating results.
+// GetGroupData is a helper for executing an operation and grouping results.
 // It executes the operation on all connected profiles and returns combined results.
-// The aggregateFunc receives all successful results and should combine them.
-func (m *AggregateClientManager) GetAggregatedData(
+// The groupFunc receives all successful results and should combine them.
+func (m *GroupClientManager) GetGroupData(
 	ctx context.Context,
 	operation ProfileOperation,
-	aggregateFunc func(results []ProfileResult) (interface{}, error),
+	groupFunc func(results []ProfileResult) (interface{}, error),
 ) (interface{}, error) {
 	results := m.ExecuteOnAllProfiles(ctx, operation)
 
@@ -219,5 +219,5 @@ func (m *AggregateClientManager) GetAggregatedData(
 		return nil, fmt.Errorf("no profiles returned successful results")
 	}
 
-	return aggregateFunc(successfulResults)
+	return groupFunc(successfulResults)
 }

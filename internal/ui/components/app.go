@@ -20,29 +20,29 @@ import (
 type App struct {
 	*tview.Application
 
-	client           *api.Client
-	aggregateManager *api.AggregateClientManager
-	isAggregateMode  bool
-	aggregateName    string
-	config           config.Config
-	configPath       string
-	vncService       *vnc.Service
-	pages            *tview.Pages
-	header           HeaderComponent
-	footer           FooterComponent
-	nodeList         NodeListComponent
-	vmList           VMListComponent
-	nodeDetails      NodeDetailsComponent
-	vmDetails        VMDetailsComponent
-	tasksList        TasksListComponent
-	clusterStatus    ClusterStatusComponent
-	helpModal        *HelpModal
-	mainLayout       *tview.Flex
-	searchInput      *tview.InputField
-	contextMenu      *tview.List
-	isMenuOpen       bool
-	lastFocus        tview.Primitive
-	logger           interfaces.Logger
+	client        *api.Client
+	groupManager  *api.GroupClientManager
+	isGroupMode   bool
+	groupName     string
+	config        config.Config
+	configPath    string
+	vncService    *vnc.Service
+	pages         *tview.Pages
+	header        HeaderComponent
+	footer        FooterComponent
+	nodeList      NodeListComponent
+	vmList        VMListComponent
+	nodeDetails   NodeDetailsComponent
+	vmDetails     VMDetailsComponent
+	tasksList     TasksListComponent
+	clusterStatus ClusterStatusComponent
+	helpModal     *HelpModal
+	mainLayout    *tview.Flex
+	searchInput   *tview.InputField
+	contextMenu   *tview.List
+	isMenuOpen    bool
+	lastFocus     tview.Primitive
+	logger        interfaces.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -67,7 +67,7 @@ func (a *App) removePageIfPresent(name string) {
 }
 
 // NewApp creates a new application instance with all UI components.
-func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string, initialAggregate string) *App {
+func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string, initialGroup string) *App {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Creating new App instance")
 
@@ -126,9 +126,9 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		// This callback is called when background VM enrichment completes
 		uiLogger.Debug("VM enrichment callback triggered")
 		app.QueueUpdateDraw(func() {
-			// Ignore update if we've switched to aggregate mode
-			if app.isAggregateMode {
-				uiLogger.Debug("Ignoring single-profile enrichment callback due to aggregate mode")
+			// Ignore update if we've switched to group mode
+			if app.isGroupMode {
+				uiLogger.Debug("Ignoring single-profile enrichment callback due to group mode")
 				return
 			}
 
@@ -311,14 +311,14 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	// Register callback for immediate session count updates
 	app.registerVNCSessionCallback()
 
-	// Handle initial aggregate switch if requested
-	if initialAggregate != "" {
-		uiLogger.Debug("Scheduling switch to initial aggregate: %s", initialAggregate)
+	// Handle initial group switch if requested
+	if initialGroup != "" {
+		uiLogger.Debug("Scheduling switch to initial group: %s", initialGroup)
 		// Schedule it to run after current event loop to ensure UI is ready
 		go func() {
 			time.Sleep(100 * time.Millisecond) // Slight delay to let startup finish
 			app.QueueUpdateDraw(func() {
-				app.switchToAggregate(initialAggregate)
+				app.switchToGroup(initialGroup)
 			})
 		}()
 	}
@@ -415,14 +415,14 @@ func (a *App) Client() *api.Client {
 	return a.client
 }
 
-// IsAggregateMode returns whether the app is running in aggregate cluster mode.
-func (a *App) IsAggregateMode() bool {
-	return a.isAggregateMode
+// IsGroupMode returns whether the app is running in group cluster mode.
+func (a *App) IsGroupMode() bool {
+	return a.isGroupMode
 }
 
-// AggregateManager returns the aggregate client manager if in aggregate mode, nil otherwise.
-func (a *App) AggregateManager() *api.AggregateClientManager {
-	return a.aggregateManager
+// GroupManager returns the group client manager if in group mode, nil otherwise.
+func (a *App) GroupManager() *api.GroupClientManager {
+	return a.groupManager
 }
 
 // Header returns the header component instance.
@@ -467,8 +467,8 @@ func (a *App) ShowMessageSafe(message string) {
 
 // ClearAPICache clears cached API responses.
 func (a *App) ClearAPICache() {
-	if a.isAggregateMode {
-		clients := a.aggregateManager.GetAllClients()
+	if a.isGroupMode {
+		clients := a.groupManager.GetAllClients()
 		for _, pc := range clients {
 			if pc.Client != nil {
 				pc.Client.ClearAPICache()
@@ -480,17 +480,17 @@ func (a *App) ClearAPICache() {
 }
 
 // getClientForVM returns the appropriate API client for a VM.
-// In aggregate mode, it returns the client for the VM's source profile.
+// In group mode, it returns the client for the VM's source profile.
 // In single-profile mode, it returns the main client.
 func (a *App) getClientForVM(vm *api.VM) (*api.Client, error) {
-	if a.isAggregateMode {
+	if a.isGroupMode {
 		if vm.SourceProfile == "" {
-			return nil, fmt.Errorf("source profile not set for VM %s in aggregate mode", vm.Name)
+			return nil, fmt.Errorf("source profile not set for VM %s in group mode", vm.Name)
 		}
 
-		profileClient, exists := a.aggregateManager.GetClient(vm.SourceProfile)
+		profileClient, exists := a.groupManager.GetClient(vm.SourceProfile)
 		if !exists {
-			return nil, fmt.Errorf("profile '%s' not found in aggregate manager", vm.SourceProfile)
+			return nil, fmt.Errorf("profile '%s' not found in group manager", vm.SourceProfile)
 		}
 
 		status, err := profileClient.GetStatus()
@@ -504,17 +504,17 @@ func (a *App) getClientForVM(vm *api.VM) (*api.Client, error) {
 }
 
 // getClientForNode returns the appropriate API client for a Node.
-// In aggregate mode, it returns the client for the Node's source profile.
+// In group mode, it returns the client for the Node's source profile.
 // In single-profile mode, it returns the main client.
 func (a *App) getClientForNode(node *api.Node) (*api.Client, error) {
-	if a.isAggregateMode {
+	if a.isGroupMode {
 		if node.SourceProfile == "" {
-			return nil, fmt.Errorf("source profile not set for Node %s in aggregate mode", node.Name)
+			return nil, fmt.Errorf("source profile not set for Node %s in group mode", node.Name)
 		}
 
-		profileClient, exists := a.aggregateManager.GetClient(node.SourceProfile)
+		profileClient, exists := a.groupManager.GetClient(node.SourceProfile)
 		if !exists {
-			return nil, fmt.Errorf("profile '%s' not found in aggregate manager", node.SourceProfile)
+			return nil, fmt.Errorf("profile '%s' not found in group manager", node.SourceProfile)
 		}
 
 		status, err := profileClient.GetStatus()
@@ -527,12 +527,12 @@ func (a *App) getClientForNode(node *api.Node) (*api.Client, error) {
 	return a.client, nil
 }
 
-// createSyntheticCluster creates a synthetic cluster object from a list of nodes for aggregate display.
-func (a *App) createSyntheticCluster(nodes []*api.Node) *api.Cluster {
+// createSyntheticGroup creates a synthetic cluster object from a list of nodes for group display.
+func (a *App) createSyntheticGroup(nodes []*api.Node) *api.Cluster {
 	cluster := &api.Cluster{
-		Name:    fmt.Sprintf("Aggregate: %s", a.aggregateName),
+		Name:    fmt.Sprintf("Group: %s", a.groupName),
 		Nodes:   nodes,
-		Quorate: true, // Assumed for aggregate view
+		Quorate: true, // Assumed for group view
 	}
 
 	// Calculate totals
@@ -553,7 +553,7 @@ func (a *App) createSyntheticCluster(nodes []*api.Node) *api.Cluster {
 
 			// Debug log to check if metrics are populated
 			if node.CPUCount == 0 && node.MemoryTotal == 0 {
-				uiLogger.Debug("Aggregate Stats: Node %s is online but has 0 CPU/Mem. SourceProfile: %s", node.Name, node.SourceProfile)
+				uiLogger.Debug("Group Stats: Node %s is online but has 0 CPU/Mem. SourceProfile: %s", node.Name, node.SourceProfile)
 			}
 
 			if node.CPUCount > 0 {
@@ -586,18 +586,18 @@ func (a *App) createSyntheticCluster(nodes []*api.Node) *api.Cluster {
 	cluster.StorageTotal = totalStorage
 	cluster.StorageUsed = usedStorage
 
-	uiLogger.Debug("Aggregate Stats: Nodes=%d/%d, CPU=%.1f, Mem=%.1f, Storage=%d",
+	uiLogger.Debug("Group Stats: Nodes=%d/%d, CPU=%.1f, Mem=%.1f, Storage=%d",
 		onlineNodes, len(nodes), totalCPU, totalMem, totalStorage)
 
 	return cluster
 }
 
 // getDisplayCluster returns the cluster object for display.
-// In aggregate mode, it creates a synthetic cluster from global state.
+// In group mode, it creates a synthetic cluster from global state.
 // In single-profile mode, it returns the client's cluster object.
 func (a *App) getDisplayCluster() *api.Cluster {
-	if a.isAggregateMode {
-		return a.createSyntheticCluster(models.GlobalState.OriginalNodes)
+	if a.isGroupMode {
+		return a.createSyntheticGroup(models.GlobalState.OriginalNodes)
 	}
 	return a.client.Cluster
 }

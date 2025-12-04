@@ -49,12 +49,12 @@ func (a *App) manualRefresh() {
 		// This ensures we get fresh data after configuration updates
 		time.Sleep(500 * time.Millisecond)
 
-		if a.isAggregateMode {
-			// Aggregate mode logic
+		if a.isGroupMode {
+			// Group mode logic
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			nodes, vms, err := a.aggregateManager.GetAggregatedClusterResources(ctx)
+			nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx)
 			if err != nil {
 				a.QueueUpdateDraw(func() {
 					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
@@ -103,7 +103,7 @@ func (a *App) manualRefresh() {
 
 				a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 
-				// Update cluster status with aggregated data
+				// Update cluster status with grouped data
 				a.clusterStatus.Update(a.getDisplayCluster())
 
 				a.header.ShowSuccess("Data refreshed successfully")
@@ -347,24 +347,22 @@ func (a *App) refreshNodeData(node *api.Node) {
 			// Update node in global state
 			for i, n := range models.GlobalState.OriginalNodes {
 				if n != nil && n.Name == node.Name {
-					// In aggregate mode, ensure SourceProfile is preserved/set
-					if a.isAggregateMode {
+					// In group mode, ensure SourceProfile is preserved/set
+					if a.isGroupMode {
 						freshNode.SourceProfile = node.SourceProfile
 					}
 					models.GlobalState.OriginalNodes[i] = freshNode
-
 					break
 				}
 			}
 
 			for i, n := range models.GlobalState.FilteredNodes {
 				if n != nil && n.Name == node.Name {
-					// In aggregate mode, ensure SourceProfile is preserved/set
-					if a.isAggregateMode {
+					// In group mode, ensure SourceProfile is preserved/set
+					if a.isGroupMode {
 						freshNode.SourceProfile = node.SourceProfile
 					}
 					models.GlobalState.FilteredNodes[i] = freshNode
-
 					break
 				}
 			}
@@ -408,11 +406,11 @@ func (a *App) loadTasksData() {
 		var tasks []*api.ClusterTask
 		var err error
 
-		if a.isAggregateMode {
-			// Create context with timeout for aggregate operations
+		if a.isGroupMode {
+			// Create context with timeout for group operations
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			tasks, err = a.aggregateManager.GetAggregatedTasks(ctx)
+			tasks, err = a.groupManager.GetGroupTasks(ctx)
 		} else {
 			tasks, err = a.client.GetClusterTasks()
 		}

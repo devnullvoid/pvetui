@@ -44,11 +44,11 @@ type BootstrapOptions struct {
 
 // BootstrapResult contains the result of the bootstrap process.
 type BootstrapResult struct {
-	Config           *config.Config
-	ConfigPath       string
-	Profile          string
-	NoCache          bool
-	InitialAggregate string
+	Config       *config.Config
+	ConfigPath   string
+	Profile      string
+	NoCache      bool
+	InitialGroup string
 }
 
 // ParseFlags parses command line flags and returns bootstrap options.
@@ -182,21 +182,21 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	}
 
 	// Determine if selected profile is an aggregate group or a standard profile
-	var initialAggregate string
+	var initialGroup string
 	var startupProfile string
 
 	if selectedProfile != "" {
 		if _, exists := cfg.Profiles[selectedProfile]; exists {
 			// Standard profile exists
 			startupProfile = selectedProfile
-		} else if cfg.IsAggregateGroup(selectedProfile) {
+		} else if cfg.IsGroup(selectedProfile) {
 			// It's an aggregate group
-			initialAggregate = selectedProfile
+			initialGroup = selectedProfile
 			// Pick first member as startup profile to ensure valid config for bootstrap
-			members := cfg.GetProfileNamesInAggregate(selectedProfile)
+			members := cfg.GetProfileNamesInGroup(selectedProfile)
 			if len(members) > 0 {
 				startupProfile = members[0]
-				fmt.Printf("🔄 Selected aggregate group '%s' (bootstrapping via '%s')\n", selectedProfile, startupProfile)
+				fmt.Printf("🔄 Selected group '%s' (bootstrapping via '%s')\n", selectedProfile, startupProfile)
 			} else {
 				return nil, fmt.Errorf("aggregate group '%s' has no members", selectedProfile)
 			}
@@ -266,11 +266,11 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	}
 
 	return &BootstrapResult{
-		Config:           cfg,
-		ConfigPath:       configPath,
-		Profile:          startupProfile,
-		NoCache:          opts.NoCache,
-		InitialAggregate: initialAggregate,
+		Config:       cfg,
+		ConfigPath:   configPath,
+		Profile:      startupProfile,
+		NoCache:      opts.NoCache,
+		InitialGroup: initialGroup,
 	}, nil
 }
 
@@ -332,8 +332,8 @@ func StartApplication(result *BootstrapResult) error {
 	theme.ApplyToTview()
 
 	appOpts := app.Options{
-		NoCache:          result.NoCache,
-		InitialAggregate: result.InitialAggregate,
+		NoCache:      result.NoCache,
+		InitialGroup: result.InitialGroup,
 	}
 	if err := app.RunWithStartupVerification(result.Config, result.ConfigPath, appOpts); err != nil {
 		return handleStartupError(err, result.Config)

@@ -266,7 +266,7 @@ func (c *Client) ClearAPICache() {
 }
 
 // GetCache returns the cache instance used by this client.
-// This is useful for sharing cache instances across multiple clients in aggregate mode.
+// This is useful for sharing cache instances across multiple clients in group mode.
 func (c *Client) GetCache() interfaces.Cache {
 	return c.cache
 }

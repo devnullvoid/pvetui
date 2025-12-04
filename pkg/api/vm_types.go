@@ -78,9 +78,9 @@ type VM struct {
 	Description        string              `json:"description,omitempty"`         // VM description
 	OnBoot             bool                `json:"onboot,omitempty"`              // Whether VM starts automatically
 
-	// Aggregate cluster support
-	// SourceProfile is the profile name this VM came from in aggregate cluster mode.
-	// Empty for non-aggregate mode. Used to track which Proxmox cluster a VM belongs to
+	// Group cluster support
+	// SourceProfile is the profile name this VM came from in group cluster mode.
+	// Empty for non-group mode. Used to track which Proxmox cluster a VM belongs to
 	// when viewing multiple clusters together.
 	SourceProfile string `json:"source_profile,omitempty"`
 

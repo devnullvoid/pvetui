@@ -40,9 +40,9 @@ type Node struct {
 	CPUInfo       *CPUInfo   `json:"cpuinfo,omitempty"`
 	LoadAvg       []string   `json:"loadavg,omitempty"`
 
-	// Aggregate cluster support
-	// SourceProfile is the profile name this node came from in aggregate cluster mode.
-	// Empty for non-aggregate mode. Used to track which Proxmox cluster a node belongs to
+	// Group cluster support
+	// SourceProfile is the profile name this node came from in group cluster mode.
+	// Empty for non-group mode. Used to track which Proxmox cluster a node belongs to
 	// when viewing multiple clusters together.
 	SourceProfile string `json:"source_profile,omitempty"`
 

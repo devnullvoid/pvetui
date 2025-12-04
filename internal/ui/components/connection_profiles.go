@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
@@ -13,15 +14,15 @@ const addNewProfileText = "Add New Profile"
 
 // Selection type constants for profile picker
 const (
-	selectionTypeHeader          = "header"
-	selectionTypeSeparator       = "separator"
-	selectionTypeProfile         = "profile"
-	selectionTypeAggregate       = "aggregate"
-	selectionTypeAggregateMember = "aggregate-member"
-	selectionTypeAction          = "action"
+	selectionTypeHeader      = "header"
+	selectionTypeSeparator   = "separator"
+	selectionTypeProfile     = "profile"
+	selectionTypeGroup       = "group"
+	selectionTypeGroupMember = "group-member"
+	selectionTypeAction      = "action"
 )
 
-// showConnectionProfilesDialog displays a dialog for managing connection profiles and aggregates.
+// showConnectionProfilesDialog displays a dialog for managing connection profiles and groups.
 func (a *App) showConnectionProfilesDialog() {
 	// Store last focused primitive
 	a.lastFocus = a.GetFocus()
@@ -32,33 +33,33 @@ func (a *App) showConnectionProfilesDialog() {
 		profiles = make(map[string]config.ProfileConfig)
 	}
 
-	// Get aggregate groups
-	aggregateGroups := a.config.GetAggregateGroups()
+	// Get groups
+	groups := a.config.GetGroups()
 
 	// Create lists for menu items and selection mapping
 	menuItems := make([]string, 0)
-	selectionMap := make([]string, 0)   // Maps menu index to profile/aggregate name
-	selectionTypes := make([]string, 0) // Maps menu index to "profile" or "aggregate"
+	selectionMap := make([]string, 0)   // Maps menu index to profile/group name
+	selectionTypes := make([]string, 0) // Maps menu index to "profile" or "group"
 
-	// Add aggregate groups first (if any)
-	if len(aggregateGroups) > 0 {
+	// Add groups first (if any)
+	if len(groups) > 0 {
 		// Add section header
-		menuItems = append(menuItems, "[::u]Aggregate Groups[::-]")
+		menuItems = append(menuItems, "[::u]Groups[::-]")
 		selectionMap = append(selectionMap, "") // Placeholder for header
 		selectionTypes = append(selectionTypes, selectionTypeHeader)
 
-		// Add each aggregate group
-		for aggName, profileNames := range aggregateGroups {
-			displayName := fmt.Sprintf("▸ %s (%d profiles)", aggName, len(profileNames))
+		// Add each group
+		for groupName, profileNames := range groups {
+			displayName := fmt.Sprintf("▸ %s (%d profiles)", groupName, len(profileNames))
 
-			// Check if currently connected to this aggregate
-			if a.isAggregateMode && a.aggregateName == aggName {
+			// Check if currently connected to this group
+			if a.isGroupMode && a.groupName == groupName {
 				displayName = "⚡ " + displayName
 			}
 
 			menuItems = append(menuItems, displayName)
-			selectionMap = append(selectionMap, aggName)
-			selectionTypes = append(selectionTypes, selectionTypeAggregate)
+			selectionMap = append(selectionMap, groupName)
+			selectionTypes = append(selectionTypes, selectionTypeGroup)
 		}
 
 		// Add separator
@@ -72,15 +73,15 @@ func (a *App) showConnectionProfilesDialog() {
 	selectionMap = append(selectionMap, "")
 	selectionTypes = append(selectionTypes, selectionTypeHeader)
 
-	// Get standalone profiles (not part of aggregates)
+	// Get standalone profiles (not part of any group)
 	standaloneProfiles := make([]string, 0)
-	aggregatedProfiles := make([]string, 0)
+	groupedProfiles := make([]string, 0)
 
 	for name, profile := range profiles {
-		if profile.Aggregate == "" {
+		if len(profile.Groups) == 0 {
 			standaloneProfiles = append(standaloneProfiles, name)
 		} else {
-			aggregatedProfiles = append(aggregatedProfiles, name)
+			groupedProfiles = append(groupedProfiles, name)
 		}
 	}
 
@@ -88,7 +89,7 @@ func (a *App) showConnectionProfilesDialog() {
 	for _, name := range standaloneProfiles {
 		displayName := name
 		isDefault := name == a.config.DefaultProfile
-		isConnected := name == a.header.GetCurrentProfile() && !a.isAggregateMode
+		isConnected := name == a.header.GetCurrentProfile() && !a.isGroupMode
 
 		if isConnected {
 			displayName = "⚡ " + displayName
@@ -102,23 +103,27 @@ func (a *App) showConnectionProfilesDialog() {
 		selectionTypes = append(selectionTypes, selectionTypeProfile)
 	}
 
-	// Add aggregated profiles (shown dimmed, member of aggregate)
-	if len(aggregatedProfiles) > 0 {
+	// Add grouped profiles (shown dimmed, member of a group)
+	if len(groupedProfiles) > 0 {
 		menuItems = append(menuItems, "")
 		selectionMap = append(selectionMap, "")
 		selectionTypes = append(selectionTypes, selectionTypeSeparator)
 
-		menuItems = append(menuItems, "[secondary]Aggregate Members[::-]")
+		menuItems = append(menuItems, "[secondary]Group Members[::-]")
 		selectionMap = append(selectionMap, "")
 		selectionTypes = append(selectionTypes, selectionTypeHeader)
 
-		for _, name := range aggregatedProfiles {
+		for _, name := range groupedProfiles {
 			profile := profiles[name]
-			displayName := fmt.Sprintf("[secondary]  %s (→ %s)[-]", name, profile.Aggregate)
+
+			// Build group string
+			groupStr := strings.Join(profile.Groups, ", ")
+
+			displayName := fmt.Sprintf("[secondary]  %s (→ %s)[-]", name, groupStr)
 
 			menuItems = append(menuItems, displayName)
 			selectionMap = append(selectionMap, name)
-			selectionTypes = append(selectionTypes, selectionTypeAggregateMember)
+			selectionTypes = append(selectionTypes, selectionTypeGroupMember)
 		}
 	}
 
@@ -159,10 +164,10 @@ func (a *App) showConnectionProfilesDialog() {
 
 		if selectionValue == addNewProfileText {
 			a.showAddProfileDialog()
-		} else if selectionType == selectionTypeAggregate {
-			// Switch to aggregate group
-			a.switchToAggregate(selectionValue)
-		} else if selectionType == selectionTypeProfile || selectionType == selectionTypeAggregateMember {
+		} else if selectionType == selectionTypeGroup {
+			// Switch to group
+			a.switchToGroup(selectionValue)
+		} else if selectionType == selectionTypeProfile || selectionType == selectionTypeGroupMember {
 			// Switch to individual profile
 			a.applyConnectionProfile(selectionValue)
 		}
@@ -206,15 +211,14 @@ func (a *App) showConnectionProfilesDialog() {
 			switch event.Rune() {
 			case 'e', 'E':
 				// Edit - only works for profiles
-				if selectionType == selectionTypeProfile || selectionType == selectionTypeAggregateMember {
+				if selectionType == selectionTypeProfile || selectionType == selectionTypeGroupMember {
 					a.CloseConnectionProfilesMenu()
 					a.showEditProfileDialog(selectionValue)
 					return nil
 				}
 			case 'd', 'D':
 				// Delete - only works for profiles
-				if selectionType == selectionTypeProfile || selectionType == selectionTypeAggregateMember {
-					// Don't allow deletion if it's the only standalone profile
+				if selectionType == selectionTypeProfile || selectionType == selectionTypeGroupMember { // Don't allow deletion if it's the only standalone profile
 					if len(standaloneProfiles) <= 1 && selectionType == selectionTypeProfile {
 						a.showMessageSafe("Cannot delete the only standalone profile. At least one profile must remain.")
 						return nil

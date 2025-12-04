@@ -58,16 +58,16 @@ func (a *App) applyConnectionProfile(profileName string) {
 			a.vncService.UpdateClient(client)
 		}
 
-		// Clear aggregate mode state
-		if a.isAggregateMode {
-			uiLogger.Debug("Disabling aggregate mode")
-			if a.aggregateManager != nil {
-				a.aggregateManager.Close()
+		// Clear group mode state
+		if a.isGroupMode {
+			uiLogger.Debug("Disabling group mode")
+			if a.groupManager != nil {
+				a.groupManager.Close()
 			}
-			a.aggregateManager = nil
-			a.isAggregateMode = false
-			a.aggregateName = ""
-			// Clear tasks list to remove aggregate tasks
+			a.groupManager = nil
+			a.isGroupMode = false
+			a.groupName = ""
+			// Clear tasks list to remove group tasks
 			a.tasksList.Clear()
 		}
 
@@ -88,31 +88,31 @@ func (a *App) applyConnectionProfile(profileName string) {
 	}()
 }
 
-// switchToAggregate switches to an aggregate cluster view.
-func (a *App) switchToAggregate(aggregateName string) {
+// switchToGroup switches to a group cluster view.
+func (a *App) switchToGroup(groupName string) {
 	// Show loading indicator
-	a.header.ShowLoading(fmt.Sprintf("Connecting to aggregate '%s'...", aggregateName))
+	a.header.ShowLoading(fmt.Sprintf("Connecting to group '%s'...", groupName))
 
-	// Run aggregate initialization in goroutine to avoid blocking UI
+	// Run group initialization in goroutine to avoid blocking UI
 	go func() {
 		uiLogger := models.GetUILogger()
-		uiLogger.Debug("Starting aggregate switch to: %s", aggregateName)
+		uiLogger.Debug("Starting group switch to: %s", groupName)
 
-		// Get profile names for this aggregate
-		profileNames := a.config.GetProfileNamesInAggregate(aggregateName)
+		// Get profile names for this group
+		profileNames := a.config.GetProfileNamesInGroup(groupName)
 		if len(profileNames) == 0 {
-			uiLogger.Error("No profiles found for aggregate %s", aggregateName)
+			uiLogger.Error("No profiles found for group %s", groupName)
 			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("No profiles found for aggregate '%s'", aggregateName))
+				a.header.ShowError(fmt.Sprintf("No profiles found for group '%s'", groupName))
 			})
 			return
 		}
 
-		uiLogger.Debug("Found %d profiles in aggregate %s: %v", len(profileNames), aggregateName, profileNames)
+		uiLogger.Debug("Found %d profiles in group %s: %v", len(profileNames), groupName, profileNames)
 
-		// Create aggregate manager
-		manager := api.NewAggregateClientManager(
-			aggregateName,
+		// Create group manager
+		manager := api.NewGroupClientManager(
+			groupName,
 			models.GetUILogger(),
 			a.client.GetCache(), // Use existing cache
 		)
@@ -149,20 +149,20 @@ func (a *App) switchToAggregate(aggregateName string) {
 		}
 
 		if len(profiles) == 0 {
-			uiLogger.Error("No valid profiles to initialize for aggregate %s", aggregateName)
+			uiLogger.Error("No valid profiles to initialize for group %s", groupName)
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError("No valid profiles found")
 			})
 			return
 		}
 
-		// Initialize aggregate manager (concurrent connection to all profiles)
+		// Initialize group manager (concurrent connection to all profiles)
 		ctx := context.Background()
-		uiLogger.Debug("Initializing aggregate manager with %d profiles", len(profiles))
+		uiLogger.Debug("Initializing group manager with %d profiles", len(profiles))
 
 		if err := manager.Initialize(ctx, profiles); err != nil {
 			// All profiles failed to connect
-			uiLogger.Error("Failed to initialize aggregate %s: %v", aggregateName, err)
+			uiLogger.Error("Failed to initialize group %s: %v", groupName, err)
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError(fmt.Sprintf("Failed to connect to any profiles: %v", err))
 			})
@@ -171,17 +171,17 @@ func (a *App) switchToAggregate(aggregateName string) {
 
 		// Get connection summary
 		summary := manager.GetConnectionSummary()
-		uiLogger.Debug("Aggregate initialized: %d/%d profiles connected", summary.ConnectedCount, summary.TotalProfiles)
+		uiLogger.Debug("Group initialized: %d/%d profiles connected", summary.ConnectedCount, summary.TotalProfiles)
 
 		// Update app state
 		a.QueueUpdateDraw(func() {
-			// Set aggregate mode
-			// Note: We keep a.client around even in aggregate mode to avoid breaking callbacks
-			// that were set up during initialization. In aggregate mode, we use a.aggregateManager
+			// Set group mode
+			// Note: We keep a.client around even in group mode to avoid breaking callbacks
+			// that were set up during initialization. In group mode, we use a.groupManager
 			// for operations instead of a.client.
-			a.aggregateManager = manager
-			a.isAggregateMode = true
-			a.aggregateName = aggregateName
+			a.groupManager = manager
+			a.isGroupMode = true
+			a.groupName = groupName
 
 			// Update header
 			a.updateHeaderWithActiveProfile()
@@ -190,24 +190,24 @@ func (a *App) switchToAggregate(aggregateName string) {
 			if summary.ErrorCount > 0 {
 				a.header.ShowWarning(fmt.Sprintf("Connected to %d/%d profiles", summary.ConnectedCount, summary.TotalProfiles))
 			} else {
-				a.header.ShowSuccess(fmt.Sprintf("Connected to aggregate '%s' (%d profiles)", aggregateName, summary.ConnectedCount))
+				a.header.ShowSuccess(fmt.Sprintf("Connected to group '%s' (%d profiles)", groupName, summary.ConnectedCount))
 			}
 		})
 
-		// Load aggregate data
-		uiLogger.Debug("Loading aggregate cluster resources")
-		nodes, vms, err := manager.GetAggregatedClusterResources(ctx)
+		// Load group data
+		uiLogger.Debug("Loading group cluster resources")
+		nodes, vms, err := manager.GetGroupClusterResources(ctx)
 		if err != nil {
-			uiLogger.Error("Failed to load aggregate resources: %v", err)
+			uiLogger.Error("Failed to load group resources: %v", err)
 			a.QueueUpdateDraw(func() {
 				a.header.ShowError(fmt.Sprintf("Failed to load resources: %v", err))
 			})
 			return
 		}
 
-		uiLogger.Debug("Loaded %d nodes and %d VMs from aggregate", len(nodes), len(vms))
+		uiLogger.Debug("Loaded %d nodes and %d VMs from group", len(nodes), len(vms))
 
-		// Update UI with aggregate data
+		// Update UI with group data
 		a.QueueUpdateDraw(func() {
 			// Store in global state
 			models.GlobalState.OriginalNodes = nodes
@@ -226,7 +226,7 @@ func (a *App) switchToAggregate(aggregateName string) {
 				// We need to construct a synthetic cluster to calculate totals correctly
 				// The App's createSyntheticCluster method handles this calculation
 				// but we need to update the cluster status component with it
-				syntheticCluster := a.createSyntheticCluster(nodes)
+				syntheticCluster := a.createSyntheticGroup(nodes)
 				a.clusterStatus.Update(syntheticCluster)
 			}
 
@@ -249,12 +249,12 @@ func (a *App) switchToAggregate(aggregateName string) {
 				a.vmDetails.Clear()
 			}
 
-			uiLogger.Debug("Aggregate data loaded successfully")
+			uiLogger.Debug("Group data loaded successfully")
 
 			// Refresh tasks from all profiles
 			// Clear existing tasks first to avoid showing stale single-profile data
 			a.tasksList.Clear()
-			uiLogger.Debug("Loading aggregate tasks")
+			uiLogger.Debug("Loading group tasks")
 			a.loadTasksData()
 		})
 	}()

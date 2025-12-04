@@ -277,9 +277,11 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 		// Check if profile already exists (for new profiles or renamed profiles)
 		if isNewProfile || profileName != cfg.DefaultProfile {
-			if cfg.Profiles != nil && cfg.Profiles[profileName] != (config.ProfileConfig{}) {
-				showWizardModal(pages, form, app, "error", "Profile '"+profileName+"' already exists.", nil)
-				return
+			if cfg.Profiles != nil {
+				if _, exists := cfg.Profiles[profileName]; exists {
+					showWizardModal(pages, form, app, "error", "Profile '"+profileName+"' already exists.", nil)
+					return
+				}
 			}
 		}
 

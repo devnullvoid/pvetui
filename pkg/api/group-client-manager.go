@@ -10,7 +10,7 @@ import (
 )
 
 // ProfileClient wraps an API client with its profile information.
-// This represents a single Proxmox connection within an aggregate cluster.
+// This represents a single Proxmox connection within a group cluster.
 type ProfileClient struct {
 	Client      *Client
 	ProfileName string // The profile name from config
@@ -62,40 +62,40 @@ func (pc *ProfileClient) GetStatus() (ProfileConnectionStatus, error) {
 	return pc.Status, pc.LastErr
 }
 
-// AggregateClientManager manages multiple Proxmox API clients for aggregate cluster mode.
-// It provides concurrent access to multiple profiles and aggregates their data.
-type AggregateClientManager struct {
-	aggregateName string                    // Name of the aggregate group
-	clients       map[string]*ProfileClient // keyed by profile name
-	logger        interfaces.Logger
-	cache         interfaces.Cache
-	mu            sync.RWMutex
+// GroupClientManager manages multiple Proxmox API clients for group cluster mode.
+// It provides concurrent access to multiple profiles and groups their data.
+type GroupClientManager struct {
+	groupName string                    // Name of the group
+	clients   map[string]*ProfileClient // keyed by profile name
+	logger    interfaces.Logger
+	cache     interfaces.Cache
+	mu        sync.RWMutex
 }
 
-// NewAggregateClientManager creates a new aggregate client manager.
-func NewAggregateClientManager(
-	aggregateName string,
+// NewGroupClientManager creates a new group client manager.
+func NewGroupClientManager(
+	groupName string,
 	logger interfaces.Logger,
 	cache interfaces.Cache,
-) *AggregateClientManager {
-	return &AggregateClientManager{
-		aggregateName: aggregateName,
-		clients:       make(map[string]*ProfileClient),
-		logger:        logger,
-		cache:         cache,
+) *GroupClientManager {
+	return &GroupClientManager{
+		groupName: groupName,
+		clients:   make(map[string]*ProfileClient),
+		logger:    logger,
+		cache:     cache,
 	}
 }
 
-// ProfileEntry represents a profile to be added to the aggregate manager.
-// This is a simple struct to pass profile information without importing config package.
+// ProfileEntry represents a profile to be added to the group manager.
+// This is a simple struct to pass profile information without importing config package, used in group management.
 type ProfileEntry struct {
 	Name   string
 	Config interfaces.Config
 }
 
-// Initialize creates and connects clients for all profiles in the aggregate group.
+// Initialize creates and connects clients for all profiles in the group.
 // Returns an error only if ALL connections fail; partial failures are logged.
-func (m *AggregateClientManager) Initialize(ctx context.Context, profiles []ProfileEntry) error {
+func (m *GroupClientManager) Initialize(ctx context.Context, profiles []ProfileEntry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -103,7 +103,7 @@ func (m *AggregateClientManager) Initialize(ctx context.Context, profiles []Prof
 	m.clients = make(map[string]*ProfileClient)
 
 	if len(profiles) == 0 {
-		return fmt.Errorf("no profiles provided for aggregate group '%s'", m.aggregateName)
+		return fmt.Errorf("no profiles provided for group '%s'", m.groupName)
 	}
 
 	var wg sync.WaitGroup
@@ -123,8 +123,8 @@ func (m *AggregateClientManager) Initialize(ctx context.Context, profiles []Prof
 
 			// Create cache key prefix for this profile
 			// Using simple key prefixing instead of namespace
-			cacheKeyPrefix := fmt.Sprintf("aggregate:%s:profile:%s:",
-				m.aggregateName, pe.Name)
+			cacheKeyPrefix := fmt.Sprintf("group:%s:profile:%s:",
+				m.groupName, pe.Name)
 
 			// Create client with prefixed cache keys
 			// For now, we'll just use the shared cache with prefixed keys
@@ -174,23 +174,23 @@ func (m *AggregateClientManager) Initialize(ctx context.Context, profiles []Prof
 	}
 
 	if connectedCount == 0 {
-		return fmt.Errorf("failed to connect to any profiles in aggregate '%s': %v",
-			m.aggregateName, errors)
+		return fmt.Errorf("failed to connect to any profiles in group '%s': %v",
+			m.groupName, errors)
 	}
 
-	m.logger.Info("Aggregate client manager '%s' initialized: %d/%d profiles connected",
-		m.aggregateName, connectedCount, len(profiles))
+	m.logger.Info("Group client manager '%s' initialized: %d/%d profiles connected",
+		m.groupName, connectedCount, len(profiles))
 
 	return nil
 }
 
-// GetAggregateName returns the name of this aggregate group.
-func (m *AggregateClientManager) GetAggregateName() string {
-	return m.aggregateName
+// GetGroupName returns the name of this group.
+func (m *GroupClientManager) GetGroupName() string {
+	return m.groupName
 }
 
 // GetClient returns the client for a specific profile by name.
-func (m *AggregateClientManager) GetClient(profileName string) (*ProfileClient, bool) {
+func (m *GroupClientManager) GetClient(profileName string) (*ProfileClient, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	client, exists := m.clients[profileName]
@@ -198,7 +198,7 @@ func (m *AggregateClientManager) GetClient(profileName string) (*ProfileClient, 
 }
 
 // GetConnectedClients returns all currently connected profile clients.
-func (m *AggregateClientManager) GetConnectedClients() []*ProfileClient {
+func (m *GroupClientManager) GetConnectedClients() []*ProfileClient {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -212,7 +212,7 @@ func (m *AggregateClientManager) GetConnectedClients() []*ProfileClient {
 }
 
 // GetAllClients returns all clients regardless of status.
-func (m *AggregateClientManager) GetAllClients() []*ProfileClient {
+func (m *GroupClientManager) GetAllClients() []*ProfileClient {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -224,7 +224,7 @@ func (m *AggregateClientManager) GetAllClients() []*ProfileClient {
 }
 
 // Close disconnects all clients and cleans up resources.
-func (m *AggregateClientManager) Close() {
+func (m *GroupClientManager) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -236,9 +236,9 @@ func (m *AggregateClientManager) Close() {
 	m.clients = make(map[string]*ProfileClient)
 }
 
-// ConnectionSummary represents the connection status of the aggregate.
+// ConnectionSummary represents the connection status of the group.
 type ConnectionSummary struct {
-	AggregateName  string
+	GroupName      string
 	TotalProfiles  int
 	ConnectedCount int
 	ErrorCount     int
@@ -246,12 +246,12 @@ type ConnectionSummary struct {
 }
 
 // GetConnectionSummary returns a summary of connection statuses.
-func (m *AggregateClientManager) GetConnectionSummary() ConnectionSummary {
+func (m *GroupClientManager) GetConnectionSummary() ConnectionSummary {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	summary := ConnectionSummary{
-		AggregateName: m.aggregateName,
+		GroupName:     m.groupName,
 		TotalProfiles: len(m.clients),
 		ProfileStatus: make(map[string]string),
 	}
