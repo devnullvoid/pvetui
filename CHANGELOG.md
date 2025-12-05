@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Community scripts navigation**: Restored visible selection highlighting in the script/category lists.
 - **Community scripts install**: Show script page link and explicit curl/bash command; installations no longer require sudo when connecting as root (fall back to `su`).
 - **Command runner SSH target**: Use node IPs instead of hostnames for SSH, reducing DNS reliance.
-- **SSH debug visibility**: Added debug logs for all SSH invocations (node/VM shells, command runner, community scripts) including user/host/command to aid troubleshooting malformed/missing IP reports.
+- **SSH debug visibility**: Added debug logs for all SSH invocations (node/VM shells, command runner, community scripts) including user/host/command, and centralized logging to the single cache log file.
 
 ## [1.0.13] - 2025-11-29
 

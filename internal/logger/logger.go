@@ -231,8 +231,6 @@ var _ interfaces.Logger = (*Logger)(nil)
 var (
 	globalLogger     interfaces.Logger
 	globalLoggerOnce sync.Once
-	globalCacheDir   string
-	globalDebugFlag  bool
 )
 
 // InitGlobalLogger initializes the global logger with the specified cache directory
@@ -241,8 +239,6 @@ func InitGlobalLogger(level Level, cacheDir string) error {
 	var err error
 
 	globalLoggerOnce.Do(func() {
-		globalCacheDir = cacheDir
-
 		// Try to create internal logger with file output
 		globalLogger, err = NewInternalLogger(level, cacheDir)
 		if err != nil {
@@ -298,51 +294,31 @@ func GetGlobalLogger() interfaces.Logger {
 // SetDebugEnabled sets the global debug flag for the logger package.
 // This should be called during application initialization to enable debug logging.
 func SetDebugEnabled(enabled bool) {
-	globalDebugFlag = enabled
+	// Elevate global logger level if already initialized.
+	if lg, ok := globalLogger.(*Logger); ok {
+		if enabled {
+			lg.SetLevel(LevelDebug)
+		} else {
+			lg.SetLevel(LevelInfo)
+		}
+	}
 }
 
 // GetPackageLogger returns a logger for a specific package using the global cache directory
 // This ensures all packages log to the same unified log file.
 func GetPackageLogger(packageName string) interfaces.Logger {
-	level := LevelInfo
-	if globalDebugFlag {
-		level = LevelDebug
-	}
-
-	// Use global cache directory if available
-	cacheDir := globalCacheDir
-	if cacheDir == "" {
-		cacheDir = "."
-	}
-
-	logger, err := NewInternalLogger(level, cacheDir)
-	if err != nil {
-		// Fallback to simple logger if file logging fails
-		return NewSimpleLogger(level)
-	}
-
-	return logger
+	// Reuse the already-initialized global logger to avoid scattering log files.
+	return GetGlobalLogger()
 }
 
 // GetPackageLoggerConcrete returns a concrete Logger instance for packages that need the specific type
 // This ensures all packages log to the same unified log file while maintaining type compatibility.
 func GetPackageLoggerConcrete(packageName string) *Logger {
-	level := LevelInfo
-	if globalDebugFlag {
-		level = LevelDebug
+	// Attempt to return the global logger as a concrete type when possible.
+	if lg, ok := GetGlobalLogger().(*Logger); ok {
+		return lg
 	}
 
-	// Use global cache directory if available
-	cacheDir := globalCacheDir
-	if cacheDir == "" {
-		cacheDir = "."
-	}
-
-	logger, err := NewInternalLogger(level, cacheDir)
-	if err != nil {
-		// Fallback to simple logger if file logging fails
-		return NewSimpleLogger(level)
-	}
-
-	return logger
+	// Fallback: create a simple logger to avoid nil.
+	return NewSimpleLogger(LevelInfo)
 }
