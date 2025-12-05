@@ -415,6 +415,7 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 	if !strings.EqualFold(user, "root") {
 		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c '%s'; else su - root -c '%s'; fi", installCmd, installCmd)
 	}
+	getScriptsLogger().Debug("community-script install via SSH: user=%s host=%s cmd=%s", user, nodeIP, remoteCmd)
 
 	// Use SSH to run the script installation command interactively with proper terminal environment
 	// #nosec G204 -- command arguments derive from validated node metadata and trusted plugin configuration.

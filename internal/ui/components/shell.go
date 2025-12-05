@@ -5,11 +5,14 @@ import (
 	"net"
 	"strings"
 
+	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/ssh"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/vnc"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
+
+var shellLogger = logger.GetPackageLogger("ui-shell")
 
 // openNodeShell opens an SSH session to the currently selected node.
 func (a *App) openNodeShell() {
@@ -305,18 +308,21 @@ func (a *App) openVMShell() {
 		}
 	}
 
-	if nodeIP == "" {
-		// Fallback: use API base host if cluster data lacked an IP (seen on some installs)
-		if client != nil {
-			nodeIP = client.BaseHostname()
-		}
+	if nodeIP == "" && client != nil {
+		fallback := client.BaseHostname()
+		shellLogger.Debug("Node %s missing IP in cluster data; falling back to API host %s", vm.Node, fallback)
+		nodeIP = fallback
 	}
 
 	if net.ParseIP(nodeIP) == nil && client != nil {
-		// If the reported IP is malformed (e.g., missing leading digit), fall back to API host.
-		if fallback := client.BaseHostname(); fallback != "" {
-			nodeIP = fallback
-		}
+		fallback := client.BaseHostname()
+		shellLogger.Debug("Node %s has malformed IP '%s'; falling back to API host %s", vm.Node, nodeIP, fallback)
+		nodeIP = fallback
+	}
+
+	if nodeIP == "" || net.ParseIP(nodeIP) == nil {
+		a.showMessageSafe("Host node IP address not available")
+		return
 	}
 
 	// Check for QEMU VMs without IP address before suspending UI

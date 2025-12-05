@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devnullvoid/pvetui/internal/logger"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -20,6 +21,8 @@ type SSHClientImpl struct {
 	timeout  time.Duration
 	port     int
 }
+
+var crSSHLogger = logger.GetPackageLogger("command-runner-ssh")
 
 // SSHClientConfig holds configuration for SSH connections
 type SSHClientConfig struct {
@@ -50,6 +53,8 @@ func NewSSHClient(config SSHClientConfig) *SSHClientImpl {
 
 // ExecuteCommand executes a command on a host via SSH
 func (c *SSHClientImpl) ExecuteCommand(ctx context.Context, host, command string) (string, error) {
+	crSSHLogger.Debug("SSH exec (host): user=%s host=%s cmd=%s", c.username, host, command)
+
 	// Build SSH client config
 	config := &ssh.ClientConfig{
 		User: c.username,
@@ -239,6 +244,7 @@ func (c *SSHClientImpl) ExecuteContainerCommand(ctx context.Context, host string
 	if !strings.EqualFold(c.username, "root") {
 		pctCommand = fmt.Sprintf("sudo %s", basePctCommand)
 	}
+	crSSHLogger.Debug("SSH exec (container): user=%s host=%s vmid=%d cmd=%s", c.username, host, containerID, pctCommand)
 
 	// Execute command with context timeout
 	errChan := make(chan error, 1)
