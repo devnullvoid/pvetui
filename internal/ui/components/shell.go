@@ -13,26 +13,36 @@ import (
 
 // openNodeShell opens an SSH session to the currently selected node.
 func (a *App) openNodeShell() {
-	if a.config.SSHUser == "" {
-		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
-
-		return
-	}
-
 	node := a.nodeList.GetSelectedNode()
 	if node == nil || node.IP == "" {
 		a.showMessage("Node IP address not available")
+		return
+	}
 
+	// Determine SSH user
+	sshUser := a.config.SSHUser
+
+	// In group mode, try to get the SSH user from the node's source profile
+	if a.isGroupMode && node.SourceProfile != "" {
+		if profile, exists := a.config.Profiles[node.SourceProfile]; exists {
+			if profile.SSHUser != "" {
+				sshUser = profile.SSHUser
+			}
+		}
+	}
+
+	if sshUser == "" {
+		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
 		return
 	}
 
 	// Temporarily suspend the UI
 	a.Suspend(func() {
 		// Display connecting message
-		fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, a.config.SSHUser)
+		fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, sshUser)
 
 		// Execute SSH command
-		err := ssh.ExecuteNodeShell(a.config.SSHUser, node.IP)
+		err := ssh.ExecuteNodeShell(sshUser, node.IP)
 		if err != nil {
 			fmt.Printf("\nError connecting to node: %v\n", err)
 		}
@@ -245,16 +255,29 @@ func (a *App) openVMShell() {
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
 		a.showMessageSafe("Selected VM not found")
-
 		return
 	}
 
+	// Determine SSH users
+	hostShellUser := a.config.SSHUser
 	vmShellUser := a.config.VMSSHUser
-	if vmShellUser == "" {
-		vmShellUser = a.config.SSHUser
+
+	// In group mode, try to get users from the VM's source profile
+	if a.isGroupMode && vm.SourceProfile != "" {
+		if profile, exists := a.config.Profiles[vm.SourceProfile]; exists {
+			if profile.SSHUser != "" {
+				hostShellUser = profile.SSHUser
+			}
+			if profile.VMSSHUser != "" {
+				vmShellUser = profile.VMSSHUser
+			}
+		}
 	}
 
-	hostShellUser := a.config.SSHUser
+	if vmShellUser == "" {
+		vmShellUser = hostShellUser
+	}
+
 	if vm.Type == vmTypeLXC && hostShellUser == "" {
 		a.showMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
 		return
@@ -277,7 +300,6 @@ func (a *App) openVMShell() {
 		for _, node := range client.Cluster.Nodes {
 			if node.Name == vm.Node {
 				nodeIP = node.IP
-
 				break
 			}
 		}
