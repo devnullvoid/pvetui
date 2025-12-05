@@ -31,6 +31,16 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 		sb.WriteString(fmt.Sprintf("[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath))
 	}
 
+	if script.Slug != "" {
+		pageURL := fmt.Sprintf("https://community-scripts.github.io/ProxmoxVE/scripts?id=%s", script.Slug)
+		sb.WriteString(fmt.Sprintf("[%s]Script Page:[-] %s\n", labelColor, pageURL))
+	}
+
+	if script.ScriptPath != "" {
+		installCmd := fmt.Sprintf(`bash -c "$(curl -fsSL %s/%s)"`, RawGitHubRepo, script.ScriptPath)
+		sb.WriteString(fmt.Sprintf("[%s]Install Command:[-] %s\n", labelColor, installCmd))
+	}
+
 	if script.Website != "" {
 		sb.WriteString(fmt.Sprintf("[%s]Website:[-] %s\n", labelColor, script.Website))
 	}

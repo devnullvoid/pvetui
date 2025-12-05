@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **About dialog metadata**: Widened the About modal so GitHub links no longer wrap/break and backfilled commit/build date when ldflags aren't provided (e.g., `go install`).
 - **Plugin manager modal**: Expanded the manage-plugins dialog further (wider center column) so long plugin descriptions stay visible.
 - **LXC shell via root SSH**: Skip `sudo` when the profile `ssh_user` is `root`, preventing failures on Proxmox hosts without sudo and eliminating unnecessary elevation.
+- **Community scripts navigation**: Restored visible selection highlighting in the script/category lists.
+- **Community scripts install**: Show script page link and explicit curl/bash command; installations no longer require sudo when connecting as root (fall back to `su`).
+- **Command runner SSH target**: Use node IPs instead of hostnames for SSH, reducing DNS reliance.
 
 ## [1.0.13] - 2025-11-29
 
