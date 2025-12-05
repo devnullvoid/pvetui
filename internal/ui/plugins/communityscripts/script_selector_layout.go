@@ -15,7 +15,10 @@ func (s *ScriptSelector) createLayout() {
 	s.categoryList = tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
-		SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
+		SetSelectedStyle(tcell.StyleDefault.
+			Background(theme.Colors.Selection).
+			Foreground(theme.Colors.Primary).
+			Attributes(tcell.AttrReverse))
 
 	// Add categories to the list
 	for _, category := range s.categories {
@@ -36,7 +39,10 @@ func (s *ScriptSelector) createLayout() {
 	s.scriptList = tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
-		SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary))
+		SetSelectedStyle(tcell.StyleDefault.
+			Background(theme.Colors.Selection).
+			Foreground(theme.Colors.Primary).
+			Attributes(tcell.AttrReverse))
 
 	// Create search input field
 	s.searchInput = tview.NewInputField().

@@ -408,12 +408,17 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 
 	// Build the script installation command using curl (matches official instructions)
 	scriptURL := fmt.Sprintf("%s/%s", RawGitHubRepo, scriptPath)
-	// Switch to root user completely and run in bash environment
-	installCmd := fmt.Sprintf("sudo su - root -c \"SHELL=/bin/bash /bin/bash -c \\\"\\$(curl -fsSL %s)\\\"\"", scriptURL)
+	// Switch to root user completely and run in bash environment. On PVE, sudo
+	// may not be installed; when SSHing as root we don't need elevation.
+	installCmd := fmt.Sprintf("SHELL=/bin/bash /bin/bash -c \"$(curl -fsSL %s)\"", scriptURL)
+	remoteCmd := installCmd
+	if !strings.EqualFold(user, "root") {
+		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c '%s'; else su - root -c '%s'; fi", installCmd, installCmd)
+	}
 
 	// Use SSH to run the script installation command interactively with proper terminal environment
 	// #nosec G204 -- command arguments derive from validated node metadata and trusted plugin configuration.
-	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), installCmd)
+	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), remoteCmd)
 
 	// Connect stdin/stdout/stderr for interactive session
 	sshCmd.Stdin = os.Stdin
