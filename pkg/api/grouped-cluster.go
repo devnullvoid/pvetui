@@ -134,7 +134,8 @@ func (m *GroupClientManager) GetGroupVMs(ctx context.Context) ([]*VM, error) {
 
 // GetGroupClusterResources retrieves cluster resources from all profiles in the group.
 // This provides a unified view of all resources across all connected profiles.
-func (m *GroupClientManager) GetGroupClusterResources(ctx context.Context) ([]*Node, []*VM, error) {
+// fresh flag bypasses caches when true.
+func (m *GroupClientManager) GetGroupClusterResources(ctx context.Context, fresh bool) ([]*Node, []*VM, error) {
 	// Use goroutines to fetch nodes and VMs concurrently for better performance
 	type result struct {
 		nodes []*Node
@@ -148,6 +149,14 @@ func (m *GroupClientManager) GetGroupClusterResources(ctx context.Context) ([]*N
 	// Fetch nodes
 	go func() {
 		nodes, err := m.GetGroupNodes(ctx)
+		if fresh {
+			// Invalidate node status caches for each profile before returning
+			for _, pc := range m.GetConnectedClients() {
+				if pc.Client != nil && pc.Client.cache != nil {
+					_ = pc.Client.cache.Clear()
+				}
+			}
+		}
 		nodesChan <- result{nodes: nodes, err: err}
 	}()
 
@@ -181,6 +190,10 @@ func (m *GroupClientManager) GetNodeFromGroup(
 	nodeName string,
 ) (*Node, error) {
 	operation := func(pName string, client *Client) (interface{}, error) {
+		// Clear per-node caches to ensure fresh status
+		if client.cache != nil {
+			_ = client.cache.Clear()
+		}
 		node, err := client.GetNodeStatus(nodeName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get node status: %w", err)

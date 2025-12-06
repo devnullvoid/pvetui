@@ -54,7 +54,7 @@ func (a *App) manualRefresh() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx)
+			nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx, true)
 			if err != nil {
 				a.QueueUpdateDraw(func() {
 					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
@@ -64,47 +64,16 @@ func (a *App) manualRefresh() {
 				return
 			}
 
+			// Debug logging retained at Debug level for troubleshooting.
+
 			a.QueueUpdateDraw(func() {
-				// Update GlobalState nodes
+				// Update GlobalState nodes/VMs; UI lists will be updated after enrichment to reduce flicker.
 				models.GlobalState.OriginalNodes = nodes
-
-				// Apply node filter if active
-				if nodeState := models.GlobalState.GetSearchState(api.PageNodes); nodeState != nil && nodeState.Filter != "" {
-					models.FilterNodes(nodeState.Filter)
-				} else {
-					models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
-					copy(models.GlobalState.FilteredNodes, nodes)
-				}
-				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
-
-				// Update GlobalState VMs
 				models.GlobalState.OriginalVMs = vms
-
-				// Apply VM filter if active
-				if vmState := models.GlobalState.GetSearchState(api.PageGuests); vmState != nil && vmState.Filter != "" {
-					models.FilterVMs(vmState.Filter)
-					a.vmList.SetVMs(models.GlobalState.FilteredVMs)
-				} else {
-					models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-					copy(models.GlobalState.FilteredVMs, vms)
-					a.vmList.SetVMs(models.GlobalState.FilteredVMs)
-				}
-
-				// Restore selection and search UI
-				nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
-				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
-
-				a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
-					hasSelectedNode, selectedNodeName, nodeSearchState)
-
-				if node := a.nodeList.GetSelectedNode(); node != nil {
-					a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
-				}
-
-				a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
-
-				// Update cluster status with grouped data
-				a.clusterStatus.Update(a.getDisplayCluster())
+				models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+				copy(models.GlobalState.FilteredNodes, nodes)
+				models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+				copy(models.GlobalState.FilteredVMs, vms)
 
 				// Start background enrichment for detailed node stats
 				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
@@ -283,6 +252,7 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			a.header.ShowSuccess("Data refreshed successfully")
 			a.footer.SetLoading(false)
 			a.loadTasksData()
+			// Debug logging retained at Debug level for troubleshooting.
 		})
 	}()
 }
@@ -297,7 +267,7 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			activeFilter = nodeState.Filter
 		}
 
-		// Create a context for the enrichment process
+		// Create a context for the enrichment process (no cache; caller cleared caches earlier)
 		ctx := context.Background()
 
 		// Enrich nodes incrementally with minimal UI updates, working on copies to avoid stale overwrites
@@ -310,6 +280,7 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			freshNode, err := a.groupManager.GetNodeFromGroup(ctx, node.SourceProfile, node.Name)
 
 			if err == nil && freshNode != nil {
+				// Debug logging retained at Debug level for troubleshooting.
 				// Ensure Online status is set to true if we got a response
 				freshNode.Online = true
 
@@ -389,6 +360,11 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			}
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
+			// Update lists and cluster status after enrichment to minimize flicker
+			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			a.clusterStatus.Update(a.getDisplayCluster())
+
 			a.header.ShowSuccess("Data refreshed successfully")
 			a.footer.SetLoading(false)
 			a.loadTasksData()

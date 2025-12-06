@@ -52,7 +52,7 @@ func (a *App) autoRefreshData() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
-		nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx)
+		nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx, true)
 		if err != nil {
 			uiLogger.Debug("Auto-refresh failed (group): %v", err)
 			a.QueueUpdateDraw(func() {
@@ -97,32 +97,10 @@ func (a *App) autoRefreshData() {
 			copy(models.GlobalState.OriginalVMs, vms)
 			copy(models.GlobalState.FilteredVMs, vms)
 
-			// Apply filters
-			if nodeSearchState != nil && nodeSearchState.Filter != "" {
-				models.FilterNodes(nodeSearchState.Filter)
-				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
-			} else {
-				a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
-			}
-
-			if vmSearchState != nil && vmSearchState.Filter != "" {
-				models.FilterVMs(vmSearchState.Filter)
-				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
-			} else {
-				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
-			}
-
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
-			// Update details
-			if node := a.nodeList.GetSelectedNode(); node != nil {
-				a.nodeDetails.Update(node, nodes)
-			}
-
-			if vm := a.vmList.GetSelectedVM(); vm != nil {
-				a.vmDetails.Update(vm)
-			}
+			// Defer list/detail updates until enrichment completes to reduce flicker.
 
 			// Refresh tasks if on tasks page
 			currentPage, _ := a.pages.GetFrontPage()
@@ -147,10 +125,6 @@ func (a *App) autoRefreshData() {
 			}
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
-
-			// Update cluster status with aggregated data
-
-			a.clusterStatus.Update(a.getDisplayCluster())
 
 			// Start background enrichment for detailed node stats
 

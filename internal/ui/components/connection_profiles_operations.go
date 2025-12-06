@@ -196,7 +196,7 @@ func (a *App) switchToGroup(groupName string) {
 
 		// Load group data
 		uiLogger.Debug("Loading group cluster resources")
-		nodes, vms, err := manager.GetGroupClusterResources(ctx)
+		nodes, vms, err := manager.GetGroupClusterResources(ctx, true)
 		if err != nil {
 			uiLogger.Error("Failed to load group resources: %v", err)
 			a.QueueUpdateDraw(func() {
