@@ -16,7 +16,7 @@ import (
 // showMigrationDialog displays a dialog for configuring VM migration.
 func (a *App) showMigrationDialog(vm *api.VM) {
 	if vm == nil {
-		a.showMessage("No VM selected")
+		a.showMessageSafe("No VM selected")
 
 		return
 	}
@@ -30,7 +30,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	// Get client for VM to fetch nodes from the same cluster
 	client, err := a.getClientForVM(vm)
 	if err != nil {
-		a.showMessage(fmt.Sprintf("Error determining VM cluster: %v", err))
+		a.showMessageSafe(fmt.Sprintf("Error determining VM cluster: %v", err))
 		return
 	}
 
@@ -47,7 +47,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	}
 
 	if len(availableNodes) == 0 {
-		a.showMessage("No other online nodes available for migration")
+		a.showMessageSafe("No other online nodes available for migration")
 
 		return
 	}
