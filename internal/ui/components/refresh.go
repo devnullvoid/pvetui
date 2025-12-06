@@ -333,9 +333,12 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 				// Ensure SourceProfile is preserved
 				freshNode.SourceProfile = node.SourceProfile
 
-				// Update GlobalState
+				// Update GlobalState and filtered copy at the same index
 				if i < len(models.GlobalState.OriginalNodes) {
 					models.GlobalState.OriginalNodes[i] = freshNode
+				}
+				if i < len(models.GlobalState.FilteredNodes) {
+					models.GlobalState.FilteredNodes[i] = freshNode
 				}
 
 				// Update filtered list only if this node matches current filter
