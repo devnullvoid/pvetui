@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Community scripts install**: Show script page link and explicit curl/bash command; installations no longer require sudo when connecting as root (fall back to `su`).
 - **Command runner SSH target**: Use node IPs instead of hostnames for SSH, reducing DNS reliance.
 - **SSH debug visibility**: Added debug logs for all SSH invocations (node/VM shells, command runner, community scripts) including user/host/command, and centralized logging to the single cache log file.
+- **Hotkey override hook**: UI components can now register a hotkey override instead of being added to the growing modal whitelist, reducing global shortcut conflicts.
 
 ## [1.0.13] - 2025-11-29
 
