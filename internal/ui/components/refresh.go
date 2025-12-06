@@ -300,7 +300,7 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 		// Create a context for the enrichment process
 		ctx := context.Background()
 
-		// Enrich nodes incrementally with minimal UI updates
+		// Enrich nodes incrementally with minimal UI updates, working on copies to avoid stale overwrites
 		for i, node := range nodes {
 			if node == nil || node.SourceProfile == "" {
 				continue
