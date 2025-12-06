@@ -136,18 +136,19 @@ func (a *App) setupKeyboardHandlers() {
 			return event
 		}
 
-		// If context menu is open, let it handle keys
-		if a.isMenuOpen && a.contextMenu != nil {
+		// If context menu is open AND it's the frontmost page, let it handle keys
+		if a.isMenuOpen && a.contextMenu != nil && pageName == "contextMenu" {
 			return event
 		}
 
-		// Smart Escape handling
+		// If any modal is active, let it handle the event.
+		// This ensures global hotkeys don't interfere with form inputs.
+		if modalActive {
+			return event
+		}
+
+		// Smart Escape handling (global menu)
 		if event.Key() == tcell.KeyEscape {
-			// If any modal is active, let it handle Escape (close modal)
-			if modalActive {
-				return event
-			}
-			// If no modal is active, open global menu
 			a.ShowGlobalContextMenu()
 			return nil
 		}

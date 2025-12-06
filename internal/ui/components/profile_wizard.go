@@ -43,25 +43,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	// Determine if this is a new profile or editing existing
 	isNewProfile := cfg.DefaultProfile == "new_profile"
 
-	// For new profiles, create the profile entry in the map
-	if isNewProfile {
-		if cfg.Profiles == nil {
-			cfg.Profiles = make(map[string]config.ProfileConfig)
-		}
-		// Create a new profile entry with default values
-		cfg.Profiles["new_profile"] = config.ProfileConfig{
-			Addr:        "",
-			User:        "",
-			Password:    "",
-			TokenID:     "",
-			TokenSecret: "",
-			Realm:       "pam",
-			ApiPath:     "/api2/json",
-			Insecure:    false,
-			SSHUser:     "",
-			VMSSHUser:   "",
-		}
-	}
+	// For new profiles, defer creating the temp entry until Save. Avoid polluting list on cancel.
 
 	// Add profile name field at the top
 	var profileName string
@@ -337,8 +319,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 			// Handle profile renaming or new profile creation
 			if isNewProfile {
-				// For new profiles, remove the temporary "new_profile" entry and add with the actual name
-				delete(a.config.Profiles, "new_profile")
+				// For new profiles, just add the entered name; no temp entry to clean up now.
 				a.config.Profiles[profileName] = profile
 			} else if profileName != cfg.DefaultProfile {
 				// For existing profiles being renamed
