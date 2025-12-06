@@ -124,15 +124,29 @@ func main() {
 
 		data := generateMockData(respSchema, 0)
 
+		// Wrap in "data" property as Proxmox API does
+		response := map[string]interface{}{
+			"data": data,
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		if err := json.NewEncoder(w).Encode(data); err != nil {
+		if err := json.NewEncoder(w).Encode(response); err != nil {
 			log.Printf("Failed to encode response: %v", err)
 		}
 	})
 
 	log.Printf("Starting mock server on :%d using spec %s", port, specFile)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), r))
+
+    // Handle /api2/json prefix
+    finalHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+        if strings.HasPrefix(req.URL.Path, "/api2/json") {
+            req.URL.Path = strings.TrimPrefix(req.URL.Path, "/api2/json")
+        }
+        r.ServeHTTP(w, req)
+    })
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), finalHandler))
 }
 
 func generateMockData(schema *openapi3.Schema, depth int) interface{} {

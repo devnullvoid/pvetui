@@ -488,7 +488,7 @@ func NewClient(config interfaces.Config, options ...ClientOption) (*Client, erro
 
 	// Construct base URL - remove any API path suffix
 	baseURL := strings.TrimRight(config.GetAddr(), "/")
-	if !strings.HasPrefix(baseURL, "https://") {
+	if !strings.HasPrefix(baseURL, "https://") && !strings.HasPrefix(baseURL, "http://") {
 		baseURL = "https://" + baseURL
 	}
 
