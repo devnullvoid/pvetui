@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SSH debug visibility**: Added debug logs for all SSH invocations (node/VM shells, command runner, community scripts) including user/host/command, and centralized logging to the single cache log file.
 - **Hotkey override hook**: UI components can now register a hotkey override instead of being added to the growing modal whitelist, reducing global shortcut conflicts.
 - **Profile add cancel**: Cancelling “Add New Profile” no longer leaves a phantom `new_profile` entry in the manager list.
+- **Community scripts fetch**: Script metadata now fetched concurrently (worker pool) to speed up inventory loading while respecting caching.
 
 ## [1.0.13] - 2025-11-29
 

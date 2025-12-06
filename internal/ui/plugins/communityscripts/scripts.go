@@ -337,29 +337,49 @@ func FetchScripts() ([]Script, error) {
 		return nil, fmt.Errorf("no script metadata files found, GitHub API may be unavailable")
 	}
 
-	// Fetch metadata for each script
-	var scripts []Script
+	// Fetch metadata concurrently with a modest worker pool.
+	workerCount := 6
+	if workerCount > len(metadataFiles) {
+		workerCount = len(metadataFiles)
+	}
 
-	var errorCount int
+	type result struct {
+		script *Script
+		err    error
+	}
 
-	for _, file := range metadataFiles {
-		script, err := GetScriptMetadata(file.DownloadURL)
-		if err != nil {
-			// Skip this script but log the error
-			getScriptsLogger().Debug("Error fetching metadata for %s: %v", file.Name, err)
+	jobs := make(chan GitHubContent, len(metadataFiles))
+	results := make(chan result, len(metadataFiles))
 
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			for file := range jobs {
+				s, err := GetScriptMetadata(file.DownloadURL)
+				results <- result{script: s, err: err}
+			}
+		}()
+	}
+
+	for _, f := range metadataFiles {
+		jobs <- f
+	}
+	close(jobs)
+
+	scripts := make([]Script, 0, len(metadataFiles))
+	errorCount := 0
+
+	for i := 0; i < len(metadataFiles); i++ {
+		res := <-results
+		if res.err != nil {
+			getScriptsLogger().Debug("Error fetching metadata: %v", res.err)
 			errorCount++
-
-			// If we're getting too many errors, something might be wrong with GitHub API
 			if errorCount > 5 {
 				return scripts, fmt.Errorf("multiple GitHub API errors, rate limit may have been exceeded")
 			}
-
 			continue
 		}
-
-		if script != nil && script.ScriptPath != "" {
-			scripts = append(scripts, *script)
+		if res.script != nil && res.script.ScriptPath != "" {
+			scripts = append(scripts, *res.script)
 		}
 	}
 
