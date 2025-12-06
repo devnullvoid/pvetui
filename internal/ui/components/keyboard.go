@@ -106,9 +106,29 @@ func (a *App) setupKeyboardHandlers() {
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
 
-		// Let modals handle their own keys. Favor the explicit hotkey override when present.
+		// Let modals handle their own keys. Favor explicit hotkey overrides when present.
 		pageName, _ := a.pages.GetFrontPage()
-		modalActive := a.IsPluginModal(pageName) || a.pages.HasPage(pageName) && strings.HasPrefix(pageName, "modal:")
+		modalActive := a.IsPluginModal(pageName) ||
+			(strings.HasPrefix(pageName, "modal:")) ||
+			// Core application modals (keep here until migrated to modal: prefix)
+			strings.HasPrefix(pageName, "script") ||
+			a.pages.HasPage("scriptInfo") ||
+			a.pages.HasPage("scriptSelector") ||
+			a.pages.HasPage("message") ||
+			a.pages.HasPage("confirmation") ||
+			a.pages.HasPage("migration") ||
+			a.pages.HasPage("help") ||
+			a.pages.HasPage("vmConfig") ||
+			a.pages.HasPage("resizeStorage") ||
+			a.pages.HasPage("profileWizard") ||
+			a.pages.HasPage("profileName") ||
+			a.pages.HasPage("pluginsManager") ||
+			a.pages.HasPage("contextMenu") ||
+			a.pages.HasPage("about") ||
+			a.pages.HasPage("snapshots") ||
+			a.pages.HasPage("createSnapshot") ||
+			a.pages.HasPage("addGroupInput") ||
+			a.pages.HasPage("editGroup")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {
