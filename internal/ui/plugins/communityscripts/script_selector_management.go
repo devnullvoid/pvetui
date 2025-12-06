@@ -80,6 +80,7 @@ func (s *ScriptSelector) installScript(script Script) {
 		exitCode, err := InstallScript(s.user, s.nodeIP, script.ScriptPath)
 		if err != nil {
 			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)
+			// Keep selector open and skip refresh on failure.
 			return
 		}
 		// No waiting inside suspend block - let it complete naturally like working shell functions
@@ -91,6 +92,7 @@ func (s *ScriptSelector) installScript(script Script) {
 	go func() {
 		time.Sleep(150 * time.Millisecond)
 		// Only clear cache and refresh after a successful install
+		// (we reached here only when install succeeded)
 		s.app.ClearAPICache()
 		s.app.QueueUpdateDraw(func() {
 			// Close selector to return to main UI before refreshing
