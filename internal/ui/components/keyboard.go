@@ -84,9 +84,21 @@ func createNavigationInputCapture(app *App, leftTarget, rightTarget tview.Primit
 	}
 }
 
+// SetHotkeyOverride installs a temporary handler that runs before global shortcuts.
+// Return nil from the handler to swallow the event; otherwise return the event
+// (optionally mutated) to allow further processing. Pass nil to clear.
+func (a *App) SetHotkeyOverride(handler func(*tcell.EventKey) *tcell.EventKey) {
+	a.hotkeyOverride = handler
+}
+
 // setupKeyboardHandlers configures global keyboard shortcuts.
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Component-level override handler takes precedence over globals.
+		if a.hotkeyOverride != nil {
+			return a.hotkeyOverride(event)
+		}
+
 		// if config.DebugEnabled {
 		// 	key, r, mod := keys.NormalizeEvent(event)
 		// 	models.GetUILogger().Debug("input key=%d rune=%q mod=%d", key, r, mod)
@@ -113,6 +125,8 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("about") ||
 			a.pages.HasPage("snapshots") ||
 			a.pages.HasPage("createSnapshot") ||
+			a.pages.HasPage("addGroupInput") ||
+			a.pages.HasPage("editGroup") ||
 			// Check if current page is a plugin modal
 			a.IsPluginModal(pageName)
 

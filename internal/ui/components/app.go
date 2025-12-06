@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/pvetui/internal/adapters"
@@ -57,6 +58,8 @@ type App struct {
 	plugins        map[string]Plugin
 	pluginRegistry *pluginRegistry
 	pluginCatalog  []PluginInfo
+
+	hotkeyOverride func(*tcell.EventKey) *tcell.EventKey
 }
 
 // removePageIfPresent removes a page by name if it exists, ignoring errors.
