@@ -88,6 +88,9 @@ func (s *ScriptSelector) installScript(script Script) {
 		if err != nil {
 			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)
 			// Keep selector open and skip refresh on failure.
+			s.app.QueueUpdateDraw(func() {
+				// Do nothing; stay on selector
+			})
 			return
 		}
 		// No waiting inside suspend block - let it complete naturally like working shell functions
