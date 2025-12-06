@@ -50,6 +50,15 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 		Handler: p.openSelector,
 	})
 
+	registrar.RegisterGuestAction(components.GuestAction{
+		ID:    "community-scripts.install-guest",
+		Label: "Install Community Script",
+		IsAvailable: func(node *api.Node, vm *api.VM) bool {
+			return false // Disabled for LXC guests for now (compat issues). Re-enable by restoring vm.Type check.
+		},
+		Handler: p.openSelectorForLXC,
+	})
+
 	return nil
 }
 
@@ -87,6 +96,28 @@ func (p *Plugin) openSelector(ctx context.Context, app *components.App, node *ap
 	selector := NewScriptSelector(app, node, nil, sshUser)
 	selector.Show()
 
+	return nil
+}
+
+func (p *Plugin) openSelectorForLXC(ctx context.Context, app *components.App, node *api.Node, vm *api.VM) error {
+	if app == nil {
+		return fmt.Errorf("application context unavailable")
+	}
+	if node == nil || vm == nil {
+		return fmt.Errorf("node/vm not provided")
+	}
+	if vm.Type != api.VMTypeLXC {
+		return fmt.Errorf("community scripts guest action supports LXC only")
+	}
+
+	sshUser := resolveSSHUser(app, node)
+	if sshUser == "" {
+		app.ShowMessage("SSH user not configured. Please set PROXMOX_SSH_USER or profile ssh_user.")
+		return nil
+	}
+
+	selector := NewScriptSelector(app, node, vm, sshUser)
+	selector.Show()
 	return nil
 }
 
