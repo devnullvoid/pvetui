@@ -74,6 +74,7 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 // installScript installs the selected script.
 func (s *ScriptSelector) installScript(script Script) {
 	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
+	success := false
 	s.app.Suspend(func() {
 		// Install the script interactively
 		fmt.Printf("Installing %s...\n", script.Name)
@@ -88,13 +89,16 @@ func (s *ScriptSelector) installScript(script Script) {
 		if err != nil {
 			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)
 			// Keep selector open and skip refresh on failure.
-			s.app.QueueUpdateDraw(func() {
-				// Do nothing; stay on selector
-			})
 			return
 		}
+		success = true
 		// No waiting inside suspend block - let it complete naturally like working shell functions
 	})
+
+	if !success {
+		// Do not close selector or refresh on failure.
+		return
+	}
 
 	// Fix for tview suspend/resume issue - sync the application after suspend
 	s.app.Sync()
