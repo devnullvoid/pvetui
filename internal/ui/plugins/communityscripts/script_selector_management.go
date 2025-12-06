@@ -9,6 +9,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // formatScriptInfo formats the script information for display.
@@ -77,7 +78,13 @@ func (s *ScriptSelector) installScript(script Script) {
 		// Install the script interactively
 		fmt.Printf("Installing %s...\n", script.Name)
 
-		exitCode, err := InstallScript(s.user, s.nodeIP, script.ScriptPath)
+		var exitCode int
+		var err error
+		if s.vm != nil && s.vm.Type == api.VMTypeLXC {
+			exitCode, err = InstallScriptInLXC(s.user, s.nodeIP, s.vm.ID, script.ScriptPath)
+		} else {
+			exitCode, err = InstallScript(s.user, s.nodeIP, script.ScriptPath)
+		}
 		if err != nil {
 			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)
 			// Keep selector open and skip refresh on failure.

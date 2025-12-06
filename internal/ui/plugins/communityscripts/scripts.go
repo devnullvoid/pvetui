@@ -416,14 +416,20 @@ func GetScriptsByCategory(category string) ([]Script, error) {
 }
 
 // InstallScript installs a script on a Proxmox node interactively.
+func validateScriptPath(scriptPath string) error {
+	for _, c := range scriptPath {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '/' || c == '.' || c == '_' || c == '-') {
+			return fmt.Errorf("invalid script path character: %c", c)
+		}
+	}
+	return nil
+}
+
 // InstallScript installs a script on a Proxmox node interactively.
 // Returns the remote exit code (0 on success) and any error encountered.
 func InstallScript(user, nodeIP, scriptPath string) (int, error) {
-	// Validate script path for security
-	for _, c := range scriptPath {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '/' || c == '.' || c == '_' || c == '-') {
-			return -1, fmt.Errorf("invalid script path character: %c", c)
-		}
+	if err := validateScriptPath(scriptPath); err != nil {
+		return -1, err
 	}
 
 	getScriptsLogger().Debug("Installing script: %s on node %s", scriptPath, nodeIP)
@@ -468,6 +474,48 @@ func InstallScript(user, nodeIP, scriptPath string) (int, error) {
 	utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
 
 	getScriptsLogger().Debug("Script installation completed, returning to TUI")
+
+	if err != nil {
+		return exitCode, fmt.Errorf("script installation failed: %w", err)
+	}
+
+	return exitCode, nil
+}
+
+// InstallScriptInLXC installs a script inside an existing LXC container via pct exec.
+// It SSHes to the node, then runs pct exec <vmid> -- bash -c "curl ... | bash".
+func InstallScriptInLXC(user, nodeIP string, vmid int, scriptPath string) (int, error) {
+	if err := validateScriptPath(scriptPath); err != nil {
+		return -1, err
+	}
+
+	getScriptsLogger().Debug("Installing script %s in LXC %d on %s", scriptPath, vmid, nodeIP)
+
+	scriptURL := fmt.Sprintf("%s/%s", RawGitHubRepo, scriptPath)
+	innerCmd := fmt.Sprintf("bash -c \"$(curl -fsSL %s)\"", scriptURL)
+	pctCmd := fmt.Sprintf("pct exec %d -- %s", vmid, innerCmd)
+	if !strings.EqualFold(user, "root") {
+		pctCmd = "sudo " + pctCmd
+	}
+
+	// #nosec G204 -- command arguments are constructed from validated paths and vmid.
+	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), pctCmd)
+	sshCmd.Stdin = os.Stdin
+	sshCmd.Stdout = os.Stdout
+	sshCmd.Stderr = os.Stderr
+	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
+	err := sshCmd.Run()
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = -1
+		}
+	}
+
+	utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
 
 	if err != nil {
 		return exitCode, fmt.Errorf("script installation failed: %w", err)
