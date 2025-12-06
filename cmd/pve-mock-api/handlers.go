@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
+
 	"github.com/gorilla/mux"
 )
 
@@ -191,15 +193,19 @@ func handleVMConfig(state *MockState) http.HandlerFunc {
 
         if r.Method == "POST" || r.Method == "PUT" {
             var updates map[string]interface{}
-            if err := r.ParseForm(); err == nil {
-                updates = make(map[string]interface{})
-                for k, v := range r.Form {
-                    if len(v) > 0 {
-                        updates[k] = v[0]
+            contentType := r.Header.Get("Content-Type")
+
+            if strings.Contains(contentType, "application/json") {
+                 _ = json.NewDecoder(r.Body).Decode(&updates)
+            } else {
+                if err := r.ParseForm(); err == nil {
+                    updates = make(map[string]interface{})
+                    for k, v := range r.Form {
+                        if len(v) > 0 {
+                            updates[k] = v[0]
+                        }
                     }
                 }
-            } else {
-                 _ = json.NewDecoder(r.Body).Decode(&updates)
             }
 
             if updates != nil {
