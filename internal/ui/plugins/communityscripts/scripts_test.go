@@ -186,7 +186,7 @@ func TestInstallScript_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Use a non-routable IP for faster timeout
-			err := InstallScript("testuser", "192.168.254.254", tt.scriptPath)
+			_, err := InstallScript("testuser", "192.168.254.254", tt.scriptPath)
 
 			assert.Error(t, err)
 

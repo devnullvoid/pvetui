@@ -77,9 +77,10 @@ func (s *ScriptSelector) installScript(script Script) {
 		// Install the script interactively
 		fmt.Printf("Installing %s...\n", script.Name)
 
-		err := InstallScript(s.user, s.nodeIP, script.ScriptPath)
+		exitCode, err := InstallScript(s.user, s.nodeIP, script.ScriptPath)
 		if err != nil {
-			fmt.Printf("\nScript installation failed: %v\n", err)
+			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)
+			return
 		}
 		// No waiting inside suspend block - let it complete naturally like working shell functions
 	})
@@ -89,7 +90,7 @@ func (s *ScriptSelector) installScript(script Script) {
 	// Give the terminal a brief moment to fully restore before UI operations to avoid blank screens
 	go func() {
 		time.Sleep(150 * time.Millisecond)
-		// Clear API cache, then close the selector overlay and refresh
+		// Only clear cache and refresh after a successful install
 		s.app.ClearAPICache()
 		s.app.QueueUpdateDraw(func() {
 			// Close selector to return to main UI before refreshing

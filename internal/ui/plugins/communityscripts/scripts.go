@@ -416,11 +416,13 @@ func GetScriptsByCategory(category string) ([]Script, error) {
 }
 
 // InstallScript installs a script on a Proxmox node interactively.
-func InstallScript(user, nodeIP, scriptPath string) error {
+// InstallScript installs a script on a Proxmox node interactively.
+// Returns the remote exit code (0 on success) and any error encountered.
+func InstallScript(user, nodeIP, scriptPath string) (int, error) {
 	// Validate script path for security
 	for _, c := range scriptPath {
 		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '/' || c == '.' || c == '_' || c == '-') {
-			return fmt.Errorf("invalid script path character: %c", c)
+			return -1, fmt.Errorf("invalid script path character: %c", c)
 		}
 	}
 
@@ -453,6 +455,14 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 
 	// Run the command interactively
 	err := sshCmd.Run()
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = -1
+		}
+	}
 
 	// Show completion status and wait for user input before returning
 	utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
@@ -460,10 +470,10 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 	getScriptsLogger().Debug("Script installation completed, returning to TUI")
 
 	if err != nil {
-		return fmt.Errorf("script installation failed: %w", err)
+		return exitCode, fmt.Errorf("script installation failed: %w", err)
 	}
 
-	return nil
+	return exitCode, nil
 }
 
 // ValidateConnection checks if SSH connection to the node is possible.
