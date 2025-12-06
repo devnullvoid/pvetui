@@ -22,6 +22,10 @@ func (a *App) openNodeShell() {
 		return
 	}
 
+	// Log node IP details for debugging
+	shellLogger.Debug("Node shell for %s: IP from node object: '%s' (len=%d, bytes=%v)",
+		node.Name, node.IP, len(node.IP), []byte(node.IP))
+
 	// Determine SSH user
 	sshUser := a.config.SSHUser
 
@@ -292,6 +296,7 @@ func (a *App) openVMShell() {
 
 	// Get node IP from the cluster
 	var nodeIP string
+	var originalNodeIP string
 
 	client, err := a.getClientForVM(vm)
 	if err != nil {
@@ -303,6 +308,10 @@ func (a *App) openVMShell() {
 		for _, node := range client.Cluster.Nodes {
 			if node.Name == vm.Node {
 				nodeIP = node.IP
+				originalNodeIP = nodeIP
+				// Log the IP immediately when obtained from cluster data
+				shellLogger.Debug("VM shell for %s (ID: %d): Found node %s with IP from cluster: '%s' (len=%d, bytes=%v)",
+					vm.Name, vm.ID, vm.Node, nodeIP, len(nodeIP), []byte(nodeIP))
 				break
 			}
 		}
@@ -310,13 +319,14 @@ func (a *App) openVMShell() {
 
 	if nodeIP == "" && client != nil {
 		fallback := client.BaseHostname()
-		shellLogger.Debug("Node %s missing IP in cluster data; falling back to API host %s", vm.Node, fallback)
+		shellLogger.Debug("Node %s missing IP in cluster data (original='%s'); falling back to API host %s", vm.Node, originalNodeIP, fallback)
 		nodeIP = fallback
 	}
 
 	if net.ParseIP(nodeIP) == nil && client != nil {
 		fallback := client.BaseHostname()
-		shellLogger.Debug("Node %s has malformed IP '%s'; falling back to API host %s", vm.Node, nodeIP, fallback)
+		shellLogger.Debug("Node %s has malformed IP '%s' (original='%s', valid=%v); falling back to API host %s",
+			vm.Node, nodeIP, originalNodeIP, net.ParseIP(nodeIP) != nil, fallback)
 		nodeIP = fallback
 	}
 

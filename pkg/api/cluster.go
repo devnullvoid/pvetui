@@ -217,10 +217,14 @@ func (c *Client) getClusterBasicStatus(cluster *Cluster) error {
 			cluster.TotalNodes = getInt(itemMap, "nodes")
 		case "node":
 			nodeName := getString(itemMap, "name")
+			nodeIP := getString(itemMap, "ip")
+			// Log the raw IP value from API for debugging issue #56
+			c.logger.Debug("[CLUSTER] Node '%s' IP from API: '%s' (len=%d, bytes=%v, raw_value=%v)",
+				nodeName, nodeIP, len(nodeIP), []byte(nodeIP), itemMap["ip"])
 			cluster.Nodes = append(cluster.Nodes, &Node{
 				ID:     nodeName,
 				Name:   nodeName,
-				IP:     getString(itemMap, "ip"),
+				IP:     nodeIP,
 				Online: getInt(itemMap, "online") == 1,
 			})
 		}
