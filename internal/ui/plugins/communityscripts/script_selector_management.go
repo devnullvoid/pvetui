@@ -81,9 +81,9 @@ func (s *ScriptSelector) installScript(script Script) {
 		var exitCode int
 		var err error
 		if s.vm != nil && s.vm.Type == api.VMTypeLXC {
-			exitCode, err = InstallScriptInLXC(s.user, s.nodeIP, s.vm.ID, script.ScriptPath)
+			exitCode, err = InstallScriptInLXC(s.user, s.nodeIP, s.vm.ID, script.ScriptPath, true)
 		} else {
-			exitCode, err = InstallScript(s.user, s.nodeIP, script.ScriptPath)
+			exitCode, err = InstallScript(s.user, s.nodeIP, script.ScriptPath, true)
 		}
 		if err != nil {
 			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)

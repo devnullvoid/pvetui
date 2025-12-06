@@ -425,9 +425,10 @@ func validateScriptPath(scriptPath string) error {
 	return nil
 }
 
-// InstallScript installs a script on a Proxmox node interactively.
+// InstallScript installs a script on a Proxmox node.
 // Returns the remote exit code (0 on success) and any error encountered.
-func InstallScript(user, nodeIP, scriptPath string) (int, error) {
+// When skipWait is true, it will not prompt/await Enter after completion.
+func InstallScript(user, nodeIP, scriptPath string, skipWait bool) (int, error) {
 	if err := validateScriptPath(scriptPath); err != nil {
 		return -1, err
 	}
@@ -471,7 +472,9 @@ func InstallScript(user, nodeIP, scriptPath string) (int, error) {
 	}
 
 	// Show completion status and wait for user input before returning
-	utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+	if !skipWait {
+		utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+	}
 
 	getScriptsLogger().Debug("Script installation completed, returning to TUI")
 
@@ -484,7 +487,7 @@ func InstallScript(user, nodeIP, scriptPath string) (int, error) {
 
 // InstallScriptInLXC installs a script inside an existing LXC container via pct exec.
 // It SSHes to the node, then runs pct exec <vmid> -- bash -c "curl ... | bash".
-func InstallScriptInLXC(user, nodeIP string, vmid int, scriptPath string) (int, error) {
+func InstallScriptInLXC(user, nodeIP string, vmid int, scriptPath string, skipWait bool) (int, error) {
 	if err := validateScriptPath(scriptPath); err != nil {
 		return -1, err
 	}
@@ -515,7 +518,9 @@ func InstallScriptInLXC(user, nodeIP string, vmid int, scriptPath string) (int, 
 		}
 	}
 
-	utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+	if !skipWait {
+		utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+	}
 
 	if err != nil {
 		return exitCode, fmt.Errorf("script installation failed: %w", err)
