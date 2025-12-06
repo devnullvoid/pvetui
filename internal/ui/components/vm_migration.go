@@ -34,7 +34,8 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 		return
 	}
 
-	// Get available nodes (excluding current node)
+	// Get available nodes (excluding current node) from the same cluster as the VM
+	// In group mode, only nodes from the VM's source profile/cluster are considered.
 	var availableNodes []*api.Node
 
 	if client.Cluster != nil {
