@@ -106,38 +106,13 @@ func (a *App) setupKeyboardHandlers() {
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
 
-		// Check if any modal page is active
+		// Let modals handle their own keys. Favor the explicit hotkey override when present.
 		pageName, _ := a.pages.GetFrontPage()
-		// Core application modals
-		modalActive := strings.HasPrefix(pageName, "script") ||
-			a.pages.HasPage("scriptInfo") ||
-			a.pages.HasPage("scriptSelector") ||
-			a.pages.HasPage("message") ||
-			a.pages.HasPage("confirmation") ||
-			a.pages.HasPage("migration") ||
-			a.pages.HasPage("help") ||
-			a.pages.HasPage("vmConfig") ||
-			a.pages.HasPage("resizeStorage") ||
-			a.pages.HasPage("profileWizard") ||
-			a.pages.HasPage("profileName") ||
-			a.pages.HasPage("pluginsManager") ||
-			a.pages.HasPage("contextMenu") ||
-			a.pages.HasPage("about") ||
-			a.pages.HasPage("snapshots") ||
-			a.pages.HasPage("createSnapshot") ||
-			a.pages.HasPage("addGroupInput") ||
-			a.pages.HasPage("editGroup") ||
-			// Check if current page is a plugin modal
-			a.IsPluginModal(pageName)
+		modalActive := a.IsPluginModal(pageName) || a.pages.HasPage(pageName) && strings.HasPrefix(pageName, "modal:")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {
 			// Let the search input handle all keys when search is active
-			return event
-		}
-
-		// If a modal dialog is active, let it handle its own keys
-		if modalActive {
 			return event
 		}
 
