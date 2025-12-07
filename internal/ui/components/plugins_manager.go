@@ -239,7 +239,7 @@ func (a *App) showManagePluginsDialog() {
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(frame, len(entries)*2+7, 0, true).
-			AddItem(nil, 0, 1, false), 60, 0, true).
+			AddItem(nil, 0, 1, false), 0, 8, true).
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("pluginsManager", modal, true, true)

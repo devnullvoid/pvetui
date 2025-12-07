@@ -39,6 +39,11 @@ Thumbs.db
 # /docs/*.png
 # /docs/*.svg
 # /docs/*.webm
+/scripts/e2e/output/
 
 /docs/local
 .notes/
+# Generated API specs (kept locally, not committed)
+docs/api/pve-openapi.yaml
+docs/api/pve-openapi.json
+docs/api/paths-index.json

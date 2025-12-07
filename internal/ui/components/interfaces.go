@@ -51,6 +51,7 @@ type TasksListComponent interface {
 	SetFilteredTasks([]*api.ClusterTask)
 	GetSelectedTask() *api.ClusterTask
 	Select(row, column int) *tview.Table
+	Clear() *tview.Table
 }
 
 type ClusterStatusComponent interface {

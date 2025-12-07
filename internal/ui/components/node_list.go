@@ -97,6 +97,11 @@ func (nl *NodeList) SetNodes(nodes []*api.Node) {
 				mainText = statusIndicator + node.Name
 			}
 
+			// Append source profile if present (group cluster mode)
+			if node.SourceProfile != "" {
+				mainText += fmt.Sprintf(" [secondary](%s)[-]", node.SourceProfile)
+			}
+
 			nl.AddItem(theme.ReplaceSemanticTags(mainText), "", 0, nil)
 		}
 	}

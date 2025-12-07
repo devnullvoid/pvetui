@@ -9,10 +9,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
+
+func sshLogger() interfaces.Logger {
+	return logger.GetGlobalLogger()
+}
 
 // SSHClient wraps SSH connection parameters and provides methods for establishing
 // SSH connections to Proxmox nodes and containers.
@@ -109,6 +116,8 @@ func ExecuteNodeShell(user, nodeIP string) error {
 //
 // Returns an error if the SSH connection fails.
 func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string) error {
+	sshLogger().Debug("SSH node shell: user=%s host=%s", user, nodeIP)
+
 	sshCmd := execer.CommandContext(ctx, "ssh", fmt.Sprintf("%s@%s", user, nodeIP))
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
@@ -208,23 +217,36 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 	// Check if this is a NixOS container
 	isNixOS := vm != nil && (vm.OSType == "nixos" || vm.OSType == "nix")
 
+	buildPct := func(cmd string) string {
+		if strings.EqualFold(user, "root") {
+			return cmd
+		}
+		// Default to sudo for non-root users; PVE images often lack sudo, but
+		// root doesn't need it so this keeps non-root behavior unchanged.
+		return "sudo " + cmd
+	}
+
 	if isNixOS {
 		// Use the NixOS-specific command for containers
+		pctExec := buildPct(fmt.Sprintf("pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vmID))
 		sshArgs = []string{
 			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
-			fmt.Sprintf("sudo pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vmID),
+			pctExec,
 		}
 		sessionType = "NixOS LXC"
 	} else {
 		// Use the standard pct enter command
+		pctEnter := buildPct(fmt.Sprintf("pct enter %d", vmID))
 		sshArgs = []string{
 			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
-			fmt.Sprintf("sudo pct enter %d", vmID),
+			pctEnter,
 		}
 		sessionType = "LXC"
 	}
+
+	sshLogger().Debug("SSH LXC shell (%s): user=%s host=%s cmd=%s", sessionType, user, nodeIP, sshArgs)
 
 	sshCmd := execer.CommandContext(ctx, "ssh", sshArgs...)
 	sshCmd.Stdin = os.Stdin
@@ -284,6 +306,8 @@ func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmI
 	if vmIP == "" {
 		return fmt.Errorf("no IP address available for VM")
 	}
+
+	sshLogger().Debug("SSH QEMU shell: user=%s host=%s", user, vmIP)
 
 	sshCmd := execer.CommandContext(ctx, "ssh", fmt.Sprintf("%s@%s", user, vmIP))
 	sshCmd.Stdin = os.Stdin

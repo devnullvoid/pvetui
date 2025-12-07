@@ -117,6 +117,11 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 				mainText = statusIndicator + fmt.Sprintf("[primary]%s[-]", vmText)
 			}
 
+			// Append source profile if present (group cluster mode)
+			if vm.SourceProfile != "" {
+				mainText += fmt.Sprintf(" [secondary](%s)[-]", vm.SourceProfile)
+			}
+
 			mainText = theme.ReplaceSemanticTags(mainText)
 
 			// Store node info in secondary text (not visible but used for search functionality)
@@ -165,6 +170,14 @@ func (vl *VMList) GetNodeForVM(vm *api.VM) *api.Node {
 	nodes := vl.app.nodeList.GetNodes()
 	for _, node := range nodes {
 		if node != nil && node.Name == vm.Node {
+			// In group mode, ensure we match the source profile as well
+			// Node names might collide across clusters, so SourceProfile is crucial
+			if vm.SourceProfile != "" && node.SourceProfile != "" {
+				if node.SourceProfile == vm.SourceProfile {
+					return node
+				}
+				continue
+			}
 			return node
 		}
 	}

@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -48,19 +49,52 @@ func (a *App) manualRefresh() {
 		// This ensures we get fresh data after configuration updates
 		time.Sleep(500 * time.Millisecond)
 
-		// Fetch fresh data bypassing cache
-		cluster, err := a.client.GetFreshClusterStatus()
-		if err != nil {
+		if a.isGroupMode {
+			// Group mode logic
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx, true)
+			if err != nil {
+				a.QueueUpdateDraw(func() {
+					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
+					a.footer.SetLoading(false)
+				})
+
+				return
+			}
+
+			// Debug logging retained at Debug level for troubleshooting.
+
 			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
+				// Update GlobalState nodes/VMs; UI lists will be updated after enrichment to reduce flicker.
+				models.GlobalState.OriginalNodes = nodes
+				models.GlobalState.OriginalVMs = vms
+				models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+				copy(models.GlobalState.FilteredNodes, nodes)
+				models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+				copy(models.GlobalState.FilteredVMs, vms)
+
+				// Start background enrichment for detailed node stats
+				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
 			})
+		} else {
+			// Single profile logic
+			// Fetch fresh data bypassing cache
+			cluster, err := a.client.GetFreshClusterStatus()
+			if err != nil {
+				a.QueueUpdateDraw(func() {
+					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
+					a.footer.SetLoading(false)
+				})
 
-			return
+				return
+			}
+
+			// Initial UI update and enrichment
+			a.applyInitialClusterUpdate(cluster)
+			a.enrichNodesSequentially(cluster, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
 		}
-
-		// Initial UI update and enrichment
-		a.applyInitialClusterUpdate(cluster)
-		a.enrichNodesSequentially(cluster, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
 	}()
 }
 
@@ -218,6 +252,122 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			a.header.ShowSuccess("Data refreshed successfully")
 			a.footer.SetLoading(false)
 			a.loadTasksData()
+			// Debug logging retained at Debug level for troubleshooting.
+		})
+	}()
+}
+
+// enrichGroupNodesSequentially enriches group node data one-by-one and finalizes the refresh
+func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
+	go func() {
+		// Collect current node filter to avoid repeated lookups
+		nodeState := models.GlobalState.GetSearchState(api.PageNodes)
+		activeFilter := ""
+		if nodeState != nil {
+			activeFilter = nodeState.Filter
+		}
+
+		// Create a context for the enrichment process (no cache; caller cleared caches earlier)
+		ctx := context.Background()
+
+		// Enrich nodes incrementally with minimal UI updates, working on copies to avoid stale overwrites
+		for i, node := range nodes {
+			if node == nil || node.SourceProfile == "" {
+				continue
+			}
+
+			// We need to fetch the node status from the specific profile
+			freshNode, err := a.groupManager.GetNodeFromGroup(ctx, node.SourceProfile, node.Name)
+
+			if err == nil && freshNode != nil {
+				// Debug logging retained at Debug level for troubleshooting.
+				// Ensure Online status is set to true if we got a response
+				freshNode.Online = true
+
+				// Preserve VMs from the existing node list
+				if nodes[i] != nil {
+					freshNode.VMs = nodes[i].VMs
+					// Preserve IP if missing in freshNode
+					if freshNode.IP == "" {
+						freshNode.IP = nodes[i].IP
+					}
+					// Preserve ID if missing in freshNode
+					if freshNode.ID == "" {
+						freshNode.ID = nodes[i].ID
+					}
+					// Preserve Storage if missing in freshNode
+					if freshNode.Storage == nil && nodes[i].Storage != nil {
+						freshNode.Storage = nodes[i].Storage
+					}
+				}
+
+				// Ensure SourceProfile is preserved
+				freshNode.SourceProfile = node.SourceProfile
+
+				// Update GlobalState and filtered copy at the same index
+				if i < len(models.GlobalState.OriginalNodes) {
+					models.GlobalState.OriginalNodes[i] = freshNode
+				}
+				if i < len(models.GlobalState.FilteredNodes) {
+					models.GlobalState.FilteredNodes[i] = freshNode
+				}
+
+				// Update filtered list only if this node matches current filter
+				shouldUpdateFiltered := false
+				if activeFilter == "" {
+					if i < len(models.GlobalState.FilteredNodes) {
+						models.GlobalState.FilteredNodes[i] = freshNode
+						shouldUpdateFiltered = true
+					}
+				} else {
+					if a.nodeMatchesFilter(freshNode, activeFilter) {
+						models.FilterNodes(activeFilter)
+						shouldUpdateFiltered = true
+					}
+				}
+
+				// Only update UI if filtered list changed or this is the selected node
+				selected := a.nodeList.GetSelectedNode()
+				if shouldUpdateFiltered || (selected != nil && selected.Name == freshNode.Name && selected.SourceProfile == freshNode.SourceProfile) {
+					a.QueueUpdateDraw(func() {
+						if shouldUpdateFiltered {
+							a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+						}
+						// Update details if this is the currently selected node
+						if selected != nil && selected.Name == freshNode.Name && selected.SourceProfile == freshNode.SourceProfile {
+							a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
+						}
+					})
+				}
+			}
+		}
+
+		// Final update
+		a.QueueUpdateDraw(func() {
+			// Update cluster status with the enriched nodes
+			syntheticCluster := a.createSyntheticGroup(models.GlobalState.OriginalNodes)
+			a.clusterStatus.Update(syntheticCluster)
+
+			// Final selection restore and search UI restoration
+			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+
+			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
+				hasSelectedNode, selectedNodeName, nodeSearchState)
+
+			if node := a.nodeList.GetSelectedNode(); node != nil {
+				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+			}
+
+			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
+			// Update lists and cluster status after enrichment to minimize flicker
+			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			a.clusterStatus.Update(a.getDisplayCluster())
+
+			a.header.ShowSuccess("Data refreshed successfully")
+			a.footer.SetLoading(false)
+			a.loadTasksData()
 		})
 	}()
 }
@@ -262,7 +412,16 @@ func (a *App) refreshNodeData(node *api.Node) {
 	}
 
 	go func() {
-		freshNode, err := a.client.RefreshNodeData(node.Name)
+		var freshNode *api.Node
+		var err error
+
+		client, clientErr := a.getClientForNode(node)
+		if clientErr != nil {
+			err = clientErr
+		} else {
+			freshNode, err = client.RefreshNodeData(node.Name)
+		}
+
 		a.QueueUpdateDraw(func() {
 			if err != nil {
 				a.header.ShowError(fmt.Sprintf("Error refreshing node %s: %v", node.Name, err))
@@ -272,16 +431,22 @@ func (a *App) refreshNodeData(node *api.Node) {
 			// Update node in global state
 			for i, n := range models.GlobalState.OriginalNodes {
 				if n != nil && n.Name == node.Name {
+					// In group mode, ensure SourceProfile is preserved/set
+					if a.isGroupMode {
+						freshNode.SourceProfile = node.SourceProfile
+					}
 					models.GlobalState.OriginalNodes[i] = freshNode
-
 					break
 				}
 			}
 
 			for i, n := range models.GlobalState.FilteredNodes {
 				if n != nil && n.Name == node.Name {
+					// In group mode, ensure SourceProfile is preserved/set
+					if a.isGroupMode {
+						freshNode.SourceProfile = node.SourceProfile
+					}
 					models.GlobalState.FilteredNodes[i] = freshNode
-
 					break
 				}
 			}
@@ -322,7 +487,18 @@ func (a *App) refreshNodeData(node *api.Node) {
 // loadTasksData loads and updates task data with proper filtering.
 func (a *App) loadTasksData() {
 	go func() {
-		tasks, err := a.client.GetClusterTasks()
+		var tasks []*api.ClusterTask
+		var err error
+
+		if a.isGroupMode {
+			// Create context with timeout for group operations
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			tasks, err = a.groupManager.GetGroupTasks(ctx)
+		} else {
+			tasks, err = a.client.GetClusterTasks()
+		}
+
 		if err == nil {
 			a.QueueUpdateDraw(func() {
 				// Update global state with tasks

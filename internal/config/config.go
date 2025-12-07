@@ -84,6 +84,7 @@ import (
 const (
 	defaultRealm   = "pam"
 	defaultApiPath = "/api2/json"
+	trueString     = "true"
 )
 
 // DebugEnabled is a global flag to enable debug logging throughout the application.
@@ -281,13 +282,12 @@ func NewConfig() *Config {
 		TokenSecret: os.Getenv("PVETUI_TOKEN_SECRET"),
 		Realm:       os.Getenv("PVETUI_REALM"),
 		ApiPath:     os.Getenv("PVETUI_API_PATH"),
-		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == "true",
+		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
 		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
-		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == "true",
+		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
 		CacheDir:    os.Getenv("PVETUI_CACHE_DIR"),
 		KeyBindings: DefaultKeyBindings(),
 	}
-
 	// Set default values for Realm and ApiPath only
 	if config.Realm == "" {
 		config.Realm = defaultRealm

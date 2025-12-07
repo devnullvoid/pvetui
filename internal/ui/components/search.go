@@ -91,7 +91,7 @@ func (a *App) activateSearch() {
 			a.nodeList.SetCurrentItem(idx)
 			// Manually trigger the node changed callback to update details
 			if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
-				a.nodeDetails.Update(selectedNode, a.client.Cluster.Nodes)
+				a.nodeDetails.Update(selectedNode, models.GlobalState.OriginalNodes)
 			}
 		} else {
 			a.nodeDetails.Clear()

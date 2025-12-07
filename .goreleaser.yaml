@@ -111,8 +111,8 @@ aurs:
       # Install license
       install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/pvetui/LICENSE"
       install -Dm644 "./THIRD_PARTY_LICENSES.md" "${pkgdir}/usr/share/licenses/pvetui/THIRD_PARTY_LICENSES.md"
-      install -Dm644 "./internal/vnc/novnc/LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
-      install -Dm644 "./internal/vnc/novnc/lib/pako/LICENSE" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
+      install -Dm644 "./NOVNC_LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.txt"
+      install -Dm644 "./PAKO_LICENSE.txt" "${pkgdir}/usr/share/licenses/pvetui/noVNC/LICENSE.pako"
 
       # Install documentation
       install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/pvetui/README.md"
@@ -121,10 +121,11 @@ aurs:
 # Homebrew Casks
 homebrew_casks:
   - name: pvetui
-    description: "A terminal user interface (TUI) for Proxmox VE"
+    description: "Terminal user interface (TUI) for Proxmox VE"
     homepage: "https://github.com/devnullvoid/pvetui"
     license: "MIT"
-    binary: "pvetui"
+    binaries:
+      - "pvetui"
     repository:
       owner: "devnullvoid"
       name: "homebrew-pvetui"
@@ -134,13 +135,12 @@ homebrew_casks:
       email: "noreply@github.com"
     caveats: |
       pvetui requires a Proxmox VE server to connect to.
-      Run 'pvetui --help' to see configuration options.
+      Run `pvetui --help` to see configuration options.
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/pvetui"]
-          end
+        install: 'system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/pvetui"] if OS.mac?'
+    custom_block: |
+      # rubocop:disable Cask/StanzaOrder, Cask/StanzaGrouping
 
 # Scoop Manifest
 scoops:

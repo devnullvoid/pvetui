@@ -58,7 +58,7 @@ func (a *App) restoreSelection(hasVM bool, vmID int, vmNode string, vmState *mod
 
 				// Manually trigger the node changed callback to update details
 				if selectedNode := a.nodeList.GetSelectedNode(); selectedNode != nil {
-					a.nodeDetails.Update(selectedNode, a.client.Cluster.Nodes)
+					a.nodeDetails.Update(selectedNode, models.GlobalState.OriginalNodes)
 				}
 
 				break

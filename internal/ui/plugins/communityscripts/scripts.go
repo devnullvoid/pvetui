@@ -337,29 +337,49 @@ func FetchScripts() ([]Script, error) {
 		return nil, fmt.Errorf("no script metadata files found, GitHub API may be unavailable")
 	}
 
-	// Fetch metadata for each script
-	var scripts []Script
+	// Fetch metadata concurrently with a modest worker pool.
+	workerCount := 6
+	if workerCount > len(metadataFiles) {
+		workerCount = len(metadataFiles)
+	}
 
-	var errorCount int
+	type result struct {
+		script *Script
+		err    error
+	}
 
-	for _, file := range metadataFiles {
-		script, err := GetScriptMetadata(file.DownloadURL)
-		if err != nil {
-			// Skip this script but log the error
-			getScriptsLogger().Debug("Error fetching metadata for %s: %v", file.Name, err)
+	jobs := make(chan GitHubContent, len(metadataFiles))
+	results := make(chan result, len(metadataFiles))
 
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			for file := range jobs {
+				s, err := GetScriptMetadata(file.DownloadURL)
+				results <- result{script: s, err: err}
+			}
+		}()
+	}
+
+	for _, f := range metadataFiles {
+		jobs <- f
+	}
+	close(jobs)
+
+	scripts := make([]Script, 0, len(metadataFiles))
+	errorCount := 0
+
+	for i := 0; i < len(metadataFiles); i++ {
+		res := <-results
+		if res.err != nil {
+			getScriptsLogger().Debug("Error fetching metadata: %v", res.err)
 			errorCount++
-
-			// If we're getting too many errors, something might be wrong with GitHub API
 			if errorCount > 5 {
 				return scripts, fmt.Errorf("multiple GitHub API errors, rate limit may have been exceeded")
 			}
-
 			continue
 		}
-
-		if script != nil && script.ScriptPath != "" {
-			scripts = append(scripts, *script)
+		if res.script != nil && res.script.ScriptPath != "" {
+			scripts = append(scripts, *res.script)
 		}
 	}
 
@@ -396,24 +416,39 @@ func GetScriptsByCategory(category string) ([]Script, error) {
 }
 
 // InstallScript installs a script on a Proxmox node interactively.
-func InstallScript(user, nodeIP, scriptPath string) error {
-	// Validate script path for security
+func validateScriptPath(scriptPath string) error {
 	for _, c := range scriptPath {
 		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '/' || c == '.' || c == '_' || c == '-') {
 			return fmt.Errorf("invalid script path character: %c", c)
 		}
+	}
+	return nil
+}
+
+// InstallScript installs a script on a Proxmox node.
+// Returns the remote exit code (0 on success) and any error encountered.
+// When skipWait is true, it will not prompt/await Enter after completion.
+func InstallScript(user, nodeIP, scriptPath string, skipWait bool) (int, error) {
+	if err := validateScriptPath(scriptPath); err != nil {
+		return -1, err
 	}
 
 	getScriptsLogger().Debug("Installing script: %s on node %s", scriptPath, nodeIP)
 
 	// Build the script installation command using curl (matches official instructions)
 	scriptURL := fmt.Sprintf("%s/%s", RawGitHubRepo, scriptPath)
-	// Switch to root user completely and run in bash environment
-	installCmd := fmt.Sprintf("sudo su - root -c \"SHELL=/bin/bash /bin/bash -c \\\"\\$(curl -fsSL %s)\\\"\"", scriptURL)
+	// Switch to root user completely and run in bash environment. On PVE, sudo
+	// may not be installed; when SSHing as root we don't need elevation.
+	installCmd := fmt.Sprintf("SHELL=/bin/bash /bin/bash -c \"$(curl -fsSL %s)\"", scriptURL)
+	remoteCmd := installCmd
+	if !strings.EqualFold(user, "root") {
+		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c '%s'; else su - root -c '%s'; fi", installCmd, installCmd)
+	}
+	getScriptsLogger().Debug("community-script install via SSH: user=%s host=%s cmd=%s", user, nodeIP, remoteCmd)
 
 	// Use SSH to run the script installation command interactively with proper terminal environment
 	// #nosec G204 -- command arguments derive from validated node metadata and trusted plugin configuration.
-	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), installCmd)
+	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), remoteCmd)
 
 	// Connect stdin/stdout/stderr for interactive session
 	sshCmd.Stdin = os.Stdin
@@ -427,17 +462,71 @@ func InstallScript(user, nodeIP, scriptPath string) error {
 
 	// Run the command interactively
 	err := sshCmd.Run()
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = -1
+		}
+	}
 
 	// Show completion status and wait for user input before returning
-	utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+	if !skipWait {
+		utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+	}
 
 	getScriptsLogger().Debug("Script installation completed, returning to TUI")
 
 	if err != nil {
-		return fmt.Errorf("script installation failed: %w", err)
+		return exitCode, fmt.Errorf("script installation failed: %w", err)
 	}
 
-	return nil
+	return exitCode, nil
+}
+
+// InstallScriptInLXC installs a script inside an existing LXC container via pct exec.
+// It SSHes to the node, then runs pct exec <vmid> -- bash -c "curl ... | bash".
+func InstallScriptInLXC(user, nodeIP string, vmid int, scriptPath string, skipWait bool) (int, error) {
+	if err := validateScriptPath(scriptPath); err != nil {
+		return -1, err
+	}
+
+	getScriptsLogger().Debug("Installing script %s in LXC %d on %s", scriptPath, vmid, nodeIP)
+
+	scriptURL := fmt.Sprintf("%s/%s", RawGitHubRepo, scriptPath)
+	innerCmd := fmt.Sprintf("bash -c \"$(curl -fsSL %s)\"", scriptURL)
+	pctCmd := fmt.Sprintf("pct exec %d -- %s", vmid, innerCmd)
+	if !strings.EqualFold(user, "root") {
+		pctCmd = "sudo " + pctCmd
+	}
+
+	// #nosec G204 -- command arguments are constructed from validated paths and vmid.
+	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), pctCmd)
+	sshCmd.Stdin = os.Stdin
+	sshCmd.Stdout = os.Stdout
+	sshCmd.Stderr = os.Stderr
+	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
+	err := sshCmd.Run()
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = -1
+		}
+	}
+
+	if !skipWait {
+		utils.WaitForEnterToReturn(err, "Script installation completed successfully!", "Script installation failed")
+	}
+
+	if err != nil {
+		return exitCode, fmt.Errorf("script installation failed: %w", err)
+	}
+
+	return exitCode, nil
 }
 
 // ValidateConnection checks if SSH connection to the node is possible.

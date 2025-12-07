@@ -26,12 +26,17 @@ func (so *SnapshotOperations) CreateSnapshot(name string, description string, vm
 		return fmt.Errorf("snapshot name is required")
 	}
 
+	client, err := so.app.getClientForVM(so.vm)
+	if err != nil {
+		return err
+	}
+
 	options := &api.SnapshotOptions{
 		Description: description,
 		VMState:     vmState,
 	}
 
-	return so.app.client.CreateSnapshot(so.vm, name, options)
+	return client.CreateSnapshot(so.vm, name, options)
 }
 
 // DeleteSnapshot deletes the specified snapshot.
@@ -41,7 +46,12 @@ func (so *SnapshotOperations) DeleteSnapshot(snapshotName string) error {
 		return fmt.Errorf("cannot delete current state (NOW)")
 	}
 
-	return so.app.client.DeleteSnapshot(so.vm, snapshotName)
+	client, err := so.app.getClientForVM(so.vm)
+	if err != nil {
+		return err
+	}
+
+	return client.DeleteSnapshot(so.vm, snapshotName)
 }
 
 // RollbackToSnapshot rolls back to the specified snapshot.
@@ -51,10 +61,20 @@ func (so *SnapshotOperations) RollbackToSnapshot(snapshotName string) error {
 		return fmt.Errorf("cannot rollback to current state (NOW)")
 	}
 
-	return so.app.client.RollbackToSnapshot(so.vm, snapshotName)
+	client, err := so.app.getClientForVM(so.vm)
+	if err != nil {
+		return err
+	}
+
+	return client.RollbackToSnapshot(so.vm, snapshotName)
 }
 
 // GetSnapshots retrieves all snapshots for the VM.
 func (so *SnapshotOperations) GetSnapshots() ([]api.Snapshot, error) {
-	return so.app.client.GetSnapshots(so.vm)
+	client, err := so.app.getClientForVM(so.vm)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.GetSnapshots(so.vm)
 }

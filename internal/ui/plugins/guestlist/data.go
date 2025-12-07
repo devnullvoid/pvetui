@@ -29,7 +29,7 @@ type guestRow struct {
 	filterHaystack string
 }
 
-// guestSummary aggregates information about the currently visible guests.
+// guestSummary groups information about the currently visible guests.
 type guestSummary struct {
 	totalGuests   int
 	visibleGuests int

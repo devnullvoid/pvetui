@@ -78,6 +78,12 @@ type VM struct {
 	Description        string              `json:"description,omitempty"`         // VM description
 	OnBoot             bool                `json:"onboot,omitempty"`              // Whether VM starts automatically
 
+	// Group cluster support
+	// SourceProfile is the profile name this VM came from in group cluster mode.
+	// Empty for non-group mode. Used to track which Proxmox cluster a VM belongs to
+	// when viewing multiple clusters together.
+	SourceProfile string `json:"source_profile,omitempty"`
+
 	// Internal fields for concurrency and state management
 	mu                sync.RWMutex // Protects concurrent access to VM data
 	Enriched          bool         `json:"-"` // Whether VM has been enriched with detailed information

@@ -6,6 +6,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -21,6 +22,11 @@ type ProfileConfig struct {
 	Insecure    bool   `yaml:"insecure"`
 	SSHUser     string `yaml:"ssh_user"`
 	VMSSHUser   string `yaml:"vm_ssh_user"`
+
+	// Groups is a list of group identifiers.
+	// This allows a profile to belong to multiple groups.
+	// Profiles in the same group will be combined into a single "group cluster" view.
+	Groups []string `yaml:"groups,omitempty"`
 }
 
 // ApplyProfile applies the settings from a named profile to the main config.
@@ -157,4 +163,99 @@ func (c *Config) GetActiveProfile() string {
 		return c.ActiveProfile
 	}
 	return c.DefaultProfile
+}
+
+// GetGroups returns a map of group names to their member profile names.
+// Only includes profiles that have non-empty Groups.
+func (c *Config) GetGroups() map[string][]string {
+	groups := make(map[string][]string)
+
+	for name, profile := range c.Profiles {
+		for _, g := range profile.Groups {
+			if g != "" {
+				groups[g] = append(groups[g], name)
+			}
+		}
+	}
+
+	// Sort profile names within each group for consistent ordering
+	for groupName := range groups {
+		sort.Strings(groups[groupName])
+	}
+
+	return groups
+}
+
+// GetProfilesInGroup returns all profiles belonging to a specific group.
+func (c *Config) GetProfilesInGroup(groupName string) []ProfileConfig {
+	var profiles []ProfileConfig
+
+	for _, profile := range c.Profiles {
+		inGroup := false
+		for _, g := range profile.Groups {
+			if g == groupName {
+				inGroup = true
+				break
+			}
+		}
+
+		if inGroup {
+			profiles = append(profiles, profile)
+		}
+	}
+
+	return profiles
+}
+
+// GetProfileNamesInGroup returns profile names belonging to a specific group.
+func (c *Config) GetProfileNamesInGroup(groupName string) []string {
+	var names []string
+
+	for name, profile := range c.Profiles {
+		inGroup := false
+		for _, g := range profile.Groups {
+			if g == groupName {
+				inGroup = true
+				break
+			}
+		}
+
+		if inGroup {
+			names = append(names, name)
+		}
+	}
+
+	sort.Strings(names)
+	return names
+}
+
+// IsGroup checks if a name refers to a group rather than a profile.
+func (c *Config) IsGroup(name string) bool {
+	groups := c.GetGroups()
+	_, exists := groups[name]
+	return exists
+}
+
+// HasGroups returns true if any profiles are configured with groups.
+func (c *Config) HasGroups() bool {
+	for _, profile := range c.Profiles {
+		if len(profile.Groups) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateGroups checks that group configurations are valid.
+func (c *Config) ValidateGroups() error {
+	groups := c.GetGroups()
+
+	for groupName := range groups {
+		// Check for naming conflicts between profiles and groups
+		if _, exists := c.Profiles[groupName]; exists {
+			return fmt.Errorf("group name '%s' conflicts with profile name", groupName)
+		}
+	}
+
+	return nil
 }

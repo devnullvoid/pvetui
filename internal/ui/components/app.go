@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/devnullvoid/pvetui/internal/adapters"
@@ -21,6 +22,9 @@ type App struct {
 	*tview.Application
 
 	client        *api.Client
+	groupManager  *api.GroupClientManager
+	isGroupMode   bool
+	groupName     string
 	config        config.Config
 	configPath    string
 	vncService    *vnc.Service
@@ -54,6 +58,8 @@ type App struct {
 	plugins        map[string]Plugin
 	pluginRegistry *pluginRegistry
 	pluginCatalog  []PluginInfo
+
+	hotkeyOverride func(*tcell.EventKey) *tcell.EventKey
 }
 
 // removePageIfPresent removes a page by name if it exists, ignoring errors.
@@ -64,7 +70,7 @@ func (a *App) removePageIfPresent(name string) {
 }
 
 // NewApp creates a new application instance with all UI components.
-func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string) *App {
+func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configPath string, initialGroup string) *App {
 	uiLogger := models.GetUILogger()
 	uiLogger.Debug("Creating new App instance")
 
@@ -123,6 +129,12 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		// This callback is called when background VM enrichment completes
 		uiLogger.Debug("VM enrichment callback triggered")
 		app.QueueUpdateDraw(func() {
+			// Ignore update if we've switched to group mode
+			if app.isGroupMode {
+				uiLogger.Debug("Ignoring single-profile enrichment callback due to group mode")
+				return
+			}
+
 			uiLogger.Debug("Processing enriched VM data")
 
 			// Store current VM selection to preserve user's position
@@ -302,6 +314,18 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	// Register callback for immediate session count updates
 	app.registerVNCSessionCallback()
 
+	// Handle initial group switch if requested
+	if initialGroup != "" {
+		uiLogger.Debug("Scheduling switch to initial group: %s", initialGroup)
+		// Schedule it to run after current event loop to ensure UI is ready
+		go func() {
+			time.Sleep(100 * time.Millisecond) // Slight delay to let startup finish
+			app.QueueUpdateDraw(func() {
+				app.switchToGroup(initialGroup)
+			})
+		}()
+	}
+
 	uiLogger.Debug("App initialization completed successfully")
 
 	return app
@@ -394,6 +418,16 @@ func (a *App) Client() *api.Client {
 	return a.client
 }
 
+// IsGroupMode returns whether the app is running in group cluster mode.
+func (a *App) IsGroupMode() bool {
+	return a.isGroupMode
+}
+
+// GroupManager returns the group client manager if in group mode, nil otherwise.
+func (a *App) GroupManager() *api.GroupClientManager {
+	return a.groupManager
+}
+
 // Header returns the header component instance.
 func (a *App) Header() HeaderComponent {
 	return a.header
@@ -436,5 +470,137 @@ func (a *App) ShowMessageSafe(message string) {
 
 // ClearAPICache clears cached API responses.
 func (a *App) ClearAPICache() {
-	a.client.ClearAPICache()
+	if a.isGroupMode {
+		clients := a.groupManager.GetAllClients()
+		for _, pc := range clients {
+			if pc.Client != nil {
+				pc.Client.ClearAPICache()
+			}
+		}
+	} else {
+		a.client.ClearAPICache()
+	}
+}
+
+// getClientForVM returns the appropriate API client for a VM.
+// In group mode, it returns the client for the VM's source profile.
+// In single-profile mode, it returns the main client.
+func (a *App) getClientForVM(vm *api.VM) (*api.Client, error) {
+	if a.isGroupMode {
+		if vm.SourceProfile == "" {
+			return nil, fmt.Errorf("source profile not set for VM %s in group mode", vm.Name)
+		}
+
+		profileClient, exists := a.groupManager.GetClient(vm.SourceProfile)
+		if !exists {
+			return nil, fmt.Errorf("profile '%s' not found in group manager", vm.SourceProfile)
+		}
+
+		status, err := profileClient.GetStatus()
+		if status != api.ProfileStatusConnected {
+			return nil, fmt.Errorf("profile '%s' is not connected: %v (error: %v)", vm.SourceProfile, status, err)
+		}
+
+		return profileClient.Client, nil
+	}
+	return a.client, nil
+}
+
+// getClientForNode returns the appropriate API client for a Node.
+// In group mode, it returns the client for the Node's source profile.
+// In single-profile mode, it returns the main client.
+func (a *App) getClientForNode(node *api.Node) (*api.Client, error) {
+	if a.isGroupMode {
+		if node.SourceProfile == "" {
+			return nil, fmt.Errorf("source profile not set for Node %s in group mode", node.Name)
+		}
+
+		profileClient, exists := a.groupManager.GetClient(node.SourceProfile)
+		if !exists {
+			return nil, fmt.Errorf("profile '%s' not found in group manager", node.SourceProfile)
+		}
+
+		status, err := profileClient.GetStatus()
+		if status != api.ProfileStatusConnected {
+			return nil, fmt.Errorf("profile '%s' is not connected: %v (error: %v)", node.SourceProfile, status, err)
+		}
+
+		return profileClient.Client, nil
+	}
+	return a.client, nil
+}
+
+// createSyntheticGroup creates a synthetic cluster object from a list of nodes for group display.
+func (a *App) createSyntheticGroup(nodes []*api.Node) *api.Cluster {
+	cluster := &api.Cluster{
+		Name:    fmt.Sprintf("Group: %s", a.groupName),
+		Nodes:   nodes,
+		Quorate: true, // Assumed for group view
+	}
+
+	// Calculate totals
+	var totalCPU, totalMem, usedMem float64
+	var onlineNodes int
+	var cpuUsageSum float64
+	var nodesWithMetrics int
+	var totalStorage, usedStorage int64
+
+	uiLogger := models.GetUILogger()
+
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		if node.Online {
+			onlineNodes++
+
+			// Debug log to check if metrics are populated
+			if node.CPUCount == 0 && node.MemoryTotal == 0 {
+				uiLogger.Debug("Group Stats: Node %s is online but has 0 CPU/Mem. SourceProfile: %s", node.Name, node.SourceProfile)
+			}
+
+			if node.CPUCount > 0 {
+				totalCPU += node.CPUCount
+				totalMem += node.MemoryTotal
+				usedMem += node.MemoryUsed
+				cpuUsageSum += node.CPUUsage
+				nodesWithMetrics++
+			}
+
+			if cluster.Version == "" && node.Version != "" {
+				cluster.Version = fmt.Sprintf("Proxmox VE %s", node.Version)
+			}
+
+			// Convert GB to Bytes for cluster totals (Node struct stores storage in GB)
+			totalStorage += node.TotalStorage * 1024 * 1024 * 1024
+			usedStorage += node.UsedStorage * 1024 * 1024 * 1024
+		}
+	}
+
+	cluster.TotalNodes = len(nodes)
+	cluster.OnlineNodes = onlineNodes
+	cluster.TotalCPU = totalCPU
+	cluster.MemoryTotal = totalMem
+	cluster.MemoryUsed = usedMem
+	if nodesWithMetrics > 0 {
+		cluster.CPUUsage = cpuUsageSum / float64(nodesWithMetrics)
+	}
+
+	cluster.StorageTotal = totalStorage
+	cluster.StorageUsed = usedStorage
+
+	uiLogger.Debug("Group Stats: Nodes=%d/%d, CPU=%.1f, Mem=%.1f, Storage=%d",
+		onlineNodes, len(nodes), totalCPU, totalMem, totalStorage)
+
+	return cluster
+}
+
+// getDisplayCluster returns the cluster object for display.
+// In group mode, it creates a synthetic cluster from global state.
+// In single-profile mode, it returns the client's cluster object.
+func (a *App) getDisplayCluster() *api.Cluster {
+	if a.isGroupMode {
+		return a.createSyntheticGroup(models.GlobalState.OriginalNodes)
+	}
+	return a.client.Cluster
 }

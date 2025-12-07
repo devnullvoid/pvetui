@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Cluster represents aggregated Proxmox cluster metrics.
+// Cluster represents grouped Proxmox cluster metrics.
 type Cluster struct {
 	Name           string          `json:"name"`
 	Version        string          `json:"version"`
@@ -40,6 +40,10 @@ type ClusterTask struct {
 	Saved     string `json:"saved"`
 	StartTime int64  `json:"starttime"`
 	EndTime   int64  `json:"endtime"`
+
+	// Group cluster support
+	// SourceProfile is the profile name this task came from in group cluster mode.
+	SourceProfile string `json:"source_profile,omitempty"`
 }
 
 // GetClusterStatus retrieves high-level cluster status and node list.
@@ -213,10 +217,14 @@ func (c *Client) getClusterBasicStatus(cluster *Cluster) error {
 			cluster.TotalNodes = getInt(itemMap, "nodes")
 		case "node":
 			nodeName := getString(itemMap, "name")
+			nodeIP := getString(itemMap, "ip")
+			// Log the raw IP value from API for debugging issue #56
+			c.logger.Debug("[CLUSTER] Node '%s' IP from API: '%s' (len=%d, bytes=%v, raw_value=%v)",
+				nodeName, nodeIP, len(nodeIP), []byte(nodeIP), itemMap["ip"])
 			cluster.Nodes = append(cluster.Nodes, &Node{
 				ID:     nodeName,
 				Name:   nodeName,
-				IP:     getString(itemMap, "ip"),
+				IP:     nodeIP,
 				Online: getInt(itemMap, "online") == 1,
 			})
 		}
@@ -470,7 +478,7 @@ func (c *Client) processClusterResourcesWithCache(cluster *Cluster, ttl time.Dur
 	return nil
 }
 
-// calculateClusterTotals aggregates node metrics for cluster summary.
+// calculateClusterTotals groups node metrics for cluster summary.
 func (c *Client) calculateClusterTotals(cluster *Cluster) {
 	var totalCPU, totalMem, usedMem float64
 

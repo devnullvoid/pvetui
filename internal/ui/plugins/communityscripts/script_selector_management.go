@@ -9,6 +9,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 // formatScriptInfo formats the script information for display.
@@ -29,6 +30,16 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 
 	if script.ScriptPath != "" {
 		sb.WriteString(fmt.Sprintf("[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath))
+	}
+
+	if script.Slug != "" {
+		pageURL := fmt.Sprintf("https://community-scripts.github.io/ProxmoxVE/scripts?id=%s", script.Slug)
+		sb.WriteString(fmt.Sprintf("[%s]Script Page:[-] %s\n", labelColor, pageURL))
+	}
+
+	if script.ScriptPath != "" {
+		installCmd := fmt.Sprintf(`bash -c "$(curl -fsSL %s/%s)"`, RawGitHubRepo, script.ScriptPath)
+		sb.WriteString(fmt.Sprintf("[%s]Install Command:[-] %s\n", labelColor, installCmd))
 	}
 
 	if script.Website != "" {
@@ -63,23 +74,39 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 // installScript installs the selected script.
 func (s *ScriptSelector) installScript(script Script) {
 	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
+	success := false
 	s.app.Suspend(func() {
 		// Install the script interactively
 		fmt.Printf("Installing %s...\n", script.Name)
 
-		err := InstallScript(s.user, s.nodeIP, script.ScriptPath)
-		if err != nil {
-			fmt.Printf("\nScript installation failed: %v\n", err)
+		var exitCode int
+		var err error
+		if s.vm != nil && s.vm.Type == api.VMTypeLXC {
+			exitCode, err = InstallScriptInLXC(s.user, s.nodeIP, s.vm.ID, script.ScriptPath, false)
+		} else {
+			exitCode, err = InstallScript(s.user, s.nodeIP, script.ScriptPath, false)
 		}
+		if err != nil {
+			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)
+			// Keep selector open and skip refresh on failure.
+			return
+		}
+		success = true
 		// No waiting inside suspend block - let it complete naturally like working shell functions
 	})
+
+	if !success {
+		// Do not close selector or refresh on failure.
+		return
+	}
 
 	// Fix for tview suspend/resume issue - sync the application after suspend
 	s.app.Sync()
 	// Give the terminal a brief moment to fully restore before UI operations to avoid blank screens
 	go func() {
 		time.Sleep(150 * time.Millisecond)
-		// Clear API cache, then close the selector overlay and refresh
+		// Only clear cache and refresh after a successful install
+		// (we reached here only when install succeeded)
 		s.app.ClearAPICache()
 		s.app.QueueUpdateDraw(func() {
 			// Close selector to return to main UI before refreshing

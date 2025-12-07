@@ -40,6 +40,12 @@ type Node struct {
 	CPUInfo       *CPUInfo   `json:"cpuinfo,omitempty"`
 	LoadAvg       []string   `json:"loadavg,omitempty"`
 
+	// Group cluster support
+	// SourceProfile is the profile name this node came from in group cluster mode.
+	// Empty for non-group mode. Used to track which Proxmox cluster a node belongs to
+	// when viewing multiple clusters together.
+	SourceProfile string `json:"source_profile,omitempty"`
+
 	// For metrics tracking and concurrency
 	// mu                sync.RWMutex `json:"-"`
 	lastMetricsUpdate time.Time `json:"-"`
@@ -86,6 +92,7 @@ func (c *Client) GetNodeStatus(nodeName string) (*Node, error) {
 	// config.DebugLog("[DEBUG] Parsed node status data: %+v", data) // Log parsed data structure
 
 	node := &Node{
+		ID:            nodeName,
 		Name:          nodeName,
 		Online:        strings.EqualFold(getString(data, "status"), "online"),
 		CPUUsage:      getFloat(data, "cpu"),

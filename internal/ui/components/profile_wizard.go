@@ -43,25 +43,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	// Determine if this is a new profile or editing existing
 	isNewProfile := cfg.DefaultProfile == "new_profile"
 
-	// For new profiles, create the profile entry in the map
-	if isNewProfile {
-		if cfg.Profiles == nil {
-			cfg.Profiles = make(map[string]config.ProfileConfig)
-		}
-		// Create a new profile entry with default values
-		cfg.Profiles["new_profile"] = config.ProfileConfig{
-			Addr:        "",
-			User:        "",
-			Password:    "",
-			TokenID:     "",
-			TokenSecret: "",
-			Realm:       "pam",
-			ApiPath:     "/api2/json",
-			Insecure:    false,
-			SSHUser:     "",
-			VMSSHUser:   "",
-		}
-	}
+	// For new profiles, defer creating the temp entry until Save. Avoid polluting list on cancel.
 
 	// Add profile name field at the top
 	var profileName string
@@ -79,7 +61,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	}
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, groupString string
 	var insecure bool
 
 	// If we have profiles and a default profile, use profile data
@@ -109,6 +91,9 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
+
+			// Join groups for display
+			groupString = strings.Join(profile.Groups, ", ")
 		}
 	} else {
 		// Use legacy fields
@@ -133,6 +118,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
+		// Legacy config doesn't have group field
 	}
 
 	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
@@ -238,6 +224,24 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.VMSSHUser = value
 		}
 	})
+	form.AddInputField("Groups (comma separated)", groupString, 40, nil, func(text string) {
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				parts := strings.Split(text, ",")
+				var groups []string
+				for _, p := range parts {
+					g := strings.TrimSpace(p)
+					if g != "" {
+						groups = append(groups, g)
+					}
+				}
+				profile.Groups = groups
+
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		}
+		// Legacy config doesn't support groups
+	})
 
 	form.AddButton("Save", func() {
 		// Validate profile name for all profiles
@@ -248,9 +252,11 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 		// Check if profile already exists (for new profiles or renamed profiles)
 		if isNewProfile || profileName != cfg.DefaultProfile {
-			if a.config.Profiles != nil && a.config.Profiles[profileName] != (config.ProfileConfig{}) {
-				showWizardModal(pages, form, a.Application, "error", "Profile '"+profileName+"' already exists.", nil)
-				return
+			if a.config.Profiles != nil {
+				if _, exists := a.config.Profiles[profileName]; exists {
+					showWizardModal(pages, form, a.Application, "error", "Profile '"+profileName+"' already exists.", nil)
+					return
+				}
 			}
 		}
 
@@ -313,8 +319,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 			// Handle profile renaming or new profile creation
 			if isNewProfile {
-				// For new profiles, remove the temporary "new_profile" entry and add with the actual name
-				delete(a.config.Profiles, "new_profile")
+				// For new profiles, just add the entered name; no temp entry to clean up now.
 				a.config.Profiles[profileName] = profile
 			} else if profileName != cfg.DefaultProfile {
 				// For existing profiles being renamed

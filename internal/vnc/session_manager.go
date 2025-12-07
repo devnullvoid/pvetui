@@ -301,6 +301,11 @@ func (sm *SessionManager) UpdateClient(client *api.Client) {
 // CreateVMSession creates a new VNC session for a VM.
 // If a session already exists for the same VM, it may be reused.
 func (sm *SessionManager) CreateVMSession(vm *api.VM) (*VNCSession, error) {
+	return sm.CreateVMSessionWithClient(sm.client, vm)
+}
+
+// CreateVMSessionWithClient creates a new VNC session for a VM using a specific client.
+func (sm *SessionManager) CreateVMSessionWithClient(client *api.Client, vm *api.VM) (*VNCSession, error) {
 	var sessionType SessionType
 	if vm.Type == "qemu" {
 		sessionType = SessionTypeVM
@@ -310,19 +315,27 @@ func (sm *SessionManager) CreateVMSession(vm *api.VM) (*VNCSession, error) {
 		return nil, fmt.Errorf("unsupported VM type: %s", vm.Type)
 	}
 
-	return sm.CreateSession(context.Background(), sessionType, vm.Node, strconv.Itoa(vm.ID), vm.Name)
+	return sm.CreateSessionWithClient(context.Background(), client, sessionType, vm.Node, strconv.Itoa(vm.ID), vm.Name)
 }
 
 // CreateNodeSession creates a new VNC session for a node shell.
 // If a session already exists for the same node, it may be reused.
 func (sm *SessionManager) CreateNodeSession(nodeName string) (*VNCSession, error) {
-	return sm.CreateSession(context.Background(), SessionTypeNode, nodeName, "", nodeName)
+	return sm.CreateNodeSessionWithClient(sm.client, nodeName)
 }
 
-// CreateSession creates a new VNC session for the specified target.
-// If a session already exists for the same target, it may be reused
-// depending on the session state and age.
+// CreateNodeSessionWithClient creates a new VNC session for a node shell using a specific client.
+func (sm *SessionManager) CreateNodeSessionWithClient(client *api.Client, nodeName string) (*VNCSession, error) {
+	return sm.CreateSessionWithClient(context.Background(), client, SessionTypeNode, nodeName, "", nodeName)
+}
+
+// CreateSession creates a new VNC session for the specified target using the default client.
 func (sm *SessionManager) CreateSession(ctx context.Context, sessionType SessionType, nodeName, vmid, targetName string) (*VNCSession, error) {
+	return sm.CreateSessionWithClient(ctx, sm.client, sessionType, nodeName, vmid, targetName)
+}
+
+// CreateSessionWithClient creates a new VNC session for the specified target using a specific client.
+func (sm *SessionManager) CreateSessionWithClient(ctx context.Context, client *api.Client, sessionType SessionType, nodeName, vmid, targetName string) (*VNCSession, error) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -384,8 +397,8 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 		// Find the VM in the cluster
 		var targetVM *api.VM
 
-		if sm.client.Cluster != nil {
-			for _, node := range sm.client.Cluster.Nodes {
+		if client.Cluster != nil {
+			for _, node := range client.Cluster.Nodes {
 				if node.Name == nodeName {
 					for _, vm := range node.VMs {
 						if strconv.Itoa(vm.ID) == vmid {
@@ -404,13 +417,13 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionType Session
 			return nil, fmt.Errorf("VM not found: %s on node %s", vmid, nodeName)
 		}
 
-		vncURL, err = server.StartVMVNCServerWithSession(sm.client, targetVM, session)
+		vncURL, err = server.StartVMVNCServerWithSession(client, targetVM, session)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start VM VNC server: %w", err)
 		}
 
 	case SessionTypeNode:
-		vncURL, err = server.StartNodeVNCServerWithSession(sm.client, nodeName, session)
+		vncURL, err = server.StartNodeVNCServerWithSession(client, nodeName, session)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start node VNC server: %w", err)
 		}

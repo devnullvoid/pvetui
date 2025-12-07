@@ -84,9 +84,21 @@ func createNavigationInputCapture(app *App, leftTarget, rightTarget tview.Primit
 	}
 }
 
+// SetHotkeyOverride installs a temporary handler that runs before global shortcuts.
+// Return nil from the handler to swallow the event; otherwise return the event
+// (optionally mutated) to allow further processing. Pass nil to clear.
+func (a *App) SetHotkeyOverride(handler func(*tcell.EventKey) *tcell.EventKey) {
+	a.hotkeyOverride = handler
+}
+
 // setupKeyboardHandlers configures global keyboard shortcuts.
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Component-level override handler takes precedence over globals.
+		if a.hotkeyOverride != nil {
+			return a.hotkeyOverride(event)
+		}
+
 		// if config.DebugEnabled {
 		// 	key, r, mod := keys.NormalizeEvent(event)
 		// 	models.GetUILogger().Debug("input key=%d rune=%q mod=%d", key, r, mod)
@@ -94,10 +106,12 @@ func (a *App) setupKeyboardHandlers() {
 		// Check if search is active by seeing if the search input is in the main layout
 		searchActive := a.mainLayout.GetItemCount() > 4
 
-		// Check if any modal page is active
+		// Let modals handle their own keys. Favor explicit hotkey overrides when present.
 		pageName, _ := a.pages.GetFrontPage()
-		// Core application modals
-		modalActive := strings.HasPrefix(pageName, "script") ||
+		modalActive := a.IsPluginModal(pageName) ||
+			(strings.HasPrefix(pageName, "modal:")) ||
+			// Core application modals (keep here until migrated to modal: prefix)
+			strings.HasPrefix(pageName, "script") ||
 			a.pages.HasPage("scriptInfo") ||
 			a.pages.HasPage("scriptSelector") ||
 			a.pages.HasPage("message") ||
@@ -113,8 +127,8 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("about") ||
 			a.pages.HasPage("snapshots") ||
 			a.pages.HasPage("createSnapshot") ||
-			// Check if current page is a plugin modal
-			a.IsPluginModal(pageName)
+			a.pages.HasPage("addGroupInput") ||
+			a.pages.HasPage("editGroup")
 
 		// If search is active, let the search input handle the keys
 		if searchActive {
@@ -122,23 +136,19 @@ func (a *App) setupKeyboardHandlers() {
 			return event
 		}
 
-		// If a modal dialog is active, let it handle its own keys
+		// If context menu is open AND it's the frontmost page, let it handle keys
+		if a.isMenuOpen && a.contextMenu != nil && pageName == "contextMenu" {
+			return event
+		}
+
+		// If any modal is active, let it handle the event.
+		// This ensures global hotkeys don't interfere with form inputs.
 		if modalActive {
 			return event
 		}
 
-		// If context menu is open, let it handle keys
-		if a.isMenuOpen && a.contextMenu != nil {
-			return event
-		}
-
-		// Smart Escape handling
+		// Smart Escape handling (global menu)
 		if event.Key() == tcell.KeyEscape {
-			// If any modal is active, let it handle Escape (close modal)
-			if modalActive {
-				return event
-			}
-			// If no modal is active, open global menu
 			a.ShowGlobalContextMenu()
 			return nil
 		}

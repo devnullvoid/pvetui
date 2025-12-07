@@ -209,7 +209,7 @@ type FormField struct {
 }
 
 // CreateAboutDialog creates an about dialog with version information and links.
-func CreateAboutDialog(versionInfo *version.BuildInfo, onClose func()) *tview.Modal {
+func CreateAboutDialog(versionInfo *version.BuildInfo, onClose func()) tview.Primitive {
 	// Format build date for display
 	buildDateDisplay := versionInfo.BuildDate
 	if buildDateDisplay != "unknown" {
@@ -246,5 +246,19 @@ Releases: %s`,
 		version.GetGitHubURL(),
 		version.GetGitHubReleaseURL())
 
-	return createBaseModal("About", aboutText, theme.Colors.Primary, onClose)
+	// Use a wider modal to avoid wrapping long URLs; enforce a generous minimum width.
+	modal := NewWideModal(0.55, 70)
+	modal.SetText(aboutText)
+	modal.SetTextColor(theme.Colors.Primary)
+	modal.SetBorderColor(theme.Colors.Border)
+	modal.SetTitle("About")
+	modal.SetTitleColor(theme.Colors.Title)
+	modal.AddButtons([]string{"OK"})
+	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if onClose != nil {
+			onClose()
+		}
+	})
+
+	return modal
 }

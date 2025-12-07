@@ -147,8 +147,14 @@ func (p *Plugin) handleRunCommand(ctx context.Context, app *components.App, node
 		return fmt.Errorf("command runner not initialized")
 	}
 
+	// Prefer IP for SSH to avoid DNS/host lookups; fall back to node name.
+	targetHost := node.IP
+	if targetHost == "" {
+		targetHost = node.Name
+	}
+
 	// Show command menu
-	p.runner.ShowHostCommandMenu(node.Name, nil)
+	p.runner.ShowHostCommandMenu(targetHost, nil)
 
 	return nil
 }
@@ -171,8 +177,14 @@ func (p *Plugin) handleRunContainerCommand(ctx context.Context, app *components.
 		return fmt.Errorf("command runner not initialized")
 	}
 
+	// Prefer IP for SSH to avoid DNS/host lookups; fall back to node name.
+	targetHost := node.IP
+	if targetHost == "" {
+		targetHost = node.Name
+	}
+
 	// Show container command menu
-	p.runner.ShowContainerCommandMenu(node.Name, guest.ID, nil)
+	p.runner.ShowContainerCommandMenu(targetHost, guest.ID, nil)
 
 	return nil
 }

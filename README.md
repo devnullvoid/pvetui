@@ -39,6 +39,7 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 - **Modern Interface**: Vim-style navigation with customizable key bindings
 - **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
 - **Comprehensive Documentation**: Detailed guides for configuration, theming, and development
+- **Aggregate Group Mode**: Combine multiple Proxmox profiles into one unified view with routed actions per cluster
 
 ## 📸 Screenshots
 
@@ -203,6 +204,42 @@ The built-in profile manager allows you to:
 - **Set default profile** for automatic connection
 
 Access the profile manager through the global menu.
+
+### Aggregate Group Mode (multi-cluster)
+
+Combine several profiles into a named group to see an aggregated cluster view (CPU/mem/storage/tasks/guests). Actions are routed to each guest’s source profile/cluster; migration targets are limited to the VM’s own cluster.
+
+Example config:
+
+```yaml
+profiles:
+  west:
+    addr: "https://pve-west:8006"
+    user: "api@pam"
+    token_id: "pve!api"
+    token_secret: "secret"
+    groups: ["prod-group"]
+    ssh_user: "root"
+
+  east:
+    addr: "https://pve-east:8006"
+    user: "api@pam"
+    token_id: "pve!api"
+    token_secret: "secret"
+    groups: ["prod-group"]
+    ssh_user: "root"
+
+default_profile: "west"
+```
+
+Usage:
+- Launch directly into the group: `pvetui --profile prod-group`
+- Or pick the group from the profile switcher (`p`).
+
+Notes:
+- Group names must not conflict with profile names (validation enforced).
+- Refreshes fetch fresh data from all member profiles; pending states are tracked per source profile.
+- Migrations stay within the VM’s original cluster; groups of standalone nodes will show “No other online nodes available.”
 
 ### API Token Setup (Recommended)
 1. In Proxmox web interface: **Datacenter → Permissions → API Tokens**

@@ -116,7 +116,15 @@ func (a *App) ShowVMContextMenu() {
 			a.openVMVNC()
 		case vmActionEditConfig:
 			go func() {
-				cfg, err := a.client.GetVMConfig(vm)
+				client, clientErr := a.getClientForVM(vm)
+				if clientErr != nil {
+					a.QueueUpdateDraw(func() {
+						a.showMessageSafe(fmt.Sprintf("Failed to get client: %v", clientErr))
+					})
+					return
+				}
+
+				cfg, err := client.GetVMConfig(vm)
 				a.QueueUpdateDraw(func() {
 					if err != nil {
 						a.showMessageSafe(fmt.Sprintf("Failed to load config: %v", err))
@@ -125,7 +133,9 @@ func (a *App) ShowVMContextMenu() {
 					}
 
 					page := NewVMConfigPage(a, vm, cfg, func(newCfg *api.VMConfig) error {
-						return a.client.UpdateVMConfig(vm, newCfg)
+						// Re-fetch client in case it changed (unlikely but safe) or just use closure
+						// Using closure 'client' is fine here
+						return client.UpdateVMConfig(vm, newCfg)
 					})
 					a.pages.AddPage("vmConfig", page, true, true)
 					a.SetFocus(page)
@@ -141,28 +151,48 @@ func (a *App) ShowVMContextMenu() {
 			a.showConfirmationDialog(
 				fmt.Sprintf("Are you sure you want to start VM '%s' (ID: %d)?", vm.Name, vm.ID),
 				func() {
-					a.performVMOperation(vm, a.client.StartVM, "Starting")
+					client, err := a.getClientForVM(vm)
+					if err != nil {
+						a.showMessageSafe(fmt.Sprintf("Error: %v", err))
+						return
+					}
+					a.performVMOperation(vm, client.StartVM, "Starting")
 				},
 			)
 		case vmActionShutdown:
 			a.showConfirmationDialog(
 				fmt.Sprintf("Are you sure you want to gracefully shut down '%s' (ID: %d)?\n\nThis requests an OS shutdown and may take time.", vm.Name, vm.ID),
 				func() {
-					a.performVMOperation(vm, a.client.ShutdownVM, "Shutting down")
+					client, err := a.getClientForVM(vm)
+					if err != nil {
+						a.showMessageSafe(fmt.Sprintf("Error: %v", err))
+						return
+					}
+					a.performVMOperation(vm, client.ShutdownVM, "Shutting down")
 				},
 			)
 		case vmActionStop:
 			a.showConfirmationDialog(
 				fmt.Sprintf("⚠️  Force stop '%s' (ID: %d)?\n\nThis is equivalent to power off and may cause data loss.", vm.Name, vm.ID),
 				func() {
-					a.performVMOperation(vm, a.client.StopVM, "Stopping")
+					client, err := a.getClientForVM(vm)
+					if err != nil {
+						a.showMessageSafe(fmt.Sprintf("Error: %v", err))
+						return
+					}
+					a.performVMOperation(vm, client.StopVM, "Stopping")
 				},
 			)
 		case vmActionRestart:
 			a.showConfirmationDialog(
 				fmt.Sprintf("Are you sure you want to restart VM '%s' (ID: %d)?", vm.Name, vm.ID),
 				func() {
-					a.performVMOperation(vm, a.client.RestartVM, "Restarting")
+					client, err := a.getClientForVM(vm)
+					if err != nil {
+						a.showMessageSafe(fmt.Sprintf("Error: %v", err))
+						return
+					}
+					a.performVMOperation(vm, client.RestartVM, "Restarting")
 				},
 			)
 		case vmActionReset:
@@ -170,7 +200,12 @@ func (a *App) ShowVMContextMenu() {
 				a.showConfirmationDialog(
 					fmt.Sprintf("⚠️  Hard reset '%s' (ID: %d)?\n\nThis is an immediate reset (like pressing reset) and may cause data loss.", vm.Name, vm.ID),
 					func() {
-						a.performVMOperation(vm, a.client.ResetVM, "Resetting")
+						client, err := a.getClientForVM(vm)
+						if err != nil {
+							a.showMessageSafe(fmt.Sprintf("Error: %v", err))
+							return
+						}
+						a.performVMOperation(vm, client.ResetVM, "Resetting")
 					},
 				)
 			}

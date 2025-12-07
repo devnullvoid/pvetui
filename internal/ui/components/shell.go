@@ -2,36 +2,54 @@ package components
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
+	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/ssh"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/vnc"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
+var shellLogger = logger.GetPackageLogger("ui-shell")
+
 // openNodeShell opens an SSH session to the currently selected node.
 func (a *App) openNodeShell() {
-	if a.config.SSHUser == "" {
-		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
-
-		return
-	}
-
 	node := a.nodeList.GetSelectedNode()
 	if node == nil || node.IP == "" {
 		a.showMessage("Node IP address not available")
+		return
+	}
 
+	// Log node IP details for debugging
+	shellLogger.Debug("Node shell for %s: IP from node object: '%s' (len=%d, bytes=%v)",
+		node.Name, node.IP, len(node.IP), []byte(node.IP))
+
+	// Determine SSH user
+	sshUser := a.config.SSHUser
+
+	// In group mode, try to get the SSH user from the node's source profile
+	if a.isGroupMode && node.SourceProfile != "" {
+		if profile, exists := a.config.Profiles[node.SourceProfile]; exists {
+			if profile.SSHUser != "" {
+				sshUser = profile.SSHUser
+			}
+		}
+	}
+
+	if sshUser == "" {
+		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
 		return
 	}
 
 	// Temporarily suspend the UI
 	a.Suspend(func() {
 		// Display connecting message
-		fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, a.config.SSHUser)
+		fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, sshUser)
 
 		// Execute SSH command
-		err := ssh.ExecuteNodeShell(a.config.SSHUser, node.IP)
+		err := ssh.ExecuteNodeShell(sshUser, node.IP)
 		if err != nil {
 			fmt.Printf("\nError connecting to node: %v\n", err)
 		}
@@ -109,7 +127,15 @@ func (a *App) connectToNodeVNC(node *api.Node, vncService *vnc.Service) {
 		uiLogger := models.GetUILogger()
 		uiLogger.Debug("Starting VNC connection for node %s with client addr: %s", node.Name, a.config.GetAddr())
 
-		vncURL, err := vncService.ConnectToNodeEmbedded(node.Name)
+		var vncURL string
+		var err error
+
+		client, clientErr := a.getClientForNode(node)
+		if clientErr != nil {
+			err = clientErr
+		} else {
+			vncURL, err = vncService.ConnectToNodeEmbeddedWithClient(client, node.Name)
+		}
 
 		a.QueueUpdateDraw(func() {
 			// Clear the loading message from header
@@ -132,7 +158,15 @@ func (a *App) connectToVMVNC(vm *api.VM, vncService *vnc.Service) {
 		uiLogger := models.GetUILogger()
 		uiLogger.Debug("Starting VNC connection for VM %s with client addr: %s", vm.Name, a.config.GetAddr())
 
-		vncURL, err := vncService.ConnectToVMEmbedded(vm)
+		var vncURL string
+		var err error
+
+		client, clientErr := a.getClientForVM(vm)
+		if clientErr != nil {
+			err = clientErr
+		} else {
+			vncURL, err = vncService.ConnectToVMEmbeddedWithClient(client, vm)
+		}
 
 		a.QueueUpdateDraw(func() {
 			// Clear the loading message from header
@@ -164,8 +198,18 @@ func (a *App) openNodeVNC() {
 	// Use the shared VNC service instead of creating a new one
 	vncService := a.GetVNCService()
 
+	// Get client for node
+	client, err := a.getClientForNode(node)
+	if err != nil {
+		errorModal := CreateErrorDialog("VNC Error", fmt.Sprintf("Failed to get client for node: %v", err), func() {
+			a.pages.RemovePage("vnc_error")
+		})
+		a.pages.AddPage("vnc_error", errorModal, false, true)
+		return
+	}
+
 	// Check if VNC is available for this node
-	available, reason := vncService.GetNodeVNCStatus(node.Name)
+	available, reason := vncService.GetNodeVNCStatusWithClient(client, node.Name)
 	if !available {
 		// Show error in modal dialog instead of header
 		errorModal := CreateErrorDialog("VNC Not Available", reason, func() {
@@ -218,16 +262,29 @@ func (a *App) openVMShell() {
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
 		a.showMessageSafe("Selected VM not found")
-
 		return
 	}
 
+	// Determine SSH users
+	hostShellUser := a.config.SSHUser
 	vmShellUser := a.config.VMSSHUser
-	if vmShellUser == "" {
-		vmShellUser = a.config.SSHUser
+
+	// In group mode, try to get users from the VM's source profile
+	if a.isGroupMode && vm.SourceProfile != "" {
+		if profile, exists := a.config.Profiles[vm.SourceProfile]; exists {
+			if profile.SSHUser != "" {
+				hostShellUser = profile.SSHUser
+			}
+			if profile.VMSSHUser != "" {
+				vmShellUser = profile.VMSSHUser
+			}
+		}
 	}
 
-	hostShellUser := a.config.SSHUser
+	if vmShellUser == "" {
+		vmShellUser = hostShellUser
+	}
+
 	if vm.Type == vmTypeLXC && hostShellUser == "" {
 		a.showMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
 		return
@@ -239,18 +296,42 @@ func (a *App) openVMShell() {
 
 	// Get node IP from the cluster
 	var nodeIP string
+	var originalNodeIP string
 
-	for _, node := range a.client.Cluster.Nodes {
-		if node.Name == vm.Node {
-			nodeIP = node.IP
+	client, err := a.getClientForVM(vm)
+	if err != nil {
+		a.showMessageSafe(fmt.Sprintf("Error finding VM cluster: %v", err))
+		return
+	}
 
-			break
+	if client.Cluster != nil {
+		for _, node := range client.Cluster.Nodes {
+			if node.Name == vm.Node {
+				nodeIP = node.IP
+				originalNodeIP = nodeIP
+				// Log the IP immediately when obtained from cluster data
+				shellLogger.Debug("VM shell for %s (ID: %d): Found node %s with IP from cluster: '%s' (len=%d, bytes=%v)",
+					vm.Name, vm.ID, vm.Node, nodeIP, len(nodeIP), []byte(nodeIP))
+				break
+			}
 		}
 	}
 
-	if nodeIP == "" {
-		a.showMessageSafe("Host node IP address not available")
+	if nodeIP == "" && client != nil {
+		fallback := client.BaseHostname()
+		shellLogger.Debug("Node %s missing IP in cluster data (original='%s'); falling back to API host %s", vm.Node, originalNodeIP, fallback)
+		nodeIP = fallback
+	}
 
+	if net.ParseIP(nodeIP) == nil && client != nil {
+		fallback := client.BaseHostname()
+		shellLogger.Debug("Node %s has malformed IP '%s' (original='%s', valid=%v); falling back to API host %s",
+			vm.Node, nodeIP, originalNodeIP, net.ParseIP(nodeIP) != nil, fallback)
+		nodeIP = fallback
+	}
+
+	if nodeIP == "" || net.ParseIP(nodeIP) == nil {
+		a.showMessageSafe("Host node IP address not available")
 		return
 	}
 

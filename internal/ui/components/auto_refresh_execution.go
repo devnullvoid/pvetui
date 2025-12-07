@@ -1,7 +1,9 @@
 package components
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -44,6 +46,99 @@ func (a *App) autoRefreshData() {
 
 	// Check if search is currently active
 	searchWasActive := a.mainLayout.GetItemCount() > 4
+
+	if a.isGroupMode {
+		// Group mode logic
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
+		nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx, true)
+		if err != nil {
+			uiLogger.Debug("Auto-refresh failed (group): %v", err)
+			a.QueueUpdateDraw(func() {
+				a.footer.SetLoading(false)
+			})
+			return
+		}
+
+		a.QueueUpdateDraw(func() {
+			// Get current search states
+			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+
+			// Preserve detailed node data
+			for _, freshNode := range nodes {
+				if freshNode != nil {
+					// Find the corresponding existing node with detailed data
+					for _, existingNode := range models.GlobalState.OriginalNodes {
+						if existingNode != nil && existingNode.Name == freshNode.Name && existingNode.SourceProfile == freshNode.SourceProfile {
+							// Preserve detailed fields
+							freshNode.Version = existingNode.Version
+							freshNode.KernelVersion = existingNode.KernelVersion
+							freshNode.CPUInfo = existingNode.CPUInfo
+							freshNode.LoadAvg = existingNode.LoadAvg
+							freshNode.CGroupMode = existingNode.CGroupMode
+							freshNode.Level = existingNode.Level
+							freshNode.Storage = existingNode.Storage
+							break
+						}
+					}
+				}
+			}
+
+			// Update global state with fresh data
+			models.GlobalState.OriginalNodes = make([]*api.Node, len(nodes))
+			models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+			models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
+			models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+
+			copy(models.GlobalState.OriginalNodes, nodes)
+			copy(models.GlobalState.FilteredNodes, nodes)
+			copy(models.GlobalState.OriginalVMs, vms)
+			copy(models.GlobalState.FilteredVMs, vms)
+
+			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
+				hasSelectedNode, selectedNodeName, nodeSearchState)
+
+			// Defer list/detail updates until enrichment completes to reduce flicker.
+
+			// Refresh tasks if on tasks page
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageTasks {
+				go func() {
+					ctxTasks, cancelTasks := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancelTasks()
+					tasks, err := a.groupManager.GetGroupTasks(ctxTasks)
+					if err == nil {
+						a.QueueUpdateDraw(func() {
+							if state := models.GlobalState.GetSearchState(api.PageTasks); state != nil && state.Filter != "" {
+								models.GlobalState.OriginalTasks = make([]*api.ClusterTask, len(tasks))
+								copy(models.GlobalState.OriginalTasks, tasks)
+								models.FilterTasks(state.Filter)
+								a.tasksList.SetFilteredTasks(models.GlobalState.FilteredTasks)
+							} else {
+								a.tasksList.SetTasks(tasks)
+							}
+						})
+					}
+				}()
+			}
+
+			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
+
+			// Start background enrichment for detailed node stats
+
+			a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
+
+			a.autoRefreshCountdown = 10
+
+			a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
+
+		})
+
+		return
+
+	}
 
 	// Fetch fresh cluster resources data (this includes performance metrics)
 	cluster, err := a.client.GetFreshClusterStatus()

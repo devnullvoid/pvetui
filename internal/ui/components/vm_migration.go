@@ -16,7 +16,7 @@ import (
 // showMigrationDialog displays a dialog for configuring VM migration.
 func (a *App) showMigrationDialog(vm *api.VM) {
 	if vm == nil {
-		a.showMessage("No VM selected")
+		a.showMessageSafe("No VM selected")
 
 		return
 	}
@@ -27,11 +27,19 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 		return
 	}
 
-	// Get available nodes (excluding current node)
+	// Get client for VM to fetch nodes from the same cluster
+	client, err := a.getClientForVM(vm)
+	if err != nil {
+		a.showMessageSafe(fmt.Sprintf("Error determining VM cluster: %v", err))
+		return
+	}
+
+	// Get available nodes (excluding current node) from the same cluster as the VM
+	// In group mode, only nodes from the VM's source profile/cluster are considered.
 	var availableNodes []*api.Node
 
-	if a.client.Cluster != nil {
-		for _, node := range a.client.Cluster.Nodes {
+	if client.Cluster != nil {
+		for _, node := range client.Cluster.Nodes {
 			if node != nil && node.Name != vm.Node && node.Online {
 				availableNodes = append(availableNodes, node)
 			}
@@ -39,7 +47,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	}
 
 	if len(availableNodes) == 0 {
-		a.showMessage("No other online nodes available for migration")
+		a.showMessageSafe("No other online nodes available for migration")
 
 		return
 	}
@@ -180,8 +188,20 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 			// because the VM still exists (just on a different node)
 		}()
 
+		client, err := a.getClientForVM(vm)
+		if err != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Failed to get client for migration: %v", err))
+			})
+			models.GlobalState.ClearVMPending(vm)
+			a.QueueUpdateDraw(func() {
+				a.updateVMListWithSelectionPreservation()
+			})
+			return
+		}
+
 		// Initiate migration and get the task UPID
-		upid, err := a.client.MigrateVM(vm, options)
+		upid, err := client.MigrateVM(vm, options)
 		if err != nil {
 			// Update header with error
 			a.QueueUpdateDraw(func() {
@@ -203,7 +223,7 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 		// Wait for the migration task to complete using the UPID
 		// Most migrations complete within 2-3 minutes; timeout at 3 minutes
 		maxWaitTime := 3 * time.Minute
-		migrationErr := a.client.WaitForTaskCompletion(upid, "VM migration", maxWaitTime)
+		migrationErr := client.WaitForTaskCompletion(upid, "VM migration", maxWaitTime)
 
 		if migrationErr != nil {
 			// Update header with error
@@ -231,7 +251,7 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 		models.GlobalState.ClearVMPending(vm)
 
 		// Clear API cache to ensure fresh data is loaded
-		a.client.ClearAPICache()
+		client.ClearAPICache()
 
 		// Final refresh after migration - now that pending state is clear
 		a.QueueUpdateDraw(func() {

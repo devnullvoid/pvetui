@@ -44,10 +44,11 @@ type BootstrapOptions struct {
 
 // BootstrapResult contains the result of the bootstrap process.
 type BootstrapResult struct {
-	Config     *config.Config
-	ConfigPath string
-	Profile    string
-	NoCache    bool
+	Config       *config.Config
+	ConfigPath   string
+	Profile      string
+	NoCache      bool
+	InitialGroup string
 }
 
 // ParseFlags parses command line flags and returns bootstrap options.
@@ -180,10 +181,34 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, fmt.Errorf("profile resolution failed: %w", err)
 	}
 
-	// Apply selected profile
+	// Determine if selected profile is an aggregate group or a standard profile
+	var initialGroup string
+	var startupProfile string
+
 	if selectedProfile != "" {
-		if err := cfg.ApplyProfile(selectedProfile); err != nil {
-			return nil, fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
+		if _, exists := cfg.Profiles[selectedProfile]; exists {
+			// Standard profile exists
+			startupProfile = selectedProfile
+		} else if cfg.IsGroup(selectedProfile) {
+			// It's an aggregate group
+			initialGroup = selectedProfile
+			// Pick first member as startup profile to ensure valid config for bootstrap
+			members := cfg.GetProfileNamesInGroup(selectedProfile)
+			if len(members) > 0 {
+				startupProfile = members[0]
+				fmt.Printf("🔄 Selected group '%s' (bootstrapping via '%s')\n", selectedProfile, startupProfile)
+			} else {
+				return nil, fmt.Errorf("aggregate group '%s' has no members", selectedProfile)
+			}
+		} else {
+			return nil, fmt.Errorf("profile '%s' not found", selectedProfile)
+		}
+	}
+
+	// Apply startup profile
+	if startupProfile != "" {
+		if err := cfg.ApplyProfile(startupProfile); err != nil {
+			return nil, fmt.Errorf("could not apply startup profile '%s': %w", startupProfile, err)
 		}
 	}
 
@@ -191,8 +216,8 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	applyFlagsToConfig(cfg, opts)
 
 	// Update the active profile with flag values so GetAddr() returns the correct values
-	if selectedProfile != "" && len(cfg.Profiles) > 0 {
-		if profile, exists := cfg.Profiles[selectedProfile]; exists {
+	if startupProfile != "" && len(cfg.Profiles) > 0 {
+		if profile, exists := cfg.Profiles[startupProfile]; exists {
 			if opts.FlagAddr != "" {
 				profile.Addr = opts.FlagAddr
 			}
@@ -223,7 +248,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			if opts.FlagVMSSHUser != "" {
 				profile.VMSSHUser = opts.FlagVMSSHUser
 			}
-			cfg.Profiles[selectedProfile] = profile
+			cfg.Profiles[startupProfile] = profile
 		}
 	}
 
@@ -241,10 +266,11 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	}
 
 	return &BootstrapResult{
-		Config:     cfg,
-		ConfigPath: configPath,
-		Profile:    selectedProfile,
-		NoCache:    opts.NoCache,
+		Config:       cfg,
+		ConfigPath:   configPath,
+		Profile:      startupProfile,
+		NoCache:      opts.NoCache,
+		InitialGroup: initialGroup,
 	}, nil
 }
 
@@ -305,7 +331,10 @@ func StartApplication(result *BootstrapResult) error {
 	theme.ApplyCustomTheme(&result.Config.Theme)
 	theme.ApplyToTview()
 
-	appOpts := app.Options{NoCache: result.NoCache}
+	appOpts := app.Options{
+		NoCache:      result.NoCache,
+		InitialGroup: result.InitialGroup,
+	}
 	if err := app.RunWithStartupVerification(result.Config, result.ConfigPath, appOpts); err != nil {
 		return handleStartupError(err, result.Config)
 	}

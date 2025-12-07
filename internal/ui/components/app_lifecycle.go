@@ -35,14 +35,19 @@ func (a *App) Run() error {
 	return nil
 }
 
-// updateHeaderWithActiveProfile updates the header to show the current active profile.
+// updateHeaderWithActiveProfile updates the header to show the current active profile or group.
 func (a *App) updateHeaderWithActiveProfile() {
-	profileName := a.config.GetActiveProfile()
-
-	if profileName == "" {
-		a.header.ShowActiveProfile("")
+	if a.isGroupMode {
+		// In group mode, show "Group: <name>"
+		a.header.ShowActiveProfile(fmt.Sprintf("Group: %s", a.groupName))
 	} else {
-		a.header.ShowActiveProfile(profileName)
+		profileName := a.config.GetActiveProfile()
+
+		if profileName == "" {
+			a.header.ShowActiveProfile("")
+		} else {
+			a.header.ShowActiveProfile(profileName)
+		}
 	}
 }
 

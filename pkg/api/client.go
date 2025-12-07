@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -265,6 +266,22 @@ func (c *Client) ClearAPICache() {
 	}
 }
 
+// GetCache returns the cache instance used by this client.
+// This is useful for sharing cache instances across multiple clients in group mode.
+func (c *Client) GetCache() interfaces.Cache {
+	return c.cache
+}
+
+// BaseHostname returns the hostname component of the configured API base URL.
+// Falls back to the raw baseURL string if parsing fails.
+func (c *Client) BaseHostname() string {
+	u, err := url.Parse(c.baseURL)
+	if err != nil {
+		return c.baseURL
+	}
+	return u.Hostname()
+}
+
 // GetFreshClusterStatus retrieves cluster status bypassing cache completely.
 func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
 	// Clear the cache first to ensure fresh data
@@ -471,7 +488,7 @@ func NewClient(config interfaces.Config, options ...ClientOption) (*Client, erro
 
 	// Construct base URL - remove any API path suffix
 	baseURL := strings.TrimRight(config.GetAddr(), "/")
-	if !strings.HasPrefix(baseURL, "https://") {
+	if !strings.HasPrefix(baseURL, "https://") && !strings.HasPrefix(baseURL, "http://") {
 		baseURL = "https://" + baseURL
 	}
 

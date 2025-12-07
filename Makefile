@@ -19,12 +19,36 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update
 
 # Default target
 help: ## Show this help message
 	@printf "$(GREEN)Available targets:$(NC)\n"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+gen-openapi: ## Generate OpenAPI spec from upstream apidoc.js
+	@printf "$(GREEN)Generating OpenAPI spec from apidoc.js...$(NC)\n"
+	go run ./cmd/pve-openapi-gen -out docs/api/pve-openapi.yaml -version $(VERSION)
+
+openapi-serve-start: ## Start Redoc viewer in background (pid in /tmp/pve-openapi-serve.pid)
+	@printf "$(GREEN)Starting OpenAPI server (background)...$(NC)\n"
+	@npx --yes http-server docs/api -p 8080 >/tmp/pve-openapi-serve.log 2>&1 & \
+		echo $$! > /tmp/pve-openapi-serve.pid && \
+		printf "Viewer running at http://localhost:8080 (pid %s)\n" "`cat /tmp/pve-openapi-serve.pid`"
+
+openapi-serve: ## Serve Redoc viewer in foreground (Ctrl+C to stop)
+	@printf "$(GREEN)Serving OpenAPI spec with Redoc (foreground)...$(NC)\n"
+	npx --yes http-server docs/api -p 8080
+
+openapi-serve-stop: ## Stop Redoc viewer started by openapi-serve
+	@if [ -f /tmp/pve-openapi-serve.pid ]; then \
+		pid=$$(cat /tmp/pve-openapi-serve.pid); \
+		printf "Stopping openapi server (pid %s)...\n" $$pid; \
+		kill $$pid 2>/dev/null || true; \
+		rm -f /tmp/pve-openapi-serve.pid; \
+	else \
+		printf "No openapi server pid file found.\n"; \
+	fi
 
 # Go targets
 build: ## Build the application binary
@@ -71,6 +95,16 @@ test-unit: test ## Alias for test (unit tests only)
 test-integration: ## Run integration tests
 	@printf "$(GREEN)Running integration tests...$(NC)\n"
 	go test -v ./test/integration/...
+
+test-mock: ## Run integration tests against the stateful mock API (no real Proxmox needed)
+	@printf "$(GREEN)Running integration tests against pve-mock-api...$(NC)\n"
+	go test -v ./test/integration/...
+
+e2e-mock: ## Record and diff VHS text output against golden (uses mock API)
+	@scripts/e2e/run-mock-e2e.sh
+
+e2e-mock-update: ## Update golden file for VHS E2E run (uses mock API)
+	@UPDATE=1 scripts/e2e/run-mock-e2e.sh
 
 test-integration-real: ## Run integration tests against real Proxmox (requires PVETUI_INTEGRATION_TEST=true)
 	@printf "$(GREEN)Running integration tests against real Proxmox...$(NC)\n"
