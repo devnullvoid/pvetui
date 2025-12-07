@@ -25,7 +25,15 @@ func TestPVEMockAPI(t *testing.T) {
 
 	buildPath := fmt.Sprintf("%s/cmd/pve-mock-api", rootDir)
 	binPath := fmt.Sprintf("%s/pve-mock-api-test-bin", rootDir)
-    specPath := fmt.Sprintf("%s/docs/api/pve-openapi.yaml", rootDir)
+	specPath := fmt.Sprintf("%s/docs/api/pve-openapi.yaml", rootDir)
+
+	// Ensure OpenAPI spec exists (CI doesn't track generated spec)
+	if _, err := os.Stat(specPath); os.IsNotExist(err) {
+		cmdGen := exec.Command("go", "run", "./cmd/pve-openapi-gen", "-out", specPath, "-version", "test")
+		cmdGen.Dir = rootDir
+		output, genErr := cmdGen.CombinedOutput()
+		require.NoError(t, genErr, "Failed to generate OpenAPI spec: %s", string(output))
+	}
 
 	// 1. Build pve-mock-api
 	cmd := exec.Command("go", "build", "-o", binPath, buildPath)
@@ -36,9 +44,9 @@ func TestPVEMockAPI(t *testing.T) {
 	// 2. Start mock api
 	port := 8086
 	serverCmd := exec.Command(binPath, "-spec", specPath, "-port", fmt.Sprintf("%d", port))
-    // Redirect stdout/stderr for debug
-    serverCmd.Stdout = os.Stdout
-    serverCmd.Stderr = os.Stderr
+	// Redirect stdout/stderr for debug
+	serverCmd.Stdout = os.Stdout
+	serverCmd.Stderr = os.Stderr
 
 	err = serverCmd.Start()
 	require.NoError(t, err, "Failed to start pve-mock-api")
@@ -49,18 +57,18 @@ func TestPVEMockAPI(t *testing.T) {
 	}()
 
 	// Wait for start
-    deadline := time.Now().Add(5 * time.Second)
-    started := false
-    for time.Now().Before(deadline) {
-        resp, err := http.Get(fmt.Sprintf("http://localhost:%d/access/ticket", port))
-        if err == nil {
-            resp.Body.Close()
-            started = true
-            break
-        }
-        time.Sleep(100 * time.Millisecond)
-    }
-    require.True(t, started, "Mock server did not start in time")
+	deadline := time.Now().Add(5 * time.Second)
+	started := false
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/access/ticket", port))
+		if err == nil {
+			resp.Body.Close()
+			started = true
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.True(t, started, "Mock server did not start in time")
 
 	// 3. Setup client
 	mockURL := fmt.Sprintf("http://localhost:%d", port)
@@ -99,7 +107,7 @@ func TestPVEMockAPI(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "pve", node.Name)
 		require.Equal(t, "8.1.3", node.Version)
-        require.Equal(t, 2, node.CPUInfo.Sockets)
+		require.Equal(t, 2, node.CPUInfo.Sockets)
 	})
 
 	t.Run("vm_config_lifecycle", func(t *testing.T) {
@@ -124,30 +132,30 @@ func TestPVEMockAPI(t *testing.T) {
 		require.Equal(t, int64(8192*1024*1024), configUpdated.Memory)
 	})
 
-    t.Run("vm_status_action", func(t *testing.T) {
-        vm := &api.VM{
-            Node: "pve",
-            Type: "qemu",
-            ID:   100,
-            Name: "test-vm",
-            Status: "running", // Initial status
-        }
+	t.Run("vm_status_action", func(t *testing.T) {
+		vm := &api.VM{
+			Node:   "pve",
+			Type:   "qemu",
+			ID:     100,
+			Name:   "test-vm",
+			Status: "running", // Initial status
+		}
 
-        // Stop
-        err := client.StopVM(vm)
-        require.NoError(t, err)
+		// Stop
+		err := client.StopVM(vm)
+		require.NoError(t, err)
 
-        // Refresh to see update (GetVmStatus is cached)
-        refreshedVM, err := client.RefreshVMData(vm, nil)
-        require.NoError(t, err)
-        require.Equal(t, "stopped", refreshedVM.Status)
+		// Refresh to see update (GetVmStatus is cached)
+		refreshedVM, err := client.RefreshVMData(vm, nil)
+		require.NoError(t, err)
+		require.Equal(t, "stopped", refreshedVM.Status)
 
-        // Start
-        err = client.StartVM(vm)
-        require.NoError(t, err)
+		// Start
+		err = client.StartVM(vm)
+		require.NoError(t, err)
 
-        refreshedVM, err = client.RefreshVMData(vm, nil)
-        require.NoError(t, err)
-        require.Equal(t, "running", refreshedVM.Status)
-    })
+		refreshedVM, err = client.RefreshVMData(vm, nil)
+		require.NoError(t, err)
+		require.Equal(t, "running", refreshedVM.Status)
+	})
 }
