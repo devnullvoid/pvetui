@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.14] - 2025-12-07
+
 ### Added
 
 - **Aggregate Cluster Support**: Introduced the ability to define and manage multiple Proxmox VE clusters as a single, aggregated view. Users can now:
