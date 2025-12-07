@@ -19,7 +19,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update
 
 # Default target
 help: ## Show this help message
@@ -99,6 +99,12 @@ test-integration: ## Run integration tests
 test-mock: ## Run integration tests against the stateful mock API (no real Proxmox needed)
 	@printf "$(GREEN)Running integration tests against pve-mock-api...$(NC)\n"
 	go test -v ./test/integration/...
+
+e2e-mock: ## Record and diff VHS text output against golden (uses mock API)
+	@scripts/e2e/run-mock-e2e.sh
+
+e2e-mock-update: ## Update golden file for VHS E2E run (uses mock API)
+	@UPDATE=1 scripts/e2e/run-mock-e2e.sh
 
 test-integration-real: ## Run integration tests against real Proxmox (requires PVETUI_INTEGRATION_TEST=true)
 	@printf "$(GREEN)Running integration tests against real Proxmox...$(NC)\n"
