@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,21 +17,19 @@ import (
 )
 
 func TestPVEMockAPI(t *testing.T) {
-	rootDir := "../../"
+	// Resolve repository root (absolute) so relative paths work in CI and locally
+	cwd, _ := os.Getwd()
+	repoRoot, err := filepath.Abs(filepath.Join(cwd, "../.."))
+	require.NoError(t, err)
 
-	// Check if we are in root (if running via some other way)
-	if _, err := os.Stat("cmd/pve-mock-api"); err == nil {
-		rootDir = "."
-	}
-
-	buildPath := fmt.Sprintf("%s/cmd/pve-mock-api", rootDir)
-	binPath := fmt.Sprintf("%s/pve-mock-api-test-bin", rootDir)
-	specPath := fmt.Sprintf("%s/docs/api/pve-openapi.yaml", rootDir)
+	buildPath := filepath.Join(repoRoot, "cmd/pve-mock-api")
+	binPath := filepath.Join(repoRoot, "pve-mock-api-test-bin")
+	specPath := filepath.Join(repoRoot, "docs/api/pve-openapi.yaml")
 
 	// Ensure OpenAPI spec exists (CI doesn't track generated spec)
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
 		cmdGen := exec.Command("go", "run", "./cmd/pve-openapi-gen", "-out", specPath, "-version", "test")
-		cmdGen.Dir = rootDir
+		cmdGen.Dir = repoRoot
 		output, genErr := cmdGen.CombinedOutput()
 		require.NoError(t, genErr, "Failed to generate OpenAPI spec: %s", string(output))
 	}
