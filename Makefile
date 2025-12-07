@@ -19,7 +19,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop
+.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock
 
 # Default target
 help: ## Show this help message
@@ -94,6 +94,10 @@ test-unit: test ## Alias for test (unit tests only)
 
 test-integration: ## Run integration tests
 	@printf "$(GREEN)Running integration tests...$(NC)\n"
+	go test -v ./test/integration/...
+
+test-mock: ## Run integration tests against the stateful mock API (no real Proxmox needed)
+	@printf "$(GREEN)Running integration tests against pve-mock-api...$(NC)\n"
 	go test -v ./test/integration/...
 
 test-integration-real: ## Run integration tests against real Proxmox (requires PVETUI_INTEGRATION_TEST=true)

@@ -16,6 +16,13 @@ Then run the mock server:
 go run ./cmd/pve-mock-api -spec docs/api/pve-openapi.yaml -port 8080
 ```
 
+To run the integration/regression suite against the mock API (no real Proxmox needed):
+
+```bash
+make gen-openapi   # if docs/api/pve-openapi.yaml is outdated
+make test-mock     # spins up the mock inside the tests on port 8086
+```
+
 ## Features
 
 ### Stateful Mocking
