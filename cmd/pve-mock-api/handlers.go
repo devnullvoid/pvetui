@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -223,5 +224,98 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	}
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		log.Printf("mock-api: failed to encode JSON response: %v", err)
+	}
+}
+
+func handleVzdump(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var params map[string]interface{}
+		_ = json.NewDecoder(r.Body).Decode(&params)
+
+		vmidStr := ""
+		if v, ok := params["vmid"].(string); ok {
+			vmidStr = v
+		}
+		storage := ""
+		if v, ok := params["storage"].(string); ok {
+			storage = v
+		}
+		mode := ""
+		if v, ok := params["mode"].(string); ok {
+			mode = v
+		}
+		notes := ""
+		if v, ok := params["notes-template"].(string); ok {
+			notes = v
+		}
+
+		var vmid int
+		fmt.Sscanf(vmidStr, "%d", &vmid)
+
+		upid := state.CreateBackup(vmid, storage, mode, notes)
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": upid,
+		})
+	}
+}
+
+func handleStorageContent(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		storage := vars["storage"]
+		content := r.URL.Query().Get("content")
+
+		if content == "backup" {
+			backups := state.GetBackups(storage)
+
+			var data []map[string]interface{}
+			for _, b := range backups {
+				data = append(data, map[string]interface{}{
+					"volid":        b.VolID,
+					"vmid":         b.VMID,
+					"size":         b.Size,
+					"ctime":        b.Date,
+					"format":       b.Format,
+					"notes":        b.Notes,
+					"content":      b.Content,
+					"verification": "ok",
+				})
+			}
+
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"data": data,
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": []interface{}{},
+		})
+	}
+}
+
+func handleDeleteStorageContent(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		volume := vars["volume"]
+
+		err := state.DeleteBackup(volume)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": "UPID:pve:00000000:00000000:00000000:task:delete:root@pam:",
+		})
+	}
+}
+
+func handleRestore(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": "UPID:pve:00000000:00000000:00000000:task:qmrestore:root@pam:",
+		})
 	}
 }

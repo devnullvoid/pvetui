@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 )
 
 type MockState struct {
@@ -10,6 +12,18 @@ type MockState struct {
 	Nodes   []*MockNode
 	VMs     map[string]*MockVM // Key: vmid (string)
 	Storage []*MockStorage
+	Backups map[string]*MockBackup // Key: volid
+}
+
+type MockBackup struct {
+	VolID   string
+	VMID    int
+	Date    int64 // Unix timestamp
+	Size    int64
+	Storage string
+	Format  string
+	Notes   string
+	Content string // "backup"
 }
 
 type MockNode struct {
@@ -61,7 +75,8 @@ type MockStorage struct {
 
 func NewMockState() *MockState {
 	state := &MockState{
-		VMs: make(map[string]*MockVM),
+		VMs:     make(map[string]*MockVM),
+		Backups: make(map[string]*MockBackup),
 	}
 
 	// Default Node
@@ -148,6 +163,19 @@ func NewMockState() *MockState {
 	}
 	state.VMs["100"] = vm1
 	state.VMs["101"] = vm2
+
+	// Default Backups
+	backup1 := &MockBackup{
+		VolID:   "local:backup/vzdump-qemu-100-2023_01_01-12_00_00.vma.zst",
+		VMID:    100,
+		Date:    1672574400,
+		Size:    2 * 1024 * 1024 * 1024,
+		Storage: "local",
+		Format:  "vma.zst",
+		Notes:   "Initial backup",
+		Content: "backup",
+	}
+	state.Backups[backup1.VolID] = backup1
 
 	return state
 }
@@ -289,4 +317,74 @@ func (s *MockState) UpdateVMConfig(vmid string, config map[string]interface{}) e
         }
     }
     return nil
+}
+
+func (s *MockState) CreateBackup(vmid int, storage string, mode string, notes string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ts := time.Now().Unix()
+	timestampStr := time.Now().Format("2006_01_02-15_04_05")
+
+	// Determine prefix based on VM type (look up VM)
+	// We cheat and guess qemu usually, or look it up.
+	// For mock, just use qemu unless vmid matches a container.
+	vmType := "qemu"
+	if vm, ok := s.VMs[fmt.Sprintf("%d", vmid)]; ok {
+		vmType = vm.Type
+	}
+
+	volID := fmt.Sprintf("%s:backup/vzdump-%s-%d-%s.vma.zst", storage, vmType, vmid, timestampStr)
+
+	backup := &MockBackup{
+		VolID:   volID,
+		VMID:    vmid,
+		Date:    ts,
+		Size:    1024 * 1024 * 100, // 100MB dummy
+		Storage: storage,
+		Format:  "vma.zst",
+		Notes:   notes,
+		Content: "backup",
+	}
+
+	s.Backups[volID] = backup
+
+	return "UPID:pve:00000000:00000000:00000000:task:vzdump:root@pam:"
+}
+
+func (s *MockState) GetBackups(storage string) []*MockBackup {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var backups []*MockBackup
+	for _, b := range s.Backups {
+		if b.Storage == storage {
+			backups = append(backups, b)
+		}
+	}
+	return backups
+}
+
+func (s *MockState) DeleteBackup(volID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Handle cases where volID might be full "storage:backup/..." or just "backup/..."
+	// But our map keys are full volids.
+
+	if _, ok := s.Backups[volID]; ok {
+		delete(s.Backups, volID)
+		return nil
+	}
+
+	// Check if volID is partial?
+	// If the user passed "backup/..." but key is "local:backup/..."
+	for k := range s.Backups {
+		if strings.HasSuffix(k, volID) {
+			delete(s.Backups, k)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("backup not found")
 }
