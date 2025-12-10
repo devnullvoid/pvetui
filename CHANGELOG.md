@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Initial Configuration**: Removed dummy sensitive values from default template to prevent auto-fill during onboarding.
 - **Phantom Profiles**: Fixed issue where cancelled "Add New Profile" actions left phantom entries in the profile list.
 - **Add Group Modal**: Increased modal width to prevent input field truncation.
+- **Add Group Focus**: Fixed focus loss when pressing Enter in the "Add Group" input field.
 - **Fresh Install Profile**: Fixed issue where fresh installations created both "default" and "work" profiles; removed "work" profile from template.
 - **About dialog metadata**: Widened the About modal so GitHub links no longer wrap/break and backfilled commit/build date when ldflags aren't provided (e.g., `go install`).
 - **Plugin manager modal**: Expanded the manage-plugins dialog further (wider center column) so long plugin descriptions stay visible.

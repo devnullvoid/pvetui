@@ -830,23 +830,16 @@ func (a *App) showAddGroupDialog() {
 	form.AddFormItem(nameInput)
 
 	// Create Button
-
 	form.AddButton("Create", func() {
-
 		name := strings.TrimSpace(nameInput.GetText())
-
 		if name == "" {
-
 			a.showMessageSafe("Group name cannot be empty")
-
 			return
-
 		}
-
-		a.pages.RemovePage("addGroupInput")
-
-		a.showEditGroupDialog(name)
-
+		a.Application.QueueUpdateDraw(func() {
+			a.pages.RemovePage("addGroupInput")
+			a.showEditGroupDialog(name)
+		})
 	})
 
 	// Cancel Button
@@ -878,27 +871,18 @@ func (a *App) showAddGroupDialog() {
 	})
 
 	// Handle Enter in input field to trigger Create
-
 	nameInput.SetDoneFunc(func(key tcell.Key) {
-
 		if key == tcell.KeyEnter {
-
 			name := strings.TrimSpace(nameInput.GetText())
-
 			if name != "" {
-
-				a.pages.RemovePage("addGroupInput")
-
-				a.showEditGroupDialog(name)
-
+				a.Application.QueueUpdateDraw(func() {
+					a.pages.RemovePage("addGroupInput")
+					a.showEditGroupDialog(name)
+				})
 			} else {
-
 				a.showMessageSafe("Group name cannot be empty")
-
 			}
-
 		}
-
 	})
 
 	modal := tview.NewFlex().
