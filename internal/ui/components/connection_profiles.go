@@ -836,10 +836,12 @@ func (a *App) showAddGroupDialog() {
 			a.showMessageSafe("Group name cannot be empty")
 			return
 		}
-		a.Application.QueueUpdateDraw(func() {
-			a.pages.RemovePage("addGroupInput")
-			a.showEditGroupDialog(name)
-		})
+		go func() {
+			a.Application.QueueUpdateDraw(func() {
+				a.pages.RemovePage("addGroupInput")
+				a.showEditGroupDialog(name)
+			})
+		}()
 	})
 
 	// Cancel Button
@@ -875,10 +877,12 @@ func (a *App) showAddGroupDialog() {
 		if key == tcell.KeyEnter {
 			name := strings.TrimSpace(nameInput.GetText())
 			if name != "" {
-				a.Application.QueueUpdateDraw(func() {
-					a.pages.RemovePage("addGroupInput")
-					a.showEditGroupDialog(name)
-				})
+				go func() {
+					a.Application.QueueUpdateDraw(func() {
+						a.pages.RemovePage("addGroupInput")
+						a.showEditGroupDialog(name)
+					})
+				}()
 			} else {
 				a.showMessageSafe("Group name cannot be empty")
 			}
