@@ -1,13 +1,10 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/devnullvoid/pvetui/internal/bootstrap"
 	"github.com/devnullvoid/pvetui/internal/config"
-	"github.com/devnullvoid/pvetui/internal/profile"
 )
 
 // newConfigWizardCmd creates the config wizard command
@@ -18,9 +15,14 @@ func newConfigWizardCmd() *cobra.Command {
 		Long: `Launch an interactive configuration wizard to set up your pvetui configuration.
 
 This wizard will guide you through creating a configuration file with your
-Proxmox server details, authentication credentials, and other settings.`,
+Proxmox server details, authentication credentials, and other settings.
+
+You can add or edit a specific profile using the --profile flag:
+  pvetui config-wizard --profile my-profile`,
 		RunE: runConfigWizard,
 	}
+
+	cmd.Flags().StringP("profile", "p", "", "Profile to add or edit")
 
 	return cmd
 }
@@ -29,6 +31,7 @@ Proxmox server details, authentication credentials, and other settings.`,
 func runConfigWizard(cmd *cobra.Command, args []string) error {
 	// Get config path from flags
 	configPath, _ := cmd.Flags().GetString("config")
+	profileName, _ := cmd.Flags().GetString("profile")
 
 	// Create a new config
 	cfg := config.NewConfig()
@@ -44,19 +47,13 @@ func runConfigWizard(cmd *cobra.Command, args []string) error {
 	// Set defaults for config wizard
 	cfg.SetDefaults()
 
-	// Handle profile selection for config wizard (same as bootstrap)
-	selectedProfile, err := profile.ResolveProfile("", cfg) // No profile specified for subcommand
-	if err != nil {
-		return fmt.Errorf("profile resolution failed: %w", err)
-	}
-
-	// Apply selected profile for config wizard
-	if selectedProfile != "" {
-		if err := cfg.ApplyProfile(selectedProfile); err != nil {
-			return fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
-		}
+	// If a specific profile is requested for the wizard, set it as default
+	// This signals the wizard to edit/create this specific profile
+	if profileName != "" {
+		cfg.DefaultProfile = profileName
 	}
 
 	// Run the config wizard
-	return bootstrap.HandleConfigWizard(cfg, resolvedPath, selectedProfile)
+	// We pass profileName as activeProfile, though the wizard largely relies on cfg.DefaultProfile
+	return bootstrap.HandleConfigWizard(cfg, resolvedPath, profileName)
 }

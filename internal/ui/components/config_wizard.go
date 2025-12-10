@@ -62,7 +62,7 @@ type WizardResult struct {
 }
 
 // NewConfigWizardPage creates a new configuration wizard page.
-func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath string, saveFn func(*config.Config) error, cancelFn func(), resultChan chan<- WizardResult) tview.Primitive {
+func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath string, saveFn func(*config.Config) error, cancelFn func(), resultChan chan<- WizardResult, targetProfile string) tview.Primitive {
 	// Detect if original config was SOPS-encrypted
 	wasSOPS := false
 
@@ -85,20 +85,36 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	var profileName string
 	var isDefaultProfile bool
 
-	// Determine if this is a new profile or editing existing
-	isNewProfile := len(cfg.Profiles) == 0 || cfg.DefaultProfile == ""
+	// Determine if we are editing an existing profile
+	var isEditing bool
 
-	if isNewProfile {
-		form.AddInputField("Profile Name", "", 20, nil, func(text string) {
-			profileName = strings.TrimSpace(text)
-		})
+	if targetProfile != "" {
+		// User requested specific profile
+		profileName = targetProfile
+		if cfg.Profiles != nil {
+			if _, exists := cfg.Profiles[profileName]; exists {
+				isEditing = true
+			}
+		}
 	} else {
-		// For editing existing profile, start with current name
-		profileName = cfg.DefaultProfile
-		form.AddInputField("Profile Name", cfg.DefaultProfile, 20, nil, func(text string) {
-			profileName = strings.TrimSpace(text)
-		})
+		// Fallback to default behavior
+		// If we have profiles, default to editing the default profile
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			profileName = cfg.DefaultProfile
+			if cfg.Profiles != nil {
+				if _, exists := cfg.Profiles[profileName]; exists {
+					isEditing = true
+				}
+			}
+		}
+		// If no profiles, profileName remains empty, isEditing false
 	}
+
+	isNewProfile := !isEditing
+
+	form.AddInputField("Profile Name", profileName, 20, nil, func(text string) {
+		profileName = strings.TrimSpace(text)
+	})
 
 	// Add checkbox for default profile
 	form.AddCheckbox("Set as Default Profile", isNewProfile || cfg.DefaultProfile == profileName, func(checked bool) {
@@ -109,10 +125,10 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
 	var insecure bool
 
-	// If we have profiles and a default profile, use profile data
+	// If we are editing a profile, use its data
 	//nolint:dupl // Shared with profile wizard to keep legacy/profile editing consistent
-	if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+	if isEditing {
+		if profile, exists := cfg.Profiles[profileName]; exists {
 			addr = profile.Addr
 			user = profile.User
 			// Decrypt password and tokenSecret for display in the form
@@ -138,7 +154,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			vmSSHUser = profile.VMSSHUser
 		}
 	} else {
-		// Use legacy fields
+		// Use legacy fields or defaults
 		addr = cfg.Addr
 		user = cfg.User
 		// Decrypt password and tokenSecret for display in the form
@@ -163,92 +179,93 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	}
 
 	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+		if isEditing {
 			// Update profile
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.Addr = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
-			// Update legacy field
+			// Update legacy field - also update temp profile if we have one?
+			// Actually for new profiles we create the object at Save time
 			cfg.Addr = strings.TrimSpace(text)
 		}
 	})
 	form.AddInputField("Username", user, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.User = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.User = strings.TrimSpace(text)
 		}
 	})
 	form.AddPasswordField("Password", password, 20, '*', func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.Password = text
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.Password = text
 		}
 	})
 	form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.TokenID = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.TokenID = strings.TrimSpace(text)
 		}
 	})
 	form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.TokenSecret = text
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.TokenSecret = text
 		}
 	})
 	form.AddInputField("Realm", realm, 10, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.Realm = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.Realm = strings.TrimSpace(text)
 		}
 	})
 	form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.ApiPath = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.ApiPath = strings.TrimSpace(text)
 		}
 	})
 	form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.Insecure = checked
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.Insecure = checked
 		}
 	})
 	form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.SSHUser = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.SSHUser = strings.TrimSpace(text)
@@ -256,10 +273,10 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	})
 	form.AddInputField("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
 		value := strings.TrimSpace(text)
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
 				profile.VMSSHUser = value
-				cfg.Profiles[cfg.DefaultProfile] = profile
+				cfg.Profiles[profileName] = profile
 			}
 		} else {
 			cfg.VMSSHUser = value
@@ -524,7 +541,7 @@ func LaunchConfigWizard(cfg *config.Config, configPath string, activeProfile str
 		return SaveConfigToFile(c, configPath)
 	}, func() {
 		tviewApp.Stop()
-	}, resultChan)
+	}, resultChan, activeProfile)
 	tviewApp.SetRoot(wizard, true)
 	_ = tviewApp.Run()
 
