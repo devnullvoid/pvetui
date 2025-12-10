@@ -39,7 +39,7 @@ func (bf *BackupForm) ShowCreateForm(onSuccess func()) {
 			return
 		}
 
-		node, err := client.GetNodeStatus(bf.vm.Node)
+		storages, err := client.GetNodeStorages(bf.vm.Node)
 
 		bf.app.Application.QueueUpdateDraw(func() {
 			bf.app.header.ShowActiveProfile(bf.app.header.GetCurrentProfile())
@@ -52,7 +52,7 @@ func (bf *BackupForm) ShowCreateForm(onSuccess func()) {
 			var storageOptions []string
 
 			// Filter storages
-			for _, s := range node.Storage {
+			for _, s := range storages {
 				if strings.Contains(s.Content, "backup") {
 					storageOptions = append(storageOptions, s.Name)
 				}

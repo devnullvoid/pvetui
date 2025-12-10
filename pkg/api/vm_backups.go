@@ -34,16 +34,16 @@ type BackupOptions struct {
 
 // GetBackups retrieves all backups for a VM across all available storages.
 func (c *Client) GetBackups(vm *VM) ([]Backup, error) {
-	// 1. Get node status to list storages
-	node, err := c.GetNodeStatus(vm.Node)
+	// 1. Get storages on the node
+	storages, err := c.GetNodeStorages(vm.Node)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get node status: %w", err)
+		return nil, fmt.Errorf("failed to get node storages: %w", err)
 	}
 
 	var allBackups []Backup
 
 	// 2. Iterate over storages
-	for _, storage := range node.Storage {
+	for _, storage := range storages {
 		// Check if storage supports backups
 		// Storage content is a comma-separated string, e.g. "iso,backup"
 		if !strings.Contains(storage.Content, "backup") {

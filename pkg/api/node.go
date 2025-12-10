@@ -372,3 +372,32 @@ func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
 
 	return vncURL, nil
 }
+
+// GetNodeStorages retrieves all storages available on a specific node.
+func (c *Client) GetNodeStorages(nodeName string) ([]*Storage, error) {
+	var res map[string]interface{}
+	if err := c.Get(fmt.Sprintf("/nodes/%s/storage", nodeName), &res); err != nil {
+		return nil, fmt.Errorf("failed to get node storages: %w", err)
+	}
+
+	data, ok := res["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid storage response format")
+	}
+
+	var storages []*Storage
+	for _, item := range data {
+		if sData, ok := item.(map[string]interface{}); ok {
+			storage := &Storage{
+				Name:       getString(sData, "storage"),
+				Content:    getString(sData, "content"),
+				Plugintype: getString(sData, "type"),
+				Disk:       int64(getFloat(sData, "used")),
+				MaxDisk:    int64(getFloat(sData, "total")),
+				Node:       nodeName,
+			}
+			storages = append(storages, storage)
+		}
+	}
+	return storages, nil
+}
