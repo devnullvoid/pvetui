@@ -635,7 +635,7 @@ func (a *App) showAddProfileDialog() {
 
 	tempConfig := &config.Config{
 
-		Profiles: a.config.Profiles,
+		Profiles: make(map[string]config.ProfileConfig),
 
 		DefaultProfile: "new_profile", // This will be replaced with the actual name
 
@@ -667,6 +667,10 @@ func (a *App) showAddProfileDialog() {
 
 		Theme: a.config.Theme,
 	}
+
+	// Pre-populate the new profile in the temp config so wizard callbacks work
+
+	tempConfig.Profiles["new_profile"] = newProfile
 
 	// Create a channel for the wizard result
 
@@ -902,7 +906,7 @@ func (a *App) showAddGroupDialog() {
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(form, 13, 0, true).
-			AddItem(nil, 0, 1, false), 40, 0, true).
+			AddItem(nil, 0, 1, false), 60, 0, true).
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("addGroupInput", modal, true, true)

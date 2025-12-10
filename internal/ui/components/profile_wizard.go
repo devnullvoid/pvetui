@@ -121,7 +121,40 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		// Legacy config doesn't have group field
 	}
 
-	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
+	var focusableItems []tview.Primitive
+
+	addInput := func(label, value string, width int, accept func(text string, ch rune) bool, changed func(text string)) {
+		field := tview.NewInputField().
+			SetLabel(label).
+			SetText(value).
+			SetFieldWidth(width).
+			SetAcceptanceFunc(accept).
+			SetChangedFunc(changed)
+		form.AddFormItem(field)
+		focusableItems = append(focusableItems, field)
+	}
+
+	addPassword := func(label, value string, width int, mask rune, changed func(text string)) {
+		field := tview.NewInputField().
+			SetLabel(label).
+			SetText(value).
+			SetFieldWidth(width).
+			SetMaskCharacter(mask).
+			SetChangedFunc(changed)
+		form.AddFormItem(field)
+		focusableItems = append(focusableItems, field)
+	}
+
+	addCheckbox := func(label string, checked bool, changed func(checked bool)) {
+		field := tview.NewCheckbox().
+			SetLabel(label).
+			SetChecked(checked).
+			SetChangedFunc(changed)
+		form.AddFormItem(field)
+		focusableItems = append(focusableItems, field)
+	}
+
+	addInput("Proxmox API URL", addr, 40, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			// Update profile
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
@@ -133,7 +166,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.Addr = strings.TrimSpace(text)
 		}
 	})
-	form.AddInputField("Username", user, 20, nil, func(text string) {
+	addInput("Username", user, 20, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.User = strings.TrimSpace(text)
@@ -143,7 +176,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.User = strings.TrimSpace(text)
 		}
 	})
-	form.AddPasswordField("Password", password, 20, '*', func(text string) {
+	addPassword("Password", password, 20, '*', func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.Password = text
@@ -153,7 +186,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.Password = text
 		}
 	})
-	form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
+	addInput("API Token ID", tokenID, 20, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.TokenID = strings.TrimSpace(text)
@@ -163,7 +196,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.TokenID = strings.TrimSpace(text)
 		}
 	})
-	form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
+	addPassword("API Token Secret", tokenSecret, 20, '*', func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.TokenSecret = text
@@ -173,7 +206,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.TokenSecret = text
 		}
 	})
-	form.AddInputField("Realm", realm, 10, nil, func(text string) {
+	addInput("Realm", realm, 10, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.Realm = strings.TrimSpace(text)
@@ -183,7 +216,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.Realm = strings.TrimSpace(text)
 		}
 	})
-	form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
+	addInput("API Path", apiPath, 20, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.ApiPath = strings.TrimSpace(text)
@@ -193,7 +226,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.ApiPath = strings.TrimSpace(text)
 		}
 	})
-	form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
+	addCheckbox("Skip TLS Verification", insecure, func(checked bool) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.Insecure = checked
@@ -203,7 +236,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.Insecure = checked
 		}
 	})
-	form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
+	addInput("SSH Username", sshUser, 20, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				profile.SSHUser = strings.TrimSpace(text)
@@ -213,7 +246,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.SSHUser = strings.TrimSpace(text)
 		}
 	})
-	form.AddInputField("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
+	addInput("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
 		value := strings.TrimSpace(text)
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
@@ -224,7 +257,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.VMSSHUser = value
 		}
 	})
-	form.AddInputField("Groups (comma separated)", groupString, 40, nil, func(text string) {
+	addInput("Groups (comma separated)", groupString, 40, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 				parts := strings.Split(text, ",")
@@ -394,6 +427,33 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			resultChan <- WizardResult{Canceled: true}
+			return nil
+		}
+		// Manual handling for Shift+Tab (Backtab)
+		if event.Key() == tcell.KeyBacktab {
+			currentFocus := a.Application.GetFocus()
+			currentIndex := -1
+
+			// Find currently focused item
+			for i, item := range focusableItems {
+				if item == currentFocus {
+					currentIndex = i
+					break
+				}
+			}
+
+			// Calculate previous index
+			var nextIndex int
+			if currentIndex > 0 {
+				nextIndex = currentIndex - 1
+			} else {
+				// If index is 0 (first item) or -1 (not found/button), wrap to bottom
+				nextIndex = len(focusableItems) - 1
+			}
+
+			if nextIndex >= 0 && nextIndex < len(focusableItems) {
+				a.Application.SetFocus(focusableItems[nextIndex])
+			}
 			return nil
 		}
 		return event
