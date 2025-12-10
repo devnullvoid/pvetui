@@ -5,13 +5,13 @@ go 1.24.2
 require (
 	filippo.io/age v1.2.1
 	github.com/dgraph-io/badger/v4 v4.8.0
-	github.com/gdamore/tcell/v2 v2.13.1
+	github.com/gdamore/tcell/v2 v2.13.2
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/getsops/sops/v3 v3.11.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/rivo/tview v0.42.0
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.45.0
