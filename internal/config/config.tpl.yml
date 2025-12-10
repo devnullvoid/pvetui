@@ -11,16 +11,6 @@ profiles:
     insecure: true
     ssh_user: root
     vm_ssh_user: root
-  work:
-    addr: https://work-proxmox:8006
-    api_path: /api2/json
-    user: workuser
-    token_id: worktoken
-    token_secret: worksecret
-    realm: pam
-    insecure: false
-    ssh_user: workuser
-    vm_ssh_user: workuser
 default_profile: default
 
 debug: false
