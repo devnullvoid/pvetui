@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -552,6 +553,16 @@ func (a *App) showDeleteGroupDialog(groupName string) {
 
 			configPath := a.configPath
 
+			// Check if the original config was SOPS encrypted BEFORE saving
+
+			wasSOPS := false
+
+			if data, err := os.ReadFile(configPath); err == nil {
+
+				wasSOPS = config.IsSOPSEncrypted(configPath, data)
+
+			}
+
 			if err := SaveConfigToFile(&a.config, configPath); err != nil {
 
 				a.header.ShowError("Failed to save config after group deletion: " + err.Error())
@@ -562,9 +573,13 @@ func (a *App) showDeleteGroupDialog(groupName string) {
 
 			// Re-encrypt if needed
 
-			if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
+			if wasSOPS {
 
-				models.GetUILogger().Error("Failed to re-encrypt config: %v", err)
+				if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
+
+					models.GetUILogger().Error("Failed to re-encrypt config: %v", err)
+
+				}
 
 			}
 
@@ -1047,6 +1062,16 @@ func (a *App) showEditGroupDialog(groupName string) {
 
 			configPath := a.configPath // Use app's config path
 
+			// Check if the original config was SOPS encrypted BEFORE saving
+
+			wasSOPS := false
+
+			if data, err := os.ReadFile(configPath); err == nil {
+
+				wasSOPS = config.IsSOPSEncrypted(configPath, data)
+
+			}
+
 			// Try to handle SOPS if needed (similar to other save operations)
 
 			if err := SaveConfigToFile(&a.config, configPath); err != nil {
@@ -1057,11 +1082,15 @@ func (a *App) showEditGroupDialog(groupName string) {
 
 				// Try re-encrypting if needed
 
-				if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
+				if wasSOPS {
 
-					// Log warning but don't fail user operation
+					if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
 
-					models.GetUILogger().Error("Failed to re-encrypt config: %v", err)
+						// Log warning but don't fail user operation
+
+						models.GetUILogger().Error("Failed to re-encrypt config: %v", err)
+
+					}
 
 				}
 
