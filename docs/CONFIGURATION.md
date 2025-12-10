@@ -30,6 +30,9 @@ profiles:
     insecure: false
     ssh_user: "your-ssh-user"
     vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VMs
+    groups: # Optional: Add profile to one or more groups
+      - home-lab
+      - all-servers
 
   work:
     addr: "https://work-proxmox:8006"

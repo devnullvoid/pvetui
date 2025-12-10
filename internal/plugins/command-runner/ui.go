@@ -73,7 +73,8 @@ func (u *UIManager) showCommandMenu(targetType TargetType, target string, comman
 
 	for _, cmd := range commands {
 		cmdCopy := cmd // Capture for closure
-		list.AddItem(cmdCopy, "", 0, func() {
+		description := GetCommandDescription(cmdCopy)
+		list.AddItem(cmdCopy, description, 0, func() {
 			u.handleCommandSelection(targetType, target, cmdCopy, returnToMenu)
 		})
 	}

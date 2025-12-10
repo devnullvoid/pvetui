@@ -79,6 +79,7 @@ This page showcases screenshots of pvetui in action, demonstrating its various f
 
 ### Advanced Features
 
+- **Group Mode**: Combine multiple Proxmox profiles into a unified view
 - **Multi-profile Support**: Switch between different Proxmox clusters
 - **SSH Integration**: Direct shell access to nodes and guests
 - **VNC Console**: Embedded noVNC client for graphical access

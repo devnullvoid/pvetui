@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Command Runner Descriptions**: Command runner plugin now displays user-friendly descriptions for all commands, making it easier to understand what each command does before executing it. Descriptions are shown as secondary text in the command selection menu.
+
 ## [1.0.14] - 2025-12-07
 
 ### Added

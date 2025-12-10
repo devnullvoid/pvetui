@@ -113,6 +113,98 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// CommandInfo holds a command and its user-friendly description
+type CommandInfo struct {
+	Command     string
+	Description string
+}
+
+// GetCommandDescription returns a user-friendly description for a command.
+// If no description is found, returns a generic description based on the command.
+func GetCommandDescription(cmd string) string {
+	// Map of command patterns to descriptions
+	descriptions := map[string]string{
+		// System overview
+		"uptime":  "Show system uptime and load average",
+		"df -Th":  "Show disk space usage by filesystem",
+		"lsblk":   "List all block devices",
+		"free -h": "Show memory usage (RAM and swap)",
+
+		// Process and resource inspection
+		"ps aux":              "Show all running processes",
+		"top -bn1 | head -20": "Show top 20 processes by resource usage",
+		"ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%cpu | head -20": "Show top 20 CPU-consuming processes",
+		"ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%mem | head -20": "Show top 20 memory-consuming processes",
+
+		// Services, logs, packages
+		"systemctl list-units --type=service --state=running": "List all running systemd services",
+		"systemctl list-unit-files --state=enabled":           "List enabled systemd services",
+		"systemctl status {service}":                          "Show status of a specific service",
+		"journalctl -n 100":                                   "Show last 100 system log entries",
+		"journalctl -u {service} -n 50":                       "Show last 50 log entries for a service",
+		"dpkg -l | grep {package}":                            "Search for installed Debian package",
+
+		// Networking & connectivity
+		"ip addr show":         "Show network interfaces and IP addresses",
+		"ip route show":        "Show routing table",
+		"ip link show":         "Show network interface status",
+		"ss -tulpn":            "Show listening TCP/UDP ports",
+		"ss -s":                "Show socket statistics summary",
+		"netstat -tulpn":       "Show listening ports (netstat)",
+		"cat /etc/resolv.conf": "Show DNS resolver configuration",
+		"resolvectl status 2>/dev/null || systemd-resolve --status 2>/dev/null": "Show DNS resolution status",
+		"curl https://ifconfig.me/all":                                          "Check public IP and network info",
+		"nslookup {hostname}":                                                   "Look up DNS records for a hostname",
+
+		// User activity
+		"who":        "Show logged-in users",
+		"last -n 20": "Show last 20 user logins",
+
+		// Proxmox host-specific
+		"pveversion -v": "Show Proxmox VE version and packages",
+		"iostat -x 1 5": "Show disk I/O statistics (5 samples)",
+
+		// Windows PowerShell commands
+		"Get-ComputerInfo | Select-Object CsName, OsName, OsVersion, WindowsProductName":                                    "Show Windows system information",
+		"Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, CPU, PM | Format-Table":                  "Show top 15 processes by CPU usage",
+		"Get-Process | Sort-Object PM -Descending | Select-Object -First 15 Name, CPU, PM | Format-Table":                   "Show top 15 processes by memory usage",
+		"Get-Service | Sort-Object Status, DisplayName | Format-Table -AutoSize -First 40":                                  "List Windows services (first 40)",
+		"Get-EventLog -LogName System -Newest 50 | Format-Table TimeGenerated, EntryType, Source, Message -AutoSize":        "Show last 50 system event log entries",
+		"Get-Volume | Select-Object DriveLetter, FileSystemLabel, FileSystem, SizeRemaining, Size | Format-Table -AutoSize": "Show disk volumes and space",
+		"Get-NetIPAddress | Select-Object InterfaceAlias, IPAddress, PrefixLength | Format-Table -AutoSize":                 "Show network IP addresses",
+		"Get-NetAdapter | Select-Object Name, InterfaceDescription, Status, LinkSpeed | Format-Table -AutoSize":             "Show network adapters status",
+		"Get-NetIPConfiguration | Format-Table -AutoSize":                                                                   "Show network configuration",
+		"Get-NetRoute | Sort-Object DestinationPrefix | Format-Table -AutoSize":                                             "Show network routing table",
+		"Get-DnsClientServerAddress | Select-Object InterfaceAlias, ServerAddresses | Format-Table -AutoSize":               "Show DNS server configuration",
+		"ipconfig /all":                 "Show detailed network configuration",
+		"netstat -ano | findstr LISTEN": "Show listening ports",
+		"Test-NetConnection -ComputerName {hostname} -InformationLevel Detailed": "Test network connection to a host",
+		"Resolve-DnsName {hostname} -Type A":                                     "Resolve DNS A records for a hostname",
+		"Invoke-RestMethod -Uri http://ifconfig.me/all":                          "Check public IP and network info",
+	}
+
+	// Check for exact match first
+	if desc, ok := descriptions[cmd]; ok {
+		return desc
+	}
+
+	// For commands not in the map, try to generate a description from the command itself
+	// Extract the main command (first word)
+	parts := strings.Fields(cmd)
+	if len(parts) > 0 {
+		mainCmd := parts[0]
+
+		// Check if it has template parameters
+		if strings.Contains(cmd, "{") && strings.Contains(cmd, "}") {
+			return fmt.Sprintf("Run: %s (requires parameters)", mainCmd)
+		}
+
+		return fmt.Sprintf("Run: %s", strings.TrimSpace(cmd))
+	}
+
+	return "Execute command"
+}
+
 // CommandTemplate represents a command with parameter placeholders
 type CommandTemplate struct {
 	Template   string
