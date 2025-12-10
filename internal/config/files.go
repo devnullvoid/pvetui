@@ -133,17 +133,19 @@ func getXDGCacheDir() string {
 func IsSOPSEncrypted(path string, data []byte) bool {
 	// Check for SOPS header patterns in the entire content
 	content := string(data)
-	hasSops := contains(content, "sops")
+	// Check for "sops:" YAML key (most common) or "\"sops\":" JSON key
+	hasSopsKey := contains(content, "sops:") || contains(content, "\"sops\":")
+	// Check for ENC[ marker which is specific to SOPS/Age
 	hasEnc := contains(content, "ENC[")
 
 	if DebugEnabled {
 		// Use global logger for debug output to avoid UI corruption
 		if globalLogger := logger.GetGlobalLogger(); globalLogger != nil {
-			globalLogger.Debug("SOPS detection for %s: hasSops=%v, hasEnc=%v", path, hasSops, hasEnc)
+			globalLogger.Debug("SOPS detection for %s: hasSopsKey=%v, hasEnc=%v", path, hasSopsKey, hasEnc)
 		}
 	}
 
-	return hasSops || hasEnc
+	return hasSopsKey || hasEnc
 }
 
 // contains checks if a string contains a substring (case-insensitive).
