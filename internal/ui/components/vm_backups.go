@@ -2,6 +2,8 @@ package components
 
 import (
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/devnullvoid/pvetui/internal/ui/models"
@@ -11,33 +13,40 @@ import (
 	"github.com/rivo/tview"
 )
 
+const taskStatusRunning = "running"
+
 // BackupManager manages the backup interface for VMs and containers.
 type BackupManager struct {
 	*tview.Flex
-	vm           *api.VM
-	app          *App
-	backupTable  *BackupTable
-	infoText     *tview.TextView
-	loading      bool
-	createBtn    *tview.Button
-	restoreBtn   *tview.Button
-	deleteBtn    *tview.Button
-	backBtn      *tview.Button
-	operations   *BackupOperations
-	form         *BackupForm
+	vm            *api.VM
+	app           *App
+	backupTable   *BackupTable
+	infoText      *tview.TextView
+	loading       bool
+	createBtn     *tview.Button
+	restoreBtn    *tview.Button
+	deleteBtn     *tview.Button
+	backBtn       *tview.Button
+	operations    *BackupOperations
+	form          *BackupForm
+	activeTasks   map[string]string // UPID -> Status
+	activeTasksMu sync.RWMutex
 }
 
 // NewBackupManager creates a new backup manager for the given VM.
 func NewBackupManager(app *App, vm *api.VM) *BackupManager {
 	bm := &BackupManager{
-		vm:  vm,
-		app: app,
+		vm:          vm,
+		app:         app,
+		activeTasks: make(map[string]string),
 	}
 
 	// Create components
 	bm.backupTable = NewBackupTable(app, vm)
 	bm.operations = NewBackupOperations(app, vm)
 	bm.form = NewBackupForm(app, vm)
+	// Hook up callback
+	bm.form.SetTaskStartedCallback(bm.trackBackupTask)
 
 	// Create info text
 	bm.infoText = tview.NewTextView().
@@ -71,6 +80,8 @@ func NewBackupManager(app *App, vm *api.VM) *BackupManager {
 }
 
 // setupKeyboardNavigation sets up keyboard shortcuts.
+//
+//nolint:dupl // Similar to snapshot manager navigation
 func (bm *BackupManager) setupKeyboardNavigation() {
 	bm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -95,12 +106,15 @@ func (bm *BackupManager) setupKeyboardNavigation() {
 				bm.app.SetFocus(bm.backupTable)
 				return nil
 			}
+		case tcell.KeyCtrlR:
+			bm.loadBackups()
+			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'c', 'C':
 				bm.createBackup()
 				return nil
-			case 'r', 'R':
+			case 'r', 'R': // Restore
 				bm.restoreBackup()
 				return nil
 			case 'd', 'D':
@@ -172,13 +186,32 @@ func (bm *BackupManager) loadBackups() {
 }
 
 func (bm *BackupManager) displayBackups(backups []api.Backup) {
+	// Prepend active tasks as fake backups
+	bm.activeTasksMu.RLock()
+	for upid, status := range bm.activeTasks {
+		// Create a fake backup entry for the running task
+		runningBackup := api.Backup{
+			VolID:   "TASK: " + upid,
+			Name:    "⚠️  Backup in Progress...",
+			Date:    time.Now(),
+			Notes:   fmt.Sprintf("Status: %s", status),
+			Size:    0,
+			Format:  "task",
+			Storage: "Unknown",
+		}
+		// Prepend
+		backups = append([]api.Backup{runningBackup}, backups...)
+	}
+	bm.activeTasksMu.RUnlock()
+
 	bm.backupTable.DisplayBackups(backups)
 
 	if len(backups) == 0 {
 		bm.updateInfoText("No backups found for this VM.")
 		return
 	}
-	bm.updateInfoText(fmt.Sprintf("✅ Loaded %d backups", len(backups)))
+
+	bm.updateInfoText(fmt.Sprintf("✅ Loaded %d backups (Ctrl+R to refresh)", len(backups)))
 }
 
 func (bm *BackupManager) updateInfoText(text string) {
@@ -193,10 +226,72 @@ func (bm *BackupManager) createBackup() {
 
 	bm.form.ShowCreateForm(func() {
 		bm.app.SetFocus(bm)
-		// We don't auto-reload because backup is async and takes time.
-		// Maybe reload to see if there is a lock or temp file?
-		// But usually not necessary immediately.
+		// We don't auto-reload here because it's async and we use the callback
 	})
+}
+
+// trackBackupTask adds a task to active list and starts monitoring
+func (bm *BackupManager) trackBackupTask(upid string) {
+	bm.activeTasksMu.Lock()
+	bm.activeTasks[upid] = taskStatusRunning
+	bm.activeTasksMu.Unlock()
+
+	bm.updateInfoText(fmt.Sprintf("Backup started: %s", upid))
+
+	// Trigger reload to show the "In Progress" item
+	bm.loadBackups()
+
+	go bm.monitorTask(upid)
+}
+
+func (bm *BackupManager) monitorTask(upid string) {
+	// Extract node from UPID if possible, or use current VM node
+	// UPID:node:hex:hex:hex:type:id:user:
+	parts := strings.Split(upid, ":")
+	node := bm.vm.Node
+	if len(parts) > 1 {
+		node = parts[1]
+	}
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// Get client directly to avoid group manager complexity for now
+	// Assuming single node operation logic usually, but GetTaskStatus works on node
+	client := bm.app.Client()
+
+	for range ticker.C {
+		status, err := client.GetTaskStatus(node, upid)
+		if err != nil {
+			// If we can't check status, we might assume it's done or just wait
+			// For now, continue
+			continue
+		}
+
+		if status.Status == "stopped" {
+			// Task finished
+			bm.activeTasksMu.Lock()
+			delete(bm.activeTasks, upid)
+			bm.activeTasksMu.Unlock()
+
+			bm.app.Application.QueueUpdateDraw(func() {
+				if status.ExitStatus == "OK" {
+					bm.app.header.ShowSuccess("Backup completed successfully!")
+				} else {
+					bm.app.header.ShowError(fmt.Sprintf("Backup failed: %s", status.ExitStatus))
+				}
+				// Force cache clear because a new backup exists
+				bm.app.ClearAPICache()
+				bm.loadBackups()
+			})
+			return
+		}
+
+		// Still running
+		bm.activeTasksMu.Lock()
+		bm.activeTasks[upid] = taskStatusRunning
+		bm.activeTasksMu.Unlock()
+	}
 }
 
 func (bm *BackupManager) restoreBackup() {
@@ -208,6 +303,12 @@ func (bm *BackupManager) restoreBackup() {
 	backup := bm.backupTable.GetSelectedBackup()
 	if backup == nil {
 		bm.updateInfoText("❌ No backup selected.")
+		return
+	}
+
+	// Prevent restoring the "Running" fake backup
+	if strings.HasPrefix(backup.VolID, "TASK:") {
+		bm.updateInfoText("❌ Cannot restore an in-progress backup task.")
 		return
 	}
 
@@ -256,6 +357,12 @@ func (bm *BackupManager) deleteBackup() {
 	backup := bm.backupTable.GetSelectedBackup()
 	if backup == nil {
 		bm.updateInfoText("❌ No backup selected.")
+		return
+	}
+
+	// Prevent deleting the "Running" fake backup
+	if strings.HasPrefix(backup.VolID, "TASK:") {
+		bm.updateInfoText("❌ Cannot delete an in-progress backup task.")
 		return
 	}
 

@@ -376,7 +376,7 @@ func (c *Client) GenerateNodeVNCURL(nodeName string) (string, error) {
 // GetNodeStorages retrieves all storages available on a specific node.
 func (c *Client) GetNodeStorages(nodeName string) ([]*Storage, error) {
 	var res map[string]interface{}
-	if err := c.Get(fmt.Sprintf("/nodes/%s/storage", nodeName), &res); err != nil {
+	if err := c.GetWithCache(fmt.Sprintf("/nodes/%s/storage", nodeName), &res, NodeDataTTL); err != nil {
 		return nil, fmt.Errorf("failed to get node storages: %w", err)
 	}
 

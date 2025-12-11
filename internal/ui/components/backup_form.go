@@ -14,6 +14,7 @@ type BackupForm struct {
 	app               *App
 	vm                *api.VM
 	onSuccessCallback func()
+	onTaskStarted     func(upid string)
 }
 
 // NewBackupForm creates a new backup form handler.
@@ -22,6 +23,11 @@ func NewBackupForm(app *App, vm *api.VM) *BackupForm {
 		app: app,
 		vm:  vm,
 	}
+}
+
+// SetTaskStartedCallback sets the callback for when a backup task starts.
+func (bf *BackupForm) SetTaskStartedCallback(callback func(upid string)) {
+	bf.onTaskStarted = callback
 }
 
 // ShowCreateForm displays the create backup form.
@@ -141,6 +147,9 @@ func (bf *BackupForm) displayCreateForm(storageOptions []string) {
 					bf.app.header.ShowError(fmt.Sprintf("Backup failed to start: %v", err))
 				} else {
 					bf.app.header.ShowSuccess(fmt.Sprintf("Backup started (UPID: %s)", upid))
+					if bf.onTaskStarted != nil {
+						bf.onTaskStarted(upid)
+					}
 				}
 			})
 		}()

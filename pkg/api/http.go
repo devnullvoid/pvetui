@@ -132,6 +132,8 @@ func (hc *HTTPClient) executeRequest(ctx context.Context, method, path string, d
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
+	hc.logger.Debug("API Request: %s %s", method, fullURL)
+
 	// Set headers
 	req.Header.Set("User-Agent", "pvetui")
 	req.Header.Set("Accept", "application/json")

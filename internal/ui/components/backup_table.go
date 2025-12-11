@@ -19,6 +19,8 @@ type BackupTable struct {
 }
 
 // NewBackupTable creates a new backup table.
+//
+//nolint:dupl // Similar to snapshot table
 func NewBackupTable(app *App, vm *api.VM) *BackupTable {
 	bt := &BackupTable{
 		vm:  vm,

@@ -535,6 +535,59 @@ func (c *Client) calculateClusterTotals(cluster *Cluster) {
 		onlineNodes, len(cluster.Nodes), nodesWithMetrics)
 }
 
+// TaskStatus represents the status of a task.
+type TaskStatus struct {
+	Status     string `json:"status"`
+	ExitStatus string `json:"exitstatus"`
+	Node       string `json:"node"`
+	UPID       string `json:"upid"`
+	StartTime  int64  `json:"starttime"`
+	EndTime    int64  `json:"endtime"`
+	Type       string `json:"type"`
+	User       string `json:"user"`
+	ID         string `json:"id"`
+	PStart     int64  `json:"pstart"`
+}
+
+// GetTaskStatus retrieves the status of a specific task.
+func (c *Client) GetTaskStatus(node, upid string) (*TaskStatus, error) {
+	path := fmt.Sprintf("/nodes/%s/tasks/%s/status", node, upid)
+
+	var result map[string]interface{}
+	if err := c.Get(path, &result); err != nil {
+		return nil, fmt.Errorf("failed to get task status: %w", err)
+	}
+
+	data, ok := result["data"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected format for task status data")
+	}
+
+	task := &TaskStatus{
+		Status:     getString(data, "status"),
+		ExitStatus: getString(data, "exitstatus"),
+		Node:       node,
+		UPID:       upid,
+		Type:       getString(data, "type"),
+		User:       getString(data, "user"),
+		ID:         getString(data, "id"),
+	}
+
+	if startTime, ok := data["starttime"].(float64); ok {
+		task.StartTime = int64(startTime)
+	}
+
+	if endTime, ok := data["endtime"].(float64); ok {
+		task.EndTime = int64(endTime)
+	}
+
+	if pstart, ok := data["pstart"].(float64); ok {
+		task.PStart = int64(pstart)
+	}
+
+	return task, nil
+}
+
 // GetClusterTasks retrieves recent cluster tasks.
 func (c *Client) GetClusterTasks() ([]*ClusterTask, error) {
 	var result map[string]interface{}

@@ -250,7 +250,7 @@ func handleVzdump(state *MockState) http.HandlerFunc {
 		}
 
 		var vmid int
-		fmt.Sscanf(vmidStr, "%d", &vmid)
+		_, _ = fmt.Sscanf(vmidStr, "%d", &vmid)
 
 		upid := state.CreateBackup(vmid, storage, mode, notes)
 

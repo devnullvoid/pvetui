@@ -5,21 +5,22 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 // Backup represents a Proxmox backup (vzdump) file.
 type Backup struct {
-	VolID        string    `json:"volid"`        // Volume ID (e.g., "local:backup/vzdump-qemu-100-....vma.zst")
+	VolID        string    `json:"volid"`          // Volume ID (e.g., "local:backup/vzdump-qemu-100-....vma.zst")
 	Name         string    `json:"name,omitempty"` // Derived name
-	Date         time.Time `json:"date"`         // Backup timestamp
-	Size         int64     `json:"size"`         // Size in bytes
-	Format       string    `json:"format"`       // Format (vma, tar, etc.)
-	Notes        string    `json:"notes"`        // Notes/Description
-	VMID         int       `json:"vmid"`         // VM ID
-	Storage      string    `json:"storage"`      // Storage name
-	Content      string    `json:"content"`      // Content type (backup)
-	Verification string    `json:"verification"` // Verification status
+	Date         time.Time `json:"date"`           // Backup timestamp
+	Size         int64     `json:"size"`           // Size in bytes
+	Format       string    `json:"format"`         // Format (vma, tar, etc.)
+	Notes        string    `json:"notes"`          // Notes/Description
+	VMID         int       `json:"vmid"`           // VM ID
+	Storage      string    `json:"storage"`        // Storage name
+	Content      string    `json:"content"`        // Content type (backup)
+	Verification string    `json:"verification"`   // Verification status
 }
 
 // BackupOptions contains options for creating backups.
@@ -34,15 +35,21 @@ type BackupOptions struct {
 
 // GetBackups retrieves all backups for a VM across all available storages.
 func (c *Client) GetBackups(vm *VM) ([]Backup, error) {
+	c.logger.Debug("GetBackups: Starting backup retrieval for VM %d on node %s", vm.ID, vm.Node)
+
 	// 1. Get storages on the node
 	storages, err := c.GetNodeStorages(vm.Node)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node storages: %w", err)
 	}
 
-	var allBackups []Backup
+	c.logger.Debug("GetBackups: Found %d storages on node %s", len(storages), vm.Node)
 
-	// 2. Iterate over storages
+	var allBackups []Backup
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// 2. Iterate over storages in parallel
 	for _, storage := range storages {
 		// Check if storage supports backups
 		// Storage content is a comma-separated string, e.g. "iso,backup"
@@ -50,78 +57,89 @@ func (c *Client) GetBackups(vm *VM) ([]Backup, error) {
 			continue
 		}
 
-		// 3. List content of type "backup"
-		path := fmt.Sprintf("/nodes/%s/storage/%s/content", vm.Node, storage.Name)
+		wg.Add(1)
+		go func(s *Storage) {
+			defer wg.Done()
 
-		// We need to pass content=backup as query param.
-		// The Client.Get doesn't support query params directly in the path easily if we want proper encoding,
-		// but here it's simple string.
-		// However, standard PVE API for content listing: GET /nodes/{node}/storage/{storage}/content?content=backup
+			c.logger.Debug("GetBackups: Checking storage %s for backups", s.Name)
 
-		fullPath := fmt.Sprintf("%s?content=backup", path)
+			// 3. List content of type "backup"
+			path := fmt.Sprintf("/nodes/%s/storage/%s/content", vm.Node, s.Name)
 
-		var result map[string]interface{}
-		// We use GetNoRetry for speed, or GetWithCache?
-		// Backups can change, but listing all storages might be slow.
-		// Let's use Get with retry.
-		if err := c.Get(fullPath, &result); err != nil {
-			c.logger.Debug("Failed to list backups on storage %s: %v", storage.Name, err)
-			continue
-		}
+			// We need to pass content=backup as query param.
+			fullPath := fmt.Sprintf("%s?content=backup", path)
 
-		data, ok := result["data"].([]interface{})
-		if !ok {
-			continue
-		}
+			var result map[string]interface{}
+			// Use GetWithCache to improve performance, especially for slow network storages
+			// Backups don't change instantly without user action, and we clear cache on operations
+			if err := c.GetWithCache(fullPath, &result, NodeDataTTL); err != nil {
+				c.logger.Debug("Failed to list backups on storage %s: %v", s.Name, err)
+				return
+			}
 
-		for _, item := range data {
-			if backupData, ok := item.(map[string]interface{}); ok {
-				// Filter by VMID
-				// Some API versions return vmid as int, string, or not at all (implied by filename)
-				// But standard API usually returns it if valid.
+			data, ok := result["data"].([]interface{})
+			if !ok {
+				c.logger.Debug("GetBackups: No data in response for storage %s", s.Name)
+				return
+			}
 
-				itemVMID := 0
-				if v, ok := backupData["vmid"].(float64); ok {
-					itemVMID = int(v)
-				} else if v, ok := backupData["vmid"].(string); ok {
-					itemVMID, _ = strconv.Atoi(v)
-				}
+			c.logger.Debug("GetBackups: Found %d items on storage %s", len(data), s.Name)
 
-				// If VMID matches, add to list
-				if itemVMID == vm.ID {
-					volID := getString(backupData, "volid")
+			var storageBackups []Backup
 
-					backup := Backup{
-						VolID:   volID,
-						Size:    int64(getFloat(backupData, "size")),
-						Notes:   getString(backupData, "notes"),
-						VMID:    itemVMID,
-						Storage: storage.Name,
-						Format:  getString(backupData, "format"),
-						Content: getString(backupData, "content"),
-						Verification: getString(backupData, "verification"),
+			for _, item := range data {
+				if backupData, ok := item.(map[string]interface{}); ok {
+					// Filter by VMID
+					itemVMID := 0
+					if v, ok := backupData["vmid"].(float64); ok {
+						itemVMID = int(v)
+					} else if v, ok := backupData["vmid"].(string); ok {
+						itemVMID, _ = strconv.Atoi(v)
 					}
 
-					// Parse ctime (creation time)
-					if ctime, ok := backupData["ctime"].(float64); ok {
-						backup.Date = time.Unix(int64(ctime), 0)
-					}
+					// If VMID matches, add to list
+					if itemVMID == vm.ID {
+						volID := getString(backupData, "volid")
+						c.logger.Debug("GetBackups: Found matching backup %s", volID)
 
-					// Derive a friendly name from VolID if needed
-					// e.g. "backup/vzdump-qemu-100-2023_01_01-12_00_00.vma.zst"
-					parts := strings.Split(volID, "/")
-					if len(parts) > 0 {
-						backup.Name = parts[len(parts)-1]
-					} else {
-						backup.Name = volID
-					}
+						backup := Backup{
+							VolID:        volID,
+							Size:         int64(getFloat(backupData, "size")),
+							Notes:        getString(backupData, "notes"),
+							VMID:         itemVMID,
+							Storage:      s.Name,
+							Format:       getString(backupData, "format"),
+							Content:      getString(backupData, "content"),
+							Verification: getString(backupData, "verification"),
+						}
 
-					allBackups = append(allBackups, backup)
+						// Parse ctime (creation time)
+						if ctime, ok := backupData["ctime"].(float64); ok {
+							backup.Date = time.Unix(int64(ctime), 0)
+						}
+
+						// Derive a friendly name from VolID if needed
+						parts := strings.Split(volID, "/")
+						if len(parts) > 0 {
+							backup.Name = parts[len(parts)-1]
+						} else {
+							backup.Name = volID
+						}
+
+						storageBackups = append(storageBackups, backup)
+					}
 				}
 			}
-		}
+
+			mu.Lock()
+			allBackups = append(allBackups, storageBackups...)
+			mu.Unlock()
+		}(storage)
 	}
 
+	wg.Wait()
+
+	c.logger.Debug("GetBackups: Total matching backups found: %d", len(allBackups))
 	return allBackups, nil
 }
 
@@ -164,9 +182,7 @@ func (c *Client) CreateBackup(vm *VM, options BackupOptions) (string, error) {
 
 	// notification-mode?
 	if options.Notification != "" {
-		// "auto", "legacy-sendmail", "notification-system"
-		// The struct has "Notification". I'll map it if needed.
-		// Assuming user passes valid enum.
+		data["notification-mode"] = options.Notification
 	}
 
 	c.logger.Info("Starting backup for %s %s (ID: %d) to storage %s", vm.Type, vm.Name, vm.ID, options.Storage)
