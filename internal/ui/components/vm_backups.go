@@ -3,7 +3,6 @@ package components
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/devnullvoid/pvetui/internal/ui/models"
@@ -13,33 +12,34 @@ import (
 	"github.com/rivo/tview"
 )
 
-const taskStatusRunning = "running"
-
 // BackupManager manages the backup interface for VMs and containers.
 type BackupManager struct {
 	*tview.Flex
-	vm            *api.VM
-	app           *App
-	backupTable   *BackupTable
-	infoText      *tview.TextView
-	loading       bool
-	createBtn     *tview.Button
-	restoreBtn    *tview.Button
-	deleteBtn     *tview.Button
-	backBtn       *tview.Button
-	operations    *BackupOperations
-	form          *BackupForm
-	activeTasks   map[string]string // UPID -> Status
-	activeTasksMu sync.RWMutex
+	vm                 *api.VM
+	app                *App
+	backupTable        *BackupTable
+	infoText           *tview.TextView
+	loading            bool
+	createBtn          *tview.Button
+	restoreBtn         *tview.Button
+	deleteBtn          *tview.Button
+	backBtn            *tview.Button
+	operations         *BackupOperations
+	form               *BackupForm
+	unregisterCallback func()
 }
 
 // NewBackupManager creates a new backup manager for the given VM.
 func NewBackupManager(app *App, vm *api.VM) *BackupManager {
 	bm := &BackupManager{
-		vm:          vm,
-		app:         app,
-		activeTasks: make(map[string]string),
+		vm:  vm,
+		app: app,
 	}
+
+	// Register for backup updates from the App's global monitor
+	bm.unregisterCallback = app.RegisterBackupCallback(func() {
+		bm.loadBackups()
+	})
 
 	// Create components
 	bm.backupTable = NewBackupTable(app, vm)
@@ -131,6 +131,9 @@ func (bm *BackupManager) setupKeyboardNavigation() {
 
 // goBack returns to the previous screen.
 func (bm *BackupManager) goBack() {
+	if bm.unregisterCallback != nil {
+		bm.unregisterCallback()
+	}
 	bm.app.pages.RemovePage("backups")
 	bm.app.SetFocus(bm.app.vmList)
 }
@@ -186,15 +189,15 @@ func (bm *BackupManager) loadBackups() {
 }
 
 func (bm *BackupManager) displayBackups(backups []api.Backup) {
-	// Prepend active tasks as fake backups
-	bm.activeTasksMu.RLock()
-	for upid, status := range bm.activeTasks {
+	// Prepend active tasks from the App's global state
+	activeTasks := bm.app.GetActiveBackupsForVM(bm.vm.ID)
+	for _, task := range activeTasks {
 		// Create a fake backup entry for the running task
 		runningBackup := api.Backup{
-			VolID:   "TASK: " + upid,
+			VolID:   "TASK: " + task.UPID,
 			Name:    "⚠️  Backup in Progress...",
-			Date:    time.Now(),
-			Notes:   fmt.Sprintf("Status: %s", status),
+			Date:    task.StartTime,
+			Notes:   fmt.Sprintf("Status: %s", task.Status),
 			Size:    0,
 			Format:  "task",
 			Storage: "Unknown",
@@ -202,7 +205,6 @@ func (bm *BackupManager) displayBackups(backups []api.Backup) {
 		// Prepend
 		backups = append([]api.Backup{runningBackup}, backups...)
 	}
-	bm.activeTasksMu.RUnlock()
 
 	bm.backupTable.DisplayBackups(backups)
 
@@ -230,68 +232,10 @@ func (bm *BackupManager) createBackup() {
 	})
 }
 
-// trackBackupTask adds a task to active list and starts monitoring
+// trackBackupTask delegates task monitoring to the App
 func (bm *BackupManager) trackBackupTask(upid string) {
-	bm.activeTasksMu.Lock()
-	bm.activeTasks[upid] = taskStatusRunning
-	bm.activeTasksMu.Unlock()
-
+	bm.app.StartBackupMonitor(upid, bm.vm.Node, bm.vm.ID)
 	bm.updateInfoText(fmt.Sprintf("Backup started: %s", upid))
-
-	// Trigger reload to show the "In Progress" item
-	bm.loadBackups()
-
-	go bm.monitorTask(upid)
-}
-
-func (bm *BackupManager) monitorTask(upid string) {
-	// Extract node from UPID if possible, or use current VM node
-	// UPID:node:hex:hex:hex:type:id:user:
-	parts := strings.Split(upid, ":")
-	node := bm.vm.Node
-	if len(parts) > 1 {
-		node = parts[1]
-	}
-
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	// Get client directly to avoid group manager complexity for now
-	// Assuming single node operation logic usually, but GetTaskStatus works on node
-	client := bm.app.Client()
-
-	for range ticker.C {
-		status, err := client.GetTaskStatus(node, upid)
-		if err != nil {
-			// If we can't check status, we might assume it's done or just wait
-			// For now, continue
-			continue
-		}
-
-		if status.Status == "stopped" {
-			// Task finished
-			bm.activeTasksMu.Lock()
-			delete(bm.activeTasks, upid)
-			bm.activeTasksMu.Unlock()
-
-			bm.app.Application.QueueUpdateDraw(func() {
-				if status.ExitStatus == "OK" {
-					bm.app.header.ShowSuccess("Backup completed successfully!")
-				} else {
-					bm.app.header.ShowError(fmt.Sprintf("Backup failed: %s", status.ExitStatus))
-				}
-				// Force cache clear because a new backup exists
-				bm.app.ClearAPICache()
-				bm.loadBackups()
-			})
-			return
-		}
-
-		// Still running
-		bm.activeTasksMu.Lock()
-		bm.activeTasks[upid] = taskStatusRunning
-		bm.activeTasksMu.Unlock()
-	}
 }
 
 func (bm *BackupManager) restoreBackup() {
@@ -368,7 +312,7 @@ func (bm *BackupManager) deleteBackup() {
 
 	bm.app.lastFocus = bm.app.GetFocus()
 
-	message := fmt.Sprintf("Are you sure you want to delete backup '%s'?\n\nThis action cannot be undone.", backup.VolID)
+	message := fmt.Sprintf("Are you sure you want to delete backup '%s'\n\nThis action cannot be undone.", backup.VolID)
 
 	onConfirm := func() {
 		bm.app.pages.RemovePage("confirmation")

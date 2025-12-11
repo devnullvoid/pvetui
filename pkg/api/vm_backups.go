@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -219,17 +220,18 @@ func (c *Client) DeleteBackup(vm *VM, volID string) error {
 	storageName := parts[0]
 	volumeName := parts[1] // "backup/filename"
 
-	// API expects the volume param to be the full volid usually, or just the volume part?
-	// DELETE /nodes/{node}/storage/{storage}/content/{volume}
-	// "volume" parameter: "Volume identifier."
+	// URL encode the volume name because it contains slashes
+	// The API endpoint expects the volume identifier as a path parameter
+	encodedVolumeName := url.PathEscape(volumeName)
 
-	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s", vm.Node, storageName, volumeName)
+	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s", vm.Node, storageName, encodedVolumeName)
 
 	c.logger.Info("Deleting backup '%s' for %s %s", volID, vm.Type, vm.Name)
 
 	var result map[string]interface{}
 	err := c.httpClient.Delete(context.Background(), path, &result)
 	if err != nil {
+		c.logger.Error("DeleteBackup API request failed: %v", err)
 		return fmt.Errorf("delete request failed: %w", err)
 	}
 

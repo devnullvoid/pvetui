@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Direct Profile Wizard**: New `--profile` flag for `config-wizard` command allows adding or editing specific profiles directly (e.g. `pvetui config-wizard --profile new-server`).
+
+### Fixed
+
+- **Profile Editor Validation**: Fixed issue where new profiles could not be saved due to validation errors.
+- **Profile Wizard UX**: Implemented Shift+Tab (Backtab) navigation support in profile forms.
+- **Initial Configuration**: Removed dummy sensitive values from default template to prevent auto-fill during onboarding.
+- **Phantom Profiles**: Fixed issue where cancelled "Add New Profile" actions left phantom entries in the profile list.
+- **Add Group Focus**: Fixed focus loss when pressing Enter in the "Add Group" input field.
+- **Add Group Modal**: Increased modal width to prevent input field truncation.
+- **Fresh Install Profile**: Fixed issue where fresh installations created both "default" and "work" profiles; removed "work" profile from template.
+- **SOPS Detection**: Fixed issue where unencrypted configs were being encrypted when managing groups, even if they weren't originally encrypted. Improved SOPS detection logic to prevent false positives.
+
 ## [1.0.14] - 2025-12-07
 
 ### Added
@@ -35,7 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **IP address debugging (issue #56)**: Added comprehensive debug logging at cluster parsing, node lookup, and shell invocation stages to track IP addresses through the entire flow. Logs include string length, byte representation, and raw JSON values to help diagnose potential IP corruption issues.
 - **Hotkey override hook**: UI components can now register a hotkey override instead of being added to the growing modal whitelist, reducing global shortcut conflicts.
 - **Profile add cancel**: Cancelling “Add New Profile” no longer leaves a phantom `new_profile` entry in the manager list.
-- **Community scripts fetch**: Script metadata now fetched concurrently (worker pool) to speed up inventory loading while respecting caching.
 
 ## [1.0.13] - 2025-11-29
 
