@@ -107,6 +107,7 @@ func (bm *BackupManager) setupKeyboardNavigation() {
 				return nil
 			}
 		case tcell.KeyCtrlR:
+			bm.app.ClearAPICache()
 			bm.loadBackups()
 			return nil
 		case tcell.KeyRune:
@@ -336,6 +337,8 @@ func (bm *BackupManager) deleteBackup() {
 					// Reload backups after delay
 					go func() {
 						time.Sleep(1 * time.Second)
+						// Clear cache to ensure we don't show the deleted backup
+						bm.app.ClearAPICache()
 						bm.loadBackups()
 					}()
 				}
