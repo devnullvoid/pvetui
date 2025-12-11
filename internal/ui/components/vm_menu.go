@@ -144,13 +144,21 @@ func (a *App) ShowVMContextMenu() {
 				})
 			}()
 		case vmActionSnapshots:
-			snapshotManager := NewSnapshotManager(a, vm)
-			a.pages.AddPage("snapshots", snapshotManager, true, true)
-			a.SetFocus(snapshotManager)
+			go func() {
+				a.QueueUpdateDraw(func() {
+					snapshotManager := NewSnapshotManager(a, vm)
+					a.pages.AddPage("snapshots", snapshotManager, true, true)
+					a.SetFocus(snapshotManager)
+				})
+			}()
 		case vmActionBackups:
-			backupManager := NewBackupManager(a, vm)
-			a.pages.AddPage("backups", backupManager, true, true)
-			a.SetFocus(backupManager)
+			go func() {
+				a.QueueUpdateDraw(func() {
+					backupManager := NewBackupManager(a, vm)
+					a.pages.AddPage("backups", backupManager, true, true)
+					a.SetFocus(backupManager)
+				})
+			}()
 		case vmActionRefresh:
 			a.refreshVMData(vm)
 		case vmActionStart:

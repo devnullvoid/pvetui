@@ -3,7 +3,7 @@ package components
 import (
 	"context"
 	"fmt"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/devnullvoid/pvetui/internal/ui/models"
@@ -143,66 +143,55 @@ func (a *App) applyInitialClusterUpdate(cluster *api.Cluster) {
 	})
 }
 
-// enrichNodesSequentially enriches node data one-by-one and finalizes the refresh
+// enrichNodesSequentially enriches node data in parallel and finalizes the refresh
 func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
 	go func() {
-		// Collect current node filter to avoid repeated lookups
-		nodeState := models.GlobalState.GetSearchState(api.PageNodes)
-		activeFilter := ""
-		if nodeState != nil {
-			activeFilter = nodeState.Filter
-		}
+		var wg sync.WaitGroup
 
-		// Enrich nodes incrementally with minimal UI updates
+		// Enrich nodes in parallel
 		for i, node := range cluster.Nodes {
 			if node == nil {
 				continue
 			}
 
-			freshNode, err := a.client.RefreshNodeData(node.Name)
-			if err == nil && freshNode != nil {
-				// Preserve VMs from the FRESH cluster data (not the original stale data)
-				// This ensures we keep the updated VM names we just fetched
-				if cluster.Nodes[i] != nil {
-					freshNode.VMs = cluster.Nodes[i].VMs
-				}
+			wg.Add(1)
+			go func(idx int, n *api.Node) {
+				defer wg.Done()
 
-				// Update only the specific node index in global state
-				models.GlobalState.OriginalNodes[i] = freshNode
+				freshNode, err := a.client.RefreshNodeData(n.Name)
+				if err == nil && freshNode != nil {
+					// Preserve VMs from the FRESH cluster data (not the original stale data)
+					// This ensures we keep the updated VM names we just fetched
+					if cluster.Nodes[idx] != nil {
+						freshNode.VMs = cluster.Nodes[idx].VMs
+					}
 
-				// Update filtered list only if this node matches current filter
-				shouldUpdateFiltered := false
-				if activeFilter == "" {
-					// No filter active, always update
-					models.GlobalState.FilteredNodes[i] = freshNode
-					shouldUpdateFiltered = true
-				} else {
-					// Check if node matches filter before updating filtered list
-					if a.nodeMatchesFilter(freshNode, activeFilter) {
-						models.FilterNodes(activeFilter) // Re-apply filter efficiently
-						shouldUpdateFiltered = true
+					// Update only the specific node index in global state
+					// Safe to access specific index concurrently
+					if idx < len(models.GlobalState.OriginalNodes) {
+						models.GlobalState.OriginalNodes[idx] = freshNode
 					}
 				}
-
-				// Only update UI if filtered list changed or this is the selected node
-				selected := a.nodeList.GetSelectedNode()
-				if shouldUpdateFiltered || (selected != nil && selected.Name == freshNode.Name) {
-					a.QueueUpdateDraw(func() {
-						if shouldUpdateFiltered {
-							a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
-						}
-						// Update details if this is the currently selected node
-						if selected != nil && selected.Name == freshNode.Name {
-							a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
-						}
-					})
-				}
-			}
+			}(i, node)
 		}
+
+		wg.Wait()
 
 		// Final update: rebuild VMs, cluster version, status, and complete refresh
 		a.QueueUpdateDraw(func() {
-			// Rebuild VM list from enriched nodes (which now preserve VMs from FRESH cluster data)
+			// Re-apply node filters with enriched data
+			nodeState := models.GlobalState.GetSearchState(api.PageNodes)
+			if nodeState != nil && nodeState.Filter != "" {
+				models.FilterNodes(nodeState.Filter)
+			} else {
+				// Update filtered nodes from original (copy)
+				// We need to re-copy because OriginalNodes was updated in place
+				models.GlobalState.FilteredNodes = make([]*api.Node, len(models.GlobalState.OriginalNodes))
+				copy(models.GlobalState.FilteredNodes, models.GlobalState.OriginalNodes)
+			}
+			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+
+			// Rebuild VM list from enriched nodes
 			var vms []*api.VM
 			for _, n := range models.GlobalState.OriginalNodes {
 				if n != nil {
@@ -252,98 +241,77 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			a.header.ShowSuccess("Data refreshed successfully")
 			a.footer.SetLoading(false)
 			a.loadTasksData()
-			// Debug logging retained at Debug level for troubleshooting.
 		})
 	}()
 }
 
-// enrichGroupNodesSequentially enriches group node data one-by-one and finalizes the refresh
+// enrichGroupNodesSequentially enriches group node data in parallel and finalizes the refresh
 func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
 	go func() {
-		// Collect current node filter to avoid repeated lookups
-		nodeState := models.GlobalState.GetSearchState(api.PageNodes)
-		activeFilter := ""
-		if nodeState != nil {
-			activeFilter = nodeState.Filter
-		}
+		var wg sync.WaitGroup
 
-		// Create a context for the enrichment process (no cache; caller cleared caches earlier)
+		// Create a context for the enrichment process
 		ctx := context.Background()
 
-		// Enrich nodes incrementally with minimal UI updates, working on copies to avoid stale overwrites
+		// Enrich nodes in parallel
 		for i, node := range nodes {
 			if node == nil || node.SourceProfile == "" {
 				continue
 			}
 
-			// We need to fetch the node status from the specific profile
-			freshNode, err := a.groupManager.GetNodeFromGroup(ctx, node.SourceProfile, node.Name)
+			wg.Add(1)
+			go func(idx int, n *api.Node) {
+				defer wg.Done()
 
-			if err == nil && freshNode != nil {
-				// Debug logging retained at Debug level for troubleshooting.
-				// Ensure Online status is set to true if we got a response
-				freshNode.Online = true
+				// We need to fetch the node status from the specific profile
+				freshNode, err := a.groupManager.GetNodeFromGroup(ctx, n.SourceProfile, n.Name)
 
-				// Preserve VMs from the existing node list
-				if nodes[i] != nil {
-					freshNode.VMs = nodes[i].VMs
-					// Preserve IP if missing in freshNode
-					if freshNode.IP == "" {
-						freshNode.IP = nodes[i].IP
-					}
-					// Preserve ID if missing in freshNode
-					if freshNode.ID == "" {
-						freshNode.ID = nodes[i].ID
-					}
-					// Preserve Storage if missing in freshNode
-					if freshNode.Storage == nil && nodes[i].Storage != nil {
-						freshNode.Storage = nodes[i].Storage
-					}
-				}
+				if err == nil && freshNode != nil {
+					// Ensure Online status is set to true if we got a response
+					freshNode.Online = true
 
-				// Ensure SourceProfile is preserved
-				freshNode.SourceProfile = node.SourceProfile
-
-				// Update GlobalState and filtered copy at the same index
-				if i < len(models.GlobalState.OriginalNodes) {
-					models.GlobalState.OriginalNodes[i] = freshNode
-				}
-				if i < len(models.GlobalState.FilteredNodes) {
-					models.GlobalState.FilteredNodes[i] = freshNode
-				}
-
-				// Update filtered list only if this node matches current filter
-				shouldUpdateFiltered := false
-				if activeFilter == "" {
-					if i < len(models.GlobalState.FilteredNodes) {
-						models.GlobalState.FilteredNodes[i] = freshNode
-						shouldUpdateFiltered = true
-					}
-				} else {
-					if a.nodeMatchesFilter(freshNode, activeFilter) {
-						models.FilterNodes(activeFilter)
-						shouldUpdateFiltered = true
-					}
-				}
-
-				// Only update UI if filtered list changed or this is the selected node
-				selected := a.nodeList.GetSelectedNode()
-				if shouldUpdateFiltered || (selected != nil && selected.Name == freshNode.Name && selected.SourceProfile == freshNode.SourceProfile) {
-					a.QueueUpdateDraw(func() {
-						if shouldUpdateFiltered {
-							a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+					// Preserve VMs from the existing node list
+					if nodes[idx] != nil {
+						freshNode.VMs = nodes[idx].VMs
+						// Preserve IP if missing in freshNode
+						if freshNode.IP == "" {
+							freshNode.IP = nodes[idx].IP
 						}
-						// Update details if this is the currently selected node
-						if selected != nil && selected.Name == freshNode.Name && selected.SourceProfile == freshNode.SourceProfile {
-							a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
+						// Preserve ID if missing in freshNode
+						if freshNode.ID == "" {
+							freshNode.ID = nodes[idx].ID
 						}
-					})
+						// Preserve Storage if missing in freshNode
+						if freshNode.Storage == nil && nodes[idx].Storage != nil {
+							freshNode.Storage = nodes[idx].Storage
+						}
+					}
+
+					// Ensure SourceProfile is preserved
+					freshNode.SourceProfile = n.SourceProfile
+
+					// Update GlobalState
+					if idx < len(models.GlobalState.OriginalNodes) {
+						models.GlobalState.OriginalNodes[idx] = freshNode
+					}
 				}
-			}
+			}(i, node)
 		}
+
+		wg.Wait()
 
 		// Final update
 		a.QueueUpdateDraw(func() {
+			// Re-apply node filters
+			nodeState := models.GlobalState.GetSearchState(api.PageNodes)
+			if nodeState != nil && nodeState.Filter != "" {
+				models.FilterNodes(nodeState.Filter)
+			} else {
+				models.GlobalState.FilteredNodes = make([]*api.Node, len(models.GlobalState.OriginalNodes))
+				copy(models.GlobalState.FilteredNodes, models.GlobalState.OriginalNodes)
+			}
+			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+
 			// Update cluster status with the enriched nodes
 			syntheticCluster := a.createSyntheticGroup(models.GlobalState.OriginalNodes)
 			a.clusterStatus.Update(syntheticCluster)
@@ -370,36 +338,6 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			a.loadTasksData()
 		})
 	}()
-}
-
-// nodeMatchesFilter checks if a node matches the given filter string
-func (a *App) nodeMatchesFilter(node *api.Node, filter string) bool {
-	if filter == "" || node == nil {
-		return true
-	}
-
-	filter = strings.ToLower(filter)
-
-	// Check node name
-	if strings.Contains(strings.ToLower(node.Name), filter) {
-		return true
-	}
-
-	// Check node IP
-	if strings.Contains(strings.ToLower(node.IP), filter) {
-		return true
-	}
-
-	// Check node status
-	statusText := "offline"
-	if node.Online {
-		statusText = "online"
-	}
-	if strings.Contains(statusText, filter) {
-		return true
-	}
-
-	return false
 }
 
 // refreshNodeData refreshes data for a specific node and updates the UI.
