@@ -660,10 +660,16 @@ func (a *App) RegisterBackupCallback(callback func()) func() {
 					a.header.ShowError(fmt.Sprintf("Backup for VM %d on %s failed: %s", task.VMID, task.Node, task.ExitStatus))
 				}
 
-				// Wait a moment for API to propagate
+				// Introduce delay before refreshing to ensure API consistency
 				go func() {
+					// Show refreshing indicator
+					a.QueueUpdateDraw(func() {
+						a.header.ShowLoading("Refreshing backup list...")
+					})
+
 					time.Sleep(1 * time.Second)
 					a.QueueUpdateDraw(func() {
+						a.header.StopLoading()
 						a.ClearAPICache()
 						callback()
 					})

@@ -218,13 +218,11 @@ func (c *Client) DeleteBackup(vm *VM, volID string) error {
 	}
 
 	storageName := parts[0]
-	volumeName := parts[1] // "backup/filename"
+	// Use the full volume ID (e.g. "storage:backup/file") as the volume parameter
+	// Proxmox API expects the full ID for the content endpoint
+	encodedVolume := url.PathEscape(volID)
 
-	// URL encode the volume name because it contains slashes
-	// The API endpoint expects the volume identifier as a path parameter
-	encodedVolumeName := url.PathEscape(volumeName)
-
-	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s", vm.Node, storageName, encodedVolumeName)
+	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s", vm.Node, storageName, encodedVolume)
 
 	c.logger.Info("Deleting backup '%s' for %s %s", volID, vm.Type, vm.Name)
 

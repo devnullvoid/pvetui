@@ -330,6 +330,9 @@ func (bm *BackupManager) deleteBackup() {
 				} else {
 					bm.app.header.ShowSuccess(fmt.Sprintf("Successfully deleted backup %s", backup.VolID))
 
+					// Show refreshing status
+					bm.updateInfoText("Refreshing list...")
+
 					// Reload backups after delay
 					go func() {
 						time.Sleep(1 * time.Second)
