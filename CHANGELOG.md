@@ -9,46 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Direct Profile Wizard**: New `--profile` flag for `config-wizard` command allows adding or editing specific profiles directly (e.g. `pvetui config-wizard --profile new-server`).
-- **Command Runner Descriptions**: Command runner plugin now displays user-friendly descriptions for all commands, making it easier to understand what each command does before executing it. Descriptions are shown as secondary text in the command selection menu.
+- **Backup Management**: Comprehensive backup functionality for VMs and containers with visual task indicators and auto-refresh capabilities.
+- **Backup Performance**: Optimized backup retrieval with caching and parallel storage scanning for faster loading.
+- **Backup UX**: Added visual indicators for running backup tasks and auto-refresh when operations complete.
+- **Backup Navigation**: Added 'Refresh' action (Ctrl+R) to Backup Manager for manual updates.
+- **Command Runner Descriptions**: Display user-friendly descriptions for all commands to help users understand purpose before execution.
 
 ### Fixed
 
-- **Profile Editor Validation**: Fixed issue where new profiles could not be saved due to validation errors.
-- **Profile Wizard UX**: Implemented Shift+Tab (Backtab) navigation support in profile forms.
-- **Initial Configuration**: Removed dummy sensitive values from default template to prevent auto-fill during onboarding.
-- **Phantom Profiles**: Fixed issue where cancelled "Add New Profile" actions left phantom entries in the profile list.
-- **Add Group Modal**: Increased modal width to prevent input field truncation.
-- **Add Group Focus**: Fixed focus loss when pressing Enter in the "Add Group" input field.
-- **SOPS Detection**: Fixed issue where unencrypted configs were being encrypted when managing groups, even if they weren't originally encrypted. Improved SOPS detection logic to prevent false positives.
-- **Fresh Install Profile**: Fixed issue where fresh installations created both "default" and "work" profiles; removed "work" profile from template.
-- **About dialog metadata**: Widened the About modal so GitHub links no longer wrap/break and backfilled commit/build date when ldflags aren't provided (e.g., `go install`).
-- **Plugin manager modal**: Expanded the manage-plugins dialog further (wider center column) so long plugin descriptions stay visible.
-- **LXC shell via root SSH**: Skip `sudo` when the profile `ssh_user` is `root`, preventing failures on Proxmox hosts without sudo and eliminating unnecessary elevation.
-- **Community scripts navigation**: Restored visible selection highlighting in the script/category lists.
-- **Community scripts install**: Show script page link and explicit curl/bash command; installations no longer require sudo when connecting as root (fall back to `su`).
-- **Command runner SSH target**: Use node IPs instead of hostnames for SSH, reducing DNS reliance.
-- **SSH debug visibility**: Added debug logs for all SSH invocations (node/VM shells, command runner, community scripts) including user/host/command, and centralized logging to the single cache log file.
-- **IP address debugging (issue #56)**: Added comprehensive debug logging at cluster parsing, node lookup, and shell invocation stages to track IP addresses through the entire flow. Logs include string length, byte representation, and raw JSON values to help diagnose potential IP corruption issues.
-- **Hotkey override hook**: UI components can now register a hotkey override instead of being added to the growing modal whitelist, reducing global shortcut conflicts.
-- **Profile add cancel**: Cancelling "Add New Profile" no longer leaves a phantom `new_profile` entry in the manager list.
+- **Backup Storage Listing**: Fixed backup creation form and list by implementing proper `GetNodeStorages` API endpoint for accurate storage retrieval.
+- **Backup Keyboard Handling**: Whitelisted backup pages in keyboard handler to prevent global hotkey conflicts with form input.
+- **SOPS Group Management**: Prevent unwanted re-encryption of already-encrypted configs during group operations.
+- **Profile Template Cleanup**: Removed obsolete "work" profile from default configuration template to prevent confusion.
+- **UI Deadlocks**: Fixed deadlock issues in "Add Group" dialog and other UI components.
+- **Focus Management**: Resolved focus loss in "Add Group" workflow and other form interactions.
+
+### Changed
+
+- **Task Polling Architecture**: Decoupled task polling from App component for better separation of concerns.
 
 ## [1.0.14] - 2025-12-07
+
 ### Added
 
-- **Direct Profile Wizard**: New `--profile` flag for `config-wizard` command allows adding or editing specific profiles directly (e.g. `pvetui config-wizard --profile new-server`).
-- **Command Runner Descriptions**: Command runner plugin now displays user-friendly descriptions for all commands, making it easier to understand what each command does before executing it. Descriptions are shown as secondary text in the command selection menu.
+- **Aggregate Cluster Support**: Introduced the ability to define and manage multiple Proxmox VE clusters as a single, aggregated view. Users can now:
+  - Configure aggregate groups within `config.yml` to combine multiple Proxmox profiles.
+  - Switch between individual profiles and aggregate groups via the profile picker in the UI.
+  - Launch the application directly into an aggregate group using the `--profile="group-name"` CLI flag.
+  - View aggregated CPU, memory, storage, and task information across all connected clusters.
+  - Perform VM operations (start, stop, migration, etc.) on individual VMs within the aggregate view, with operations correctly routed to the respective source cluster.
+  - Utilize VNC and SSH shell access for VMs and nodes across aggregated clusters.
+
+
+
+- **API spec generation**: New `gen-openapi` Make target and `pve-openapi-gen` tool generate an OpenAPI 3 spec from `docs/local/apidoc.js`, making Proxmox endpoints easier to consume and keep in sync.
 
 ### Fixed
 
-- **Profile Editor Validation**: Fixed issue where new profiles could not be saved due to validation errors.
-- **Profile Wizard UX**: Implemented Shift+Tab (Backtab) navigation support in profile forms.
-- **Initial Configuration**: Removed dummy sensitive values from default template to prevent auto-fill during onboarding.
-- **Phantom Profiles**: Fixed issue where cancelled "Add New Profile" actions left phantom entries in the profile list.
-- **Add Group Modal**: Increased modal width to prevent input field truncation.
-- **Add Group Focus**: Fixed focus loss when pressing Enter in the "Add Group" input field.
-- **SOPS Detection**: Fixed issue where unencrypted configs were being encrypted when managing groups, even if they weren't originally encrypted. Improved SOPS detection logic to prevent false positives.
-- **Fresh Install Profile**: Fixed issue where fresh installations created both "default" and "work" profiles; removed "work" profile from template.
 - **About dialog metadata**: Widened the About modal so GitHub links no longer wrap/break and backfilled commit/build date when ldflags aren't provided (e.g., `go install`).
 - **Plugin manager modal**: Expanded the manage-plugins dialog further (wider center column) so long plugin descriptions stay visible.
 - **LXC shell via root SSH**: Skip `sudo` when the profile `ssh_user` is `root`, preventing failures on Proxmox hosts without sudo and eliminating unnecessary elevation.
@@ -59,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **IP address debugging (issue #56)**: Added comprehensive debug logging at cluster parsing, node lookup, and shell invocation stages to track IP addresses through the entire flow. Logs include string length, byte representation, and raw JSON values to help diagnose potential IP corruption issues.
 - **Hotkey override hook**: UI components can now register a hotkey override instead of being added to the growing modal whitelist, reducing global shortcut conflicts.
 - **Profile add cancel**: Cancelling “Add New Profile” no longer leaves a phantom `new_profile` entry in the manager list.
+- **Community scripts fetch**: Script metadata now fetched concurrently (worker pool) to speed up inventory loading while respecting caching.
 
 ## [1.0.13] - 2025-11-29
 
