@@ -26,16 +26,23 @@ func (a *App) openNodeShell() {
 	shellLogger.Debug("Node shell for %s: IP from node object: '%s' (len=%d, bytes=%v)",
 		node.Name, node.IP, len(node.IP), []byte(node.IP))
 
-	// Determine SSH user
+	// Determine SSH user and jumphost
 	sshUser := a.config.SSHUser
+	var sshJumphost string
 
-	// In group mode, try to get the SSH user from the node's source profile
 	if a.isGroupMode && node.SourceProfile != "" {
+		// In group mode, use the specific profile settings
 		if profile, exists := a.config.Profiles[node.SourceProfile]; exists {
 			if profile.SSHUser != "" {
 				sshUser = profile.SSHUser
 			}
+			// Strict assignment for jumphost to allow some profiles to have none
+			// while others do, without inheriting from the active/startup profile.
+			sshJumphost = profile.SSHJumphost
 		}
+	} else {
+		// Standard mode: use global/active config
+		sshJumphost = a.config.SSHJumphost
 	}
 
 	if sshUser == "" {
@@ -46,10 +53,14 @@ func (a *App) openNodeShell() {
 	// Temporarily suspend the UI
 	a.Suspend(func() {
 		// Display connecting message
-		fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, sshUser)
+		msg := fmt.Sprintf("\nConnecting to node %s (%s) as user %s", node.Name, node.IP, sshUser)
+		if sshJumphost != "" {
+			msg += fmt.Sprintf(" via jumphost %s", sshJumphost)
+		}
+		fmt.Println(msg + "...")
 
 		// Execute SSH command
-		err := ssh.ExecuteNodeShell(sshUser, node.IP)
+		err := ssh.ExecuteNodeShell(sshUser, node.IP, sshJumphost)
 		if err != nil {
 			fmt.Printf("\nError connecting to node: %v\n", err)
 		}
@@ -265,9 +276,10 @@ func (a *App) openVMShell() {
 		return
 	}
 
-	// Determine SSH users
+	// Determine SSH users and jumphost
 	hostShellUser := a.config.SSHUser
 	vmShellUser := a.config.VMSSHUser
+	var sshJumphost string
 
 	// In group mode, try to get users from the VM's source profile
 	if a.isGroupMode && vm.SourceProfile != "" {
@@ -278,7 +290,11 @@ func (a *App) openVMShell() {
 			if profile.VMSSHUser != "" {
 				vmShellUser = profile.VMSSHUser
 			}
+			// Strict assignment for jumphost
+			sshJumphost = profile.SSHJumphost
 		}
+	} else {
+		sshJumphost = a.config.SSHJumphost
 	}
 
 	if vmShellUser == "" {
@@ -357,20 +373,28 @@ func (a *App) openVMShell() {
 				containerType = "NixOS LXC container"
 			}
 
-			fmt.Printf("\nConnecting to %s %s (ID: %d) on node %s (%s)...\n",
+			msg := fmt.Sprintf("\nConnecting to %s %s (ID: %d) on node %s (%s)",
 				containerType, vm.Name, vm.ID, vm.Node, nodeIP)
+			if sshJumphost != "" {
+				msg += fmt.Sprintf(" via jumphost %s", sshJumphost)
+			}
+			fmt.Println(msg + "...")
 
 			// Execute LXC shell command with NixOS detection
-			err := ssh.ExecuteLXCShellWithVM(hostShellUser, nodeIP, vm)
+			err := ssh.ExecuteLXCShellWithVM(hostShellUser, nodeIP, vm, sshJumphost)
 			if err != nil {
 				fmt.Printf("\nError connecting to %s: %v\n", containerType, err)
 			}
 		} else if vm.Type == vmTypeQEMU {
 			// For QEMU VMs, use direct SSH connection
-			fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH as %s@%s...\n",
+			msg := fmt.Sprintf("\nConnecting to QEMU VM %s (ID: %d) via SSH as %s@%s",
 				vm.Name, vm.ID, vmShellUser, vm.IP)
+			if sshJumphost != "" {
+				msg += fmt.Sprintf(" via jumphost %s", sshJumphost)
+			}
+			fmt.Println(msg + "...")
 
-			err := ssh.ExecuteQemuShell(vmShellUser, vm.IP)
+			err := ssh.ExecuteQemuShell(vmShellUser, vm.IP, sshJumphost)
 			if err != nil {
 				fmt.Printf("\nFailed to SSH to VM: %v\n", err)
 			}

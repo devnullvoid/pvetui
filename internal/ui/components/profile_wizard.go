@@ -61,7 +61,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	}
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, groupString string
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, sshJumphost, groupString string
 	var insecure bool
 
 	// If we have profiles and a default profile, use profile data
@@ -91,6 +91,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
+			sshJumphost = profile.SSHJumphost
 
 			// Join groups for display
 			groupString = strings.Join(profile.Groups, ", ")
@@ -118,6 +119,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
+		sshJumphost = cfg.SSHJumphost
 		// Legacy config doesn't have group field
 	}
 
@@ -255,6 +257,17 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			}
 		} else {
 			cfg.VMSSHUser = value
+		}
+	})
+	addInput("SSH Jump Host", sshJumphost, 40, nil, func(text string) {
+		value := strings.TrimSpace(text)
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHJumphost = value
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHJumphost = value
 		}
 	})
 	addInput("Groups (comma separated)", groupString, 40, nil, func(text string) {

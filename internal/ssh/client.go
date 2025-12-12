@@ -83,7 +83,7 @@ func (c *SSHClient) Shell() error {
 		return fmt.Errorf("ssh client is nil")
 	}
 
-	return ExecuteNodeShellWith(context.Background(), c.executor, c.User, c.Host)
+	return ExecuteNodeShellWith(context.Background(), c.executor, c.User, c.Host, "")
 }
 
 // ExecuteNodeShell opens an interactive SSH session to a Proxmox node.
@@ -94,10 +94,11 @@ func (c *SSHClient) Shell() error {
 // Parameters:
 //   - user: SSH username for authentication
 //   - nodeIP: IP address or hostname of the target node
+//   - jumphost: Optional SSH jump host (can be empty)
 //
 // Returns an error if the SSH connection fails.
-func ExecuteNodeShell(user, nodeIP string) error {
-	return ExecuteNodeShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP)
+func ExecuteNodeShell(user, nodeIP, jumphost string) error {
+	return ExecuteNodeShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, jumphost)
 }
 
 // ExecuteNodeShellWith opens an interactive SSH session to a Proxmox node with custom execution context.
@@ -113,12 +114,19 @@ func ExecuteNodeShell(user, nodeIP string) error {
 //   - execer: Command executor interface for running SSH commands
 //   - user: SSH username for authentication
 //   - nodeIP: IP address or hostname of the target node
+//   - jumphost: Optional SSH jump host (can be empty)
 //
 // Returns an error if the SSH connection fails.
-func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string) error {
-	sshLogger().Debug("SSH node shell: user=%s host=%s", user, nodeIP)
+func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP, jumphost string) error {
+	sshLogger().Debug("SSH node shell: user=%s host=%s jumphost=%s", user, nodeIP, jumphost)
 
-	sshCmd := execer.CommandContext(ctx, "ssh", fmt.Sprintf("%s@%s", user, nodeIP))
+	var args []string
+	if jumphost != "" {
+		args = append(args, "-J", jumphost)
+	}
+	args = append(args, fmt.Sprintf("%s@%s", user, nodeIP))
+
+	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
@@ -150,10 +158,11 @@ func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nod
 //   - user: SSH username for authentication to the Proxmox node
 //   - nodeIP: IP address or hostname of the Proxmox node hosting the container
 //   - vmID: Container ID number
+//   - jumphost: Optional SSH jump host (can be empty)
 //
 // Returns an error if the connection fails.
-func ExecuteLXCShell(user, nodeIP string, vmID int) error {
-	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vmID, nil)
+func ExecuteLXCShell(user, nodeIP string, vmID int, jumphost string) error {
+	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vmID, nil, jumphost)
 }
 
 // ExecuteLXCShellWithVM opens an interactive session to an LXC container with automatic OS detection.
@@ -168,10 +177,11 @@ func ExecuteLXCShell(user, nodeIP string, vmID int) error {
 //   - user: SSH username for authentication to the Proxmox node
 //   - nodeIP: IP address or hostname of the Proxmox node hosting the container
 //   - vm: VM/container information including OS type for detection
+//   - jumphost: Optional SSH jump host (can be empty)
 //
 // Returns an error if the connection fails.
-func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM) error {
-	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vm.ID, vm)
+func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM, jumphost string) error {
+	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vm.ID, vm, jumphost)
 }
 
 // ExecuteLXCShellWith opens an interactive session to an LXC container with full control options.
@@ -194,11 +204,11 @@ func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM) error {
 // Example usage:
 //
 //	// Standard container
-//	err := ExecuteLXCShellWith(ctx, executor, "root", "192.168.1.100", 101, nil)
+//	err := ExecuteLXCShellWith(ctx, executor, "root", "192.168.1.100", 101, nil, "")
 //
 //	// NixOS container with auto-detection
 //	nixosVM := &api.VM{ID: 102, OSType: "nixos"}
-//	err := ExecuteLXCShellWith(ctx, executor, "root", "192.168.1.100", 102, nixosVM)
+//	err := ExecuteLXCShellWith(ctx, executor, "root", "192.168.1.100", 102, nixosVM, "")
 //
 // Parameters:
 //   - ctx: Context for controlling execution lifetime and cancellation
@@ -207,10 +217,15 @@ func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM) error {
 //   - nodeIP: IP address or hostname of the Proxmox node hosting the container
 //   - vmID: Container ID number
 //   - vm: Optional VM information for OS detection (nil for standard behavior)
+//   - jumphost: Optional SSH jump host (can be empty)
 //
 // Returns an error if the connection fails.
-func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int, vm *api.VM) error {
+func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int, vm *api.VM, jumphost string) error {
 	var sshArgs []string
+
+	if jumphost != "" {
+		sshArgs = append(sshArgs, "-J", jumphost)
+	}
 
 	var sessionType string
 
@@ -229,24 +244,24 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 	if isNixOS {
 		// Use the NixOS-specific command for containers
 		pctExec := buildPct(fmt.Sprintf("pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vmID))
-		sshArgs = []string{
+		sshArgs = append(sshArgs,
 			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
 			pctExec,
-		}
+		)
 		sessionType = "NixOS LXC"
 	} else {
 		// Use the standard pct enter command
 		pctEnter := buildPct(fmt.Sprintf("pct enter %d", vmID))
-		sshArgs = []string{
+		sshArgs = append(sshArgs,
 			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
 			pctEnter,
-		}
+		)
 		sessionType = "LXC"
 	}
 
-	sshLogger().Debug("SSH LXC shell (%s): user=%s host=%s cmd=%s", sessionType, user, nodeIP, sshArgs)
+	sshLogger().Debug("SSH LXC shell (%s): user=%s host=%s jumphost=%s cmd=%s", sessionType, user, nodeIP, jumphost, sshArgs)
 
 	sshCmd := execer.CommandContext(ctx, "ssh", sshArgs...)
 	sshCmd.Stdin = os.Stdin
@@ -281,10 +296,11 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 // Parameters:
 //   - user: SSH username for authentication to the VM
 //   - vmIP: IP address of the target VM
+//   - jumphost: Optional SSH jump host (can be empty)
 //
 // Returns an error if the VM IP is empty or if the SSH connection fails.
-func ExecuteQemuShell(user, vmIP string) error {
-	return ExecuteQemuShellWith(context.Background(), NewDefaultExecutor(), user, vmIP)
+func ExecuteQemuShell(user, vmIP, jumphost string) error {
+	return ExecuteQemuShellWith(context.Background(), NewDefaultExecutor(), user, vmIP, jumphost)
 }
 
 // ExecuteQemuShellWith attempts to connect to a QEMU VM using SSH with custom execution context.
@@ -300,16 +316,23 @@ func ExecuteQemuShell(user, vmIP string) error {
 //   - execer: Command executor interface for running SSH commands
 //   - user: SSH username for authentication to the VM
 //   - vmIP: IP address of the target VM
+//   - jumphost: Optional SSH jump host (can be empty)
 //
 // Returns an error if the VM IP is empty or if the SSH connection fails.
-func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmIP string) error {
+func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmIP, jumphost string) error {
 	if vmIP == "" {
 		return fmt.Errorf("no IP address available for VM")
 	}
 
-	sshLogger().Debug("SSH QEMU shell: user=%s host=%s", user, vmIP)
+	sshLogger().Debug("SSH QEMU shell: user=%s host=%s jumphost=%s", user, vmIP, jumphost)
 
-	sshCmd := execer.CommandContext(ctx, "ssh", fmt.Sprintf("%s@%s", user, vmIP))
+	var args []string
+	if jumphost != "" {
+		args = append(args, "-J", jumphost)
+	}
+	args = append(args, fmt.Sprintf("%s@%s", user, vmIP))
+
+	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr

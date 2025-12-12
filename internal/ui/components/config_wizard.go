@@ -122,7 +122,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	})
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, sshJumphost string
 	var insecure bool
 
 	// If we are editing a profile, use its data
@@ -152,6 +152,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
+			sshJumphost = profile.SSHJumphost
 		}
 	} else {
 		// Use legacy fields or defaults
@@ -176,6 +177,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
+		sshJumphost = cfg.SSHJumphost
 	}
 
 	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
@@ -282,6 +284,17 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			cfg.VMSSHUser = value
 		}
 	})
+	form.AddInputField("SSH Jump Host", sshJumphost, 40, nil, func(text string) {
+		value := strings.TrimSpace(text)
+		if isEditing {
+			if profile, exists := cfg.Profiles[profileName]; exists {
+				profile.SSHJumphost = value
+				cfg.Profiles[profileName] = profile
+			}
+		} else {
+			cfg.SSHJumphost = value
+		}
+	})
 	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
 	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
 	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
@@ -356,15 +369,17 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 			// Create profile from current form data
 			newProfile := config.ProfileConfig{
-				Addr:        strings.TrimSpace(addr),
-				User:        strings.TrimSpace(user),
-				Password:    password,
-				TokenID:     strings.TrimSpace(tokenID),
-				TokenSecret: tokenSecret,
-				Realm:       strings.TrimSpace(realm),
-				ApiPath:     strings.TrimSpace(apiPath),
-				Insecure:    insecure,
-				SSHUser:     strings.TrimSpace(sshUser),
+				Addr:        strings.TrimSpace(cfg.Addr),
+				User:        strings.TrimSpace(cfg.User),
+				Password:    cfg.Password,
+				TokenID:     strings.TrimSpace(cfg.TokenID),
+				TokenSecret: cfg.TokenSecret,
+				Realm:       strings.TrimSpace(cfg.Realm),
+				ApiPath:     strings.TrimSpace(cfg.ApiPath),
+				Insecure:    cfg.Insecure,
+				SSHUser:     strings.TrimSpace(cfg.SSHUser),
+				VMSSHUser:   strings.TrimSpace(cfg.VMSSHUser),
+				SSHJumphost: strings.TrimSpace(cfg.SSHJumphost),
 			}
 
 			// Clear conflicting auth method in new profile

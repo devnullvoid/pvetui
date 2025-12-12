@@ -22,6 +22,7 @@ type ProfileConfig struct {
 	Insecure    bool   `yaml:"insecure"`
 	SSHUser     string `yaml:"ssh_user"`
 	VMSSHUser   string `yaml:"vm_ssh_user"`
+	SSHJumphost string `yaml:"ssh_jumphost"`
 
 	// Groups is a list of group identifiers.
 	// This allows a profile to belong to multiple groups.
@@ -51,6 +52,7 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.Insecure = profile.Insecure
 	c.SSHUser = profile.SSHUser
 	c.VMSSHUser = profile.VMSSHUser
+	c.SSHJumphost = profile.SSHJumphost
 
 	// Mark runtime active profile so getters resolve to this profile without changing persisted default
 	c.ActiveProfile = profileName
@@ -63,7 +65,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	// Check if we have legacy fields but no profiles
 	hasLegacyFields := c.Addr != "" || c.User != "" || c.Password != "" ||
 		c.TokenID != "" || c.TokenSecret != "" || c.Realm != "" ||
-		c.ApiPath != "" || c.SSHUser != "" || c.VMSSHUser != ""
+		c.ApiPath != "" || c.SSHUser != "" || c.VMSSHUser != "" || c.SSHJumphost != ""
 
 	if !hasLegacyFields || len(c.Profiles) > 0 {
 		return false
@@ -86,6 +88,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 		Insecure:    c.Insecure,
 		SSHUser:     c.SSHUser,
 		VMSSHUser:   c.VMSSHUser,
+		SSHJumphost: c.SSHJumphost,
 	}
 
 	// Set default profile
@@ -102,6 +105,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	c.Insecure = false
 	c.SSHUser = ""
 	c.VMSSHUser = ""
+	c.SSHJumphost = ""
 
 	return true
 }
