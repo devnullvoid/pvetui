@@ -18,6 +18,8 @@ type SnapshotTable struct {
 }
 
 // NewSnapshotTable creates a new snapshot table.
+//
+//nolint:dupl // Similar to backup table
 func NewSnapshotTable(app *App, vm *api.VM) *SnapshotTable {
 	st := &SnapshotTable{
 		vm:  vm,

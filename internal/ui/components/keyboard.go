@@ -127,6 +127,8 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("about") ||
 			a.pages.HasPage("snapshots") ||
 			a.pages.HasPage("createSnapshot") ||
+			a.pages.HasPage("backups") ||
+			a.pages.HasPage("createBackup") ||
 			a.pages.HasPage("addGroupInput") ||
 			a.pages.HasPage("editGroup")
 

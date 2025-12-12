@@ -15,6 +15,7 @@ const (
 	vmActionOpenVNC    = "Open VNC Console"
 	vmActionEditConfig = "Edit Configuration"
 	vmActionSnapshots  = "Manage Snapshots"
+	vmActionBackups    = "Manage Backups"
 	vmActionRefresh    = "Refresh"
 	vmActionStart      = "Start"
 	vmActionShutdown   = "Shutdown"
@@ -46,6 +47,7 @@ func (a *App) ShowVMContextMenu() {
 		vmActionOpenShell,
 		vmActionEditConfig,
 		vmActionSnapshots,
+		vmActionBackups,
 		vmActionRefresh,
 	}
 
@@ -142,9 +144,21 @@ func (a *App) ShowVMContextMenu() {
 				})
 			}()
 		case vmActionSnapshots:
-			snapshotManager := NewSnapshotManager(a, vm)
-			a.pages.AddPage("snapshots", snapshotManager, true, true)
-			a.SetFocus(snapshotManager)
+			go func() {
+				a.QueueUpdateDraw(func() {
+					snapshotManager := NewSnapshotManager(a, vm)
+					a.pages.AddPage("snapshots", snapshotManager, true, true)
+					a.SetFocus(snapshotManager)
+				})
+			}()
+		case vmActionBackups:
+			go func() {
+				a.QueueUpdateDraw(func() {
+					backupManager := NewBackupManager(a, vm)
+					a.pages.AddPage("backups", backupManager, true, true)
+					a.SetFocus(backupManager)
+				})
+			}()
 		case vmActionRefresh:
 			a.refreshVMData(vm)
 		case vmActionStart:
@@ -312,6 +326,8 @@ func generateVMShortcuts(menuItems []string, pluginActions []GuestAction) []rune
 			shortcuts[i] = 'x'
 		case vmActionSnapshots:
 			shortcuts[i] = 'n'
+		case vmActionBackups:
+			shortcuts[i] = 'b'
 		default:
 			// Fallback to number if no specific shortcut defined
 			shortcuts[i] = rune('1' + i)

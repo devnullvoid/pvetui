@@ -11,6 +11,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/adapters"
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/internal/taskpoller"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/vnc"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -48,6 +49,9 @@ type App struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// Background task monitoring
+	poller *taskpoller.Poller
+
 	// Auto-refresh functionality
 	autoRefreshEnabled       bool
 	autoRefreshTicker        *time.Ticker
@@ -84,6 +88,8 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
+	poller := taskpoller.New(ctx, uiLogger)
+
 	app := &App{
 		Application:        tview.NewApplication(),
 		client:             client,
@@ -97,6 +103,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		logger:             uiLogger,
 		plugins:            make(map[string]Plugin),
 		pluginRegistry:     newPluginRegistry(),
+		poller:             poller,
 	}
 
 	uiLogger.Debug("Initializing UI components")
@@ -603,4 +610,74 @@ func (a *App) getDisplayCluster() *api.Cluster {
 		return a.createSyntheticGroup(models.GlobalState.OriginalNodes)
 	}
 	return a.client.Cluster
+}
+
+// StartBackupMonitor starts monitoring a backup task.
+func (a *App) StartBackupMonitor(upid, nodeName string, vmid int) {
+	// Resolve client
+	var client *api.Client
+	if a.isGroupMode {
+		// Find node in global state to get source profile
+		var node *api.Node
+		for _, n := range models.GlobalState.OriginalNodes {
+			if n != nil && n.Name == nodeName {
+				node = n
+				break
+			}
+		}
+		if node != nil {
+			c, err := a.getClientForNode(node)
+			if err == nil {
+				client = c
+			}
+		}
+	} else {
+		client = a.client
+	}
+
+	if client == nil {
+		a.logger.Error("Could not resolve client for backup monitoring task %s (node %s)", upid, nodeName)
+		return
+	}
+
+	a.poller.AddTask(client, upid, nodeName, vmid)
+}
+
+// GetActiveBackupsForVM returns a list of active backups for a specific VM.
+func (a *App) GetActiveBackupsForVM(vmid int) []*taskpoller.TaskInfo {
+	return a.poller.GetActiveTasksForVM(vmid)
+}
+
+// RegisterBackupCallback registers a callback for backup state changes.
+// Returns a function to unregister the callback.
+func (a *App) RegisterBackupCallback(callback func()) func() {
+	return a.poller.Subscribe(func(task *taskpoller.TaskInfo) {
+		a.QueueUpdateDraw(func() {
+			if task.Status == "stopped" {
+				if task.ExitStatus == "OK" {
+					a.header.ShowSuccess(fmt.Sprintf("Backup for VM %d on %s completed successfully!", task.VMID, task.Node))
+				} else {
+					a.header.ShowError(fmt.Sprintf("Backup for VM %d on %s failed: %s", task.VMID, task.Node, task.ExitStatus))
+				}
+
+				// Introduce delay before refreshing to ensure API consistency
+				go func() {
+					// Show refreshing indicator
+					a.QueueUpdateDraw(func() {
+						a.header.ShowLoading("Refreshing backup list...")
+					})
+
+					time.Sleep(1 * time.Second)
+					a.QueueUpdateDraw(func() {
+						a.header.StopLoading()
+						a.ClearAPICache()
+						callback()
+					})
+				}()
+			} else {
+				// Running update?
+				callback()
+			}
+		})
+	})
 }

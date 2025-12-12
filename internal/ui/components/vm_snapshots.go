@@ -78,6 +78,8 @@ func NewSnapshotManager(app *App, vm *api.VM) *SnapshotManager {
 }
 
 // setupKeyboardNavigation sets up keyboard shortcuts for the snapshot manager.
+//
+//nolint:dupl // Similar to backup manager navigation
 func (sm *SnapshotManager) setupKeyboardNavigation() {
 	sm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {

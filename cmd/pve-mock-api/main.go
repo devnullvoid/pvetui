@@ -58,6 +58,15 @@ func main() {
 	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/config", handleVMConfig(state)).Methods("GET", "POST", "PUT")
 	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}", handleDeleteVM(state)).Methods("DELETE")
 
+	// Backups
+	r.HandleFunc("/nodes/{node}/vzdump", handleVzdump(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/content", handleStorageContent(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/content/{volume:.+}", handleDeleteStorageContent(state)).Methods("DELETE")
+
+	// Restore (Create VM/CT)
+	r.HandleFunc("/nodes/{node}/qemu", handleRestore(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/lxc", handleRestore(state)).Methods("POST")
+
 	// Generic Fallback
 	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		log.Printf("%s %s", req.Method, req.URL.Path)
