@@ -118,9 +118,9 @@ type Config struct {
 	Realm       string `yaml:"realm"`
 	ApiPath     string `yaml:"api_path"`
 	Insecure    bool   `yaml:"insecure"`
-	SSHUser     string `yaml:"ssh_user"`
-	VMSSHUser   string `yaml:"vm_ssh_user"`
-	SSHJumphost string `yaml:"ssh_jumphost"`
+	SSHUser     string      `yaml:"ssh_user"`
+	VMSSHUser   string      `yaml:"vm_ssh_user"`
+	SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 }
 
 func (c *Config) HasCleartextSensitiveData() bool {
@@ -285,8 +285,13 @@ func NewConfig() *Config {
 		ApiPath:     os.Getenv("PVETUI_API_PATH"),
 		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
 		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
-		SSHJumphost: os.Getenv("PVETUI_SSH_JUMPHOST"),
-		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
+		SSHJumpHost: SSHJumpHost{
+			Addr:     os.Getenv("PVETUI_SSH_JUMPHOST_ADDR"),
+			User:     os.Getenv("PVETUI_SSH_JUMPHOST_USER"),
+			Password: os.Getenv("PVETUI_SSH_JUMPHOST_PASSWORD"),
+			Keyfile:  os.Getenv("PVETUI_SSH_JUMPHOST_KEYFILE"),
+		},
+		Debug: strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
 		CacheDir:    os.Getenv("PVETUI_CACHE_DIR"),
 		KeyBindings: DefaultKeyBindings(),
 	}
@@ -378,9 +383,9 @@ func (c *Config) MergeWithFile(path string) error {
 		Realm       string `yaml:"realm"`
 		ApiPath     string `yaml:"api_path"`
 		Insecure    *bool  `yaml:"insecure"`
-		SSHUser     string `yaml:"ssh_user"`
-		VMSSHUser   string `yaml:"vm_ssh_user"`
-		SSHJumphost string `yaml:"ssh_jumphost"`
+		SSHUser     string      `yaml:"ssh_user"`
+		VMSSHUser   string      `yaml:"vm_ssh_user"`
+		SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 	}
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
@@ -437,8 +442,8 @@ func (c *Config) MergeWithFile(path string) error {
 				if fileProfile.VMSSHUser != "" {
 					existingProfile.VMSSHUser = fileProfile.VMSSHUser
 				}
-				if fileProfile.SSHJumphost != "" {
-					existingProfile.SSHJumphost = fileProfile.SSHJumphost
+				if fileProfile.SSHJumpHost.Addr != "" {
+					existingProfile.SSHJumpHost = fileProfile.SSHJumpHost
 				}
 
 				c.Profiles[name] = existingProfile
@@ -484,8 +489,8 @@ func (c *Config) MergeWithFile(path string) error {
 		if fileConfig.VMSSHUser != "" {
 			c.VMSSHUser = fileConfig.VMSSHUser
 		}
-		if fileConfig.SSHJumphost != "" {
-			c.SSHJumphost = fileConfig.SSHJumphost
+		if fileConfig.SSHJumpHost.Addr != "" {
+			c.SSHJumpHost = fileConfig.SSHJumpHost
 		}
 	}
 

@@ -122,8 +122,9 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	})
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, sshJumphost string
-	var insecure bool
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostPassword, sshJumpHostKeyfile string
+	var insecure, useJumpHost bool
 
 	// If we are editing a profile, use its data
 	//nolint:dupl // Shared with profile wizard to keep legacy/profile editing consistent
@@ -152,7 +153,15 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
-			sshJumphost = profile.SSHJumphost
+
+			sshJumpHostAddr = profile.SSHJumpHost.Addr
+			sshJumpHostUser = profile.SSHJumpHost.User
+			sshJumpHostPassword = profile.SSHJumpHost.Password
+			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
+
+			if sshJumpHostAddr != "" {
+				useJumpHost = true
+			}
 		}
 	} else {
 		// Use legacy fields or defaults
@@ -177,310 +186,397 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
-		sshJumphost = cfg.SSHJumphost
+
+		sshJumpHostAddr = cfg.SSHJumpHost.Addr
+		sshJumpHostUser = cfg.SSHJumpHost.User
+		sshJumpHostPassword = cfg.SSHJumpHost.Password
+		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
+
+		if sshJumpHostAddr != "" {
+			useJumpHost = true
+		}
 	}
 
-	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
-		if isEditing {
-			// Update profile
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Addr = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			// Update legacy field - also update temp profile if we have one?
-			// Actually for new profiles we create the object at Save time
-			cfg.Addr = strings.TrimSpace(text)
-		}
-	})
-	form.AddInputField("Username", user, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.User = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.User = strings.TrimSpace(text)
-		}
-	})
-	form.AddPasswordField("Password", password, 20, '*', func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Password = text
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.Password = text
-		}
-	})
-	form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.TokenID = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.TokenID = strings.TrimSpace(text)
-		}
-	})
-	form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.TokenSecret = text
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.TokenSecret = text
-		}
-	})
-	form.AddInputField("Realm", realm, 10, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Realm = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.Realm = strings.TrimSpace(text)
-		}
-	})
-	form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.ApiPath = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.ApiPath = strings.TrimSpace(text)
-		}
-	})
-	form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Insecure = checked
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.Insecure = checked
-		}
-	})
-	form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.SSHUser = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.SSHUser = strings.TrimSpace(text)
-		}
-	})
-	form.AddInputField("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
-		value := strings.TrimSpace(text)
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.VMSSHUser = value
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.VMSSHUser = value
-		}
-	})
-	form.AddInputField("SSH Jump Host", sshJumphost, 40, nil, func(text string) {
-		value := strings.TrimSpace(text)
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.SSHJumphost = value
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.SSHJumphost = value
-		}
-	})
-	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
-	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
-	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
-	form.AddButton("Save", func() {
-		// Validate profile name
-		if profileName == "" {
-			showWizardModal(pages, form, app, "error", "Profile name cannot be empty.", nil)
-			return
-		}
+	var rebuildForm func()
+	rebuildForm = func() {
+		form.Clear(true)
 
-		// Check if profile already exists (for new profiles or renamed profiles)
-		if isNewProfile || profileName != cfg.DefaultProfile {
-			if cfg.Profiles != nil {
-				if _, exists := cfg.Profiles[profileName]; exists {
-					showWizardModal(pages, form, app, "error", "Profile '"+profileName+"' already exists.", nil)
-					return
+		form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
+			addr = text
+			if isEditing {
+				// Update profile
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.Addr = strings.TrimSpace(text)
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				// Update legacy field
+				cfg.Addr = strings.TrimSpace(text)
+			}
+		})
+		form.AddInputField("Username", user, 20, nil, func(text string) {
+			user = text
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.User = strings.TrimSpace(text)
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.User = strings.TrimSpace(text)
+			}
+		})
+		form.AddPasswordField("Password", password, 20, '*', func(text string) {
+			password = text
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.Password = text
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.Password = text
+			}
+		})
+		form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
+			tokenID = text
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.TokenID = strings.TrimSpace(text)
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.TokenID = strings.TrimSpace(text)
+			}
+		})
+		form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
+			tokenSecret = text
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.TokenSecret = text
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.TokenSecret = text
+			}
+		})
+		form.AddInputField("Realm", realm, 10, nil, func(text string) {
+			realm = text
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.Realm = strings.TrimSpace(text)
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.Realm = strings.TrimSpace(text)
+			}
+		})
+		form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
+			apiPath = text
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.ApiPath = strings.TrimSpace(text)
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.ApiPath = strings.TrimSpace(text)
+			}
+		})
+		form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
+			insecure = checked
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.Insecure = checked
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.Insecure = checked
+			}
+		})
+		form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
+			sshUser = text
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.SSHUser = strings.TrimSpace(text)
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.SSHUser = strings.TrimSpace(text)
+			}
+		})
+		form.AddInputField("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
+			vmSSHUser = text
+			value := strings.TrimSpace(text)
+			if isEditing {
+				if profile, exists := cfg.Profiles[profileName]; exists {
+					profile.VMSSHUser = value
+					cfg.Profiles[profileName] = profile
+				}
+			} else {
+				cfg.VMSSHUser = value
+			}
+		})
+
+		// SSH Jump Host (Advanced)
+		form.AddCheckbox("Use SSH Jump Host (Advanced)", useJumpHost, func(checked bool) {
+			useJumpHost = checked
+			if !checked {
+				sshJumpHostAddr = ""
+				sshJumpHostUser = ""
+				sshJumpHostPassword = ""
+				sshJumpHostKeyfile = ""
+
+				if isEditing {
+					if profile, exists := cfg.Profiles[profileName]; exists {
+						profile.SSHJumpHost = config.SSHJumpHost{}
+						cfg.Profiles[profileName] = profile
+					}
+				} else {
+					cfg.SSHJumpHost = config.SSHJumpHost{}
 				}
 			}
-		}
+			app.QueueUpdateDraw(func() {
+				rebuildForm()
+			})
+		})
 
-		// Determine which data to validate based on whether we're using profiles
-		var hasPassword, hasToken bool
-
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			// Validate profile data
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				hasPassword = profile.Password != ""
-				hasToken = profile.TokenID != "" && profile.TokenSecret != ""
-			}
-		} else {
-			// Validate legacy data
-			hasPassword = cfg.Password != ""
-			hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
-		}
-
-		if hasPassword && hasToken {
-			showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
-			return
-		}
-
-		if !hasPassword && !hasToken {
-			showWizardModal(pages, form, app, "error", "You must provide either a password or a token for authentication.", nil)
-			return
-		}
-
-		// Clear conflicting auth method
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				if hasPassword {
-					profile.TokenID = ""
-					profile.TokenSecret = ""
-				} else if hasToken {
-					profile.Password = ""
+		if useJumpHost {
+			form.AddInputField("Jump Host Address", sshJumpHostAddr, 40, nil, func(text string) {
+				sshJumpHostAddr = text
+				value := strings.TrimSpace(text)
+				if isEditing {
+					if profile, exists := cfg.Profiles[profileName]; exists {
+						profile.SSHJumpHost.Addr = value
+						cfg.Profiles[profileName] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.Addr = value
 				}
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			if hasPassword {
-				cfg.TokenID = ""
-				cfg.TokenSecret = ""
-			} else if hasToken {
-				cfg.Password = ""
-			}
+			})
+			form.AddInputField("Jump Host User", sshJumpHostUser, 20, nil, func(text string) {
+				sshJumpHostUser = text
+				value := strings.TrimSpace(text)
+				if isEditing {
+					if profile, exists := cfg.Profiles[profileName]; exists {
+						profile.SSHJumpHost.User = value
+						cfg.Profiles[profileName] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.User = value
+				}
+			})
+			form.AddPasswordField("Jump Host Password", sshJumpHostPassword, 20, '*', func(text string) {
+				sshJumpHostPassword = text
+				if isEditing {
+					if profile, exists := cfg.Profiles[profileName]; exists {
+						profile.SSHJumpHost.Password = text
+						cfg.Profiles[profileName] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.Password = text
+				}
+			})
+			form.AddInputField("Jump Host Keyfile", sshJumpHostKeyfile, 40, nil, func(text string) {
+				sshJumpHostKeyfile = text
+				value := strings.TrimSpace(text)
+				if isEditing {
+					if profile, exists := cfg.Profiles[profileName]; exists {
+						profile.SSHJumpHost.Keyfile = value
+						cfg.Profiles[profileName] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.Keyfile = value
+				}
+			})
 		}
 
-		// Handle profile creation/updating
-		if isNewProfile {
-			// Create new profile
-			if cfg.Profiles == nil {
-				cfg.Profiles = make(map[string]config.ProfileConfig)
+		form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
+		form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
+		form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
+		form.AddButton("Save", func() {
+			// Validate profile name
+			if profileName == "" {
+				showWizardModal(pages, form, app, "error", "Profile name cannot be empty.", nil)
+				return
 			}
 
-			// Create profile from current form data
-			newProfile := config.ProfileConfig{
-				Addr:        strings.TrimSpace(cfg.Addr),
-				User:        strings.TrimSpace(cfg.User),
-				Password:    cfg.Password,
-				TokenID:     strings.TrimSpace(cfg.TokenID),
-				TokenSecret: cfg.TokenSecret,
-				Realm:       strings.TrimSpace(cfg.Realm),
-				ApiPath:     strings.TrimSpace(cfg.ApiPath),
-				Insecure:    cfg.Insecure,
-				SSHUser:     strings.TrimSpace(cfg.SSHUser),
-				VMSSHUser:   strings.TrimSpace(cfg.VMSSHUser),
-				SSHJumphost: strings.TrimSpace(cfg.SSHJumphost),
-			}
-
-			// Clear conflicting auth method in new profile
-			if hasPassword {
-				newProfile.TokenID = ""
-				newProfile.TokenSecret = ""
-			} else if hasToken {
-				newProfile.Password = ""
-			}
-
-			cfg.Profiles[profileName] = newProfile
-
-			// Set as default if requested
-			if isDefaultProfile {
-				cfg.DefaultProfile = profileName
-			}
-		} else {
-			// Update existing profile
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				// Handle profile renaming
-				if profileName != cfg.DefaultProfile {
-					// Store the old profile name before deleting
-					oldProfileName := cfg.DefaultProfile
-
-					// Remove old profile name
-					delete(cfg.Profiles, cfg.DefaultProfile)
-
-					// Update default profile if we're renaming the current default
-					if cfg.DefaultProfile == oldProfileName {
-						cfg.DefaultProfile = profileName
+			// Check if profile already exists (for new profiles or renamed profiles)
+			if isNewProfile || profileName != cfg.DefaultProfile {
+				if cfg.Profiles != nil {
+					if _, exists := cfg.Profiles[profileName]; exists {
+						showWizardModal(pages, form, app, "error", "Profile '"+profileName+"' already exists.", nil)
+						return
 					}
 				}
+			}
 
-				// The profile data has already been updated by the form field handlers
-				// Just clear conflicting auth method if needed
+			// Determine which data to validate based on whether we're using profiles
+			var hasPassword, hasToken bool
+
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				// Validate profile data
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					hasPassword = profile.Password != ""
+					hasToken = profile.TokenID != "" && profile.TokenSecret != ""
+				}
+			} else {
+				// Validate legacy data
+				hasPassword = cfg.Password != ""
+				hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
+			}
+
+			if hasPassword && hasToken {
+				showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
+				return
+			}
+
+			if !hasPassword && !hasToken {
+				showWizardModal(pages, form, app, "error", "You must provide either a password or a token for authentication.", nil)
+				return
+			}
+
+			// Clear conflicting auth method
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					if hasPassword {
+						profile.TokenID = ""
+						profile.TokenSecret = ""
+					} else if hasToken {
+						profile.Password = ""
+					}
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
 				if hasPassword {
-					profile.TokenID = ""
-					profile.TokenSecret = ""
+					cfg.TokenID = ""
+					cfg.TokenSecret = ""
 				} else if hasToken {
-					profile.Password = ""
+					cfg.Password = ""
+				}
+			}
+
+			// Handle profile creation/updating
+			if isNewProfile {
+				// Create new profile
+				if cfg.Profiles == nil {
+					cfg.Profiles = make(map[string]config.ProfileConfig)
 				}
 
-				cfg.Profiles[profileName] = profile
-			}
-
-			// Update default profile setting
-			if isDefaultProfile {
-				cfg.DefaultProfile = profileName
-			}
-		}
-
-		if err := cfg.Validate(); err != nil {
-			showWizardModal(pages, form, app, "error", "Validation error: "+err.Error(), nil)
-			return
-		}
-		// Save config first
-		saveErr := saveFn(cfg)
-		if saveErr != nil {
-			showWizardModal(pages, form, app, "error", "Failed to save config: "+saveErr.Error(), nil)
-			return
-		}
-		// If SOPS re-encryption is possible, prompt user
-		if wasSOPS && sopsRuleExists {
-			onYes := func() {
-				cmd := exec.Command("sops", "-e", "-i", configPath)
-
-				err := cmd.Run()
-				if err != nil {
-					showWizardModal(pages, form, app, "error", "SOPS re-encryption failed: "+err.Error(), nil)
-					return
+				// Create profile from current form data
+				newProfile := config.ProfileConfig{
+					Addr:        strings.TrimSpace(cfg.Addr),
+					User:        strings.TrimSpace(cfg.User),
+					Password:    cfg.Password,
+					TokenID:     strings.TrimSpace(cfg.TokenID),
+					TokenSecret: cfg.TokenSecret,
+					Realm:       strings.TrimSpace(cfg.Realm),
+					ApiPath:     strings.TrimSpace(cfg.ApiPath),
+					Insecure:    cfg.Insecure,
+					SSHUser:     strings.TrimSpace(cfg.SSHUser),
+					VMSSHUser:   strings.TrimSpace(cfg.VMSSHUser),
+					SSHJumpHost: cfg.SSHJumpHost,
 				}
 
-				showWizardModal(pages, form, app, "info", "Configuration saved and re-encrypted with SOPS!", func() {
-					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
-					app.Stop()
-				})
-			}
-			onNo := func() {
-				showWizardModal(pages, form, app, "info", "Configuration saved (unencrypted).", func() {
-					resultChan <- WizardResult{Saved: true, ProfileName: profileName}
-					app.Stop()
-				})
-			}
-			confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
-			pages.AddPage("modal", confirm, false, true)
-			pages.SwitchToPage("modal")
-			return
-		}
+				// Clear conflicting auth method in new profile
+				if hasPassword {
+					newProfile.TokenID = ""
+					newProfile.TokenSecret = ""
+				} else if hasToken {
+					newProfile.Password = ""
+				}
 
-		showWizardModal(pages, form, app, "info", "Configuration saved successfully!", func() {
-			resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+				cfg.Profiles[profileName] = newProfile
+
+				// Set as default if requested
+				if isDefaultProfile {
+					cfg.DefaultProfile = profileName
+				}
+			} else {
+				// Update existing profile
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					// Handle profile renaming
+					if profileName != cfg.DefaultProfile {
+						// Store the old profile name before deleting
+						oldProfileName := cfg.DefaultProfile
+
+						// Remove old profile name
+						delete(cfg.Profiles, cfg.DefaultProfile)
+
+						// Update default profile if we're renaming the current default
+						if cfg.DefaultProfile == oldProfileName {
+							cfg.DefaultProfile = profileName
+						}
+					}
+
+					// The profile data has already been updated by the form field handlers
+					// Just clear conflicting auth method if needed
+					if hasPassword {
+						profile.TokenID = ""
+						profile.TokenSecret = ""
+					} else if hasToken {
+						profile.Password = ""
+					}
+
+					cfg.Profiles[profileName] = profile
+				}
+
+				// Update default profile setting
+				if isDefaultProfile {
+					cfg.DefaultProfile = profileName
+				}
+			}
+
+			if err := cfg.Validate(); err != nil {
+				showWizardModal(pages, form, app, "error", "Validation error: "+err.Error(), nil)
+				return
+			}
+			// Save config first
+			saveErr := saveFn(cfg)
+			if saveErr != nil {
+				showWizardModal(pages, form, app, "error", "Failed to save config: "+saveErr.Error(), nil)
+				return
+			}
+			// If SOPS re-encryption is possible, prompt user
+			if wasSOPS && sopsRuleExists {
+				onYes := func() {
+					cmd := exec.Command("sops", "-e", "-i", configPath)
+
+					err := cmd.Run()
+					if err != nil {
+						showWizardModal(pages, form, app, "error", "SOPS re-encryption failed: "+err.Error(), nil)
+						return
+					}
+
+					showWizardModal(pages, form, app, "info", "Configuration saved and re-encrypted with SOPS!", func() {
+						resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
+						app.Stop()
+					})
+				}
+				onNo := func() {
+					showWizardModal(pages, form, app, "info", "Configuration saved (unencrypted).", func() {
+						resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+						app.Stop()
+					})
+				}
+				confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
+				pages.AddPage("modal", confirm, false, true)
+				pages.SwitchToPage("modal")
+				return
+			}
+
+			showWizardModal(pages, form, app, "info", "Configuration saved successfully!", func() {
+				resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+				app.Stop()
+			})
+		})
+		form.AddButton("Cancel", func() {
+			if cancelFn != nil {
+				cancelFn()
+			}
+			resultChan <- WizardResult{Canceled: true}
 			app.Stop()
 		})
-	})
-	form.AddButton("Cancel", func() {
-		if cancelFn != nil {
-			cancelFn()
-		}
-		resultChan <- WizardResult{Canceled: true}
-		app.Stop()
-	})
+	}
+
+	rebuildForm()
 	form.SetBorder(true).SetTitle("pvetui - Config Wizard").SetTitleColor(theme.Colors.Primary).SetBorderColor(theme.Colors.Border)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {

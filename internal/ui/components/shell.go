@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/ssh"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
@@ -28,7 +29,7 @@ func (a *App) openNodeShell() {
 
 	// Determine SSH user and jumphost
 	sshUser := a.config.SSHUser
-	var sshJumphost string
+	var sshJumphost config.SSHJumpHost
 
 	if a.isGroupMode && node.SourceProfile != "" {
 		// In group mode, use the specific profile settings
@@ -38,11 +39,11 @@ func (a *App) openNodeShell() {
 			}
 			// Strict assignment for jumphost to allow some profiles to have none
 			// while others do, without inheriting from the active/startup profile.
-			sshJumphost = profile.SSHJumphost
+			sshJumphost = profile.SSHJumpHost
 		}
 	} else {
 		// Standard mode: use global/active config
-		sshJumphost = a.config.SSHJumphost
+		sshJumphost = a.config.SSHJumpHost
 	}
 
 	if sshUser == "" {
@@ -54,8 +55,8 @@ func (a *App) openNodeShell() {
 	a.Suspend(func() {
 		// Display connecting message
 		msg := fmt.Sprintf("\nConnecting to node %s (%s) as user %s", node.Name, node.IP, sshUser)
-		if sshJumphost != "" {
-			msg += fmt.Sprintf(" via jumphost %s", sshJumphost)
+		if sshJumphost.Addr != "" {
+			msg += fmt.Sprintf(" via jumphost %s", sshJumphost.Addr)
 		}
 		fmt.Println(msg + "...")
 
@@ -279,7 +280,7 @@ func (a *App) openVMShell() {
 	// Determine SSH users and jumphost
 	hostShellUser := a.config.SSHUser
 	vmShellUser := a.config.VMSSHUser
-	var sshJumphost string
+	var sshJumphost config.SSHJumpHost
 
 	// In group mode, try to get users from the VM's source profile
 	if a.isGroupMode && vm.SourceProfile != "" {
@@ -291,10 +292,10 @@ func (a *App) openVMShell() {
 				vmShellUser = profile.VMSSHUser
 			}
 			// Strict assignment for jumphost
-			sshJumphost = profile.SSHJumphost
+			sshJumphost = profile.SSHJumpHost
 		}
 	} else {
-		sshJumphost = a.config.SSHJumphost
+		sshJumphost = a.config.SSHJumpHost
 	}
 
 	if vmShellUser == "" {
@@ -375,8 +376,8 @@ func (a *App) openVMShell() {
 
 			msg := fmt.Sprintf("\nConnecting to %s %s (ID: %d) on node %s (%s)",
 				containerType, vm.Name, vm.ID, vm.Node, nodeIP)
-			if sshJumphost != "" {
-				msg += fmt.Sprintf(" via jumphost %s", sshJumphost)
+			if sshJumphost.Addr != "" {
+				msg += fmt.Sprintf(" via jumphost %s", sshJumphost.Addr)
 			}
 			fmt.Println(msg + "...")
 
@@ -389,8 +390,8 @@ func (a *App) openVMShell() {
 			// For QEMU VMs, use direct SSH connection
 			msg := fmt.Sprintf("\nConnecting to QEMU VM %s (ID: %d) via SSH as %s@%s",
 				vm.Name, vm.ID, vmShellUser, vm.IP)
-			if sshJumphost != "" {
-				msg += fmt.Sprintf(" via jumphost %s", sshJumphost)
+			if sshJumphost.Addr != "" {
+				msg += fmt.Sprintf(" via jumphost %s", sshJumphost.Addr)
 			}
 			fmt.Println(msg + "...")
 

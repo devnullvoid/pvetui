@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/stretchr/testify/require"
 )
@@ -40,11 +41,28 @@ func TestExecuteNodeShellWith_JumpHost(t *testing.T) {
 	me := &mockExecutor{}
 	ctx := context.Background()
 
-	err := ExecuteNodeShellWith(ctx, me, "testuser", "192.0.2.1", "jump.example.com")
+	jh := config.SSHJumpHost{Addr: "jump.example.com"}
+	err := ExecuteNodeShellWith(ctx, me, "testuser", "192.0.2.1", jh)
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
 	require.Equal(t, []string{"-J", "jump.example.com", "testuser@192.0.2.1"}, me.lastArgs)
+}
+
+func TestExecuteNodeShellWith_JumpHost_Keyfile(t *testing.T) {
+	me := &mockExecutor{}
+	ctx := context.Background()
+
+	jh := config.SSHJumpHost{
+		Addr:    "jump.example.com",
+		User:    "jumpuser",
+		Keyfile: "/path/to/key",
+	}
+	err := ExecuteNodeShellWith(ctx, me, "testuser", "192.0.2.1", jh)
+	require.NoError(t, err)
+	require.Equal(t, 1, me.called)
+	require.Equal(t, "ssh", me.lastName)
+	require.Equal(t, []string{"-o", "ProxyCommand=ssh -W %h:%p -i '/path/to/key' -l 'jumpuser' 'jump.example.com'", "testuser@192.0.2.1"}, me.lastArgs)
 }
 
 func TestExecuteLXCShellWith_StandardContainer(t *testing.T) {
@@ -52,7 +70,7 @@ func TestExecuteLXCShellWith_StandardContainer(t *testing.T) {
 	ctx := context.Background()
 
 	// Test standard LXC container (no VM info)
-	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 100, nil, "")
+	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 100, nil, config.SSHJumpHost{})
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
@@ -69,7 +87,7 @@ func TestExecuteLXCShellWith_NonNixOSContainer(t *testing.T) {
 		OSType: "ubuntu",
 	}
 
-	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 101, vm, "")
+	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 101, vm, config.SSHJumpHost{})
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
@@ -86,7 +104,7 @@ func TestExecuteLXCShellWith_NixOSContainer(t *testing.T) {
 		OSType: "nixos",
 	}
 
-	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 102, vm, "")
+	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 102, vm, config.SSHJumpHost{})
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
@@ -105,7 +123,7 @@ func TestExecuteLXCShellWith_NixContainer(t *testing.T) {
 		OSType: "nix",
 	}
 
-	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 103, vm, "")
+	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 103, vm, config.SSHJumpHost{})
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
@@ -125,7 +143,7 @@ func TestExecuteLXCShellWithVM(t *testing.T) {
 
 	// Test using the lower-level function with mock executor
 	ctx := context.Background()
-	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", vm.ID, vm, "")
+	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", vm.ID, vm, config.SSHJumpHost{})
 	require.NoError(t, err)
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
@@ -138,13 +156,13 @@ func TestExecuteLXCShellWith_RootUserSkipsSudo(t *testing.T) {
 	me := &mockExecutor{}
 	ctx := context.Background()
 
-	err := ExecuteLXCShellWith(ctx, me, "root", "192.0.2.1", 200, nil, "")
+	err := ExecuteLXCShellWith(ctx, me, "root", "192.0.2.1", 200, nil, config.SSHJumpHost{})
 	require.NoError(t, err)
 	require.Equal(t, []string{"root@192.0.2.1", "-t", "pct enter 200"}, me.lastArgs)
 
 	me = &mockExecutor{}
 	vm := &api.VM{ID: 201, OSType: "nixos"}
-	err = ExecuteLXCShellWith(ctx, me, "root", "192.0.2.1", vm.ID, vm, "")
+	err = ExecuteLXCShellWith(ctx, me, "root", "192.0.2.1", vm.ID, vm, config.SSHJumpHost{})
 	require.NoError(t, err)
 	expectedCmd := "pct exec 201 -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'"
 	require.Equal(t, []string{"root@192.0.2.1", "-t", expectedCmd}, me.lastArgs)
@@ -154,7 +172,8 @@ func TestExecuteLXCShellWith_JumpHost(t *testing.T) {
 	me := &mockExecutor{}
 	ctx := context.Background()
 
-	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 100, nil, "jump.example.com")
+	jh := config.SSHJumpHost{Addr: "jump.example.com"}
+	err := ExecuteLXCShellWith(ctx, me, "testuser", "192.0.2.1", 100, nil, jh)
 	require.NoError(t, err)
 	require.Equal(t, []string{"-J", "jump.example.com", "testuser@192.0.2.1", "-t", "sudo pct enter 100"}, me.lastArgs)
 }

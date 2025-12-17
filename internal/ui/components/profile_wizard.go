@@ -61,8 +61,9 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	}
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, sshJumphost, groupString string
-	var insecure bool
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, groupString string
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostPassword, sshJumpHostKeyfile string
+	var insecure, useJumpHost bool
 
 	// If we have profiles and a default profile, use profile data
 	//nolint:dupl // Shared with config wizard but kept inline for clarity
@@ -91,7 +92,15 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
-			sshJumphost = profile.SSHJumphost
+
+			sshJumpHostAddr = profile.SSHJumpHost.Addr
+			sshJumpHostUser = profile.SSHJumpHost.User
+			sshJumpHostPassword = profile.SSHJumpHost.Password
+			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
+
+			if sshJumpHostAddr != "" {
+				useJumpHost = true
+			}
 
 			// Join groups for display
 			groupString = strings.Join(profile.Groups, ", ")
@@ -119,13 +128,26 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
-		sshJumphost = cfg.SSHJumphost
+
+		sshJumpHostAddr = cfg.SSHJumpHost.Addr
+		sshJumpHostUser = cfg.SSHJumpHost.User
+		sshJumpHostPassword = cfg.SSHJumpHost.Password
+		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
+
+		if sshJumpHostAddr != "" {
+			useJumpHost = true
+		}
 		// Legacy config doesn't have group field
 	}
 
 	var focusableItems []tview.Primitive
 
-	addInput := func(label, value string, width int, accept func(text string, ch rune) bool, changed func(text string)) {
+	// Declare helpers to be used recursively if needed
+	var addInput func(label, value string, width int, accept func(text string, ch rune) bool, changed func(text string))
+	var addPassword func(label, value string, width int, mask rune, changed func(text string))
+	var addCheckbox func(label string, checked bool, changed func(checked bool))
+
+	addInput = func(label, value string, width int, accept func(text string, ch rune) bool, changed func(text string)) {
 		field := tview.NewInputField().
 			SetLabel(label).
 			SetText(value).
@@ -136,7 +158,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		focusableItems = append(focusableItems, field)
 	}
 
-	addPassword := func(label, value string, width int, mask rune, changed func(text string)) {
+	addPassword = func(label, value string, width int, mask rune, changed func(text string)) {
 		field := tview.NewInputField().
 			SetLabel(label).
 			SetText(value).
@@ -147,7 +169,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		focusableItems = append(focusableItems, field)
 	}
 
-	addCheckbox := func(label string, checked bool, changed func(checked bool)) {
+	addCheckbox = func(label string, checked bool, changed func(checked bool)) {
 		field := tview.NewCheckbox().
 			SetLabel(label).
 			SetChecked(checked).
@@ -156,140 +178,215 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		focusableItems = append(focusableItems, field)
 	}
 
-	addInput("Proxmox API URL", addr, 40, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			// Update profile
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.Addr = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			// Update legacy field
-			cfg.Addr = strings.TrimSpace(text)
-		}
-	})
-	addInput("Username", user, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.User = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.User = strings.TrimSpace(text)
-		}
-	})
-	addPassword("Password", password, 20, '*', func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.Password = text
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.Password = text
-		}
-	})
-	addInput("API Token ID", tokenID, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.TokenID = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.TokenID = strings.TrimSpace(text)
-		}
-	})
-	addPassword("API Token Secret", tokenSecret, 20, '*', func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.TokenSecret = text
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.TokenSecret = text
-		}
-	})
-	addInput("Realm", realm, 10, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.Realm = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.Realm = strings.TrimSpace(text)
-		}
-	})
-	addInput("API Path", apiPath, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.ApiPath = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.ApiPath = strings.TrimSpace(text)
-		}
-	})
-	addCheckbox("Skip TLS Verification", insecure, func(checked bool) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.Insecure = checked
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.Insecure = checked
-		}
-	})
-	addInput("SSH Username", sshUser, 20, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.SSHUser = strings.TrimSpace(text)
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.SSHUser = strings.TrimSpace(text)
-		}
-	})
-	addInput("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
-		value := strings.TrimSpace(text)
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.VMSSHUser = value
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.VMSSHUser = value
-		}
-	})
-	addInput("SSH Jump Host", sshJumphost, 40, nil, func(text string) {
-		value := strings.TrimSpace(text)
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				profile.SSHJumphost = value
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			cfg.SSHJumphost = value
-		}
-	})
-	addInput("Groups (comma separated)", groupString, 40, nil, func(text string) {
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				parts := strings.Split(text, ",")
-				var groups []string
-				for _, p := range parts {
-					g := strings.TrimSpace(p)
-					if g != "" {
-						groups = append(groups, g)
-					}
+	var rebuildForm func()
+	rebuildForm = func() {
+		form.Clear(true)
+		focusableItems = nil
+
+		addInput("Proxmox API URL", addr, 40, nil, func(text string) {
+			addr = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				// Update profile
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.Addr = strings.TrimSpace(text)
+					cfg.Profiles[cfg.DefaultProfile] = profile
 				}
-				profile.Groups = groups
-
-				cfg.Profiles[cfg.DefaultProfile] = profile
+			} else {
+				// Update legacy field
+				cfg.Addr = strings.TrimSpace(text)
 			}
-		}
-		// Legacy config doesn't support groups
-	})
+		})
+		addInput("Username", user, 20, nil, func(text string) {
+			user = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.User = strings.TrimSpace(text)
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.User = strings.TrimSpace(text)
+			}
+		})
+		addPassword("Password", password, 20, '*', func(text string) {
+			password = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.Password = text
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.Password = text
+			}
+		})
+		addInput("API Token ID", tokenID, 20, nil, func(text string) {
+			tokenID = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.TokenID = strings.TrimSpace(text)
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.TokenID = strings.TrimSpace(text)
+			}
+		})
+		addPassword("API Token Secret", tokenSecret, 20, '*', func(text string) {
+			tokenSecret = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.TokenSecret = text
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.TokenSecret = text
+			}
+		})
+		addInput("Realm", realm, 10, nil, func(text string) {
+			realm = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.Realm = strings.TrimSpace(text)
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.Realm = strings.TrimSpace(text)
+			}
+		})
+		addInput("API Path", apiPath, 20, nil, func(text string) {
+			apiPath = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.ApiPath = strings.TrimSpace(text)
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.ApiPath = strings.TrimSpace(text)
+			}
+		})
+		addCheckbox("Skip TLS Verification", insecure, func(checked bool) {
+			insecure = checked
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.Insecure = checked
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.Insecure = checked
+			}
+		})
+		addInput("SSH Username", sshUser, 20, nil, func(text string) {
+			sshUser = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.SSHUser = strings.TrimSpace(text)
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.SSHUser = strings.TrimSpace(text)
+			}
+		})
+		addInput("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
+			vmSSHUser = text
+			value := strings.TrimSpace(text)
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.VMSSHUser = value
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.VMSSHUser = value
+			}
+		})
+		addInput("Groups (comma separated)", groupString, 40, nil, func(text string) {
+			groupString = text
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					parts := strings.Split(text, ",")
+					var groups []string
+					for _, p := range parts {
+						g := strings.TrimSpace(p)
+						if g != "" {
+							groups = append(groups, g)
+						}
+					}
+					profile.Groups = groups
 
-	form.AddButton("Save", func() {
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			}
+			// Legacy config doesn't support groups
+		})
+
+		// SSH Jump Host (Advanced)
+		addCheckbox("Use SSH Jump Host (Advanced)", useJumpHost, func(checked bool) {
+			useJumpHost = checked
+			if !checked {
+				sshJumpHostAddr = ""
+				sshJumpHostUser = ""
+				sshJumpHostPassword = ""
+				sshJumpHostKeyfile = ""
+				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+					if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+						profile.SSHJumpHost = config.SSHJumpHost{}
+						cfg.Profiles[cfg.DefaultProfile] = profile
+					}
+				} else {
+					cfg.SSHJumpHost = config.SSHJumpHost{}
+				}
+			}
+			// Rebuild form with deferred update
+			a.Application.QueueUpdateDraw(func() {
+				rebuildForm()
+			})
+		})
+
+		if useJumpHost {
+			addInput("Jump Host Address", sshJumpHostAddr, 40, nil, func(text string) {
+				sshJumpHostAddr = text
+				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+					if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+						profile.SSHJumpHost.Addr = strings.TrimSpace(text)
+						cfg.Profiles[cfg.DefaultProfile] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.Addr = strings.TrimSpace(text)
+				}
+			})
+			addInput("Jump Host User", sshJumpHostUser, 20, nil, func(text string) {
+				sshJumpHostUser = text
+				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+					if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+						profile.SSHJumpHost.User = strings.TrimSpace(text)
+						cfg.Profiles[cfg.DefaultProfile] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.User = strings.TrimSpace(text)
+				}
+			})
+			addPassword("Jump Host Password", sshJumpHostPassword, 20, '*', func(text string) {
+				sshJumpHostPassword = text
+				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+					if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+						profile.SSHJumpHost.Password = text
+						cfg.Profiles[cfg.DefaultProfile] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.Password = text
+				}
+			})
+			addInput("Jump Host Keyfile", sshJumpHostKeyfile, 40, nil, func(text string) {
+				sshJumpHostKeyfile = text
+				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+					if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+						profile.SSHJumpHost.Keyfile = strings.TrimSpace(text)
+						cfg.Profiles[cfg.DefaultProfile] = profile
+					}
+				} else {
+					cfg.SSHJumpHost.Keyfile = strings.TrimSpace(text)
+				}
+			})
+		}
+
+		form.AddButton("Save", func() {
 		// Validate profile name for all profiles
 		if profileName == "" {
 			showWizardModal(pages, form, a.Application, "error", "Profile name cannot be empty.", nil)
@@ -435,6 +532,9 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	form.AddButton("Cancel", func() {
 		resultChan <- WizardResult{Canceled: true}
 	})
+	}
+
+	rebuildForm()
 
 	form.SetBorder(true).SetTitle("pvetui - Profile Configuration").SetTitleColor(theme.Colors.Primary)
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -83,7 +84,7 @@ func (c *SSHClient) Shell() error {
 		return fmt.Errorf("ssh client is nil")
 	}
 
-	return ExecuteNodeShellWith(context.Background(), c.executor, c.User, c.Host, "")
+	return ExecuteNodeShellWith(context.Background(), c.executor, c.User, c.Host, config.SSHJumpHost{})
 }
 
 // ExecuteNodeShell opens an interactive SSH session to a Proxmox node.
@@ -94,10 +95,10 @@ func (c *SSHClient) Shell() error {
 // Parameters:
 //   - user: SSH username for authentication
 //   - nodeIP: IP address or hostname of the target node
-//   - jumphost: Optional SSH jump host (can be empty)
+//   - jumphost: Optional SSH jump host configuration
 //
 // Returns an error if the SSH connection fails.
-func ExecuteNodeShell(user, nodeIP, jumphost string) error {
+func ExecuteNodeShell(user, nodeIP string, jumphost config.SSHJumpHost) error {
 	return ExecuteNodeShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, jumphost)
 }
 
@@ -114,17 +115,13 @@ func ExecuteNodeShell(user, nodeIP, jumphost string) error {
 //   - execer: Command executor interface for running SSH commands
 //   - user: SSH username for authentication
 //   - nodeIP: IP address or hostname of the target node
-//   - jumphost: Optional SSH jump host (can be empty)
+//   - jumphost: Optional SSH jump host configuration
 //
 // Returns an error if the SSH connection fails.
-func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP, jumphost string) error {
-	sshLogger().Debug("SSH node shell: user=%s host=%s jumphost=%s", user, nodeIP, jumphost)
+func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, jumphost config.SSHJumpHost) error {
+	sshLogger().Debug("SSH node shell: user=%s host=%s jumphost=%+v", user, nodeIP, jumphost)
 
-	var args []string
-	if jumphost != "" {
-		args = append(args, "-J", jumphost)
-	}
-	args = append(args, fmt.Sprintf("%s@%s", user, nodeIP))
+	args := buildSSHArgs(user, nodeIP, jumphost)
 
 	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
@@ -158,10 +155,10 @@ func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nod
 //   - user: SSH username for authentication to the Proxmox node
 //   - nodeIP: IP address or hostname of the Proxmox node hosting the container
 //   - vmID: Container ID number
-//   - jumphost: Optional SSH jump host (can be empty)
+//   - jumphost: Optional SSH jump host configuration
 //
 // Returns an error if the connection fails.
-func ExecuteLXCShell(user, nodeIP string, vmID int, jumphost string) error {
+func ExecuteLXCShell(user, nodeIP string, vmID int, jumphost config.SSHJumpHost) error {
 	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vmID, nil, jumphost)
 }
 
@@ -177,10 +174,10 @@ func ExecuteLXCShell(user, nodeIP string, vmID int, jumphost string) error {
 //   - user: SSH username for authentication to the Proxmox node
 //   - nodeIP: IP address or hostname of the Proxmox node hosting the container
 //   - vm: VM/container information including OS type for detection
-//   - jumphost: Optional SSH jump host (can be empty)
+//   - jumphost: Optional SSH jump host configuration
 //
 // Returns an error if the connection fails.
-func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM, jumphost string) error {
+func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM, jumphost config.SSHJumpHost) error {
 	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vm.ID, vm, jumphost)
 }
 
@@ -217,15 +214,11 @@ func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM, jumphost string) err
 //   - nodeIP: IP address or hostname of the Proxmox node hosting the container
 //   - vmID: Container ID number
 //   - vm: Optional VM information for OS detection (nil for standard behavior)
-//   - jumphost: Optional SSH jump host (can be empty)
+//   - jumphost: Optional SSH jump host configuration
 //
 // Returns an error if the connection fails.
-func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int, vm *api.VM, jumphost string) error {
-	var sshArgs []string
-
-	if jumphost != "" {
-		sshArgs = append(sshArgs, "-J", jumphost)
-	}
+func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int, vm *api.VM, jumphost config.SSHJumpHost) error {
+	sshArgs := buildSSHArgsBase(user, nodeIP, jumphost)
 
 	var sessionType string
 
@@ -245,7 +238,6 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 		// Use the NixOS-specific command for containers
 		pctExec := buildPct(fmt.Sprintf("pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vmID))
 		sshArgs = append(sshArgs,
-			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
 			pctExec,
 		)
@@ -254,14 +246,13 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 		// Use the standard pct enter command
 		pctEnter := buildPct(fmt.Sprintf("pct enter %d", vmID))
 		sshArgs = append(sshArgs,
-			fmt.Sprintf("%s@%s", user, nodeIP),
 			"-t",
 			pctEnter,
 		)
 		sessionType = "LXC"
 	}
 
-	sshLogger().Debug("SSH LXC shell (%s): user=%s host=%s jumphost=%s cmd=%s", sessionType, user, nodeIP, jumphost, sshArgs)
+	sshLogger().Debug("SSH LXC shell (%s): user=%s host=%s jumphost=%+v cmd=%s", sessionType, user, nodeIP, jumphost, sshArgs)
 
 	sshCmd := execer.CommandContext(ctx, "ssh", sshArgs...)
 	sshCmd.Stdin = os.Stdin
@@ -296,10 +287,10 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 // Parameters:
 //   - user: SSH username for authentication to the VM
 //   - vmIP: IP address of the target VM
-//   - jumphost: Optional SSH jump host (can be empty)
+//   - jumphost: Optional SSH jump host configuration
 //
 // Returns an error if the VM IP is empty or if the SSH connection fails.
-func ExecuteQemuShell(user, vmIP, jumphost string) error {
+func ExecuteQemuShell(user, vmIP string, jumphost config.SSHJumpHost) error {
 	return ExecuteQemuShellWith(context.Background(), NewDefaultExecutor(), user, vmIP, jumphost)
 }
 
@@ -316,21 +307,17 @@ func ExecuteQemuShell(user, vmIP, jumphost string) error {
 //   - execer: Command executor interface for running SSH commands
 //   - user: SSH username for authentication to the VM
 //   - vmIP: IP address of the target VM
-//   - jumphost: Optional SSH jump host (can be empty)
+//   - jumphost: Optional SSH jump host configuration
 //
 // Returns an error if the VM IP is empty or if the SSH connection fails.
-func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmIP, jumphost string) error {
+func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmIP string, jumphost config.SSHJumpHost) error {
 	if vmIP == "" {
 		return fmt.Errorf("no IP address available for VM")
 	}
 
-	sshLogger().Debug("SSH QEMU shell: user=%s host=%s jumphost=%s", user, vmIP, jumphost)
+	sshLogger().Debug("SSH QEMU shell: user=%s host=%s jumphost=%+v", user, vmIP, jumphost)
 
-	var args []string
-	if jumphost != "" {
-		args = append(args, "-J", jumphost)
-	}
-	args = append(args, fmt.Sprintf("%s@%s", user, vmIP))
+	args := buildSSHArgs(user, vmIP, jumphost)
 
 	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
@@ -353,4 +340,46 @@ func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmI
 	}
 
 	return nil
+}
+
+func buildSSHArgs(user, host string, jumphost config.SSHJumpHost) []string {
+	args := buildSSHArgsBase(user, host, jumphost)
+	// For standard SSH, buildSSHArgsBase returns up to [flags..., user@host]
+	return args
+}
+
+func buildSSHArgsBase(user, host string, jumphost config.SSHJumpHost) []string {
+	var args []string
+	target := fmt.Sprintf("%s@%s", user, host)
+
+	if jumphost.Addr != "" {
+		if jumphost.Keyfile != "" {
+			// Use ProxyCommand for keyfile support
+			// ssh -W %h:%p -i keyfile -l user jumphost
+			proxyCmd := "ssh -W %h:%p"
+			if jumphost.Keyfile != "" {
+				proxyCmd += fmt.Sprintf(" -i %s", shellQuote(jumphost.Keyfile))
+			}
+			if jumphost.User != "" {
+				proxyCmd += fmt.Sprintf(" -l %s", shellQuote(jumphost.User))
+			}
+			proxyCmd += fmt.Sprintf(" %s", shellQuote(jumphost.Addr))
+
+			args = append(args, "-o", fmt.Sprintf("ProxyCommand=%s", proxyCmd))
+		} else {
+			// Use -J for simple case
+			jumpSpec := jumphost.Addr
+			if jumphost.User != "" {
+				jumpSpec = fmt.Sprintf("%s@%s", jumphost.User, jumphost.Addr)
+			}
+			args = append(args, "-J", jumpSpec)
+		}
+	}
+
+	args = append(args, target)
+	return args
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }

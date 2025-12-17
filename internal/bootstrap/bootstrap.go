@@ -38,8 +38,10 @@ type BootstrapOptions struct {
 	FlagApiPath     string
 	FlagSSHUser     string
 	FlagVMSSHUser   string
-	FlagSSHJumphost string
-	FlagDebug       bool
+	FlagSSHJumpHostAddr    string
+	FlagSSHJumpHostUser    string
+	FlagSSHJumpHostKeyfile string
+	FlagDebug              bool
 	FlagCacheDir    string
 }
 
@@ -70,7 +72,7 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&configWizard, "w", false, "Short for --config-wizard")
 
 	// Config flags (these will be applied to the config object later)
-	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagSSHJumphost, flagCacheDir string
+	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagSSHJumpHostAddr, flagSSHJumpHostUser, flagSSHJumpHostKeyfile, flagCacheDir string
 	var flagInsecure, flagDebug bool
 
 	flag.StringVar(&flagAddr, "addr", "", "Proxmox API URL (env PVETUI_ADDR)")
@@ -93,8 +95,10 @@ func ParseFlags() BootstrapOptions {
 	flag.StringVar(&flagSSHUser, "su", "", "Short for --ssh-user")
 	flag.StringVar(&flagVMSSHUser, "vm-ssh-user", "", "QEMU VM SSH username (env PVETUI_VM_SSH_USER)")
 	flag.StringVar(&flagVMSSHUser, "vsu", "", "Short for --vm-ssh-user")
-	flag.StringVar(&flagSSHJumphost, "ssh-jumphost", "", "SSH jump host (env PVETUI_SSH_JUMPHOST)")
-	flag.StringVar(&flagSSHJumphost, "J", "", "Short for --ssh-jumphost")
+	flag.StringVar(&flagSSHJumpHostAddr, "ssh-jumphost-addr", "", "SSH jump host address (env PVETUI_SSH_JUMPHOST_ADDR)")
+	flag.StringVar(&flagSSHJumpHostAddr, "J", "", "Short for --ssh-jumphost-addr")
+	flag.StringVar(&flagSSHJumpHostUser, "ssh-jumphost-user", "", "SSH jump host user (env PVETUI_SSH_JUMPHOST_USER)")
+	flag.StringVar(&flagSSHJumpHostKeyfile, "ssh-jumphost-keyfile", "", "SSH jump host identity file (env PVETUI_SSH_JUMPHOST_KEYFILE)")
 	flag.BoolVar(&flagDebug, "debug", false, "Enable debug logging (env PVETUI_DEBUG)")
 	flag.BoolVar(&flagDebug, "d", false, "Short for --debug")
 	flag.StringVar(&flagCacheDir, "cache-dir", "", "Cache directory path (env PVETUI_CACHE_DIR)")
@@ -119,8 +123,10 @@ func ParseFlags() BootstrapOptions {
 		FlagApiPath:     flagApiPath,
 		FlagSSHUser:     flagSSHUser,
 		FlagVMSSHUser:   flagVMSSHUser,
-		FlagSSHJumphost: flagSSHJumphost,
-		FlagDebug:       flagDebug,
+		FlagSSHJumpHostAddr:    flagSSHJumpHostAddr,
+		FlagSSHJumpHostUser:    flagSSHJumpHostUser,
+		FlagSSHJumpHostKeyfile: flagSSHJumpHostKeyfile,
+		FlagDebug:              flagDebug,
 		FlagCacheDir:    flagCacheDir,
 	}
 }
@@ -252,8 +258,14 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			if opts.FlagVMSSHUser != "" {
 				profile.VMSSHUser = opts.FlagVMSSHUser
 			}
-			if opts.FlagSSHJumphost != "" {
-				profile.SSHJumphost = opts.FlagSSHJumphost
+			if opts.FlagSSHJumpHostAddr != "" {
+				profile.SSHJumpHost.Addr = opts.FlagSSHJumpHostAddr
+			}
+			if opts.FlagSSHJumpHostUser != "" {
+				profile.SSHJumpHost.User = opts.FlagSSHJumpHostUser
+			}
+			if opts.FlagSSHJumpHostKeyfile != "" {
+				profile.SSHJumpHost.Keyfile = opts.FlagSSHJumpHostKeyfile
 			}
 			cfg.Profiles[startupProfile] = profile
 		}
@@ -314,8 +326,14 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 	if opts.FlagVMSSHUser != "" {
 		cfg.VMSSHUser = opts.FlagVMSSHUser
 	}
-	if opts.FlagSSHJumphost != "" {
-		cfg.SSHJumphost = opts.FlagSSHJumphost
+	if opts.FlagSSHJumpHostAddr != "" {
+		cfg.SSHJumpHost.Addr = opts.FlagSSHJumpHostAddr
+	}
+	if opts.FlagSSHJumpHostUser != "" {
+		cfg.SSHJumpHost.User = opts.FlagSSHJumpHostUser
+	}
+	if opts.FlagSSHJumpHostKeyfile != "" {
+		cfg.SSHJumpHost.Keyfile = opts.FlagSSHJumpHostKeyfile
 	}
 	if opts.FlagDebug {
 		cfg.Debug = true
