@@ -392,7 +392,7 @@ func (c *Config) MergeWithFile(path string) error {
 		return err
 	}
 
-	if !isSOPSEncrypted && detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret) {
+	if !isSOPSEncrypted && (detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret) || hasCleartextSensitiveValue(fileConfig.SSHJumpHost.Password)) {
 		c.hasCleartextSensitive = true
 	}
 
@@ -619,7 +619,7 @@ func detectCleartextSensitive(profiles map[string]ProfileConfig, legacyPassword,
 
 func hasCleartextSensitiveProfiles(profiles map[string]ProfileConfig) bool {
 	for _, profile := range profiles {
-		if hasCleartextSensitiveValue(profile.Password) || hasCleartextSensitiveValue(profile.TokenSecret) {
+		if hasCleartextSensitiveValue(profile.Password) || hasCleartextSensitiveValue(profile.TokenSecret) || hasCleartextSensitiveValue(profile.SSHJumpHost.Password) {
 			return true
 		}
 	}
