@@ -18,6 +18,8 @@ func TestParse(t *testing.T) {
 		{"Shift+A", tcell.KeyRune, 'a', tcell.ModShift},
 		{"Ctrl+A", tcell.KeyRune, 'a', tcell.ModCtrl | tcell.ModShift},
 		{"Ctrl+Shift+A", tcell.KeyRune, 'a', tcell.ModCtrl | tcell.ModShift},
+		{"Backtab", tcell.KeyBacktab, 0, 0},
+		{"Shift+Tab", tcell.KeyBacktab, 0, 0},
 		{"Alt+1", tcell.KeyRune, '1', tcell.ModAlt},
 		{"Opt+1", tcell.KeyRune, '1', tcell.ModAlt},
 		{"Alt+#", tcell.KeyRune, '3', tcell.ModAlt | tcell.ModShift},
@@ -56,6 +58,33 @@ func TestNormalizeEvent_Tab(t *testing.T) {
 	assert.Equal(t, tcell.KeyTab, key)
 	assert.Zero(t, r)
 	assert.Equal(t, tcell.ModCtrl, mod)
+}
+
+func TestNormalizeEvent_Backtab(t *testing.T) {
+	backtab := tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+	key, r, mod := NormalizeEvent(backtab)
+	assert.Equal(t, tcell.KeyBacktab, key)
+	assert.Zero(t, r)
+	assert.Zero(t, mod)
+
+	shiftTab := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModShift)
+	key, r, mod = NormalizeEvent(shiftTab)
+	assert.Equal(t, tcell.KeyBacktab, key)
+	assert.Zero(t, r)
+	assert.Zero(t, mod)
+
+	ctrlShiftTab := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModCtrl|tcell.ModShift)
+	key, r, mod = NormalizeEvent(ctrlShiftTab)
+	assert.Equal(t, tcell.KeyTab, key)
+	assert.Zero(t, r)
+	assert.Equal(t, tcell.ModCtrl|tcell.ModShift, mod)
+}
+
+func TestNormalizeNavigationEvent_Backtab(t *testing.T) {
+	shiftTab := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModShift)
+	norm := NormalizeNavigationEvent(shiftTab)
+	assert.Equal(t, tcell.KeyBacktab, norm.Key())
+	assert.Zero(t, norm.Modifiers())
 }
 
 func TestNormalizeEvent_ShiftDigit(t *testing.T) {

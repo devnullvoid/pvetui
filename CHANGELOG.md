@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backup Keyboard Handling**: Whitelisted backup pages in keyboard handler to prevent global hotkey conflicts with form input.
 - **SOPS Group Management**: Prevent unwanted re-encryption of already-encrypted configs during group operations.
 - **Profile Template Cleanup**: Removed obsolete "work" profile from default configuration template to prevent confusion.
+- **Wizard Back-Tab Navigation**: Restored Shift+Tab (back-tab) focus navigation in the Profile Editor and Config Wizard, including button rows.
 - **UI Deadlocks**: Fixed deadlock issues in "Add Group" dialog and other UI components.
 - **Focus Management**: Resolved focus loss in "Add Group" workflow and other form interactions.
 

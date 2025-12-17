@@ -121,8 +121,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		// Legacy config doesn't have group field
 	}
 
-	var focusableItems []tview.Primitive
-
 	addInput := func(label, value string, width int, accept func(text string, ch rune) bool, changed func(text string)) {
 		field := tview.NewInputField().
 			SetLabel(label).
@@ -131,7 +129,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			SetAcceptanceFunc(accept).
 			SetChangedFunc(changed)
 		form.AddFormItem(field)
-		focusableItems = append(focusableItems, field)
 	}
 
 	addPassword := func(label, value string, width int, mask rune, changed func(text string)) {
@@ -142,7 +139,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			SetMaskCharacter(mask).
 			SetChangedFunc(changed)
 		form.AddFormItem(field)
-		focusableItems = append(focusableItems, field)
 	}
 
 	addCheckbox := func(label string, checked bool, changed func(checked bool)) {
@@ -151,7 +147,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			SetChecked(checked).
 			SetChangedFunc(changed)
 		form.AddFormItem(field)
-		focusableItems = append(focusableItems, field)
 	}
 
 	addInput("Proxmox API URL", addr, 40, nil, func(text string) {
@@ -427,33 +422,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			resultChan <- WizardResult{Canceled: true}
-			return nil
-		}
-		// Manual handling for Shift+Tab (Backtab)
-		if event.Key() == tcell.KeyBacktab {
-			currentFocus := a.Application.GetFocus()
-			currentIndex := -1
-
-			// Find currently focused item
-			for i, item := range focusableItems {
-				if item == currentFocus {
-					currentIndex = i
-					break
-				}
-			}
-
-			// Calculate previous index
-			var nextIndex int
-			if currentIndex > 0 {
-				nextIndex = currentIndex - 1
-			} else {
-				// If index is 0 (first item) or -1 (not found/button), wrap to bottom
-				nextIndex = len(focusableItems) - 1
-			}
-
-			if nextIndex >= 0 && nextIndex < len(focusableItems) {
-				a.Application.SetFocus(focusableItems[nextIndex])
-			}
 			return nil
 		}
 		return event

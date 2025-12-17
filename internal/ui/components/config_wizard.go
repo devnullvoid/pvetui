@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/keys"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -530,6 +531,7 @@ func SaveConfigToFile(cfg *config.Config, path string) error {
 // LaunchConfigWizard launches the configuration wizard and returns the result.
 func LaunchConfigWizard(cfg *config.Config, configPath string, activeProfile string) WizardResult {
 	tviewApp := tview.NewApplication()
+	tviewApp.SetInputCapture(keys.NormalizeNavigationEvent)
 
 	// Apply theme configuration first, then apply to tview (same as main application)
 	theme.ApplyCustomTheme(&cfg.Theme)

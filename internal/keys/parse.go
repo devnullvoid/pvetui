@@ -54,7 +54,16 @@ func Parse(spec string) (tcell.Key, rune, tcell.ModMask, error) {
 
 	b := strings.ToUpper(base)
 	switch b {
+	case "BACKTAB":
+		// Backtab already implies Shift; don't double-count it.
+		mods &^= tcell.ModShift
+		return tcell.KeyBacktab, 0, mods, nil
 	case "TAB":
+		// In many UIs (including tview forms), Shift+Tab is treated as "back-tab".
+		// Represent that as KeyBacktab rather than KeyTab+Shift.
+		if mods == tcell.ModShift {
+			return tcell.KeyBacktab, 0, tcell.ModNone, nil
+		}
 		// "Ctrl+Tab" is not a standard combination that all terminals support
 		// sending, but we can support the string configuration.
 		return tcell.KeyTab, 0, mods, nil
@@ -181,6 +190,19 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 		key = tcell.KeyTab
 	}
 
+	// Normalize Shift+Tab across terminals and tcell versions.
+	// Some terminals produce KeyBacktab, others produce KeyTab with ModShift.
+	if key == tcell.KeyBacktab {
+		// KeyBacktab already implies Shift.
+		mod &^= tcell.ModShift
+	} else if key == tcell.KeyTab {
+		other := mod &^ tcell.ModShift
+		if (mod&tcell.ModShift) != 0 && other == 0 {
+			key = tcell.KeyBacktab
+			mod = 0
+		}
+	}
+
 	// If a rune is uppercase, the shift modifier should be active.
 	isRuneKey := key == tcell.KeyRune
 	if isRuneKey {
@@ -216,6 +238,34 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 	}
 
 	return key, r, mod
+}
+
+// NormalizeNavigationEvent normalizes terminal key events for in-app navigation.
+//
+// In particular, many UIs (including tview forms/buttons) expect Shift+Tab to be
+// represented as KeyBacktab. Some terminals/tcell versions instead emit KeyTab
+// with ModShift. This helper converts the latter to KeyBacktab so widgets can
+// reliably navigate backwards.
+func NormalizeNavigationEvent(ev *tcell.EventKey) *tcell.EventKey {
+	if ev == nil {
+		return nil
+	}
+
+	key := ev.Key()
+	mod := ev.Modifiers()
+
+	if key == tcell.KeyTab {
+		other := mod &^ tcell.ModShift
+		if (mod&tcell.ModShift) != 0 && other == 0 {
+			return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+		}
+	}
+
+	if key == tcell.KeyBacktab && mod != 0 {
+		return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+	}
+
+	return ev
 }
 
 // ToChar converts a tcell.Key to its rune representation if it's a Ctrl+<char> key.
