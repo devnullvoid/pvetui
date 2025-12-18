@@ -43,8 +43,10 @@ profiles:
     insecure: false
     ssh_user: "workuser"
     vm_ssh_user: "work-vm-user"
+    groups:
+      - all-servers
 
-default_profile: "default"
+default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 
@@ -89,7 +91,7 @@ The built-in profile manager allows you to:
 - **Add new profiles** with different Proxmox connections
 - **Edit existing profiles** with validation
 - **Delete profiles** with confirmation
-- **Set default profile** for automatic connection
+- **Set default profile or group** for automatic startup
 
 Access the profile manager through the global menu (`g` key) or context menus.
 

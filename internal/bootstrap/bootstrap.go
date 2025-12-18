@@ -156,8 +156,18 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 
 		// Apply selected profile for config wizard
 		if selectedProfile != "" {
-			if err := cfg.ApplyProfile(selectedProfile); err != nil {
-				return nil, fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
+			if _, exists := cfg.Profiles[selectedProfile]; exists {
+				if err := cfg.ApplyProfile(selectedProfile); err != nil {
+					return nil, fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
+				}
+			} else if cfg.IsGroup(selectedProfile) {
+				members := cfg.GetProfileNamesInGroup(selectedProfile)
+				if len(members) == 0 {
+					return nil, fmt.Errorf("aggregate group '%s' has no members", selectedProfile)
+				}
+				if err := cfg.ApplyProfile(members[0]); err != nil {
+					return nil, fmt.Errorf("could not select group '%s' (via profile '%s'): %w", selectedProfile, members[0], err)
+				}
 			}
 		}
 

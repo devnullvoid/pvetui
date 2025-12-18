@@ -142,6 +142,8 @@ profiles:
     insecure: false
     ssh_user: "your-ssh-user"
     vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VM shells
+    groups:
+      - all-servers
 
   work:
     addr: "https://work-proxmox:8006"
@@ -152,8 +154,10 @@ profiles:
     insecure: false
     ssh_user: "workuser"
     vm_ssh_user: "work-vm-user"
+    groups:
+      - all-servers
 
-default_profile: "default"
+default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
 ```
 

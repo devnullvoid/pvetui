@@ -592,6 +592,27 @@ func TestConfig_ProfileBasedConfiguration(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "valid default group",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"p1": {
+						Addr:     "https://p1.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+						Groups:   []string{"group1"},
+					},
+					"p2": {
+						Addr:     "https://p2.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+						Groups:   []string{"group1"},
+					},
+				},
+				DefaultProfile: "group1",
+			},
+			expectError: false,
+		},
+		{
 			name: "missing default profile",
 			config: &Config{
 				Profiles: map[string]ProfileConfig{
@@ -605,6 +626,28 @@ func TestConfig_ProfileBasedConfiguration(t *testing.T) {
 			},
 			expectError: true,
 			errorMsg:    "default profile 'nonexistent' not found",
+		},
+		{
+			name: "default group member missing address",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"p1": {
+						Addr:   "",
+						User:   "testuser",
+						Groups: []string{"group1"},
+						// Missing auth too, but address error should surface first.
+					},
+					"p2": {
+						Addr:     "https://p2.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+						Groups:   []string{"group1"},
+					},
+				},
+				DefaultProfile: "group1",
+			},
+			expectError: true,
+			errorMsg:    "proxmox address required in default profile group 'group1' (profile 'p1')",
 		},
 		{
 			name: "empty profiles map",

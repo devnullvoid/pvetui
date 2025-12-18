@@ -84,31 +84,48 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 	// Add profile name field at the top
 	var profileName string
-	var isDefaultProfile bool
+	originalProfileName := ""
 
 	// Determine if we are editing an existing profile
 	var isEditing bool
+	resolveProfileForWizard := func(candidate string) (string, bool) {
+		if candidate == "" {
+			return "", false
+		}
 
-	if targetProfile != "" {
-		// User requested specific profile
-		profileName = targetProfile
 		if cfg.Profiles != nil {
-			if _, exists := cfg.Profiles[profileName]; exists {
-				isEditing = true
+			if _, exists := cfg.Profiles[candidate]; exists {
+				return candidate, true
 			}
 		}
+
+		// If a group name is supplied, edit the first member profile (stable order).
+		if cfg.IsGroup(candidate) {
+			members := cfg.GetProfileNamesInGroup(candidate)
+			if len(members) > 0 {
+				if _, exists := cfg.Profiles[members[0]]; exists {
+					return members[0], true
+				}
+			}
+		}
+
+		// Unknown name: treat as creating a new profile.
+		return candidate, false
+	}
+
+	if targetProfile != "" {
+		// User requested specific profile/group
+		profileName, isEditing = resolveProfileForWizard(targetProfile)
 	} else {
 		// Fallback to default behavior
 		// If we have profiles, default to editing the default profile
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			profileName = cfg.DefaultProfile
-			if cfg.Profiles != nil {
-				if _, exists := cfg.Profiles[profileName]; exists {
-					isEditing = true
-				}
-			}
+			profileName, isEditing = resolveProfileForWizard(cfg.DefaultProfile)
 		}
 		// If no profiles, profileName remains empty, isEditing false
+	}
+	if isEditing {
+		originalProfileName = profileName
 	}
 
 	isNewProfile := !isEditing
@@ -118,9 +135,9 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	})
 
 	// Add checkbox for default profile
-	form.AddCheckbox("Set as Default Profile", isNewProfile || cfg.DefaultProfile == profileName, func(checked bool) {
-		isDefaultProfile = checked
-	})
+	defaultChecked := isNewProfile || (originalProfileName != "" && cfg.DefaultProfile == originalProfileName)
+	defaultCheckbox := tview.NewCheckbox().SetLabel("Set as Default Profile").SetChecked(defaultChecked)
+	form.AddFormItem(defaultCheckbox)
 
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
@@ -129,7 +146,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	// If we are editing a profile, use its data
 	//nolint:dupl // Shared with profile wizard to keep legacy/profile editing consistent
 	if isEditing {
-		if profile, exists := cfg.Profiles[profileName]; exists {
+		if profile, exists := cfg.Profiles[originalProfileName]; exists {
 			addr = profile.Addr
 			user = profile.User
 			// Decrypt password and tokenSecret for display in the form
@@ -180,107 +197,63 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	}
 
 	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
-		if isEditing {
-			// Update profile
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Addr = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			// Update legacy field - also update temp profile if we have one?
-			// Actually for new profiles we create the object at Save time
-			cfg.Addr = strings.TrimSpace(text)
+		addr = strings.TrimSpace(text)
+		if !isEditing {
+			cfg.Addr = addr
 		}
 	})
 	form.AddInputField("Username", user, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.User = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.User = strings.TrimSpace(text)
+		user = strings.TrimSpace(text)
+		if !isEditing {
+			cfg.User = user
 		}
 	})
 	form.AddPasswordField("Password", password, 20, '*', func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Password = text
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.Password = text
+		password = text
+		if !isEditing {
+			cfg.Password = password
 		}
 	})
 	form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.TokenID = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.TokenID = strings.TrimSpace(text)
+		tokenID = strings.TrimSpace(text)
+		if !isEditing {
+			cfg.TokenID = tokenID
 		}
 	})
 	form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.TokenSecret = text
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.TokenSecret = text
+		tokenSecret = text
+		if !isEditing {
+			cfg.TokenSecret = tokenSecret
 		}
 	})
 	form.AddInputField("Realm", realm, 10, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Realm = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.Realm = strings.TrimSpace(text)
+		realm = strings.TrimSpace(text)
+		if !isEditing {
+			cfg.Realm = realm
 		}
 	})
 	form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.ApiPath = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.ApiPath = strings.TrimSpace(text)
+		apiPath = strings.TrimSpace(text)
+		if !isEditing {
+			cfg.ApiPath = apiPath
 		}
 	})
 	form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.Insecure = checked
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.Insecure = checked
+		insecure = checked
+		if !isEditing {
+			cfg.Insecure = insecure
 		}
 	})
 	form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.SSHUser = strings.TrimSpace(text)
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.SSHUser = strings.TrimSpace(text)
+		sshUser = strings.TrimSpace(text)
+		if !isEditing {
+			cfg.SSHUser = sshUser
 		}
 	})
 	form.AddInputField("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
-		value := strings.TrimSpace(text)
-		if isEditing {
-			if profile, exists := cfg.Profiles[profileName]; exists {
-				profile.VMSSHUser = value
-				cfg.Profiles[profileName] = profile
-			}
-		} else {
-			cfg.VMSSHUser = value
+		vmSSHUser = strings.TrimSpace(text)
+		if !isEditing {
+			cfg.VMSSHUser = vmSSHUser
 		}
 	})
 	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
@@ -294,8 +267,8 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		}
 
 		// Check if profile already exists (for new profiles or renamed profiles)
-		if isNewProfile || profileName != cfg.DefaultProfile {
-			if cfg.Profiles != nil {
+		if cfg.Profiles != nil {
+			if isNewProfile || (isEditing && profileName != originalProfileName) {
 				if _, exists := cfg.Profiles[profileName]; exists {
 					showWizardModal(pages, form, app, "error", "Profile '"+profileName+"' already exists.", nil)
 					return
@@ -349,6 +322,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		}
 
 		// Handle profile creation/updating
+		setAsDefault := defaultCheckbox.IsChecked()
 		if isNewProfile {
 			// Create new profile
 			if cfg.Profiles == nil {
@@ -379,40 +353,52 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			cfg.Profiles[profileName] = newProfile
 
 			// Set as default if requested
-			if isDefaultProfile {
+			if setAsDefault {
 				cfg.DefaultProfile = profileName
 			}
 		} else {
 			// Update existing profile
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				// Handle profile renaming
-				if profileName != cfg.DefaultProfile {
-					// Store the old profile name before deleting
-					oldProfileName := cfg.DefaultProfile
-
-					// Remove old profile name
-					delete(cfg.Profiles, cfg.DefaultProfile)
-
-					// Update default profile if we're renaming the current default
-					if cfg.DefaultProfile == oldProfileName {
-						cfg.DefaultProfile = profileName
-					}
-				}
-
-				// The profile data has already been updated by the form field handlers
-				// Just clear conflicting auth method if needed
-				if hasPassword {
-					profile.TokenID = ""
-					profile.TokenSecret = ""
-				} else if hasToken {
-					profile.Password = ""
-				}
-
-				cfg.Profiles[profileName] = profile
+			profile, exists := cfg.Profiles[originalProfileName]
+			if !exists {
+				showWizardModal(pages, form, app, "error", "Profile '"+originalProfileName+"' not found.", nil)
+				return
 			}
 
-			// Update default profile setting
-			if isDefaultProfile {
+			// Preserve group memberships (not editable in this wizard).
+			updated := config.ProfileConfig{
+				Addr:        strings.TrimSpace(addr),
+				User:        strings.TrimSpace(user),
+				Password:    password,
+				TokenID:     strings.TrimSpace(tokenID),
+				TokenSecret: tokenSecret,
+				Realm:       strings.TrimSpace(realm),
+				ApiPath:     strings.TrimSpace(apiPath),
+				Insecure:    insecure,
+				SSHUser:     strings.TrimSpace(sshUser),
+				VMSSHUser:   strings.TrimSpace(vmSSHUser),
+				Groups:      append([]string{}, profile.Groups...),
+			}
+
+			if hasPassword {
+				updated.TokenID = ""
+				updated.TokenSecret = ""
+			} else if hasToken {
+				updated.Password = ""
+			}
+
+			// Rename if needed.
+			if profileName != originalProfileName {
+				delete(cfg.Profiles, originalProfileName)
+			}
+			cfg.Profiles[profileName] = updated
+
+			// If we renamed the current default profile, keep the default pointing at the renamed profile.
+			if cfg.DefaultProfile == originalProfileName {
+				cfg.DefaultProfile = profileName
+			}
+
+			// Or set as default if explicitly requested.
+			if setAsDefault {
 				cfg.DefaultProfile = profileName
 			}
 		}

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backup UX**: Added visual indicators for running backup tasks and auto-refresh when operations complete.
 - **Backup Navigation**: Added 'Refresh' action (Ctrl+R) to Backup Manager for manual updates.
 - **Command Runner Descriptions**: Display user-friendly descriptions for all commands to help users understand purpose before execution.
+- **Default Startup Group**: `default_profile` can now be set to an aggregate group name so pvetui starts directly in the combined group view.
 
 ### Fixed
 

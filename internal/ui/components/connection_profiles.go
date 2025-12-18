@@ -73,9 +73,15 @@ func (a *App) showConnectionProfilesDialog() {
 
 		selectionTypes = append(selectionTypes, selectionTypeHeader)
 
-		// Add each group
+		// Add each group (sorted)
+		groupNames := make([]string, 0, len(groups))
+		for groupName := range groups {
+			groupNames = append(groupNames, groupName)
+		}
+		sort.Strings(groupNames)
 
-		for groupName, profileNames := range groups {
+		for _, groupName := range groupNames {
+			profileNames := groups[groupName]
 
 			displayName := fmt.Sprintf("▸ %s (%d profiles)", groupName, len(profileNames))
 
@@ -85,6 +91,10 @@ func (a *App) showConnectionProfilesDialog() {
 
 				displayName = "⚡ " + displayName
 
+			}
+
+			if groupName == a.config.DefaultProfile {
+				displayName = displayName + " ⭐"
 			}
 
 			menuItems = append(menuItems, displayName)
@@ -371,9 +381,8 @@ func (a *App) showConnectionProfilesDialog() {
 
 			case 's', 'S':
 
-				// Set as default - only works for standalone profiles
-
-				if selectionType == selectionTypeProfile {
+				// Set as default - works for profiles and groups
+				if selectionType == selectionTypeProfile || selectionType == selectionTypeGroup {
 
 					a.CloseConnectionProfilesMenu()
 
@@ -507,6 +516,8 @@ func (a *App) showDeleteGroupDialog(groupName string) {
 
 		a.pages.RemovePage("deleteGroup")
 
+		oldDefault := a.config.DefaultProfile
+
 		// Remove group from all profiles
 
 		hasChanges := false
@@ -545,6 +556,22 @@ func (a *App) showDeleteGroupDialog(groupName string) {
 
 			}
 
+		}
+
+		// If the deleted group was the default startup selection, fall back to a
+		// remaining profile so startup remains valid.
+		if oldDefault == groupName {
+			remaining := make([]string, 0, len(a.config.Profiles))
+			for name := range a.config.Profiles {
+				remaining = append(remaining, name)
+			}
+			sort.Strings(remaining)
+			if len(remaining) > 0 {
+				a.config.DefaultProfile = remaining[0]
+			} else {
+				a.config.DefaultProfile = ""
+			}
+			hasChanges = true
 		}
 
 		if hasChanges {

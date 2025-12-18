@@ -617,45 +617,81 @@ func hasCleartextSensitiveValue(value string) bool {
 }
 
 func (c *Config) Validate() error {
-	// Validate profile-based configuration if profiles exist
+	// Validate profile-based configuration if profiles exist.
 	if len(c.Profiles) > 0 {
-		// Prefer active profile for validation; fall back to default
-		profileName := c.ActiveProfile
+		if err := c.ValidateGroups(); err != nil {
+			return err
+		}
+
+		// Prefer active profile for validation; fall back to default.
+		selection := c.ActiveProfile
 		label := "selected profile"
-		if profileName == "" {
-			profileName = c.DefaultProfile
+		if selection == "" {
+			selection = c.DefaultProfile
 			label = "default profile"
 		}
 
-		if profileName != "" {
-			selectedProfile, exists := c.Profiles[profileName]
-			if !exists {
-				return fmt.Errorf("%s '%s' not found", label, profileName)
-			}
+		if selection != "" {
+			// Allow selecting an aggregate group as the active/default startup target.
+			if c.IsGroup(selection) {
+				memberNames := c.GetProfileNamesInGroup(selection)
+				if len(memberNames) == 0 {
+					return fmt.Errorf("%s group '%s' has no member profiles", label, selection)
+				}
 
-			// Validate selected/default profile
-			if selectedProfile.Addr == "" {
-				return errors.New("proxmox address required in " + label)
-			}
+				for _, member := range memberNames {
+					selectedProfile, exists := c.Profiles[member]
+					if !exists {
+						return fmt.Errorf("%s group '%s' references missing profile '%s'", label, selection, member)
+					}
 
-			if selectedProfile.User == "" {
-				return errors.New("proxmox username required in " + label)
-			}
+					if selectedProfile.Addr == "" {
+						return fmt.Errorf("proxmox address required in %s group '%s' (profile '%s')", label, selection, member)
+					}
 
-			// Check that either password or token authentication is provided
-			hasPassword := selectedProfile.Password != ""
-			hasToken := selectedProfile.TokenID != "" && selectedProfile.TokenSecret != ""
+					if selectedProfile.User == "" {
+						return fmt.Errorf("proxmox username required in %s group '%s' (profile '%s')", label, selection, member)
+					}
 
-			if !hasPassword && !hasToken {
-				return errors.New("authentication required in " + label + ": provide either password or API token")
-			}
+					hasPassword := selectedProfile.Password != ""
+					hasToken := selectedProfile.TokenID != "" && selectedProfile.TokenSecret != ""
 
-			if hasPassword && hasToken {
-				return errors.New("conflicting authentication methods in " + label + ": provide either password or API token, not both")
+					if !hasPassword && !hasToken {
+						return fmt.Errorf("authentication required in %s group '%s' (profile '%s'): provide either password or API token", label, selection, member)
+					}
+
+					if hasPassword && hasToken {
+						return fmt.Errorf("conflicting authentication methods in %s group '%s' (profile '%s'): provide either password or API token, not both", label, selection, member)
+					}
+				}
+			} else {
+				selectedProfile, exists := c.Profiles[selection]
+				if !exists {
+					return fmt.Errorf("%s '%s' not found", label, selection)
+				}
+
+				if selectedProfile.Addr == "" {
+					return errors.New("proxmox address required in " + label)
+				}
+
+				if selectedProfile.User == "" {
+					return errors.New("proxmox username required in " + label)
+				}
+
+				hasPassword := selectedProfile.Password != ""
+				hasToken := selectedProfile.TokenID != "" && selectedProfile.TokenSecret != ""
+
+				if !hasPassword && !hasToken {
+					return errors.New("authentication required in " + label + ": provide either password or API token")
+				}
+
+				if hasPassword && hasToken {
+					return errors.New("conflicting authentication methods in " + label + ": provide either password or API token, not both")
+				}
 			}
 		}
 	} else {
-		// Validate legacy configuration
+		// Validate legacy configuration.
 		if c.Addr == "" {
 			return errors.New("proxmox address required: set via -addr flag, PVETUI_ADDR env var, or config file")
 		}
@@ -664,7 +700,6 @@ func (c *Config) Validate() error {
 			return errors.New("proxmox username required: set via -user flag, PVETUI_USER env var, or config file")
 		}
 
-		// Check that either password or token authentication is provided
 		hasPassword := c.Password != ""
 		hasToken := c.TokenID != "" && c.TokenSecret != ""
 
