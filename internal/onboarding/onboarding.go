@@ -19,17 +19,21 @@ import (
 func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bool, activeProfile string) error {
 	fmt.Println("🔧 Configuration Setup Required")
 	fmt.Println()
-	fmt.Printf("It looks like this is your first time running pvetui, or your configuration needs attention.\n")
+	target, err := resolveOnboardingTarget(configPath)
+	if err != nil {
+		return fmt.Errorf("resolve onboarding target: %w", err)
+	}
+
+	if target.exists {
+		fmt.Println("It looks like your configuration needs attention.")
+	} else {
+		fmt.Println("It looks like this is your first time running pvetui.")
+	}
 	validationErr := cfg.Validate()
 	if validationErr != nil {
 		fmt.Printf("Issue: %v\n", validationErr)
 	}
 	fmt.Println()
-
-	target, err := resolveOnboardingTarget(configPath)
-	if err != nil {
-		return fmt.Errorf("resolve onboarding target: %w", err)
-	}
 
 	if target.exists {
 		fmt.Printf("✅ Found existing configuration at '%s'.\n", target.path)
