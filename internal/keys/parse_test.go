@@ -75,9 +75,10 @@ func TestNormalizeEvent_Backtab(t *testing.T) {
 
 	ctrlShiftTab := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModCtrl|tcell.ModShift)
 	key, r, mod = NormalizeEvent(ctrlShiftTab)
-	assert.Equal(t, tcell.KeyTab, key)
+	// tcell may coalesce Ctrl+Shift+Tab into KeyBacktab while preserving Ctrl.
+	assert.Equal(t, tcell.KeyBacktab, key)
 	assert.Zero(t, r)
-	assert.Equal(t, tcell.ModCtrl|tcell.ModShift, mod)
+	assert.Equal(t, tcell.ModCtrl, mod)
 }
 
 func TestNormalizeNavigationEvent_Backtab(t *testing.T) {

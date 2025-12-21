@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Config Repair Targeting**: When a profile/group name conflict is detected on startup, the editor now opens the conflicting profile so it can be renamed.
 - **Onboarding Messaging**: Startup guidance now distinguishes first-run setup from fixing an existing configuration.
 - **Footer Key Hints**: Global menu and context menu shortcuts are now listed separately, with Esc shown for the global menu.
+- **Key Normalization**: Ctrl+Shift+Tab normalization now preserves the Ctrl modifier across tcell versions.
 
 ### Changed
 

@@ -188,6 +188,7 @@ func NormalizeEvent(ev *tcell.EventKey) (tcell.Key, rune, tcell.ModMask) {
 
 	if key == tcell.KeyCtrlI {
 		key = tcell.KeyTab
+		mod |= tcell.ModCtrl
 	}
 
 	// Normalize Shift+Tab across terminals and tcell versions.
