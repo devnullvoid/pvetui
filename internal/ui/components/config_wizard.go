@@ -276,6 +276,11 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			}
 		}
 
+		if cfg.IsGroup(profileName) {
+			showWizardModal(pages, form, app, "error", "Profile name '"+profileName+"' conflicts with an existing group.", nil)
+			return
+		}
+
 		// Determine which data to validate based on whether we're using profiles
 		var hasPassword, hasToken bool
 

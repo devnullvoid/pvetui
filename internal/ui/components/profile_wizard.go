@@ -288,6 +288,29 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			}
 		}
 
+		if a.config.IsGroup(profileName) {
+			showWizardModal(pages, form, a.Application, "error", "Profile name '"+profileName+"' conflicts with an existing group.", nil)
+			return
+		}
+
+		var profileGroups []string
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profileGroups = append([]string{}, profile.Groups...)
+			}
+		}
+
+		for _, group := range profileGroups {
+			if group == profileName {
+				showWizardModal(pages, form, a.Application, "error", "Profile name '"+profileName+"' cannot match one of its group names.", nil)
+				return
+			}
+			if _, exists := a.config.Profiles[group]; exists {
+				showWizardModal(pages, form, a.Application, "error", "Group name '"+group+"' conflicts with an existing profile.", nil)
+				return
+			}
+		}
+
 		// Determine which data to validate based on whether we're using profiles
 		var hasPassword, hasToken bool
 

@@ -871,11 +871,27 @@ func (a *App) showAddGroupDialog() {
 
 	form.AddFormItem(nameInput)
 
+	validateGroupName := func(name string) bool {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			a.showMessageSafe("Group name cannot be empty")
+			return false
+		}
+		if _, exists := a.config.Profiles[name]; exists {
+			a.showMessageSafe("Group name conflicts with an existing profile")
+			return false
+		}
+		if a.config.IsGroup(name) {
+			a.showMessageSafe("Group name already exists")
+			return false
+		}
+		return true
+	}
+
 	// Create Button
 	form.AddButton("Create", func() {
 		name := strings.TrimSpace(nameInput.GetText())
-		if name == "" {
-			a.showMessageSafe("Group name cannot be empty")
+		if !validateGroupName(name) {
 			return
 		}
 		go func() {
@@ -918,15 +934,13 @@ func (a *App) showAddGroupDialog() {
 	nameInput.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			name := strings.TrimSpace(nameInput.GetText())
-			if name != "" {
+			if validateGroupName(name) {
 				go func() {
 					a.Application.QueueUpdateDraw(func() {
 						a.pages.RemovePage("addGroupInput")
 						a.showEditGroupDialog(name)
 					})
 				}()
-			} else {
-				a.showMessageSafe("Group name cannot be empty")
 			}
 		}
 	})
