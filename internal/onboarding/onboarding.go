@@ -41,7 +41,13 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 
 		fmt.Println()
 
-		res := launchConfigWizard(cfg, target.path, activeProfile)
+		targetProfile := activeProfile
+		if conflicts := cfg.FindGroupProfileNameConflicts(); len(conflicts) > 0 {
+			targetProfile = conflicts[0]
+			fmt.Printf("💡 Opening the editor for profile '%s' so you can rename it (group name conflict).\n", targetProfile)
+		}
+
+		res := launchConfigWizard(cfg, target.path, targetProfile)
 		if res.SopsEncrypted {
 			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", target.path)
 		} else if res.Saved {

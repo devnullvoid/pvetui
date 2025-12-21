@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UI Deadlocks**: Fixed deadlock issues in "Add Group" dialog and other UI components.
 - **Focus Management**: Resolved focus loss in "Add Group" workflow and other form interactions.
 - **Profile/Group Name Conflicts**: Startup validation now directs users to repair existing configs instead of offering to overwrite them, and UI entry points block creating groups or profiles with conflicting names.
+- **Config Repair Targeting**: When a profile/group name conflict is detected on startup, the editor now opens the conflicting profile so it can be renamed.
 
 ### Changed
 

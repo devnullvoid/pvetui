@@ -205,6 +205,53 @@ func TestConfig_Validate(t *testing.T) {
 	}
 }
 
+func TestConfig_FindGroupProfileNameConflicts(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *Config
+		expected []string
+	}{
+		{
+			name: "no conflicts",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"alpha": {Groups: []string{"group-a"}},
+					"beta":  {Groups: []string{"group-b"}},
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name: "single conflict",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"alpha": {Groups: []string{"alpha", "group-a"}},
+					"beta":  {Groups: []string{"group-b"}},
+				},
+			},
+			expected: []string{"alpha"},
+		},
+		{
+			name: "multiple conflicts are sorted",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"zeta":  {Groups: []string{"zeta"}},
+					"alpha": {Groups: []string{"alpha"}},
+					"gamma": {Groups: []string{"zeta", "alpha"}},
+				},
+			},
+			expected: []string{"alpha", "zeta"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conflicts := tt.config.FindGroupProfileNameConflicts()
+			assert.Equal(t, tt.expected, conflicts)
+		})
+	}
+}
+
 func TestConfig_IsUsingTokenAuth(t *testing.T) {
 	tests := []struct {
 		name     string

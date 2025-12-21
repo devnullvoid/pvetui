@@ -259,3 +259,18 @@ func (c *Config) ValidateGroups() error {
 
 	return nil
 }
+
+// FindGroupProfileNameConflicts returns group names that also exist as profile names.
+func (c *Config) FindGroupProfileNameConflicts() []string {
+	groups := c.GetGroups()
+	conflicts := make([]string, 0)
+
+	for groupName := range groups {
+		if _, exists := c.Profiles[groupName]; exists {
+			conflicts = append(conflicts, groupName)
+		}
+	}
+
+	sort.Strings(conflicts)
+	return conflicts
+}
