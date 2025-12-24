@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Config Wizard Auth Validation (Windows)**: Use the wizard's current form values for authentication validation so new configs created from the default template can save correctly.
+- **Config Wizard Save Path (Windows)**: Default to the standard config file path when launching the wizard without an existing config, allowing `--config-wizard` to create and save a new config file.
+
 ## [1.0.15] - 2025-12-21
 
 ### Added

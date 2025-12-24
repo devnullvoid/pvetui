@@ -140,6 +140,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	// Handle config wizard BEFORE config loading and profile resolution
 	// This allows the wizard to work even when no config file exists
 	if opts.ConfigWizard {
+		configPath = ResolveConfigPathForWizard(opts.ConfigPath)
 		// Try to load existing config if it exists, but don't fail if it doesn't
 		if configPath != "" {
 			_ = cfg.MergeWithFile(configPath) // Ignore errors for config wizard
@@ -364,6 +365,22 @@ func ResolveConfigPath(flagPath string) string {
 	}
 
 	return ""
+}
+
+// ResolveConfigPathForWizard resolves a configuration path for the config wizard.
+//
+// It prefers an explicit flag path, then an existing default config file, and
+// finally falls back to the standard default path so the wizard can create it.
+func ResolveConfigPathForWizard(flagPath string) string {
+	if flagPath != "" {
+		return flagPath
+	}
+
+	if path, found := config.FindDefaultConfigPath(); found {
+		return path
+	}
+
+	return config.GetDefaultConfigPath()
 }
 
 // HandleConfigWizard launches the configuration wizard.

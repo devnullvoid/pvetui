@@ -281,20 +281,9 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			return
 		}
 
-		// Determine which data to validate based on whether we're using profiles
-		var hasPassword, hasToken bool
-
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			// Validate profile data
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				hasPassword = profile.Password != ""
-				hasToken = profile.TokenID != "" && profile.TokenSecret != ""
-			}
-		} else {
-			// Validate legacy data
-			hasPassword = cfg.Password != ""
-			hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
-		}
+		// Validate auth based on current form values, not stale config data.
+		hasPassword := strings.TrimSpace(password) != ""
+		hasToken := strings.TrimSpace(tokenID) != "" && strings.TrimSpace(tokenSecret) != ""
 
 		if hasPassword && hasToken {
 			showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
@@ -304,26 +293,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		if !hasPassword && !hasToken {
 			showWizardModal(pages, form, app, "error", "You must provide either a password or a token for authentication.", nil)
 			return
-		}
-
-		// Clear conflicting auth method
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				if hasPassword {
-					profile.TokenID = ""
-					profile.TokenSecret = ""
-				} else if hasToken {
-					profile.Password = ""
-				}
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			if hasPassword {
-				cfg.TokenID = ""
-				cfg.TokenSecret = ""
-			} else if hasToken {
-				cfg.Password = ""
-			}
 		}
 
 		// Handle profile creation/updating
