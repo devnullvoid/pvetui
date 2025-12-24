@@ -68,6 +68,58 @@ func TestConfigWizardValidation(t *testing.T) {
 	}
 }
 
+func TestWizardAuthState(t *testing.T) {
+	tests := []struct {
+		name        string
+		password    string
+		tokenID     string
+		tokenSecret string
+		hasPassword bool
+		hasToken    bool
+	}{
+		{
+			name:        "password only",
+			password:    "secret",
+			hasPassword: true,
+		},
+		{
+			name:        "token only",
+			tokenID:     "id",
+			tokenSecret: "secret",
+			hasToken:    true,
+		},
+		{
+			name:        "whitespace ignored",
+			password:    "   ",
+			tokenID:     "  id  ",
+			tokenSecret: " secret ",
+			hasToken:    true,
+		},
+		{
+			name:     "missing secret",
+			tokenID:  "id",
+			hasToken: false,
+		},
+		{
+			name:        "empty values",
+			hasPassword: false,
+			hasToken:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hasPassword, hasToken := wizardAuthState(tt.password, tt.tokenID, tt.tokenSecret)
+			if hasPassword != tt.hasPassword {
+				t.Fatalf("expected hasPassword=%v, got %v", tt.hasPassword, hasPassword)
+			}
+			if hasToken != tt.hasToken {
+				t.Fatalf("expected hasToken=%v, got %v", tt.hasToken, hasToken)
+			}
+		})
+	}
+}
+
 func TestFindSOPSRule(t *testing.T) {
 	dir := t.TempDir()
 	subdir := filepath.Join(dir, "sub")

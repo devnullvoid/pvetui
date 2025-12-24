@@ -54,6 +54,12 @@ func findSOPSRule(startDir string) bool {
 	return config.FindSOPSRule(startDir)
 }
 
+func wizardAuthState(password, tokenID, tokenSecret string) (bool, bool) {
+	hasPassword := strings.TrimSpace(password) != ""
+	hasToken := strings.TrimSpace(tokenID) != "" && strings.TrimSpace(tokenSecret) != ""
+	return hasPassword, hasToken
+}
+
 // WizardResult represents the result of a configuration wizard operation.
 type WizardResult struct {
 	Saved         bool
@@ -282,8 +288,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		}
 
 		// Validate auth based on current form values, not stale config data.
-		hasPassword := strings.TrimSpace(password) != ""
-		hasToken := strings.TrimSpace(tokenID) != "" && strings.TrimSpace(tokenSecret) != ""
+		hasPassword, hasToken := wizardAuthState(password, tokenID, tokenSecret)
 
 		if hasPassword && hasToken {
 			showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
