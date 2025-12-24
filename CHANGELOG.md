@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Config Wizard Auth Validation (Windows)**: Use the wizard's current form values for authentication validation so new configs created from the default template can save correctly.
 - **Config Wizard Save Path (Windows)**: Default to the standard config file path when launching the wizard without an existing config, allowing `--config-wizard` to create and save a new config file.
+- **Config Path Discovery (Windows)**: Also probe XDG config locations on Windows so legacy `~/.config/pvetui` setups are still discovered.
 
 ## [1.0.15] - 2025-12-21
 

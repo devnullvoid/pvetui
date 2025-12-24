@@ -52,9 +52,21 @@ func CreateDefaultConfigFile() (string, error) {
 
 // FindDefaultConfigPath finds the default configuration file path.
 func FindDefaultConfigPath() (string, bool) {
-	configPath := GetDefaultConfigPath()
+	return findDefaultConfigPathForOS(runtime.GOOS)
+}
+
+func findDefaultConfigPathForOS(goos string) (string, bool) {
+	const windowsOS = "windows"
+	configPath := filepath.Join(getConfigDirForOS(goos), "config.yml")
 	if _, err := os.Stat(configPath); err == nil {
 		return configPath, true
+	}
+
+	if goos == windowsOS {
+		xdgPath := filepath.Join(getXDGBaseConfigDir(), "pvetui", "config.yml")
+		if _, err := os.Stat(xdgPath); err == nil {
+			return xdgPath, true
+		}
 	}
 
 	// Check for config in current directory
@@ -67,8 +79,13 @@ func FindDefaultConfigPath() (string, bool) {
 
 // getConfigDir returns the appropriate config directory path for the current platform.
 func getConfigDir() string {
-	switch runtime.GOOS {
-	case "windows":
+	return getConfigDirForOS(runtime.GOOS)
+}
+
+func getConfigDirForOS(goos string) string {
+	const windowsOS = "windows"
+	switch goos {
+	case windowsOS:
 		// Windows: Use %APPDATA% (Roaming) for config files
 		if appData := os.Getenv("APPDATA"); appData != "" {
 			return filepath.Join(appData, "pvetui")
@@ -120,7 +137,23 @@ func getCacheDir() string {
 // getXDGConfigDir returns the XDG config directory path.
 // * Deprecated: Use getConfigDir() instead for cross-platform support
 func getXDGConfigDir() string {
-	return getConfigDir()
+	return getXDGConfigDirForOS(runtime.GOOS)
+}
+
+func getXDGConfigDirForOS(_ string) string {
+	return filepath.Join(getXDGBaseConfigDir(), "pvetui")
+}
+
+func getXDGBaseConfigDir() string {
+	// Respect XDG_CONFIG_HOME when set; otherwise fall back to ~/.config.
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		return xdgConfig
+	}
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(homeDir, ".config")
+	}
+
+	return ".config"
 }
 
 // getXDGCacheDir returns the XDG cache directory path.
