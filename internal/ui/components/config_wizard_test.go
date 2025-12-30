@@ -120,6 +120,52 @@ func TestWizardAuthState(t *testing.T) {
 	}
 }
 
+func TestNormalizeWizardFormValues(t *testing.T) {
+	values := normalizeWizardFormValues(wizardFormValues{
+		ProfileName: " default ",
+		Addr:        " https://host ",
+		User:        " root ",
+		Password:    "  secret  ",
+		TokenID:     " token ",
+		TokenSecret: "  tokensecret  ",
+		Realm:       " pam ",
+		ApiPath:     " /api2/json ",
+		SSHUser:     " root ",
+		VMSSHUser:   " vmroot ",
+	})
+
+	if values.ProfileName != "default" {
+		t.Fatalf("expected ProfileName to be trimmed, got %q", values.ProfileName)
+	}
+	if values.Addr != "https://host" {
+		t.Fatalf("expected Addr to be trimmed, got %q", values.Addr)
+	}
+	if values.User != "root" {
+		t.Fatalf("expected User to be trimmed, got %q", values.User)
+	}
+	if values.Password != "  secret  " {
+		t.Fatalf("expected Password to be unchanged, got %q", values.Password)
+	}
+	if values.TokenID != "token" {
+		t.Fatalf("expected TokenID to be trimmed, got %q", values.TokenID)
+	}
+	if values.TokenSecret != "  tokensecret  " {
+		t.Fatalf("expected TokenSecret to be unchanged, got %q", values.TokenSecret)
+	}
+	if values.Realm != "pam" {
+		t.Fatalf("expected Realm to be trimmed, got %q", values.Realm)
+	}
+	if values.ApiPath != "/api2/json" {
+		t.Fatalf("expected ApiPath to be trimmed, got %q", values.ApiPath)
+	}
+	if values.SSHUser != "root" {
+		t.Fatalf("expected SSHUser to be trimmed, got %q", values.SSHUser)
+	}
+	if values.VMSSHUser != "vmroot" {
+		t.Fatalf("expected VMSSHUser to be trimmed, got %q", values.VMSSHUser)
+	}
+}
+
 func TestFindSOPSRule(t *testing.T) {
 	dir := t.TempDir()
 	subdir := filepath.Join(dir, "sub")

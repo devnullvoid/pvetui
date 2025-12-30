@@ -1,6 +1,7 @@
 /dist/
 .vscode/
 .cursor/
+.code/
 config.yml
 config.yaml
 /pvetui

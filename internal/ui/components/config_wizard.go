@@ -60,6 +60,31 @@ func wizardAuthState(password, tokenID, tokenSecret string) (bool, bool) {
 	return hasPassword, hasToken
 }
 
+type wizardFormValues struct {
+	ProfileName string
+	Addr        string
+	User        string
+	Password    string
+	TokenID     string
+	TokenSecret string
+	Realm       string
+	ApiPath     string
+	SSHUser     string
+	VMSSHUser   string
+}
+
+func normalizeWizardFormValues(values wizardFormValues) wizardFormValues {
+	values.ProfileName = strings.TrimSpace(values.ProfileName)
+	values.Addr = strings.TrimSpace(values.Addr)
+	values.User = strings.TrimSpace(values.User)
+	values.TokenID = strings.TrimSpace(values.TokenID)
+	values.Realm = strings.TrimSpace(values.Realm)
+	values.ApiPath = strings.TrimSpace(values.ApiPath)
+	values.SSHUser = strings.TrimSpace(values.SSHUser)
+	values.VMSSHUser = strings.TrimSpace(values.VMSSHUser)
+	return values
+}
+
 // WizardResult represents the result of a configuration wizard operation.
 type WizardResult struct {
 	Saved         bool
@@ -202,70 +227,148 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		vmSSHUser = cfg.VMSSHUser
 	}
 
-	form.AddInputField("Proxmox API URL", addr, 40, nil, func(text string) {
-		addr = strings.TrimSpace(text)
-		if !isEditing {
-			cfg.Addr = addr
-		}
-	})
-	form.AddInputField("Username", user, 20, nil, func(text string) {
-		user = strings.TrimSpace(text)
-		if !isEditing {
-			cfg.User = user
-		}
-	})
-	form.AddPasswordField("Password", password, 20, '*', func(text string) {
-		password = text
-		if !isEditing {
-			cfg.Password = password
-		}
-	})
-	form.AddInputField("API Token ID", tokenID, 20, nil, func(text string) {
-		tokenID = strings.TrimSpace(text)
-		if !isEditing {
-			cfg.TokenID = tokenID
-		}
-	})
-	form.AddPasswordField("API Token Secret", tokenSecret, 20, '*', func(text string) {
-		tokenSecret = text
-		if !isEditing {
-			cfg.TokenSecret = tokenSecret
-		}
-	})
-	form.AddInputField("Realm", realm, 10, nil, func(text string) {
-		realm = strings.TrimSpace(text)
-		if !isEditing {
-			cfg.Realm = realm
-		}
-	})
-	form.AddInputField("API Path", apiPath, 20, nil, func(text string) {
-		apiPath = strings.TrimSpace(text)
-		if !isEditing {
-			cfg.ApiPath = apiPath
-		}
-	})
+	addrField := tview.NewInputField().
+		SetLabel("Proxmox API URL").
+		SetText(addr).
+		SetFieldWidth(40).
+		SetChangedFunc(func(text string) {
+			addr = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.Addr = addr
+			}
+		})
+	form.AddFormItem(addrField)
+
+	userField := tview.NewInputField().
+		SetLabel("Username").
+		SetText(user).
+		SetFieldWidth(20).
+		SetChangedFunc(func(text string) {
+			user = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.User = user
+			}
+		})
+	form.AddFormItem(userField)
+
+	passwordField := tview.NewInputField().
+		SetLabel("Password").
+		SetText(password).
+		SetFieldWidth(20).
+		SetMaskCharacter('*').
+		SetChangedFunc(func(text string) {
+			password = text
+			if !isEditing {
+				cfg.Password = password
+			}
+		})
+	form.AddFormItem(passwordField)
+
+	tokenIDField := tview.NewInputField().
+		SetLabel("API Token ID").
+		SetText(tokenID).
+		SetFieldWidth(20).
+		SetChangedFunc(func(text string) {
+			tokenID = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.TokenID = tokenID
+			}
+		})
+	form.AddFormItem(tokenIDField)
+
+	tokenSecretField := tview.NewInputField().
+		SetLabel("API Token Secret").
+		SetText(tokenSecret).
+		SetFieldWidth(20).
+		SetMaskCharacter('*').
+		SetChangedFunc(func(text string) {
+			tokenSecret = text
+			if !isEditing {
+				cfg.TokenSecret = tokenSecret
+			}
+		})
+	form.AddFormItem(tokenSecretField)
+
+	realmField := tview.NewInputField().
+		SetLabel("Realm").
+		SetText(realm).
+		SetFieldWidth(10).
+		SetChangedFunc(func(text string) {
+			realm = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.Realm = realm
+			}
+		})
+	form.AddFormItem(realmField)
+
+	apiPathField := tview.NewInputField().
+		SetLabel("API Path").
+		SetText(apiPath).
+		SetFieldWidth(20).
+		SetChangedFunc(func(text string) {
+			apiPath = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.ApiPath = apiPath
+			}
+		})
+	form.AddFormItem(apiPathField)
 	form.AddCheckbox("Skip TLS Verification", insecure, func(checked bool) {
 		insecure = checked
 		if !isEditing {
 			cfg.Insecure = insecure
 		}
 	})
-	form.AddInputField("SSH Username", sshUser, 20, nil, func(text string) {
-		sshUser = strings.TrimSpace(text)
-		if !isEditing {
-			cfg.SSHUser = sshUser
-		}
-	})
-	form.AddInputField("VM SSH Username", vmSSHUser, 20, nil, func(text string) {
-		vmSSHUser = strings.TrimSpace(text)
-		if !isEditing {
-			cfg.VMSSHUser = vmSSHUser
-		}
-	})
+	sshUserField := tview.NewInputField().
+		SetLabel("SSH Username").
+		SetText(sshUser).
+		SetFieldWidth(20).
+		SetChangedFunc(func(text string) {
+			sshUser = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.SSHUser = sshUser
+			}
+		})
+	form.AddFormItem(sshUserField)
+
+	vmSSHUserField := tview.NewInputField().
+		SetLabel("VM SSH Username").
+		SetText(vmSSHUser).
+		SetFieldWidth(20).
+		SetChangedFunc(func(text string) {
+			vmSSHUser = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.VMSSHUser = vmSSHUser
+			}
+		})
+	form.AddFormItem(vmSSHUserField)
 	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
 	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
 	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
 	form.AddButton("Save", func() {
+		values := normalizeWizardFormValues(wizardFormValues{
+			ProfileName: profileName,
+			Addr:        addrField.GetText(),
+			User:        userField.GetText(),
+			Password:    passwordField.GetText(),
+			TokenID:     tokenIDField.GetText(),
+			TokenSecret: tokenSecretField.GetText(),
+			Realm:       realmField.GetText(),
+			ApiPath:     apiPathField.GetText(),
+			SSHUser:     sshUserField.GetText(),
+			VMSSHUser:   vmSSHUserField.GetText(),
+		})
+
+		profileName = values.ProfileName
+		addr = values.Addr
+		user = values.User
+		password = values.Password
+		tokenID = values.TokenID
+		tokenSecret = values.TokenSecret
+		realm = values.Realm
+		apiPath = values.ApiPath
+		sshUser = values.SSHUser
+		vmSSHUser = values.VMSSHUser
+
 		// Validate profile name
 		if profileName == "" {
 			showWizardModal(pages, form, app, "error", "Profile name cannot be empty.", nil)
@@ -382,10 +485,14 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			}
 		}
 
+		prevActiveProfile := cfg.ActiveProfile
+		cfg.ActiveProfile = profileName
 		if err := cfg.Validate(); err != nil {
+			cfg.ActiveProfile = prevActiveProfile
 			showWizardModal(pages, form, app, "error", "Validation error: "+err.Error(), nil)
 			return
 		}
+		cfg.ActiveProfile = prevActiveProfile
 		// Save config first
 		saveErr := saveFn(cfg)
 		if saveErr != nil {
