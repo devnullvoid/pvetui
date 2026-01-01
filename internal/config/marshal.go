@@ -6,6 +6,7 @@ type marshaledConfig struct {
 	DefaultProfile string                   `yaml:"default_profile,omitempty"`
 	Debug          bool                     `yaml:"debug,omitempty"`
 	CacheDir       string                   `yaml:"cache_dir,omitempty"`
+	AgeDir         string                   `yaml:"age_dir,omitempty"`
 	KeyBindings    KeyBindings              `yaml:"key_bindings,omitempty"`
 	Theme          ThemeConfig              `yaml:"theme,omitempty"`
 	Plugins        PluginConfig             `yaml:"plugins"`
@@ -33,6 +34,7 @@ func (cfg *Config) MarshalYAML() (any, error) {
 		DefaultProfile: cfg.DefaultProfile,
 		Debug:          cfg.Debug,
 		CacheDir:       cfg.CacheDir,
+		AgeDir:         cfg.AgeDir,
 		KeyBindings:    cfg.KeyBindings,
 		Theme:          cfg.Theme,
 		Plugins:        cfg.Plugins,

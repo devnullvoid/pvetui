@@ -74,6 +74,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/keys"
@@ -287,9 +288,9 @@ func NewConfig() *Config {
 		ApiPath:     os.Getenv("PVETUI_API_PATH"),
 		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
 		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
-		AgeDir:      os.Getenv("PVETUI_AGE_DIR"),
+		AgeDir:      ExpandHomePath(os.Getenv("PVETUI_AGE_DIR")),
 		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
-		CacheDir:    os.Getenv("PVETUI_CACHE_DIR"),
+		CacheDir:    ExpandHomePath(os.Getenv("PVETUI_CACHE_DIR")),
 		KeyBindings: DefaultKeyBindings(),
 	}
 	// Set default values for Realm and ApiPath only
@@ -397,7 +398,7 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	if fileConfig.AgeDir != "" && c.AgeDir == "" {
-		c.AgeDir = fileConfig.AgeDir
+		c.AgeDir = ExpandHomePath(fileConfig.AgeDir)
 	}
 	if c.AgeDir != "" {
 		SetAgeDirOverride(c.AgeDir)
@@ -501,7 +502,7 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	if fileConfig.CacheDir != "" {
-		c.CacheDir = fileConfig.CacheDir
+		c.CacheDir = ExpandHomePath(fileConfig.CacheDir)
 	}
 
 	// Migrate legacy configuration to profile-based if needed
@@ -879,9 +880,16 @@ func (c *Config) SetDefaults() {
 		c.ApiPath = "/api2/json"
 	}
 
+	if c.CacheDir != "" {
+		c.CacheDir = ExpandHomePath(c.CacheDir)
+	}
 	if c.CacheDir == "" {
 		// Use platform-appropriate cache directory
 		c.CacheDir = getCacheDir()
+	}
+	if c.AgeDir != "" {
+		c.AgeDir = ExpandHomePath(c.AgeDir)
+		SetAgeDirOverride(c.AgeDir)
 	}
 
 	// Apply default key bindings if not set
@@ -950,4 +958,42 @@ func (c *Config) SetDefaults() {
 	if c.Plugins.Enabled == nil {
 		c.Plugins.Enabled = []string{}
 	}
+}
+
+// ExpandHomePath expands a leading ~ in paths using the current user's home directory.
+func ExpandHomePath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return trimmed
+	}
+
+	if trimmed == "~" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return trimmed
+		}
+		return home
+	}
+
+	if strings.HasPrefix(trimmed, "~/") || strings.HasPrefix(trimmed, "~\\") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return trimmed
+		}
+		rest := strings.TrimPrefix(trimmed, "~")
+		rest = strings.TrimPrefix(rest, "/")
+		rest = strings.TrimPrefix(rest, "\\")
+		return filepath.Join(home, rest)
+	}
+
+	if strings.HasPrefix(trimmed, "~"+string(os.PathSeparator)) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return trimmed
+		}
+		rest := strings.TrimPrefix(trimmed, "~"+string(os.PathSeparator))
+		return filepath.Join(home, rest)
+	}
+
+	return trimmed
 }

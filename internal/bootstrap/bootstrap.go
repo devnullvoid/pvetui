@@ -141,8 +141,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	// Resolve configuration path
 	configPath := ResolveConfigPath(opts.ConfigPath)
 	if opts.FlagAgeDir != "" {
-		cfg.AgeDir = opts.FlagAgeDir
-		config.SetAgeDirOverride(opts.FlagAgeDir)
+		expandedAgeDir := config.ExpandHomePath(opts.FlagAgeDir)
+		cfg.AgeDir = expandedAgeDir
+		config.SetAgeDirOverride(expandedAgeDir)
 	}
 
 	// Handle config wizard BEFORE config loading and profile resolution
@@ -340,11 +341,12 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 		cfg.Debug = true
 	}
 	if opts.FlagCacheDir != "" {
-		cfg.CacheDir = opts.FlagCacheDir
+		cfg.CacheDir = config.ExpandHomePath(opts.FlagCacheDir)
 	}
 	if opts.FlagAgeDir != "" {
-		cfg.AgeDir = opts.FlagAgeDir
-		config.SetAgeDirOverride(opts.FlagAgeDir)
+		expandedAgeDir := config.ExpandHomePath(opts.FlagAgeDir)
+		cfg.AgeDir = expandedAgeDir
+		config.SetAgeDirOverride(expandedAgeDir)
 	}
 }
 

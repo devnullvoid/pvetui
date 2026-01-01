@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Age Key Directory Override**: Allow specifying where `.age-identity` and `.age-recipient` are stored via `age_dir`, `--age-dir`, or `PVETUI_AGE_DIR` for shared config setups. (#72)
+- **Tilde Expansion for Paths**: `~` now expands in `age_dir` and `cache_dir` values from config, flags, and environment variables.
 
 ### Fixed
 

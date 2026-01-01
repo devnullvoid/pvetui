@@ -42,6 +42,7 @@ func TestNewConfig(t *testing.T) {
 				"PVETUI_SSH_USER":     "sshuser",
 				"PVETUI_DEBUG":        "true",
 				"PVETUI_CACHE_DIR":    "/tmp/cache",
+				"PVETUI_AGE_DIR":      "/tmp/age",
 			},
 			expected: &Config{
 				Addr:        "https://proxmox.example.com:8006",
@@ -55,6 +56,7 @@ func TestNewConfig(t *testing.T) {
 				SSHUser:     "sshuser",
 				Debug:       true,
 				CacheDir:    "/tmp/cache",
+				AgeDir:      "/tmp/age",
 			},
 		},
 		{
@@ -203,6 +205,40 @@ func TestConfig_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExpandHomePath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("home directory not available")
+	}
+
+	t.Run("tilde only", func(t *testing.T) {
+		if got := ExpandHomePath("~"); got != home {
+			t.Fatalf("expected %q, got %q", home, got)
+		}
+	})
+
+	t.Run("tilde slash", func(t *testing.T) {
+		expected := filepath.Join(home, "pvetui")
+		if got := ExpandHomePath("~/pvetui"); got != expected {
+			t.Fatalf("expected %q, got %q", expected, got)
+		}
+	})
+
+	t.Run("tilde backslash", func(t *testing.T) {
+		expected := filepath.Join(home, "pvetui")
+		if got := ExpandHomePath("~\\pvetui"); got != expected {
+			t.Fatalf("expected %q, got %q", expected, got)
+		}
+	})
+
+	t.Run("no expansion", func(t *testing.T) {
+		path := "/tmp/pvetui"
+		if got := ExpandHomePath(path); got != path {
+			t.Fatalf("expected %q, got %q", path, got)
+		}
+	})
 }
 
 func TestConfig_FindGroupProfileNameConflicts(t *testing.T) {
@@ -996,6 +1032,7 @@ func clearProxmoxEnvVars() {
 		"PVETUI_API_PATH",
 		"PVETUI_INSECURE",
 		"PVETUI_SSH_USER",
+		"PVETUI_AGE_DIR",
 		"PVETUI_DEBUG",
 		"PVETUI_CACHE_DIR",
 	}

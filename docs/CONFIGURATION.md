@@ -287,6 +287,8 @@ Customize the cache directory location:
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 ```
 
+Leading `~` is expanded to your home directory in config values, flags, and `PVETUI_CACHE_DIR`.
+
 ### Age Key Directory
 
 pvetui stores age identity and recipient files alongside the config by default. You can override
@@ -299,6 +301,7 @@ age_dir: "/custom/age/path"  # Optional: overrides where age keys are stored
 You can also set this via `PVETUI_AGE_DIR` or the `--age-dir` flag.
 If the directory does not already contain `.age-identity` and `.age-recipient`,
 pvetui will generate new keys, and any existing encrypted values will fail to decrypt.
+Leading `~` is expanded to your home directory in config values, flags, and `PVETUI_AGE_DIR`.
 
 ### Debug Mode
 
