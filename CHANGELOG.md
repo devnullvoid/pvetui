@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Config Wizard Auth Validation**: Read live form values at save time and validate the profile being edited to avoid stale auth errors across platforms.
-- **Config Wizard Token Validation**: Warn when only one of token ID/secret is provided so partial token input isn't silently discarded.
-- **Config Wizard Defaults**: When launched via `--config-wizard` without an existing config, the wizard now seeds from the default template to match onboarding behavior.
-- **Windows Config Path Handling**: Default to the standard config path when launching the wizard without an existing config, and also probe XDG locations so legacy `~/.config/pvetui` setups are discovered.
+ - **Config Wizard Auth Validation**: Read live form values at save time and validate the profile being edited to avoid stale auth errors across platforms. (#69, #70)
+ - **Config Wizard Token Validation**: Warn when only one of token ID/secret is provided so partial token input isn't silently discarded.
+ - **Config Wizard Defaults**: When launched via `--config-wizard` without an existing config, the wizard now seeds from the default template to match onboarding behavior. (#69, #70)
+ - **Windows Config Path Handling**: Default to the standard config path when launching the wizard without an existing config, and also probe XDG locations so legacy `~/.config/pvetui` setups are discovered. (#69, #70)
 
 ## [1.0.15] - 2025-12-21
 
