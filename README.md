@@ -279,6 +279,7 @@ Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secr
 | `--ssh-user` | | SSH username |
 | `--debug` | | Enable debug logging |
 | `--cache-dir` | | Cache directory path |
+| `--age-dir` | | Age key directory path |
 
 **Environment Variables**: All flags can also be set via environment variables with `PVETUI_` prefix (e.g., `PVETUI_ADDR`, `PVETUI_USER`).
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Age Key Directory Override**: Allow specifying where `.age-identity` and `.age-recipient` are stored via `age_dir`, `--age-dir`, or `PVETUI_AGE_DIR` for shared config setups. (#72)
+
 ### Fixed
 
  - **Config Wizard Auth Validation**: Read live form values at save time and validate the profile being edited to avoid stale auth errors across platforms. (#69, #70)

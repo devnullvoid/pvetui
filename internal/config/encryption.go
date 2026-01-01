@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"filippo.io/age"
 )
@@ -26,10 +27,33 @@ const (
 	recipientFileName = ".age-recipient"
 )
 
+var (
+	ageDirOverride   string
+	ageDirOverrideMu sync.RWMutex
+)
+
+// SetAgeDirOverride sets the directory used for storing age identity and recipient files.
+// Provide an empty string to reset to the default config directory.
+func SetAgeDirOverride(dir string) {
+	trimmed := strings.TrimSpace(dir)
+	ageDirOverrideMu.Lock()
+	ageDirOverride = trimmed
+	ageDirOverrideMu.Unlock()
+}
+
+func getAgeDir() string {
+	ageDirOverrideMu.RLock()
+	defer ageDirOverrideMu.RUnlock()
+	if ageDirOverride != "" {
+		return ageDirOverride
+	}
+	return getConfigDir()
+}
+
 // getOrCreateAgeIdentity returns an age identity for encryption/decryption.
 // Creates a new identity if one doesn't exist, storing it in the config directory.
 func getOrCreateAgeIdentity() (age.Identity, age.Recipient, error) {
-	configDir := getConfigDir()
+	configDir := getAgeDir()
 	identityPath := filepath.Join(configDir, identityFileName)
 	recipientPath := filepath.Join(configDir, recipientFileName)
 

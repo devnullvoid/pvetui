@@ -89,6 +89,7 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 	vmSSHUser := viper.GetString("vm_ssh_user")
 	debug := viper.GetBool("debug")
 	cacheDir := viper.GetString("cache_dir")
+	ageDir := viper.GetString("age_dir")
 
 	return bootstrap.BootstrapOptions{
 		ConfigPath:      configPath,
@@ -108,6 +109,7 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 		FlagVMSSHUser:   vmSSHUser,
 		FlagDebug:       debug,
 		FlagCacheDir:    cacheDir,
+		FlagAgeDir:      ageDir,
 	}
 }
 
@@ -133,6 +135,7 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("vm-ssh-user", "", "QEMU VM SSH username (defaults to ssh-user)")
 	cmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
+	cmd.PersistentFlags().String("age-dir", "", "Age key directory path")
 
 	// Bind flags to environment variables
 	viper.SetEnvPrefix("PVETUI")
@@ -174,5 +177,8 @@ func addPersistentFlags(cmd *cobra.Command) {
 	}
 	if err := viper.BindPFlag("cache_dir", cmd.PersistentFlags().Lookup("cache-dir")); err != nil {
 		panic(fmt.Sprintf("failed to bind cache_dir flag: %v", err))
+	}
+	if err := viper.BindPFlag("age_dir", cmd.PersistentFlags().Lookup("age-dir")); err != nil {
+		panic(fmt.Sprintf("failed to bind age_dir flag: %v", err))
 	}
 }

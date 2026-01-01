@@ -49,6 +49,7 @@ profiles:
 default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
+age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 
 # Key bindings customization
 key_bindings:
@@ -285,6 +286,19 @@ Customize the cache directory location:
 ```yaml
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 ```
+
+### Age Key Directory
+
+pvetui stores age identity and recipient files alongside the config by default. You can override
+the directory when sharing a config across multiple machines:
+
+```yaml
+age_dir: "/custom/age/path"  # Optional: overrides where age keys are stored
+```
+
+You can also set this via `PVETUI_AGE_DIR` or the `--age-dir` flag.
+If the directory does not already contain `.age-identity` and `.age-recipient`,
+pvetui will generate new keys, and any existing encrypted values will fail to decrypt.
 
 ### Debug Mode
 

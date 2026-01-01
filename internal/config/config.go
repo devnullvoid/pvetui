@@ -104,8 +104,10 @@ type Config struct {
 	// unencrypted sensitive data. It is ignored by YAML marshaling.
 	hasCleartextSensitive bool `yaml:"-"`
 	// The following fields are global settings, not per-profile
-	Debug       bool         `yaml:"debug"`
-	CacheDir    string       `yaml:"cache_dir"`
+	Debug    bool   `yaml:"debug"`
+	CacheDir string `yaml:"cache_dir"`
+	// AgeDir overrides the directory used to store age identity and recipient files.
+	AgeDir      string       `yaml:"age_dir,omitempty"`
 	KeyBindings KeyBindings  `yaml:"key_bindings"`
 	Theme       ThemeConfig  `yaml:"theme"`
 	Plugins     PluginConfig `yaml:"plugins"`
@@ -245,17 +247,18 @@ func ValidateKeyBindings(kb KeyBindings) error {
 // zero values for the corresponding fields.
 //
 // Environment variables read:
-//   - PROXMOX_ADDR: Server URL
-//   - PROXMOX_USER: Username
-//   - PROXMOX_PASSWORD: Password for password auth
-//   - PROXMOX_TOKEN_ID: Token ID for token auth
-//   - PROXMOX_TOKEN_SECRET: Token secret for token auth
-//   - PROXMOX_REALM: Authentication realm (default: "pam")
-//   - PROXMOX_API_PATH: API base path (default: "/api2/json")
-//   - PROXMOX_INSECURE: Skip TLS verification ("true"/"false")
-//   - PROXMOX_SSH_USER: SSH username
-//   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
-//   - PROXMOX_CACHE_DIR: Custom cache directory (overrides platform defaults)
+//   - PVETUI_ADDR: Server URL
+//   - PVETUI_USER: Username
+//   - PVETUI_PASSWORD: Password for password auth
+//   - PVETUI_TOKEN_ID: Token ID for token auth
+//   - PVETUI_TOKEN_SECRET: Token secret for token auth
+//   - PVETUI_REALM: Authentication realm (default: "pam")
+//   - PVETUI_API_PATH: API base path (default: "/api2/json")
+//   - PVETUI_INSECURE: Skip TLS verification ("true"/"false")
+//   - PVETUI_SSH_USER: SSH username
+//   - PVETUI_AGE_DIR: Custom age key directory (overrides platform defaults)
+//   - PVETUI_DEBUG: Enable debug logging ("true"/"false")
+//   - PVETUI_CACHE_DIR: Custom cache directory (overrides platform defaults)
 //
 // The returned Config should typically be further configured with command-line
 // flags and/or configuration files before validation.
@@ -284,6 +287,7 @@ func NewConfig() *Config {
 		ApiPath:     os.Getenv("PVETUI_API_PATH"),
 		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
 		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
+		AgeDir:      os.Getenv("PVETUI_AGE_DIR"),
 		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
 		CacheDir:    os.Getenv("PVETUI_CACHE_DIR"),
 		KeyBindings: DefaultKeyBindings(),
@@ -294,6 +298,9 @@ func NewConfig() *Config {
 	}
 	if config.ApiPath == "" {
 		config.ApiPath = defaultApiPath
+	}
+	if config.AgeDir != "" {
+		SetAgeDirOverride(config.AgeDir)
 	}
 
 	return config
@@ -343,6 +350,7 @@ func (c *Config) MergeWithFile(path string) error {
 		DefaultProfile string                   `yaml:"default_profile"`
 		Debug          *bool                    `yaml:"debug"`
 		CacheDir       string                   `yaml:"cache_dir"`
+		AgeDir         string                   `yaml:"age_dir"`
 		KeyBindings    struct {
 			SwitchView        string `yaml:"switch_view"`
 			SwitchViewReverse string `yaml:"switch_view_reverse"`
@@ -386,6 +394,13 @@ func (c *Config) MergeWithFile(path string) error {
 
 	if !isSOPSEncrypted && detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret) {
 		c.hasCleartextSensitive = true
+	}
+
+	if fileConfig.AgeDir != "" && c.AgeDir == "" {
+		c.AgeDir = fileConfig.AgeDir
+	}
+	if c.AgeDir != "" {
+		SetAgeDirOverride(c.AgeDir)
 	}
 
 	// Load profiles and default_profile

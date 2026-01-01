@@ -41,6 +41,7 @@ type BootstrapOptions struct {
 	FlagVMSSHUser   string
 	FlagDebug       bool
 	FlagCacheDir    string
+	FlagAgeDir      string
 }
 
 // BootstrapResult contains the result of the bootstrap process.
@@ -70,7 +71,7 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&configWizard, "w", false, "Short for --config-wizard")
 
 	// Config flags (these will be applied to the config object later)
-	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagCacheDir string
+	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagCacheDir, flagAgeDir string
 	var flagInsecure, flagDebug bool
 
 	flag.StringVar(&flagAddr, "addr", "", "Proxmox API URL (env PVETUI_ADDR)")
@@ -97,6 +98,7 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&flagDebug, "d", false, "Short for --debug")
 	flag.StringVar(&flagCacheDir, "cache-dir", "", "Cache directory path (env PVETUI_CACHE_DIR)")
 	flag.StringVar(&flagCacheDir, "cd", "", "Short for --cache-dir")
+	flag.StringVar(&flagAgeDir, "age-dir", "", "Age key directory path (env PVETUI_AGE_DIR)")
 
 	flag.Parse()
 
@@ -119,6 +121,7 @@ func ParseFlags() BootstrapOptions {
 		FlagVMSSHUser:   flagVMSSHUser,
 		FlagDebug:       flagDebug,
 		FlagCacheDir:    flagCacheDir,
+		FlagAgeDir:      flagAgeDir,
 	}
 }
 
@@ -137,6 +140,10 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 
 	// Resolve configuration path
 	configPath := ResolveConfigPath(opts.ConfigPath)
+	if opts.FlagAgeDir != "" {
+		cfg.AgeDir = opts.FlagAgeDir
+		config.SetAgeDirOverride(opts.FlagAgeDir)
+	}
 
 	// Handle config wizard BEFORE config loading and profile resolution
 	// This allows the wizard to work even when no config file exists
@@ -334,6 +341,10 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 	}
 	if opts.FlagCacheDir != "" {
 		cfg.CacheDir = opts.FlagCacheDir
+	}
+	if opts.FlagAgeDir != "" {
+		cfg.AgeDir = opts.FlagAgeDir
+		config.SetAgeDirOverride(opts.FlagAgeDir)
 	}
 }
 
