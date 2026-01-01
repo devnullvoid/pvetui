@@ -8,6 +8,7 @@ package bootstrap
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/app"
@@ -141,8 +142,18 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	// This allows the wizard to work even when no config file exists
 	if opts.ConfigWizard {
 		configPath = ResolveConfigPathForWizard(opts.ConfigPath)
-		// Try to load existing config if it exists, but don't fail if it doesn't
+		// Seed from template if the config doesn't exist so the wizard matches onboarding defaults.
 		if configPath != "" {
+			if _, err := os.Stat(configPath); err != nil {
+				if os.IsNotExist(err) {
+					if _, err := config.CreateDefaultConfigFileAt(configPath); err != nil {
+						return nil, fmt.Errorf("create default config: %w", err)
+					}
+				} else {
+					return nil, fmt.Errorf("check config path: %w", err)
+				}
+			}
+
 			_ = cfg.MergeWithFile(configPath) // Ignore errors for config wizard
 		}
 

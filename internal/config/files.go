@@ -32,22 +32,47 @@ func CreateDefaultConfigFile() (string, error) {
 	}
 
 	configPath := filepath.Join(configDir, "config.yml")
-	if _, err := os.Stat(configPath); err == nil {
-		return configPath, nil // File already exists
+	return CreateDefaultConfigFileAt(configPath)
+}
+
+// CreateDefaultConfigFileAt writes the default configuration template to the provided path.
+//
+// Parameters:
+//   - path: Full path where the config file should be created.
+//
+// This function is safe to call multiple times; if the file already exists it
+// returns the existing path without modifying it.
+//
+// Example usage:
+//
+//	configPath := filepath.Join(os.TempDir(), "pvetui-config.yml")
+//	_, err := CreateDefaultConfigFileAt(configPath)
+//	if err != nil {
+//		log.Fatalf("create config: %v", err)
+//	}
+func CreateDefaultConfigFileAt(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("config path cannot be empty")
 	}
 
-	// Read template
+	if _, err := os.Stat(path); err == nil {
+		return path, nil // File already exists
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return "", fmt.Errorf("create config directory: %w", err)
+	}
+
 	templateData, err := templateFS.ReadFile("config.tpl.yml")
 	if err != nil {
 		return "", fmt.Errorf("read template: %w", err)
 	}
 
-	// Write template to config file
-	if err := os.WriteFile(configPath, templateData, 0o600); err != nil {
+	if err := os.WriteFile(path, templateData, 0o600); err != nil {
 		return "", fmt.Errorf("write config file: %w", err)
 	}
 
-	return configPath, nil
+	return path, nil
 }
 
 // FindDefaultConfigPath finds the default configuration file path.

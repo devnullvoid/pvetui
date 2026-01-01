@@ -3,60 +3,42 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func TestFindDefaultConfigPathForOS_WindowsPrefersAppData(t *testing.T) {
-	appData := t.TempDir()
-	xdgBase := t.TempDir()
+func TestCreateDefaultConfigFileAt(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yml")
 
-	t.Setenv("APPDATA", appData)
-	t.Setenv("XDG_CONFIG_HOME", xdgBase)
-
-	appDataPath := filepath.Join(appData, "pvetui", "config.yml")
-	if err := os.MkdirAll(filepath.Dir(appDataPath), 0o750); err != nil {
-		t.Fatalf("mkdir appdata: %v", err)
+	gotPath, err := CreateDefaultConfigFileAt(path)
+	if err != nil {
+		t.Fatalf("CreateDefaultConfigFileAt error: %v", err)
 	}
-	if err := os.WriteFile(appDataPath, []byte("appdata"), 0o600); err != nil {
-		t.Fatalf("write appdata config: %v", err)
+	if gotPath != path {
+		t.Fatalf("expected path %q, got %q", path, gotPath)
 	}
 
-	xdgPath := filepath.Join(xdgBase, "pvetui", "config.yml")
-	if err := os.MkdirAll(filepath.Dir(xdgPath), 0o750); err != nil {
-		t.Fatalf("mkdir xdg: %v", err)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
 	}
-	if err := os.WriteFile(xdgPath, []byte("xdg"), 0o600); err != nil {
-		t.Fatalf("write xdg config: %v", err)
+	if !strings.Contains(string(data), "profiles:") {
+		t.Fatalf("expected template content to include profiles, got %q", string(data))
 	}
 
-	got, ok := findDefaultConfigPathForOS("windows")
-	if !ok {
-		t.Fatalf("expected config path to be found")
+	// Second call should be a no-op and keep same path.
+	gotPath, err = CreateDefaultConfigFileAt(path)
+	if err != nil {
+		t.Fatalf("CreateDefaultConfigFileAt second call error: %v", err)
 	}
-	if got != appDataPath {
-		t.Fatalf("expected APPDATA path %q, got %q", appDataPath, got)
+	if gotPath != path {
+		t.Fatalf("expected path %q on second call, got %q", path, gotPath)
 	}
 }
 
-func TestFindDefaultConfigPathForOS_WindowsFallbacksToXDG(t *testing.T) {
-	xdgBase := t.TempDir()
-
-	t.Setenv("APPDATA", "")
-	t.Setenv("XDG_CONFIG_HOME", xdgBase)
-
-	xdgPath := filepath.Join(xdgBase, "pvetui", "config.yml")
-	if err := os.MkdirAll(filepath.Dir(xdgPath), 0o750); err != nil {
-		t.Fatalf("mkdir xdg: %v", err)
-	}
-	if err := os.WriteFile(xdgPath, []byte("xdg"), 0o600); err != nil {
-		t.Fatalf("write xdg config: %v", err)
-	}
-
-	got, ok := findDefaultConfigPathForOS("windows")
-	if !ok {
-		t.Fatalf("expected config path to be found")
-	}
-	if got != xdgPath {
-		t.Fatalf("expected XDG path %q, got %q", xdgPath, got)
+func TestCreateDefaultConfigFileAt_EmptyPath(t *testing.T) {
+	if _, err := CreateDefaultConfigFileAt(""); err == nil {
+		t.Fatal("expected error for empty path")
 	}
 }
