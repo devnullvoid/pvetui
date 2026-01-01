@@ -120,6 +120,51 @@ func TestWizardAuthState(t *testing.T) {
 	}
 }
 
+func TestValidateWizardAuth(t *testing.T) {
+	tests := []struct {
+		name        string
+		password    string
+		tokenID     string
+		tokenSecret string
+		wantError   bool
+	}{
+		{
+			name:      "password only",
+			password:  "secret",
+			wantError: false,
+		},
+		{
+			name:        "token only",
+			tokenID:     "id",
+			tokenSecret: "secret",
+			wantError:   false,
+		},
+		{
+			name:      "token id without secret",
+			tokenID:   "id",
+			wantError: true,
+		},
+		{
+			name:        "token secret without id",
+			tokenSecret: "secret",
+			wantError:   true,
+		},
+		{
+			name:      "empty values",
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, errMsg := validateWizardAuth(tt.password, tt.tokenID, tt.tokenSecret)
+			if (errMsg != "") != tt.wantError {
+				t.Fatalf("expected error=%v, got %q", tt.wantError, errMsg)
+			}
+		})
+	}
+}
+
 func TestNormalizeWizardFormValues(t *testing.T) {
 	values := normalizeWizardFormValues(wizardFormValues{
 		ProfileName: " default ",

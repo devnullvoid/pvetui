@@ -60,6 +60,16 @@ func wizardAuthState(password, tokenID, tokenSecret string) (bool, bool) {
 	return hasPassword, hasToken
 }
 
+func validateWizardAuth(password, tokenID, tokenSecret string) (bool, bool, string) {
+	hasPassword, hasToken := wizardAuthState(password, tokenID, tokenSecret)
+	tokenIDSet := strings.TrimSpace(tokenID) != ""
+	tokenSecretSet := strings.TrimSpace(tokenSecret) != ""
+	if tokenIDSet != tokenSecretSet {
+		return hasPassword, hasToken, "API token authentication requires both a token ID and token secret."
+	}
+	return hasPassword, hasToken, ""
+}
+
 type wizardFormValues struct {
 	ProfileName string
 	Addr        string
@@ -391,7 +401,11 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		}
 
 		// Validate auth based on current form values, not stale config data.
-		hasPassword, hasToken := wizardAuthState(password, tokenID, tokenSecret)
+		hasPassword, hasToken, authErr := validateWizardAuth(password, tokenID, tokenSecret)
+		if authErr != "" {
+			showWizardModal(pages, form, app, "error", authErr, nil)
+			return
+		}
 
 		if hasPassword && hasToken {
 			showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
