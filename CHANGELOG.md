@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-01-01
+
 ### Added
 
 - **Age Key Directory Override**: Allow specifying where `.age-identity` and `.age-recipient` are stored via `age_dir`, `--age-dir`, or `PVETUI_AGE_DIR` for shared config setups. (#72)
