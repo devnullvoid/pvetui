@@ -23,6 +23,14 @@ type NodeDetails struct {
 	*tview.Table
 
 	app *App
+
+	// Cache/State
+	lastNodeID    string
+	disks         []api.NodeDisk
+	updates       []api.NodeUpdate
+	smartInfo     map[string]*api.SmartStatus
+	loadingDisks  bool
+	loadingUpdates bool
 }
 
 var _ NodeDetailsComponent = (*NodeDetails)(nil)
@@ -37,7 +45,8 @@ func NewNodeDetails() *NodeDetails {
 	table.SetCell(0, 0, tview.NewTableCell("Select a node").SetTextColor(theme.Colors.Primary))
 
 	return &NodeDetails{
-		Table: table,
+		Table:     table,
+		smartInfo: make(map[string]*api.SmartStatus),
 	}
 }
 
@@ -59,8 +68,19 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	if node == nil {
 		nd.Clear()
 		nd.SetCell(0, 0, tview.NewTableCell("Select a node").SetTextColor(theme.Colors.Primary))
-
+		nd.lastNodeID = ""
 		return
+	}
+
+	// Trigger data fetch if node changed
+	if node.ID != nd.lastNodeID {
+		nd.lastNodeID = node.ID
+		nd.disks = nil
+		nd.updates = nil
+		nd.smartInfo = make(map[string]*api.SmartStatus)
+		nd.loadingDisks = true
+		nd.loadingUpdates = true
+		go nd.fetchNodeDetails(node)
 	}
 
 	nd.Clear()
@@ -298,5 +318,130 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		}
 	}
 
+	// Disks & SMART Info
+	nd.SetCell(row, 0, tview.NewTableCell("💿 Disks").SetTextColor(theme.Colors.HeaderText))
+	if nd.loadingDisks {
+		nd.SetCell(row, 1, tview.NewTableCell("Loading...").SetTextColor(theme.Colors.Secondary))
+		row++
+	} else if len(nd.disks) > 0 {
+		row++
+		for _, disk := range nd.disks {
+			// Skip partitions if any slipped through
+			if disk.Used == "partition" {
+				continue
+			}
+
+			diskInfo := fmt.Sprintf("%s (%s) - %s", disk.DevPath, utils.FormatBytes(disk.Size), disk.Model)
+			nd.SetCell(row, 0, tview.NewTableCell("  • "+disk.Type).SetTextColor(theme.Colors.Info))
+			nd.SetCell(row, 1, tview.NewTableCell(diskInfo).SetTextColor(theme.Colors.Primary))
+			row++
+
+			// SMART Status
+			smartStatus := "SMART: Unknown"
+			smartColor := theme.Colors.Secondary
+
+			if smart, ok := nd.smartInfo[disk.DevPath]; ok {
+				smartStatus = fmt.Sprintf("SMART: %s", smart.Health)
+				if smart.Health == "PASSED" || smart.Health == "OK" {
+					smartColor = theme.Colors.StatusRunning
+				} else {
+					smartColor = theme.Colors.StatusStopped
+				}
+
+				if smart.Text != "" {
+					smartStatus += fmt.Sprintf(" (%s)", smart.Text)
+				}
+			} else if disk.Health != "" {
+				// Fallback to basic health from disk list
+				smartStatus = fmt.Sprintf("Status: %s", disk.Health)
+				if disk.Health == "PASSED" || disk.Health == "OK" {
+					smartColor = theme.Colors.StatusRunning
+				} else {
+					smartColor = theme.Colors.StatusStopped
+				}
+			}
+
+			nd.SetCell(row, 1, tview.NewTableCell(smartStatus).SetTextColor(smartColor))
+			row++
+		}
+	} else {
+		nd.SetCell(row, 1, tview.NewTableCell("No disks found or failed to load").SetTextColor(theme.Colors.Secondary))
+		row++
+	}
+
+	// System Updates
+	nd.SetCell(row, 0, tview.NewTableCell("📦 Updates").SetTextColor(theme.Colors.HeaderText))
+	if nd.loadingUpdates {
+		nd.SetCell(row, 1, tview.NewTableCell("Loading...").SetTextColor(theme.Colors.Secondary))
+		row++
+	} else if len(nd.updates) > 0 {
+		updateText := fmt.Sprintf("%d updates available", len(nd.updates))
+		nd.SetCell(row, 1, tview.NewTableCell(updateText).SetTextColor(theme.Colors.Warning))
+		row++
+
+		// Show first few updates as preview
+		limit := 5
+		for i, update := range nd.updates {
+			if i >= limit {
+				nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("...and %d more", len(nd.updates)-limit)).SetTextColor(theme.Colors.Secondary))
+				row++
+				break
+			}
+			nd.SetCell(row, 0, tview.NewTableCell("  • "+update.Package).SetTextColor(theme.Colors.Info))
+			nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%s -> %s", update.OldVersion, update.Version)).SetTextColor(theme.Colors.Secondary))
+			row++
+		}
+	} else {
+		nd.SetCell(row, 1, tview.NewTableCell("System is up to date").SetTextColor(theme.Colors.StatusRunning))
+		row++
+	}
+
 	nd.ScrollToBeginning()
+}
+
+func (nd *NodeDetails) fetchNodeDetails(node *api.Node) {
+	client := nd.app.Client()
+
+	// Fetch Disks & SMART in background
+	disks, err := client.GetNodeDisks(node.Name)
+	var smartInfo map[string]*api.SmartStatus
+	if err == nil {
+		smartInfo = make(map[string]*api.SmartStatus)
+		// Fetch SMART for each disk
+		for _, disk := range disks {
+			if disk.Type == "ssd" || disk.Type == "hdd" {
+				smart, err := client.GetNodeDiskSmart(node.Name, disk.DevPath)
+				if err == nil {
+					smartInfo[disk.DevPath] = smart
+				}
+			}
+		}
+	}
+
+	// Update UI with Disk/SMART results
+	nd.app.QueueUpdateDraw(func() {
+		// Only update if we are still looking at the same node
+		if nd.lastNodeID == node.ID {
+			nd.loadingDisks = false
+			if err == nil {
+				nd.disks = disks
+				nd.smartInfo = smartInfo
+			}
+			nd.Update(node, nil)
+		}
+	})
+
+	// Fetch Updates in background
+	updates, err := client.GetNodeUpdates(node.Name)
+
+	// Update UI with Update results
+	nd.app.QueueUpdateDraw(func() {
+		if nd.lastNodeID == node.ID {
+			nd.loadingUpdates = false
+			if err == nil {
+				nd.updates = updates
+			}
+			nd.Update(node, nil)
+		}
+	})
 }
