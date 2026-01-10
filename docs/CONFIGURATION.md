@@ -43,10 +43,13 @@ profiles:
     insecure: false
     ssh_user: "workuser"
     vm_ssh_user: "work-vm-user"
+    groups:
+      - all-servers
 
-default_profile: "default"
+default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
+age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 
 # Key bindings customization
 key_bindings:
@@ -89,7 +92,7 @@ The built-in profile manager allows you to:
 - **Add new profiles** with different Proxmox connections
 - **Edit existing profiles** with validation
 - **Delete profiles** with confirmation
-- **Set default profile** for automatic connection
+- **Set default profile or group** for automatic startup
 
 Access the profile manager through the global menu (`g` key) or context menus.
 
@@ -283,6 +286,22 @@ Customize the cache directory location:
 ```yaml
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 ```
+
+Leading `~` is expanded to your home directory in config values, flags, and `PVETUI_CACHE_DIR`.
+
+### Age Key Directory
+
+pvetui stores age identity and recipient files alongside the config by default. You can override
+the directory when sharing a config across multiple machines:
+
+```yaml
+age_dir: "/custom/age/path"  # Optional: overrides where age keys are stored
+```
+
+You can also set this via `PVETUI_AGE_DIR` or the `--age-dir` flag.
+If the directory does not already contain `.age-identity` and `.age-recipient`,
+pvetui will generate new keys, and any existing encrypted values will fail to decrypt.
+Leading `~` is expanded to your home directory in config values, flags, and `PVETUI_AGE_DIR`.
 
 ### Debug Mode
 

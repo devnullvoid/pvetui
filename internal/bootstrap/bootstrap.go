@@ -8,6 +8,7 @@ package bootstrap
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/app"
@@ -43,6 +44,7 @@ type BootstrapOptions struct {
 	FlagSSHJumpHostKeyfile string
 	FlagDebug              bool
 	FlagCacheDir    string
+	FlagAgeDir      string
 }
 
 // BootstrapResult contains the result of the bootstrap process.
@@ -72,7 +74,7 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&configWizard, "w", false, "Short for --config-wizard")
 
 	// Config flags (these will be applied to the config object later)
-	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagSSHJumpHostAddr, flagSSHJumpHostUser, flagSSHJumpHostKeyfile, flagCacheDir string
+	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagSSHJumpHostAddr, flagSSHJumpHostUser, flagSSHJumpHostKeyfile, flagCacheDir, flagAgeDir string
 	var flagInsecure, flagDebug bool
 
 	flag.StringVar(&flagAddr, "addr", "", "Proxmox API URL (env PVETUI_ADDR)")
@@ -103,6 +105,7 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&flagDebug, "d", false, "Short for --debug")
 	flag.StringVar(&flagCacheDir, "cache-dir", "", "Cache directory path (env PVETUI_CACHE_DIR)")
 	flag.StringVar(&flagCacheDir, "cd", "", "Short for --cache-dir")
+	flag.StringVar(&flagAgeDir, "age-dir", "", "Age key directory path (env PVETUI_AGE_DIR)")
 
 	flag.Parse()
 
@@ -128,6 +131,7 @@ func ParseFlags() BootstrapOptions {
 		FlagSSHJumpHostKeyfile: flagSSHJumpHostKeyfile,
 		FlagDebug:              flagDebug,
 		FlagCacheDir:    flagCacheDir,
+		FlagAgeDir:      flagAgeDir,
 	}
 }
 
@@ -146,12 +150,28 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 
 	// Resolve configuration path
 	configPath := ResolveConfigPath(opts.ConfigPath)
+	if opts.FlagAgeDir != "" {
+		expandedAgeDir := config.ExpandHomePath(opts.FlagAgeDir)
+		cfg.AgeDir = expandedAgeDir
+		config.SetAgeDirOverride(expandedAgeDir)
+	}
 
 	// Handle config wizard BEFORE config loading and profile resolution
 	// This allows the wizard to work even when no config file exists
 	if opts.ConfigWizard {
-		// Try to load existing config if it exists, but don't fail if it doesn't
+		configPath = ResolveConfigPathForWizard(opts.ConfigPath)
+		// Seed from template if the config doesn't exist so the wizard matches onboarding defaults.
 		if configPath != "" {
+			if _, err := os.Stat(configPath); err != nil {
+				if os.IsNotExist(err) {
+					if _, err := config.CreateDefaultConfigFileAt(configPath); err != nil {
+						return nil, fmt.Errorf("create default config: %w", err)
+					}
+				} else {
+					return nil, fmt.Errorf("check config path: %w", err)
+				}
+			}
+
 			_ = cfg.MergeWithFile(configPath) // Ignore errors for config wizard
 		}
 
@@ -166,8 +186,18 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 
 		// Apply selected profile for config wizard
 		if selectedProfile != "" {
-			if err := cfg.ApplyProfile(selectedProfile); err != nil {
-				return nil, fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
+			if _, exists := cfg.Profiles[selectedProfile]; exists {
+				if err := cfg.ApplyProfile(selectedProfile); err != nil {
+					return nil, fmt.Errorf("could not select profile '%s': %w", selectedProfile, err)
+				}
+			} else if cfg.IsGroup(selectedProfile) {
+				members := cfg.GetProfileNamesInGroup(selectedProfile)
+				if len(members) == 0 {
+					return nil, fmt.Errorf("aggregate group '%s' has no members", selectedProfile)
+				}
+				if err := cfg.ApplyProfile(members[0]); err != nil {
+					return nil, fmt.Errorf("could not select group '%s' (via profile '%s'): %w", selectedProfile, members[0], err)
+				}
 			}
 		}
 
@@ -339,7 +369,12 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 		cfg.Debug = true
 	}
 	if opts.FlagCacheDir != "" {
-		cfg.CacheDir = opts.FlagCacheDir
+		cfg.CacheDir = config.ExpandHomePath(opts.FlagCacheDir)
+	}
+	if opts.FlagAgeDir != "" {
+		expandedAgeDir := config.ExpandHomePath(opts.FlagAgeDir)
+		cfg.AgeDir = expandedAgeDir
+		config.SetAgeDirOverride(expandedAgeDir)
 	}
 }
 
@@ -382,6 +417,22 @@ func ResolveConfigPath(flagPath string) string {
 	}
 
 	return ""
+}
+
+// ResolveConfigPathForWizard resolves a configuration path for the config wizard.
+//
+// It prefers an explicit flag path, then an existing default config file, and
+// finally falls back to the standard default path so the wizard can create it.
+func ResolveConfigPathForWizard(flagPath string) string {
+	if flagPath != "" {
+		return flagPath
+	}
+
+	if path, found := config.FindDefaultConfigPath(); found {
+		return path
+	}
+
+	return config.GetDefaultConfigPath()
 }
 
 // HandleConfigWizard launches the configuration wizard.

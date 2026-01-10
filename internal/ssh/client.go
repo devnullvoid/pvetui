@@ -357,9 +357,7 @@ func buildSSHArgsBase(user, host string, jumphost config.SSHJumpHost) []string {
 			// Use ProxyCommand for keyfile support
 			// ssh -W %h:%p -i keyfile -l user jumphost
 			proxyCmd := "ssh -W %h:%p"
-			if jumphost.Keyfile != "" {
-				proxyCmd += fmt.Sprintf(" -i %s", shellQuote(jumphost.Keyfile))
-			}
+			proxyCmd += fmt.Sprintf(" -i %s", shellQuote(jumphost.Keyfile))
 			if jumphost.User != "" {
 				proxyCmd += fmt.Sprintf(" -l %s", shellQuote(jumphost.User))
 			}

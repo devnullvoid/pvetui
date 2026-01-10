@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-01-01
+
+### Added
+
+- **SSH Jump Host Support**: Configure SSH Bastion/Jump Hosts per connection profile, supporting authentication via keyfile or agent.
+- **Age Key Directory Override**: Allow specifying where `.age-identity` and `.age-recipient` are stored via `age_dir`, `--age-dir`, or `PVETUI_AGE_DIR` for shared config setups. (#72)
+- **Tilde Expansion for Paths**: `~` now expands in `age_dir` and `cache_dir` values from config, flags, and environment variables.
+
+### Fixed
+
+ - **Config Wizard Auth Validation**: Read live form values at save time and validate the profile being edited to avoid stale auth errors across platforms. (#69, #70)
+ - **Config Wizard Token Validation**: Warn when only one of token ID/secret is provided so partial token input isn't silently discarded.
+ - **Config Wizard Defaults**: When launched via `--config-wizard` without an existing config, the wizard now seeds from the default template to match onboarding behavior. (#69, #70)
+ - **Windows Config Path Handling**: Default to the standard config path when launching the wizard without an existing config, and also probe XDG locations so legacy `~/.config/pvetui` setups are discovered. (#69, #70)
+
+## [1.0.15] - 2025-12-21
+
 ### Added
 
 - **Backup Management**: Comprehensive backup functionality for VMs and containers with visual task indicators and auto-refresh capabilities.
@@ -14,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backup UX**: Added visual indicators for running backup tasks and auto-refresh when operations complete.
 - **Backup Navigation**: Added 'Refresh' action (Ctrl+R) to Backup Manager for manual updates.
 - **Command Runner Descriptions**: Display user-friendly descriptions for all commands to help users understand purpose before execution.
+- **Default Startup Group**: `default_profile` can now be set to an aggregate group name so pvetui starts directly in the combined group view.
 
 ### Fixed
 
@@ -21,8 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backup Keyboard Handling**: Whitelisted backup pages in keyboard handler to prevent global hotkey conflicts with form input.
 - **SOPS Group Management**: Prevent unwanted re-encryption of already-encrypted configs during group operations.
 - **Profile Template Cleanup**: Removed obsolete "work" profile from default configuration template to prevent confusion.
+- **Wizard Back-Tab Navigation**: Restored Shift+Tab (back-tab) focus navigation in the Profile Editor and Config Wizard, including button rows.
 - **UI Deadlocks**: Fixed deadlock issues in "Add Group" dialog and other UI components.
 - **Focus Management**: Resolved focus loss in "Add Group" workflow and other form interactions.
+- **Profile/Group Name Conflicts**: Startup validation now directs users to repair existing configs instead of offering to overwrite them, and UI entry points block creating groups or profiles with conflicting names.
+- **Config Repair Targeting**: When a profile/group name conflict is detected on startup, the editor now opens the conflicting profile so it can be renamed.
+- **Onboarding Messaging**: Startup guidance now distinguishes first-run setup from fixing an existing configuration.
+- **Footer Key Hints**: Global menu and context menu shortcuts are now listed separately, with Esc shown for the global menu.
+- **Key Normalization**: Ctrl+Shift+Tab normalization now preserves the Ctrl modifier across tcell versions.
 
 ### Changed
 

@@ -32,29 +32,66 @@ func CreateDefaultConfigFile() (string, error) {
 	}
 
 	configPath := filepath.Join(configDir, "config.yml")
-	if _, err := os.Stat(configPath); err == nil {
-		return configPath, nil // File already exists
+	return CreateDefaultConfigFileAt(configPath)
+}
+
+// CreateDefaultConfigFileAt writes the default configuration template to the provided path.
+//
+// Parameters:
+//   - path: Full path where the config file should be created.
+//
+// This function is safe to call multiple times; if the file already exists it
+// returns the existing path without modifying it.
+//
+// Example usage:
+//
+//	configPath := filepath.Join(os.TempDir(), "pvetui-config.yml")
+//	_, err := CreateDefaultConfigFileAt(configPath)
+//	if err != nil {
+//		log.Fatalf("create config: %v", err)
+//	}
+func CreateDefaultConfigFileAt(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("config path cannot be empty")
 	}
 
-	// Read template
+	if _, err := os.Stat(path); err == nil {
+		return path, nil // File already exists
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return "", fmt.Errorf("create config directory: %w", err)
+	}
+
 	templateData, err := templateFS.ReadFile("config.tpl.yml")
 	if err != nil {
 		return "", fmt.Errorf("read template: %w", err)
 	}
 
-	// Write template to config file
-	if err := os.WriteFile(configPath, templateData, 0o600); err != nil {
+	if err := os.WriteFile(path, templateData, 0o600); err != nil {
 		return "", fmt.Errorf("write config file: %w", err)
 	}
 
-	return configPath, nil
+	return path, nil
 }
 
 // FindDefaultConfigPath finds the default configuration file path.
 func FindDefaultConfigPath() (string, bool) {
-	configPath := GetDefaultConfigPath()
+	return findDefaultConfigPathForOS(runtime.GOOS)
+}
+
+func findDefaultConfigPathForOS(goos string) (string, bool) {
+	const windowsOS = "windows"
+	configPath := filepath.Join(getConfigDirForOS(goos), "config.yml")
 	if _, err := os.Stat(configPath); err == nil {
 		return configPath, true
+	}
+
+	if goos == windowsOS {
+		xdgPath := filepath.Join(getXDGBaseConfigDir(), "pvetui", "config.yml")
+		if _, err := os.Stat(xdgPath); err == nil {
+			return xdgPath, true
+		}
 	}
 
 	// Check for config in current directory
@@ -67,8 +104,13 @@ func FindDefaultConfigPath() (string, bool) {
 
 // getConfigDir returns the appropriate config directory path for the current platform.
 func getConfigDir() string {
-	switch runtime.GOOS {
-	case "windows":
+	return getConfigDirForOS(runtime.GOOS)
+}
+
+func getConfigDirForOS(goos string) string {
+	const windowsOS = "windows"
+	switch goos {
+	case windowsOS:
 		// Windows: Use %APPDATA% (Roaming) for config files
 		if appData := os.Getenv("APPDATA"); appData != "" {
 			return filepath.Join(appData, "pvetui")
@@ -120,7 +162,23 @@ func getCacheDir() string {
 // getXDGConfigDir returns the XDG config directory path.
 // * Deprecated: Use getConfigDir() instead for cross-platform support
 func getXDGConfigDir() string {
-	return getConfigDir()
+	return getXDGConfigDirForOS(runtime.GOOS)
+}
+
+func getXDGConfigDirForOS(_ string) string {
+	return filepath.Join(getXDGBaseConfigDir(), "pvetui")
+}
+
+func getXDGBaseConfigDir() string {
+	// Respect XDG_CONFIG_HOME when set; otherwise fall back to ~/.config.
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		return xdgConfig
+	}
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(homeDir, ".config")
+	}
+
+	return ".config"
 }
 
 // getXDGCacheDir returns the XDG cache directory path.

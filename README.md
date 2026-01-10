@@ -142,6 +142,8 @@ profiles:
     insecure: false
     ssh_user: "your-ssh-user"
     vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VM shells
+    groups:
+      - all-servers
 
   work:
     addr: "https://work-proxmox:8006"
@@ -152,12 +154,29 @@ profiles:
     insecure: false
     ssh_user: "workuser"
     vm_ssh_user: "work-vm-user"
+    groups:
+      - all-servers
 
-default_profile: "default"
+default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
 ```
 
 `vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles.
+
+### SSH Jump Host (Bastion)
+
+Configure an SSH Jump Host (Bastion) in your profile to access Proxmox nodes via an intermediary server.
+This is useful if your Proxmox cluster is behind a firewall or in a private network.
+
+```yaml
+profiles:
+  default:
+    # ... standard config ...
+    ssh_jump_host:
+      addr: "bastion.example.com:22"
+      user: "bastion-user"
+      keyfile: "~/.ssh/id_rsa_bastion" # Optional identity file for the jump host
+```
 
 ### Plugins
 
@@ -275,6 +294,7 @@ Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secr
 | `--ssh-user` | | SSH username |
 | `--debug` | | Enable debug logging |
 | `--cache-dir` | | Cache directory path |
+| `--age-dir` | | Age key directory path |
 
 **Environment Variables**: All flags can also be set via environment variables with `PVETUI_` prefix (e.g., `PVETUI_ADDR`, `PVETUI_USER`).
 

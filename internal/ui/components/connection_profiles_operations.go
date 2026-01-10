@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 
 	"github.com/devnullvoid/pvetui/internal/adapters"
 	"github.com/devnullvoid/pvetui/internal/config"
@@ -276,15 +277,36 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 		// Remove the modal first
 		a.pages.RemovePage("deleteProfile")
 
+		oldDefault := a.config.DefaultProfile
+
 		// Delete the profile
 		if a.config.Profiles != nil {
 			delete(a.config.Profiles, profileName)
 
 			// If this was the default profile, set the first remaining profile as default
 			if a.config.DefaultProfile == profileName {
+				remaining := make([]string, 0, len(a.config.Profiles))
 				for name := range a.config.Profiles {
-					a.config.DefaultProfile = name
-					break
+					remaining = append(remaining, name)
+				}
+				sort.Strings(remaining)
+				if len(remaining) > 0 {
+					a.config.DefaultProfile = remaining[0]
+				}
+			}
+
+			// If the default startup selection was a group and this deletion removed the
+			// last member, fall back to a remaining profile to keep startup valid.
+			if oldDefault != "" && oldDefault == a.config.DefaultProfile {
+				if _, exists := a.config.Profiles[oldDefault]; !exists && !a.config.IsGroup(oldDefault) {
+					remaining := make([]string, 0, len(a.config.Profiles))
+					for name := range a.config.Profiles {
+						remaining = append(remaining, name)
+					}
+					sort.Strings(remaining)
+					if len(remaining) > 0 {
+						a.config.DefaultProfile = remaining[0]
+					}
 				}
 			}
 
@@ -340,20 +362,30 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 
 // setDefaultProfile sets the specified profile as the default profile.
 func (a *App) setDefaultProfile(profileName string) {
-	// Check if the profile exists
+	// Check if the target exists (profile or group)
 	if a.config.Profiles == nil {
 		a.header.ShowError("No profiles available.")
 		return
 	}
 
-	if _, exists := a.config.Profiles[profileName]; !exists {
-		a.header.ShowError(fmt.Sprintf("Profile '%s' not found.", profileName))
+	_, isProfile := a.config.Profiles[profileName]
+	isGroup := a.config.IsGroup(profileName)
+	if !isProfile && !isGroup {
+		a.header.ShowError(fmt.Sprintf("Profile or group '%s' not found.", profileName))
 		return
+	}
+
+	if isGroup {
+		members := a.config.GetProfileNamesInGroup(profileName)
+		if len(members) == 0 {
+			a.header.ShowError(fmt.Sprintf("Group '%s' has no members.", profileName))
+			return
+		}
 	}
 
 	// Check if it's already the default
 	if a.config.DefaultProfile == profileName {
-		a.header.ShowError(fmt.Sprintf("Profile '%s' is already the default profile.", profileName))
+		a.header.ShowError(fmt.Sprintf("'%s' is already the default startup selection.", profileName))
 		return
 	}
 
@@ -389,7 +421,7 @@ func (a *App) setDefaultProfile(profileName string) {
 	}
 
 	// Show success message
-	a.header.ShowSuccess(fmt.Sprintf("Default profile changed from '%s' to '%s'.", oldDefault, profileName))
+	a.header.ShowSuccess(fmt.Sprintf("Default startup selection changed from '%s' to '%s'.", oldDefault, profileName))
 }
 
 // reEncryptConfigIfNeeded re-encrypts the config file with SOPS.

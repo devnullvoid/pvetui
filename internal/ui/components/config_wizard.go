@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/keys"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -39,8 +40,6 @@ func showWizardModal(pages *tview.Pages, form *tview.Form, app *tview.Applicatio
 	pages.SwitchToPage("modal")
 }
 
-// (removed) FilepathBase is removed in favor of filepath.Dir which is OS-agnostic
-
 // isSOPSEncrypted checks if a config file appears to be SOPS encrypted.
 func isSOPSEncrypted(path string, data []byte) bool {
 	// Use the config package's SOPS detection logic
@@ -51,6 +50,47 @@ func isSOPSEncrypted(path string, data []byte) bool {
 func findSOPSRule(startDir string) bool {
 	// Use the config package's SOPS rule detection logic
 	return config.FindSOPSRule(startDir)
+}
+
+func wizardAuthState(password, tokenID, tokenSecret string) (bool, bool) {
+	hasPassword := strings.TrimSpace(password) != ""
+	hasToken := strings.TrimSpace(tokenID) != "" && strings.TrimSpace(tokenSecret) != ""
+	return hasPassword, hasToken
+}
+
+func validateWizardAuth(password, tokenID, tokenSecret string) (bool, bool, string) {
+	hasPassword, hasToken := wizardAuthState(password, tokenID, tokenSecret)
+	tokenIDSet := strings.TrimSpace(tokenID) != ""
+	tokenSecretSet := strings.TrimSpace(tokenSecret) != ""
+	if tokenIDSet != tokenSecretSet {
+		return hasPassword, hasToken, "API token authentication requires both a token ID and token secret."
+	}
+	return hasPassword, hasToken, ""
+}
+
+type wizardFormValues struct {
+	ProfileName string
+	Addr        string
+	User        string
+	Password    string
+	TokenID     string
+	TokenSecret string
+	Realm       string
+	ApiPath     string
+	SSHUser     string
+	VMSSHUser   string
+}
+
+func normalizeWizardFormValues(values wizardFormValues) wizardFormValues {
+	values.ProfileName = strings.TrimSpace(values.ProfileName)
+	values.Addr = strings.TrimSpace(values.Addr)
+	values.User = strings.TrimSpace(values.User)
+	values.TokenID = strings.TrimSpace(values.TokenID)
+	values.Realm = strings.TrimSpace(values.Realm)
+	values.ApiPath = strings.TrimSpace(values.ApiPath)
+	values.SSHUser = strings.TrimSpace(values.SSHUser)
+	values.VMSSHUser = strings.TrimSpace(values.VMSSHUser)
+	return values
 }
 
 // WizardResult represents the result of a configuration wizard operation.
@@ -83,31 +123,48 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 	// Add profile name field at the top
 	var profileName string
-	var isDefaultProfile bool
+	originalProfileName := ""
 
 	// Determine if we are editing an existing profile
 	var isEditing bool
+	resolveProfileForWizard := func(candidate string) (string, bool) {
+		if candidate == "" {
+			return "", false
+		}
 
-	if targetProfile != "" {
-		// User requested specific profile
-		profileName = targetProfile
 		if cfg.Profiles != nil {
-			if _, exists := cfg.Profiles[profileName]; exists {
-				isEditing = true
+			if _, exists := cfg.Profiles[candidate]; exists {
+				return candidate, true
 			}
 		}
+
+		// If a group name is supplied, edit the first member profile (stable order).
+		if cfg.IsGroup(candidate) {
+			members := cfg.GetProfileNamesInGroup(candidate)
+			if len(members) > 0 {
+				if _, exists := cfg.Profiles[members[0]]; exists {
+					return members[0], true
+				}
+			}
+		}
+
+		// Unknown name: treat as creating a new profile.
+		return candidate, false
+	}
+
+	if targetProfile != "" {
+		// User requested specific profile/group
+		profileName, isEditing = resolveProfileForWizard(targetProfile)
 	} else {
 		// Fallback to default behavior
 		// If we have profiles, default to editing the default profile
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			profileName = cfg.DefaultProfile
-			if cfg.Profiles != nil {
-				if _, exists := cfg.Profiles[profileName]; exists {
-					isEditing = true
-				}
-			}
+			profileName, isEditing = resolveProfileForWizard(cfg.DefaultProfile)
 		}
 		// If no profiles, profileName remains empty, isEditing false
+	}
+	if isEditing {
+		originalProfileName = profileName
 	}
 
 	isNewProfile := !isEditing
@@ -117,19 +174,18 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	})
 
 	// Add checkbox for default profile
-	form.AddCheckbox("Set as Default Profile", isNewProfile || cfg.DefaultProfile == profileName, func(checked bool) {
-		isDefaultProfile = checked
-	})
+	defaultChecked := isNewProfile || (originalProfileName != "" && cfg.DefaultProfile == originalProfileName)
+	defaultCheckbox := tview.NewCheckbox().SetLabel("Set as Default Profile").SetChecked(defaultChecked)
+	form.AddFormItem(defaultCheckbox)
 
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
-	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostPassword, sshJumpHostKeyfile string
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile string
 	var insecure, useJumpHost bool
 
 	// If we are editing a profile, use its data
-	//nolint:dupl // Shared with profile wizard to keep legacy/profile editing consistent
 	if isEditing {
-		if profile, exists := cfg.Profiles[profileName]; exists {
+		if profile, exists := cfg.Profiles[originalProfileName]; exists {
 			addr = profile.Addr
 			user = profile.User
 			// Decrypt password and tokenSecret for display in the form
@@ -138,7 +194,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				if decrypted, err := config.DecryptField(password); err == nil {
 					password = decrypted
 				}
-				// If decryption failed, keep the encrypted value (user can see it's encrypted)
 			}
 			tokenID = profile.TokenID
 			tokenSecret = profile.TokenSecret
@@ -146,7 +201,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				if decrypted, err := config.DecryptField(tokenSecret); err == nil {
 					tokenSecret = decrypted
 				}
-				// If decryption failed, keep the encrypted value (user can see it's encrypted)
 			}
 			realm = profile.Realm
 			apiPath = profile.ApiPath
@@ -156,7 +210,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 			sshJumpHostAddr = profile.SSHJumpHost.Addr
 			sshJumpHostUser = profile.SSHJumpHost.User
-			sshJumpHostPassword = profile.SSHJumpHost.Password
 			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
 
 			if sshJumpHostAddr != "" {
@@ -189,7 +242,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 		sshJumpHostAddr = cfg.SSHJumpHost.Addr
 		sshJumpHostUser = cfg.SSHJumpHost.User
-		sshJumpHostPassword = cfg.SSHJumpHost.Password
 		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
 
 		if sshJumpHostAddr != "" {
@@ -321,7 +373,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			if !checked {
 				sshJumpHostAddr = ""
 				sshJumpHostUser = ""
-				sshJumpHostPassword = ""
 				sshJumpHostKeyfile = ""
 
 				if isEditing {
@@ -363,17 +414,6 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 					cfg.SSHJumpHost.User = value
 				}
 			})
-			form.AddPasswordField("Jump Host Password", sshJumpHostPassword, 20, '*', func(text string) {
-				sshJumpHostPassword = text
-				if isEditing {
-					if profile, exists := cfg.Profiles[profileName]; exists {
-						profile.SSHJumpHost.Password = text
-						cfg.Profiles[profileName] = profile
-					}
-				} else {
-					cfg.SSHJumpHost.Password = text
-				}
-			})
 			form.AddInputField("Jump Host Keyfile", sshJumpHostKeyfile, 40, nil, func(text string) {
 				sshJumpHostKeyfile = text
 				value := strings.TrimSpace(text)
@@ -392,6 +432,28 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
 		form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
 		form.AddButton("Save", func() {
+			// Normalize inputs
+			values := normalizeWizardFormValues(wizardFormValues{
+				ProfileName: profileName,
+				Addr:        addr,
+				User:        user,
+				TokenID:     tokenID,
+				Realm:       realm,
+				ApiPath:     apiPath,
+				SSHUser:     sshUser,
+				VMSSHUser:   vmSSHUser,
+			})
+
+			// Update local vars from normalized values
+			profileName = values.ProfileName
+			addr = values.Addr
+			user = values.User
+			tokenID = values.TokenID
+			realm = values.Realm
+			apiPath = values.ApiPath
+			sshUser = values.SSHUser
+			vmSSHUser = values.VMSSHUser
+
 			// Validate profile name
 			if profileName == "" {
 				showWizardModal(pages, form, app, "error", "Profile name cannot be empty.", nil)
@@ -399,8 +461,8 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			}
 
 			// Check if profile already exists (for new profiles or renamed profiles)
-			if isNewProfile || profileName != cfg.DefaultProfile {
-				if cfg.Profiles != nil {
+			if cfg.Profiles != nil {
+				if isNewProfile || (isEditing && profileName != originalProfileName) {
 					if _, exists := cfg.Profiles[profileName]; exists {
 						showWizardModal(pages, form, app, "error", "Profile '"+profileName+"' already exists.", nil)
 						return
@@ -408,28 +470,47 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				}
 			}
 
-			// Determine which data to validate based on whether we're using profiles
-			var hasPassword, hasToken bool
-
-			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-				// Validate profile data
-				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-					hasPassword = profile.Password != ""
-					hasToken = profile.TokenID != "" && profile.TokenSecret != ""
-				}
-			} else {
-				// Validate legacy data
-				hasPassword = cfg.Password != ""
-				hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
+			if cfg.IsGroup(profileName) {
+				showWizardModal(pages, form, app, "error", "Profile name '"+profileName+"' conflicts with an existing group.", nil)
+				return
 			}
 
-			if hasPassword && hasToken {
-				showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
+			var profileGroups []string
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profileGroups = append([]string{}, profile.Groups...)
+				}
+			}
+
+			for _, group := range profileGroups {
+				if group == profileName {
+					showWizardModal(pages, form, app, "error", "Profile name '"+profileName+"' cannot match one of its group names.", nil)
+					return
+				}
+				if _, exists := cfg.Profiles[group]; exists {
+					showWizardModal(pages, form, app, "error", "Group name '"+group+"' conflicts with an existing profile.", nil)
+					return
+				}
+			}
+
+			// Determine which data to validate based on whether we're using profiles
+			// Use helper to validate auth state
+			var authErr string
+			var hasPassword, hasToken bool
+			hasPassword, hasToken, authErr = validateWizardAuth(password, tokenID, tokenSecret)
+
+			if authErr != "" {
+				showWizardModal(pages, form, app, "error", authErr, nil)
 				return
 			}
 
 			if !hasPassword && !hasToken {
 				showWizardModal(pages, form, app, "error", "You must provide either a password or a token for authentication.", nil)
+				return
+			}
+
+			if hasPassword && hasToken {
+				showWizardModal(pages, form, app, "error", "Please choose either password authentication or token authentication, not both.", nil)
 				return
 			}
 
@@ -453,7 +534,13 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				}
 			}
 
+			if err := cfg.Validate(); err != nil {
+				showWizardModal(pages, form, app, "error", "Validation error: "+err.Error(), nil)
+				return
+			}
+
 			// Handle profile creation/updating
+			setAsDefault := defaultCheckbox.IsChecked()
 			if isNewProfile {
 				// Create new profile
 				if cfg.Profiles == nil {
@@ -472,7 +559,11 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 					Insecure:    cfg.Insecure,
 					SSHUser:     strings.TrimSpace(cfg.SSHUser),
 					VMSSHUser:   strings.TrimSpace(cfg.VMSSHUser),
-					SSHJumpHost: cfg.SSHJumpHost,
+					SSHJumpHost: config.SSHJumpHost{
+						Addr:    sshJumpHostAddr,
+						User:    sshJumpHostUser,
+						Keyfile: sshJumpHostKeyfile,
+					},
 				}
 
 				// Clear conflicting auth method in new profile
@@ -486,48 +577,69 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				cfg.Profiles[profileName] = newProfile
 
 				// Set as default if requested
-				if isDefaultProfile {
+				if setAsDefault {
 					cfg.DefaultProfile = profileName
 				}
 			} else {
 				// Update existing profile
-				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-					// Handle profile renaming
-					if profileName != cfg.DefaultProfile {
-						// Store the old profile name before deleting
-						oldProfileName := cfg.DefaultProfile
-
-						// Remove old profile name
-						delete(cfg.Profiles, cfg.DefaultProfile)
-
-						// Update default profile if we're renaming the current default
-						if cfg.DefaultProfile == oldProfileName {
-							cfg.DefaultProfile = profileName
-						}
-					}
-
-					// The profile data has already been updated by the form field handlers
-					// Just clear conflicting auth method if needed
-					if hasPassword {
-						profile.TokenID = ""
-						profile.TokenSecret = ""
-					} else if hasToken {
-						profile.Password = ""
-					}
-
-					cfg.Profiles[profileName] = profile
+				profile, exists := cfg.Profiles[originalProfileName]
+				if !exists {
+					showWizardModal(pages, form, app, "error", "Profile '"+originalProfileName+"' not found.", nil)
+					return
 				}
 
-				// Update default profile setting
-				if isDefaultProfile {
+				// Preserve group memberships (not editable in this wizard).
+				updated := config.ProfileConfig{
+					Addr:        strings.TrimSpace(addr),
+					User:        strings.TrimSpace(user),
+					Password:    password,
+					TokenID:     strings.TrimSpace(tokenID),
+					TokenSecret: tokenSecret,
+					Realm:       strings.TrimSpace(realm),
+					ApiPath:     strings.TrimSpace(apiPath),
+					Insecure:    insecure,
+					SSHUser:     strings.TrimSpace(sshUser),
+					VMSSHUser:   strings.TrimSpace(vmSSHUser),
+					Groups:      append([]string{}, profile.Groups...),
+					SSHJumpHost: config.SSHJumpHost{
+						Addr:    sshJumpHostAddr,
+						User:    sshJumpHostUser,
+						Keyfile: sshJumpHostKeyfile,
+					},
+				}
+
+				if hasPassword {
+					updated.TokenID = ""
+					updated.TokenSecret = ""
+				} else if hasToken {
+					updated.Password = ""
+				}
+
+				// Rename if needed.
+				if profileName != originalProfileName {
+					delete(cfg.Profiles, originalProfileName)
+				}
+				cfg.Profiles[profileName] = updated
+
+				// If we renamed the current default profile, keep the default pointing at the renamed profile.
+				if cfg.DefaultProfile == originalProfileName {
+					cfg.DefaultProfile = profileName
+				}
+
+				// Or set as default if explicitly requested.
+				if setAsDefault {
 					cfg.DefaultProfile = profileName
 				}
 			}
 
+			prevActiveProfile := cfg.ActiveProfile
+			cfg.ActiveProfile = profileName
 			if err := cfg.Validate(); err != nil {
+				cfg.ActiveProfile = prevActiveProfile
 				showWizardModal(pages, form, app, "error", "Validation error: "+err.Error(), nil)
 				return
 			}
+			cfg.ActiveProfile = prevActiveProfile
 			// Save config first
 			saveErr := saveFn(cfg)
 			if saveErr != nil {
@@ -641,6 +753,7 @@ func SaveConfigToFile(cfg *config.Config, path string) error {
 // LaunchConfigWizard launches the configuration wizard and returns the result.
 func LaunchConfigWizard(cfg *config.Config, configPath string, activeProfile string) WizardResult {
 	tviewApp := tview.NewApplication()
+	tviewApp.SetInputCapture(keys.NormalizeNavigationEvent)
 
 	// Apply theme configuration first, then apply to tview (same as main application)
 	theme.ApplyCustomTheme(&cfg.Theme)

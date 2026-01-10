@@ -68,6 +68,149 @@ func TestConfigWizardValidation(t *testing.T) {
 	}
 }
 
+func TestWizardAuthState(t *testing.T) {
+	tests := []struct {
+		name        string
+		password    string
+		tokenID     string
+		tokenSecret string
+		hasPassword bool
+		hasToken    bool
+	}{
+		{
+			name:        "password only",
+			password:    "secret",
+			hasPassword: true,
+		},
+		{
+			name:        "token only",
+			tokenID:     "id",
+			tokenSecret: "secret",
+			hasToken:    true,
+		},
+		{
+			name:        "whitespace ignored",
+			password:    "   ",
+			tokenID:     "  id  ",
+			tokenSecret: " secret ",
+			hasToken:    true,
+		},
+		{
+			name:     "missing secret",
+			tokenID:  "id",
+			hasToken: false,
+		},
+		{
+			name:        "empty values",
+			hasPassword: false,
+			hasToken:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hasPassword, hasToken := wizardAuthState(tt.password, tt.tokenID, tt.tokenSecret)
+			if hasPassword != tt.hasPassword {
+				t.Fatalf("expected hasPassword=%v, got %v", tt.hasPassword, hasPassword)
+			}
+			if hasToken != tt.hasToken {
+				t.Fatalf("expected hasToken=%v, got %v", tt.hasToken, hasToken)
+			}
+		})
+	}
+}
+
+func TestValidateWizardAuth(t *testing.T) {
+	tests := []struct {
+		name        string
+		password    string
+		tokenID     string
+		tokenSecret string
+		wantError   bool
+	}{
+		{
+			name:      "password only",
+			password:  "secret",
+			wantError: false,
+		},
+		{
+			name:        "token only",
+			tokenID:     "id",
+			tokenSecret: "secret",
+			wantError:   false,
+		},
+		{
+			name:      "token id without secret",
+			tokenID:   "id",
+			wantError: true,
+		},
+		{
+			name:        "token secret without id",
+			tokenSecret: "secret",
+			wantError:   true,
+		},
+		{
+			name:      "empty values",
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, errMsg := validateWizardAuth(tt.password, tt.tokenID, tt.tokenSecret)
+			if (errMsg != "") != tt.wantError {
+				t.Fatalf("expected error=%v, got %q", tt.wantError, errMsg)
+			}
+		})
+	}
+}
+
+func TestNormalizeWizardFormValues(t *testing.T) {
+	values := normalizeWizardFormValues(wizardFormValues{
+		ProfileName: " default ",
+		Addr:        " https://host ",
+		User:        " root ",
+		Password:    "  secret  ",
+		TokenID:     " token ",
+		TokenSecret: "  tokensecret  ",
+		Realm:       " pam ",
+		ApiPath:     " /api2/json ",
+		SSHUser:     " root ",
+		VMSSHUser:   " vmroot ",
+	})
+
+	if values.ProfileName != "default" {
+		t.Fatalf("expected ProfileName to be trimmed, got %q", values.ProfileName)
+	}
+	if values.Addr != "https://host" {
+		t.Fatalf("expected Addr to be trimmed, got %q", values.Addr)
+	}
+	if values.User != "root" {
+		t.Fatalf("expected User to be trimmed, got %q", values.User)
+	}
+	if values.Password != "  secret  " {
+		t.Fatalf("expected Password to be unchanged, got %q", values.Password)
+	}
+	if values.TokenID != "token" {
+		t.Fatalf("expected TokenID to be trimmed, got %q", values.TokenID)
+	}
+	if values.TokenSecret != "  tokensecret  " {
+		t.Fatalf("expected TokenSecret to be unchanged, got %q", values.TokenSecret)
+	}
+	if values.Realm != "pam" {
+		t.Fatalf("expected Realm to be trimmed, got %q", values.Realm)
+	}
+	if values.ApiPath != "/api2/json" {
+		t.Fatalf("expected ApiPath to be trimmed, got %q", values.ApiPath)
+	}
+	if values.SSHUser != "root" {
+		t.Fatalf("expected SSHUser to be trimmed, got %q", values.SSHUser)
+	}
+	if values.VMSSHUser != "vmroot" {
+		t.Fatalf("expected VMSSHUser to be trimmed, got %q", values.VMSSHUser)
+	}
+}
+
 func TestFindSOPSRule(t *testing.T) {
 	dir := t.TempDir()
 	subdir := filepath.Join(dir, "sub")

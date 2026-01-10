@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"filippo.io/age"
 )
@@ -26,10 +27,33 @@ const (
 	recipientFileName = ".age-recipient"
 )
 
+var (
+	ageDirOverride   string
+	ageDirOverrideMu sync.RWMutex
+)
+
+// SetAgeDirOverride sets the directory used for storing age identity and recipient files.
+// Provide an empty string to reset to the default config directory.
+func SetAgeDirOverride(dir string) {
+	trimmed := strings.TrimSpace(dir)
+	ageDirOverrideMu.Lock()
+	ageDirOverride = trimmed
+	ageDirOverrideMu.Unlock()
+}
+
+func getAgeDir() string {
+	ageDirOverrideMu.RLock()
+	defer ageDirOverrideMu.RUnlock()
+	if ageDirOverride != "" {
+		return ageDirOverride
+	}
+	return getConfigDir()
+}
+
 // getOrCreateAgeIdentity returns an age identity for encryption/decryption.
 // Creates a new identity if one doesn't exist, storing it in the config directory.
 func getOrCreateAgeIdentity() (age.Identity, age.Recipient, error) {
-	configDir := getConfigDir()
+	configDir := getAgeDir()
 	identityPath := filepath.Join(configDir, identityFileName)
 	recipientPath := filepath.Join(configDir, recipientFileName)
 
@@ -191,13 +215,6 @@ func EncryptSensitiveFields(profile *ProfileConfig) error {
 		}
 	}
 
-	if profile.SSHJumpHost.Password != "" && !isEncrypted(profile.SSHJumpHost.Password) {
-		profile.SSHJumpHost.Password, err = EncryptField(profile.SSHJumpHost.Password)
-		if err != nil {
-			return fmt.Errorf("encrypt jump host password: %w", err)
-		}
-	}
-
 	return nil
 }
 
@@ -217,13 +234,6 @@ func DecryptSensitiveFields(profile *ProfileConfig) error {
 		profile.TokenSecret, err = DecryptField(profile.TokenSecret)
 		if err != nil {
 			return fmt.Errorf("decrypt token_secret: %w", err)
-		}
-	}
-
-	if profile.SSHJumpHost.Password != "" {
-		profile.SSHJumpHost.Password, err = DecryptField(profile.SSHJumpHost.Password)
-		if err != nil {
-			return fmt.Errorf("decrypt jump host password: %w", err)
 		}
 	}
 
@@ -258,14 +268,6 @@ func EncryptConfigSensitiveFields(cfg *Config) error {
 		}
 	}
 
-	if cfg.SSHJumpHost.Password != "" && !isEncrypted(cfg.SSHJumpHost.Password) {
-		var err error
-		cfg.SSHJumpHost.Password, err = EncryptField(cfg.SSHJumpHost.Password)
-		if err != nil {
-			return fmt.Errorf("encrypt legacy jump host password: %w", err)
-		}
-	}
-
 	return nil
 }
 
@@ -294,14 +296,6 @@ func DecryptConfigSensitiveFields(cfg *Config) error {
 		cfg.TokenSecret, err = DecryptField(cfg.TokenSecret)
 		if err != nil {
 			return fmt.Errorf("decrypt legacy token_secret: %w", err)
-		}
-	}
-
-	if cfg.SSHJumpHost.Password != "" {
-		var err error
-		cfg.SSHJumpHost.Password, err = DecryptField(cfg.SSHJumpHost.Password)
-		if err != nil {
-			return fmt.Errorf("decrypt legacy jump host password: %w", err)
 		}
 	}
 

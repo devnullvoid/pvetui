@@ -42,6 +42,7 @@ func TestNewConfig(t *testing.T) {
 				"PVETUI_SSH_USER":     "sshuser",
 				"PVETUI_DEBUG":        "true",
 				"PVETUI_CACHE_DIR":    "/tmp/cache",
+				"PVETUI_AGE_DIR":      "/tmp/age",
 			},
 			expected: &Config{
 				Addr:        "https://proxmox.example.com:8006",
@@ -55,6 +56,7 @@ func TestNewConfig(t *testing.T) {
 				SSHUser:     "sshuser",
 				Debug:       true,
 				CacheDir:    "/tmp/cache",
+				AgeDir:      "/tmp/age",
 			},
 		},
 		{
@@ -201,6 +203,87 @@ func TestConfig_Validate(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestExpandHomePath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("home directory not available")
+	}
+
+	t.Run("tilde only", func(t *testing.T) {
+		if got := ExpandHomePath("~"); got != home {
+			t.Fatalf("expected %q, got %q", home, got)
+		}
+	})
+
+	t.Run("tilde slash", func(t *testing.T) {
+		expected := filepath.Join(home, "pvetui")
+		if got := ExpandHomePath("~/pvetui"); got != expected {
+			t.Fatalf("expected %q, got %q", expected, got)
+		}
+	})
+
+	t.Run("tilde backslash", func(t *testing.T) {
+		expected := filepath.Join(home, "pvetui")
+		if got := ExpandHomePath("~\\pvetui"); got != expected {
+			t.Fatalf("expected %q, got %q", expected, got)
+		}
+	})
+
+	t.Run("no expansion", func(t *testing.T) {
+		path := "/tmp/pvetui"
+		if got := ExpandHomePath(path); got != path {
+			t.Fatalf("expected %q, got %q", path, got)
+		}
+	})
+}
+
+func TestConfig_FindGroupProfileNameConflicts(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *Config
+		expected []string
+	}{
+		{
+			name: "no conflicts",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"alpha": {Groups: []string{"group-a"}},
+					"beta":  {Groups: []string{"group-b"}},
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name: "single conflict",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"alpha": {Groups: []string{"alpha", "group-a"}},
+					"beta":  {Groups: []string{"group-b"}},
+				},
+			},
+			expected: []string{"alpha"},
+		},
+		{
+			name: "multiple conflicts are sorted",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"zeta":  {Groups: []string{"zeta"}},
+					"alpha": {Groups: []string{"alpha"}},
+					"gamma": {Groups: []string{"zeta", "alpha"}},
+				},
+			},
+			expected: []string{"alpha", "zeta"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conflicts := tt.config.FindGroupProfileNameConflicts()
+			assert.Equal(t, tt.expected, conflicts)
 		})
 	}
 }
@@ -592,6 +675,27 @@ func TestConfig_ProfileBasedConfiguration(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "valid default group",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"p1": {
+						Addr:     "https://p1.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+						Groups:   []string{"group1"},
+					},
+					"p2": {
+						Addr:     "https://p2.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+						Groups:   []string{"group1"},
+					},
+				},
+				DefaultProfile: "group1",
+			},
+			expectError: false,
+		},
+		{
 			name: "missing default profile",
 			config: &Config{
 				Profiles: map[string]ProfileConfig{
@@ -605,6 +709,28 @@ func TestConfig_ProfileBasedConfiguration(t *testing.T) {
 			},
 			expectError: true,
 			errorMsg:    "default profile 'nonexistent' not found",
+		},
+		{
+			name: "default group member missing address",
+			config: &Config{
+				Profiles: map[string]ProfileConfig{
+					"p1": {
+						Addr:   "",
+						User:   "testuser",
+						Groups: []string{"group1"},
+						// Missing auth too, but address error should surface first.
+					},
+					"p2": {
+						Addr:     "https://p2.example.com:8006",
+						User:     "testuser",
+						Password: "testpass",
+						Groups:   []string{"group1"},
+					},
+				},
+				DefaultProfile: "group1",
+			},
+			expectError: true,
+			errorMsg:    "proxmox address required in default profile group 'group1' (profile 'p1')",
 		},
 		{
 			name: "empty profiles map",
@@ -906,6 +1032,7 @@ func clearProxmoxEnvVars() {
 		"PVETUI_API_PATH",
 		"PVETUI_INSECURE",
 		"PVETUI_SSH_USER",
+		"PVETUI_AGE_DIR",
 		"PVETUI_DEBUG",
 		"PVETUI_CACHE_DIR",
 	}

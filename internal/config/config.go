@@ -74,6 +74,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/keys"
@@ -104,8 +105,10 @@ type Config struct {
 	// unencrypted sensitive data. It is ignored by YAML marshaling.
 	hasCleartextSensitive bool `yaml:"-"`
 	// The following fields are global settings, not per-profile
-	Debug       bool         `yaml:"debug"`
-	CacheDir    string       `yaml:"cache_dir"`
+	Debug    bool   `yaml:"debug"`
+	CacheDir string `yaml:"cache_dir"`
+	// AgeDir overrides the directory used to store age identity and recipient files.
+	AgeDir      string       `yaml:"age_dir,omitempty"`
 	KeyBindings KeyBindings  `yaml:"key_bindings"`
 	Theme       ThemeConfig  `yaml:"theme"`
 	Plugins     PluginConfig `yaml:"plugins"`
@@ -246,17 +249,18 @@ func ValidateKeyBindings(kb KeyBindings) error {
 // zero values for the corresponding fields.
 //
 // Environment variables read:
-//   - PROXMOX_ADDR: Server URL
-//   - PROXMOX_USER: Username
-//   - PROXMOX_PASSWORD: Password for password auth
-//   - PROXMOX_TOKEN_ID: Token ID for token auth
-//   - PROXMOX_TOKEN_SECRET: Token secret for token auth
-//   - PROXMOX_REALM: Authentication realm (default: "pam")
-//   - PROXMOX_API_PATH: API base path (default: "/api2/json")
-//   - PROXMOX_INSECURE: Skip TLS verification ("true"/"false")
-//   - PROXMOX_SSH_USER: SSH username
-//   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
-//   - PROXMOX_CACHE_DIR: Custom cache directory (overrides platform defaults)
+//   - PVETUI_ADDR: Server URL
+//   - PVETUI_USER: Username
+//   - PVETUI_PASSWORD: Password for password auth
+//   - PVETUI_TOKEN_ID: Token ID for token auth
+//   - PVETUI_TOKEN_SECRET: Token secret for token auth
+//   - PVETUI_REALM: Authentication realm (default: "pam")
+//   - PVETUI_API_PATH: API base path (default: "/api2/json")
+//   - PVETUI_INSECURE: Skip TLS verification ("true"/"false")
+//   - PVETUI_SSH_USER: SSH username
+//   - PVETUI_AGE_DIR: Custom age key directory (overrides platform defaults)
+//   - PVETUI_DEBUG: Enable debug logging ("true"/"false")
+//   - PVETUI_CACHE_DIR: Custom cache directory (overrides platform defaults)
 //
 // The returned Config should typically be further configured with command-line
 // flags and/or configuration files before validation.
@@ -285,14 +289,14 @@ func NewConfig() *Config {
 		ApiPath:     os.Getenv("PVETUI_API_PATH"),
 		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
 		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
+		AgeDir:      ExpandHomePath(os.Getenv("PVETUI_AGE_DIR")),
 		SSHJumpHost: SSHJumpHost{
-			Addr:     os.Getenv("PVETUI_SSH_JUMPHOST_ADDR"),
-			User:     os.Getenv("PVETUI_SSH_JUMPHOST_USER"),
-			Password: os.Getenv("PVETUI_SSH_JUMPHOST_PASSWORD"),
-			Keyfile:  os.Getenv("PVETUI_SSH_JUMPHOST_KEYFILE"),
+			Addr:    os.Getenv("PVETUI_SSH_JUMPHOST_ADDR"),
+			User:    os.Getenv("PVETUI_SSH_JUMPHOST_USER"),
+			Keyfile: os.Getenv("PVETUI_SSH_JUMPHOST_KEYFILE"),
 		},
-		Debug: strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
-		CacheDir:    os.Getenv("PVETUI_CACHE_DIR"),
+		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
+		CacheDir:    ExpandHomePath(os.Getenv("PVETUI_CACHE_DIR")),
 		KeyBindings: DefaultKeyBindings(),
 	}
 	// Set default values for Realm and ApiPath only
@@ -301,6 +305,9 @@ func NewConfig() *Config {
 	}
 	if config.ApiPath == "" {
 		config.ApiPath = defaultApiPath
+	}
+	if config.AgeDir != "" {
+		SetAgeDirOverride(config.AgeDir)
 	}
 
 	return config
@@ -350,6 +357,7 @@ func (c *Config) MergeWithFile(path string) error {
 		DefaultProfile string                   `yaml:"default_profile"`
 		Debug          *bool                    `yaml:"debug"`
 		CacheDir       string                   `yaml:"cache_dir"`
+		AgeDir         string                   `yaml:"age_dir"`
 		KeyBindings    struct {
 			SwitchView        string `yaml:"switch_view"`
 			SwitchViewReverse string `yaml:"switch_view_reverse"`
@@ -392,8 +400,15 @@ func (c *Config) MergeWithFile(path string) error {
 		return err
 	}
 
-	if !isSOPSEncrypted && (detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret) || hasCleartextSensitiveValue(fileConfig.SSHJumpHost.Password)) {
+	if !isSOPSEncrypted && (detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret)) {
 		c.hasCleartextSensitive = true
+	}
+
+	if fileConfig.AgeDir != "" && c.AgeDir == "" {
+		c.AgeDir = ExpandHomePath(fileConfig.AgeDir)
+	}
+	if c.AgeDir != "" {
+		SetAgeDirOverride(c.AgeDir)
 	}
 
 	// Load profiles and default_profile
@@ -500,7 +515,7 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	if fileConfig.CacheDir != "" {
-		c.CacheDir = fileConfig.CacheDir
+		c.CacheDir = ExpandHomePath(fileConfig.CacheDir)
 	}
 
 	// Migrate legacy configuration to profile-based if needed
@@ -619,7 +634,7 @@ func detectCleartextSensitive(profiles map[string]ProfileConfig, legacyPassword,
 
 func hasCleartextSensitiveProfiles(profiles map[string]ProfileConfig) bool {
 	for _, profile := range profiles {
-		if hasCleartextSensitiveValue(profile.Password) || hasCleartextSensitiveValue(profile.TokenSecret) || hasCleartextSensitiveValue(profile.SSHJumpHost.Password) {
+		if hasCleartextSensitiveValue(profile.Password) || hasCleartextSensitiveValue(profile.TokenSecret) {
 			return true
 		}
 	}
@@ -631,45 +646,81 @@ func hasCleartextSensitiveValue(value string) bool {
 }
 
 func (c *Config) Validate() error {
-	// Validate profile-based configuration if profiles exist
+	// Validate profile-based configuration if profiles exist.
 	if len(c.Profiles) > 0 {
-		// Prefer active profile for validation; fall back to default
-		profileName := c.ActiveProfile
+		if err := c.ValidateGroups(); err != nil {
+			return err
+		}
+
+		// Prefer active profile for validation; fall back to default.
+		selection := c.ActiveProfile
 		label := "selected profile"
-		if profileName == "" {
-			profileName = c.DefaultProfile
+		if selection == "" {
+			selection = c.DefaultProfile
 			label = "default profile"
 		}
 
-		if profileName != "" {
-			selectedProfile, exists := c.Profiles[profileName]
-			if !exists {
-				return fmt.Errorf("%s '%s' not found", label, profileName)
-			}
+		if selection != "" {
+			// Allow selecting an aggregate group as the active/default startup target.
+			if c.IsGroup(selection) {
+				memberNames := c.GetProfileNamesInGroup(selection)
+				if len(memberNames) == 0 {
+					return fmt.Errorf("%s group '%s' has no member profiles", label, selection)
+				}
 
-			// Validate selected/default profile
-			if selectedProfile.Addr == "" {
-				return errors.New("proxmox address required in " + label)
-			}
+				for _, member := range memberNames {
+					selectedProfile, exists := c.Profiles[member]
+					if !exists {
+						return fmt.Errorf("%s group '%s' references missing profile '%s'", label, selection, member)
+					}
 
-			if selectedProfile.User == "" {
-				return errors.New("proxmox username required in " + label)
-			}
+					if selectedProfile.Addr == "" {
+						return fmt.Errorf("proxmox address required in %s group '%s' (profile '%s')", label, selection, member)
+					}
 
-			// Check that either password or token authentication is provided
-			hasPassword := selectedProfile.Password != ""
-			hasToken := selectedProfile.TokenID != "" && selectedProfile.TokenSecret != ""
+					if selectedProfile.User == "" {
+						return fmt.Errorf("proxmox username required in %s group '%s' (profile '%s')", label, selection, member)
+					}
 
-			if !hasPassword && !hasToken {
-				return errors.New("authentication required in " + label + ": provide either password or API token")
-			}
+					hasPassword := selectedProfile.Password != ""
+					hasToken := selectedProfile.TokenID != "" && selectedProfile.TokenSecret != ""
 
-			if hasPassword && hasToken {
-				return errors.New("conflicting authentication methods in " + label + ": provide either password or API token, not both")
+					if !hasPassword && !hasToken {
+						return fmt.Errorf("authentication required in %s group '%s' (profile '%s'): provide either password or API token", label, selection, member)
+					}
+
+					if hasPassword && hasToken {
+						return fmt.Errorf("conflicting authentication methods in %s group '%s' (profile '%s'): provide either password or API token, not both", label, selection, member)
+					}
+				}
+			} else {
+				selectedProfile, exists := c.Profiles[selection]
+				if !exists {
+					return fmt.Errorf("%s '%s' not found", label, selection)
+				}
+
+				if selectedProfile.Addr == "" {
+					return errors.New("proxmox address required in " + label)
+				}
+
+				if selectedProfile.User == "" {
+					return errors.New("proxmox username required in " + label)
+				}
+
+				hasPassword := selectedProfile.Password != ""
+				hasToken := selectedProfile.TokenID != "" && selectedProfile.TokenSecret != ""
+
+				if !hasPassword && !hasToken {
+					return errors.New("authentication required in " + label + ": provide either password or API token")
+				}
+
+				if hasPassword && hasToken {
+					return errors.New("conflicting authentication methods in " + label + ": provide either password or API token, not both")
+				}
 			}
 		}
 	} else {
-		// Validate legacy configuration
+		// Validate legacy configuration.
 		if c.Addr == "" {
 			return errors.New("proxmox address required: set via -addr flag, PVETUI_ADDR env var, or config file")
 		}
@@ -678,7 +729,6 @@ func (c *Config) Validate() error {
 			return errors.New("proxmox username required: set via -user flag, PVETUI_USER env var, or config file")
 		}
 
-		// Check that either password or token authentication is provided
 		hasPassword := c.Password != ""
 		hasToken := c.TokenID != "" && c.TokenSecret != ""
 
@@ -843,9 +893,16 @@ func (c *Config) SetDefaults() {
 		c.ApiPath = "/api2/json"
 	}
 
+	if c.CacheDir != "" {
+		c.CacheDir = ExpandHomePath(c.CacheDir)
+	}
 	if c.CacheDir == "" {
 		// Use platform-appropriate cache directory
 		c.CacheDir = getCacheDir()
+	}
+	if c.AgeDir != "" {
+		c.AgeDir = ExpandHomePath(c.AgeDir)
+		SetAgeDirOverride(c.AgeDir)
 	}
 
 	// Apply default key bindings if not set
@@ -914,4 +971,42 @@ func (c *Config) SetDefaults() {
 	if c.Plugins.Enabled == nil {
 		c.Plugins.Enabled = []string{}
 	}
+}
+
+// ExpandHomePath expands a leading ~ in paths using the current user's home directory.
+func ExpandHomePath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return trimmed
+	}
+
+	if trimmed == "~" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return trimmed
+		}
+		return home
+	}
+
+	if strings.HasPrefix(trimmed, "~/") || strings.HasPrefix(trimmed, "~\\") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return trimmed
+		}
+		rest := strings.TrimPrefix(trimmed, "~")
+		rest = strings.TrimPrefix(rest, "/")
+		rest = strings.TrimPrefix(rest, "\\")
+		return filepath.Join(home, rest)
+	}
+
+	if strings.HasPrefix(trimmed, "~"+string(os.PathSeparator)) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return trimmed
+		}
+		rest := strings.TrimPrefix(trimmed, "~"+string(os.PathSeparator))
+		return filepath.Join(home, rest)
+	}
+
+	return trimmed
 }

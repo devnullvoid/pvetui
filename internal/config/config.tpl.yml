@@ -15,6 +15,7 @@ default_profile: default
 
 debug: false
 # cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
+# age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 
 key_bindings:
   switch_view: "]"

@@ -37,7 +37,7 @@ func runConfigWizard(cmd *cobra.Command, args []string) error {
 	cfg := config.NewConfig()
 
 	// Resolve config path
-	resolvedPath := bootstrap.ResolveConfigPath(configPath)
+	resolvedPath := bootstrap.ResolveConfigPathForWizard(configPath)
 
 	// Load existing config if it exists
 	if resolvedPath != "" {

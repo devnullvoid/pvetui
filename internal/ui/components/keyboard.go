@@ -94,6 +94,9 @@ func (a *App) SetHotkeyOverride(handler func(*tcell.EventKey) *tcell.EventKey) {
 // setupKeyboardHandlers configures global keyboard shortcuts.
 func (a *App) setupKeyboardHandlers() {
 	a.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Normalize navigation keys (e.g., Shift+Tab) before any other handling.
+		event = keys.NormalizeNavigationEvent(event)
+
 		// Component-level override handler takes precedence over globals.
 		if a.hotkeyOverride != nil {
 			return a.hotkeyOverride(event)

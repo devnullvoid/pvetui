@@ -62,7 +62,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, groupString string
-	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostPassword, sshJumpHostKeyfile string
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile string
 	var insecure, useJumpHost bool
 
 	// If we have profiles and a default profile, use profile data
@@ -95,7 +95,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 			sshJumpHostAddr = profile.SSHJumpHost.Addr
 			sshJumpHostUser = profile.SSHJumpHost.User
-			sshJumpHostPassword = profile.SSHJumpHost.Password
 			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
 
 			if sshJumpHostAddr != "" {
@@ -131,7 +130,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 		sshJumpHostAddr = cfg.SSHJumpHost.Addr
 		sshJumpHostUser = cfg.SSHJumpHost.User
-		sshJumpHostPassword = cfg.SSHJumpHost.Password
 		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
 
 		if sshJumpHostAddr != "" {
@@ -322,7 +320,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			if !checked {
 				sshJumpHostAddr = ""
 				sshJumpHostUser = ""
-				sshJumpHostPassword = ""
 				sshJumpHostKeyfile = ""
 				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 					if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
@@ -362,17 +359,6 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 					cfg.SSHJumpHost.User = strings.TrimSpace(text)
 				}
 			})
-			addPassword("Jump Host Password", sshJumpHostPassword, 20, '*', func(text string) {
-				sshJumpHostPassword = text
-				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-					if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-						profile.SSHJumpHost.Password = text
-						cfg.Profiles[cfg.DefaultProfile] = profile
-					}
-				} else {
-					cfg.SSHJumpHost.Password = text
-				}
-			})
 			addInput("Jump Host Keyfile", sshJumpHostKeyfile, 40, nil, func(text string) {
 				sshJumpHostKeyfile = text
 				if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
@@ -387,151 +373,151 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		}
 
 		form.AddButton("Save", func() {
-		// Validate profile name for all profiles
-		if profileName == "" {
-			showWizardModal(pages, form, a.Application, "error", "Profile name cannot be empty.", nil)
-			return
-		}
+			// Validate profile name for all profiles
+			if profileName == "" {
+				showWizardModal(pages, form, a.Application, "error", "Profile name cannot be empty.", nil)
+				return
+			}
 
-		// Check if profile already exists (for new profiles or renamed profiles)
-		if isNewProfile || profileName != cfg.DefaultProfile {
-			if a.config.Profiles != nil {
-				if _, exists := a.config.Profiles[profileName]; exists {
-					showWizardModal(pages, form, a.Application, "error", "Profile '"+profileName+"' already exists.", nil)
-					return
+			// Check if profile already exists (for new profiles or renamed profiles)
+			if isNewProfile || profileName != cfg.DefaultProfile {
+				if a.config.Profiles != nil {
+					if _, exists := a.config.Profiles[profileName]; exists {
+						showWizardModal(pages, form, a.Application, "error", "Profile '"+profileName+"' already exists.", nil)
+						return
+					}
 				}
 			}
-		}
 
-		// Determine which data to validate based on whether we're using profiles
-		var hasPassword, hasToken bool
+			// Determine which data to validate based on whether we're using profiles
+			var hasPassword, hasToken bool
 
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			// Validate profile data
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				hasPassword = profile.Password != ""
-				hasToken = profile.TokenID != "" && profile.TokenSecret != ""
-			}
-		} else {
-			// Validate legacy data
-			hasPassword = cfg.Password != ""
-			hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
-		}
-
-		if hasPassword && hasToken {
-			showWizardModal(pages, form, a.Application, "error", "Please choose either password authentication or token authentication, not both.", nil)
-			return
-		}
-
-		if !hasPassword && !hasToken {
-			showWizardModal(pages, form, a.Application, "error", "You must provide either a password or a token for authentication.", nil)
-			return
-		}
-
-		// Clear conflicting auth method
-		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
-			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-				if hasPassword {
-					profile.TokenID = ""
-					profile.TokenSecret = ""
-				} else if hasToken {
-					profile.Password = ""
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				// Validate profile data
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					hasPassword = profile.Password != ""
+					hasToken = profile.TokenID != "" && profile.TokenSecret != ""
 				}
-				cfg.Profiles[cfg.DefaultProfile] = profile
-			}
-		} else {
-			if hasPassword {
-				cfg.TokenID = ""
-				cfg.TokenSecret = ""
-			} else if hasToken {
-				cfg.Password = ""
-			}
-		}
-
-		if err := cfg.Validate(); err != nil {
-			showWizardModal(pages, form, a.Application, "error", "Validation error: "+err.Error(), nil)
-			return
-		}
-
-		// Update main config with the edited profile and save that
-		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
-			// Ensure main config has profiles map
-			if a.config.Profiles == nil {
-				a.config.Profiles = make(map[string]config.ProfileConfig)
-			}
-
-			// Handle profile renaming or new profile creation
-			if isNewProfile {
-				// For new profiles, just add the entered name; no temp entry to clean up now.
-				a.config.Profiles[profileName] = profile
-			} else if profileName != cfg.DefaultProfile {
-				// For existing profiles being renamed
-				oldProfileName := cfg.DefaultProfile
-				delete(a.config.Profiles, oldProfileName)
-
-				// Update default profile if we're renaming the current default
-				if a.config.DefaultProfile == oldProfileName {
-					a.config.DefaultProfile = profileName
-				}
-
-				// Add with new name
-				a.config.Profiles[profileName] = profile
 			} else {
-				// For existing profiles with same name, just update
-				a.config.Profiles[profileName] = profile
+				// Validate legacy data
+				hasPassword = cfg.Password != ""
+				hasToken = cfg.TokenID != "" && cfg.TokenSecret != ""
 			}
-		}
 
-		// Save the main config (which has all profiles)
-		if err := SaveConfigToFile(&a.config, configPath); err != nil {
-			showWizardModal(pages, form, a.Application, "error", "Failed to save profile: "+err.Error(), nil)
-			return
-		}
+			if hasPassword && hasToken {
+				showWizardModal(pages, form, a.Application, "error", "Please choose either password authentication or token authentication, not both.", nil)
+				return
+			}
 
-		// If SOPS re-encryption is possible, prompt user
-		if wasSOPS && sopsRuleExists {
-			onYes := func() {
-				cmd := exec.Command("sops", "-e", "-i", configPath)
-				err := cmd.Run()
-				if err != nil {
-					showWizardModal(pages, form, a.Application, "error", "SOPS re-encryption failed: "+err.Error(), nil)
-					return
+			if !hasPassword && !hasToken {
+				showWizardModal(pages, form, a.Application, "error", "You must provide either a password or a token for authentication.", nil)
+				return
+			}
+
+			// Clear conflicting auth method
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					if hasPassword {
+						profile.TokenID = ""
+						profile.TokenSecret = ""
+					} else if hasToken {
+						profile.Password = ""
+					}
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				if hasPassword {
+					cfg.TokenID = ""
+					cfg.TokenSecret = ""
+				} else if hasToken {
+					cfg.Password = ""
+				}
+			}
+
+			if err := cfg.Validate(); err != nil {
+				showWizardModal(pages, form, a.Application, "error", "Validation error: "+err.Error(), nil)
+				return
+			}
+
+			// Update main config with the edited profile and save that
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				// Ensure main config has profiles map
+				if a.config.Profiles == nil {
+					a.config.Profiles = make(map[string]config.ProfileConfig)
 				}
 
-				// showWizardModal(pages, form, a.Application, "info", "Profile saved and re-encrypted with SOPS!", func() {
+				// Handle profile renaming or new profile creation
 				if isNewProfile {
-					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
-				} else {
-					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: cfg.DefaultProfile}
-				}
-				// })
-			}
-			onNo := func() {
-				// showWizardModal(pages, form, a.Application, "info", "Profile saved (unencrypted).", func() {
-				if isNewProfile {
-					resultChan <- WizardResult{Saved: true, ProfileName: profileName}
-				} else {
-					resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
-				}
-				// })
-			}
-			confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
-			pages.AddPage("modal", confirm, false, true)
-			pages.SwitchToPage("modal")
-			return
-		}
+					// For new profiles, just add the entered name; no temp entry to clean up now.
+					a.config.Profiles[profileName] = profile
+				} else if profileName != cfg.DefaultProfile {
+					// For existing profiles being renamed
+					oldProfileName := cfg.DefaultProfile
+					delete(a.config.Profiles, oldProfileName)
 
-		// Send saved result
-		if isNewProfile {
-			resultChan <- WizardResult{Saved: true, ProfileName: profileName}
-		} else {
-			resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
-		}
-	})
+					// Update default profile if we're renaming the current default
+					if a.config.DefaultProfile == oldProfileName {
+						a.config.DefaultProfile = profileName
+					}
 
-	form.AddButton("Cancel", func() {
-		resultChan <- WizardResult{Canceled: true}
-	})
+					// Add with new name
+					a.config.Profiles[profileName] = profile
+				} else {
+					// For existing profiles with same name, just update
+					a.config.Profiles[profileName] = profile
+				}
+			}
+
+			// Save the main config (which has all profiles)
+			if err := SaveConfigToFile(&a.config, configPath); err != nil {
+				showWizardModal(pages, form, a.Application, "error", "Failed to save profile: "+err.Error(), nil)
+				return
+			}
+
+			// If SOPS re-encryption is possible, prompt user
+			if wasSOPS && sopsRuleExists {
+				onYes := func() {
+					cmd := exec.Command("sops", "-e", "-i", configPath)
+					err := cmd.Run()
+					if err != nil {
+						showWizardModal(pages, form, a.Application, "error", "SOPS re-encryption failed: "+err.Error(), nil)
+						return
+					}
+
+					// showWizardModal(pages, form, a.Application, "info", "Profile saved and re-encrypted with SOPS!", func() {
+					if isNewProfile {
+						resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
+					} else {
+						resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: cfg.DefaultProfile}
+					}
+					// })
+				}
+				onNo := func() {
+					// showWizardModal(pages, form, a.Application, "info", "Profile saved (unencrypted).", func() {
+					if isNewProfile {
+						resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+					} else {
+						resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
+					}
+					// })
+				}
+				confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
+				pages.AddPage("modal", confirm, false, true)
+				pages.SwitchToPage("modal")
+				return
+			}
+
+			// Send saved result
+			if isNewProfile {
+				resultChan <- WizardResult{Saved: true, ProfileName: profileName}
+			} else {
+				resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
+			}
+		})
+
+		form.AddButton("Cancel", func() {
+			resultChan <- WizardResult{Canceled: true}
+		})
 	}
 
 	rebuildForm()
