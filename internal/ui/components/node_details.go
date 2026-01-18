@@ -25,11 +25,12 @@ type NodeDetails struct {
 	app *App
 
 	// Cache/State
-	lastNodeID    string
-	disks         []api.NodeDisk
-	updates       []api.NodeUpdate
-	smartInfo     map[string]*api.SmartStatus
-	loadingDisks  bool
+	lastNodeID     string
+	lastAllNodes   []*api.Node
+	disks          []api.NodeDisk
+	updates        []api.NodeUpdate
+	smartInfo      map[string]*api.SmartStatus
+	loadingDisks   bool
 	loadingUpdates bool
 }
 
@@ -70,6 +71,11 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		nd.SetCell(0, 0, tview.NewTableCell("Select a node").SetTextColor(theme.Colors.Primary))
 		nd.lastNodeID = ""
 		return
+	}
+
+	// Update lastAllNodes if provided
+	if allNodes != nil {
+		nd.lastAllNodes = allNodes
 	}
 
 	// Trigger data fetch if node changed
@@ -221,7 +227,13 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// VMs (running/stopped/templates)
 	vmRunning, vmStopped, vmTemplates := 0, 0, 0
 
-	for _, n := range allNodes {
+	// Use lastAllNodes if allNodes is nil (async update)
+	nodesToScan := allNodes
+	if nodesToScan == nil {
+		nodesToScan = nd.lastAllNodes
+	}
+
+	for _, n := range nodesToScan {
 		if n.Name == node.Name {
 			for _, vm := range n.VMs {
 				switch vm.Status {
@@ -253,7 +265,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// LXC (running/stopped)
 	lxcRunning, lxcStopped := 0, 0
 
-	for _, n := range allNodes {
+	for _, n := range nodesToScan {
 		if n.Name == node.Name {
 			for _, vm := range n.VMs {
 				if vm.Type == vmTypeLXC {
