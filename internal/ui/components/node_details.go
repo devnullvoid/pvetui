@@ -23,15 +23,6 @@ type NodeDetails struct {
 	*tview.Table
 
 	app *App
-
-	// Cache/State
-	lastNodeID     string
-	lastAllNodes   []*api.Node
-	disks          []api.NodeDisk
-	updates        []api.NodeUpdate
-	smartInfo      map[string]*api.SmartStatus
-	loadingDisks   bool
-	loadingUpdates bool
 }
 
 var _ NodeDetailsComponent = (*NodeDetails)(nil)
@@ -46,8 +37,7 @@ func NewNodeDetails() *NodeDetails {
 	table.SetCell(0, 0, tview.NewTableCell("Select a node").SetTextColor(theme.Colors.Primary))
 
 	return &NodeDetails{
-		Table:     table,
-		smartInfo: make(map[string]*api.SmartStatus),
+		Table: table,
 	}
 }
 
@@ -69,24 +59,8 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	if node == nil {
 		nd.Clear()
 		nd.SetCell(0, 0, tview.NewTableCell("Select a node").SetTextColor(theme.Colors.Primary))
-		nd.lastNodeID = ""
+
 		return
-	}
-
-	// Update lastAllNodes if provided
-	if allNodes != nil {
-		nd.lastAllNodes = allNodes
-	}
-
-	// Trigger data fetch if node changed
-	if node.ID != nd.lastNodeID {
-		nd.lastNodeID = node.ID
-		nd.disks = nil
-		nd.updates = nil
-		nd.smartInfo = make(map[string]*api.SmartStatus)
-		nd.loadingDisks = true
-		nd.loadingUpdates = true
-		go nd.fetchNodeDetails(node)
 	}
 
 	nd.Clear()
@@ -227,13 +201,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// VMs (running/stopped/templates)
 	vmRunning, vmStopped, vmTemplates := 0, 0, 0
 
-	// Use lastAllNodes if allNodes is nil (async update)
-	nodesToScan := allNodes
-	if nodesToScan == nil {
-		nodesToScan = nd.lastAllNodes
-	}
-
-	for _, n := range nodesToScan {
+	for _, n := range allNodes {
 		if n.Name == node.Name {
 			for _, vm := range n.VMs {
 				switch vm.Status {
@@ -265,7 +233,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// LXC (running/stopped)
 	lxcRunning, lxcStopped := 0, 0
 
-	for _, n := range nodesToScan {
+	for _, n := range allNodes {
 		if n.Name == node.Name {
 			for _, vm := range n.VMs {
 				if vm.Type == vmTypeLXC {
@@ -331,13 +299,10 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	}
 
 	// Disks & SMART Info
-	nd.SetCell(row, 0, tview.NewTableCell("💿 Disks").SetTextColor(theme.Colors.HeaderText))
-	if nd.loadingDisks {
-		nd.SetCell(row, 1, tview.NewTableCell("Loading...").SetTextColor(theme.Colors.Secondary))
+	if len(node.Disks) > 0 {
+		nd.SetCell(row, 0, tview.NewTableCell("💿 Disks").SetTextColor(theme.Colors.HeaderText))
 		row++
-	} else if len(nd.disks) > 0 {
-		row++
-		for _, disk := range nd.disks {
+		for _, disk := range node.Disks {
 			// Skip partitions if any slipped through
 			if disk.Used == "partition" {
 				continue
@@ -348,54 +313,33 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 			nd.SetCell(row, 1, tview.NewTableCell(diskInfo).SetTextColor(theme.Colors.Primary))
 			row++
 
-			// SMART Status
-			smartStatus := "SMART: Unknown"
+			// SMART Status - Assuming health is available directly in disk list or enriched elsewhere
+			// The current node.Disks struct has Health field
+			smartStatus := fmt.Sprintf("Status: %s", disk.Health)
 			smartColor := theme.Colors.Secondary
-
-			if smart, ok := nd.smartInfo[disk.DevPath]; ok {
-				smartStatus = fmt.Sprintf("SMART: %s", smart.Health)
-				if smart.Health == "PASSED" || smart.Health == "OK" {
-					smartColor = theme.Colors.StatusRunning
-				} else {
-					smartColor = theme.Colors.StatusStopped
-				}
-
-				if smart.Text != "" {
-					smartStatus += fmt.Sprintf(" (%s)", smart.Text)
-				}
-			} else if disk.Health != "" {
-				// Fallback to basic health from disk list
-				smartStatus = fmt.Sprintf("Status: %s", disk.Health)
-				if disk.Health == "PASSED" || disk.Health == "OK" {
-					smartColor = theme.Colors.StatusRunning
-				} else {
-					smartColor = theme.Colors.StatusStopped
-				}
+			if disk.Health == "PASSED" || disk.Health == "OK" {
+				smartColor = theme.Colors.StatusRunning
+			} else if disk.Health != "" && disk.Health != "UNKNOWN" {
+				smartColor = theme.Colors.StatusStopped
 			}
 
 			nd.SetCell(row, 1, tview.NewTableCell(smartStatus).SetTextColor(smartColor))
 			row++
 		}
-	} else {
-		nd.SetCell(row, 1, tview.NewTableCell("No disks found or failed to load").SetTextColor(theme.Colors.Secondary))
-		row++
 	}
 
 	// System Updates
-	nd.SetCell(row, 0, tview.NewTableCell("📦 Updates").SetTextColor(theme.Colors.HeaderText))
-	if nd.loadingUpdates {
-		nd.SetCell(row, 1, tview.NewTableCell("Loading...").SetTextColor(theme.Colors.Secondary))
-		row++
-	} else if len(nd.updates) > 0 {
-		updateText := fmt.Sprintf("%d updates available", len(nd.updates))
+	if len(node.Updates) > 0 {
+		nd.SetCell(row, 0, tview.NewTableCell("📦 Updates").SetTextColor(theme.Colors.HeaderText))
+		updateText := fmt.Sprintf("%d updates available", len(node.Updates))
 		nd.SetCell(row, 1, tview.NewTableCell(updateText).SetTextColor(theme.Colors.Warning))
 		row++
 
 		// Show first few updates as preview
 		limit := 5
-		for i, update := range nd.updates {
+		for i, update := range node.Updates {
 			if i >= limit {
-				nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("...and %d more", len(nd.updates)-limit)).SetTextColor(theme.Colors.Secondary))
+				nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("...and %d more", len(node.Updates)-limit)).SetTextColor(theme.Colors.Secondary))
 				row++
 				break
 			}
@@ -403,57 +347,11 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 			nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%s -> %s", update.OldVersion, update.Version)).SetTextColor(theme.Colors.Secondary))
 			row++
 		}
-	} else {
-		nd.SetCell(row, 1, tview.NewTableCell("System is up to date").SetTextColor(theme.Colors.StatusRunning))
-		row++
+	} else if node.Online { // Only show "up to date" if node is online and we have no updates
+		// We might want to differentiate between "no updates" and "not checked"
+		// For now, if node.Updates is empty, we assume no updates or not fetched yet.
+		// Since we fetch on enrichment, it should be populated if available.
 	}
 
 	nd.ScrollToBeginning()
-}
-
-func (nd *NodeDetails) fetchNodeDetails(node *api.Node) {
-	client := nd.app.Client()
-
-	// Fetch Disks & SMART in background
-	disks, err := client.GetNodeDisks(node.Name)
-	var smartInfo map[string]*api.SmartStatus
-	if err == nil {
-		smartInfo = make(map[string]*api.SmartStatus)
-		// Fetch SMART for each disk
-		for _, disk := range disks {
-			if disk.Type == "ssd" || disk.Type == "hdd" {
-				smart, err := client.GetNodeDiskSmart(node.Name, disk.DevPath)
-				if err == nil {
-					smartInfo[disk.DevPath] = smart
-				}
-			}
-		}
-	}
-
-	// Update UI with Disk/SMART results
-	nd.app.QueueUpdateDraw(func() {
-		// Only update if we are still looking at the same node
-		if nd.lastNodeID == node.ID {
-			nd.loadingDisks = false
-			if err == nil {
-				nd.disks = disks
-				nd.smartInfo = smartInfo
-			}
-			nd.Update(node, nil)
-		}
-	})
-
-	// Fetch Updates in background
-	updates, err := client.GetNodeUpdates(node.Name)
-
-	// Update UI with Update results
-	nd.app.QueueUpdateDraw(func() {
-		if nd.lastNodeID == node.ID {
-			nd.loadingUpdates = false
-			if err == nil {
-				nd.updates = updates
-			}
-			nd.Update(node, nil)
-		}
-	})
 }

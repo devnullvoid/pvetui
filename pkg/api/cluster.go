@@ -289,37 +289,6 @@ func (c *Client) enrichMissingNodeDetails(cluster *Cluster) error {
 	return nil
 }
 
-// enrichNodeMissingDetails enriches a single node with details not available in cluster resources.
-func (c *Client) enrichNodeMissingDetails(node *Node) error {
-	// If the node is already marked as offline, skip detailed metrics
-	if !node.Online {
-		c.logger.Debug("[CLUSTER] Skipping detail enrichment for offline node: %s", node.Name)
-
-		return nil
-	}
-
-	fullStatus, err := c.GetNodeStatus(node.Name)
-	if err != nil {
-		// Mark node as offline if we can't reach it
-		node.Online = false
-		c.logger.Debug("[CLUSTER] Node %s appears to be offline or unreachable for detail enrichment: %v", node.Name, err)
-
-		// Return error for logging but don't make it critical
-		return fmt.Errorf("node %s offline/unreachable for details: %w", node.Name, err)
-	}
-
-	// Only update fields not available in cluster resources
-	node.Version = fullStatus.Version
-	node.KernelVersion = fullStatus.KernelVersion
-	node.CPUInfo = fullStatus.CPUInfo
-	node.LoadAvg = fullStatus.LoadAvg
-	node.lastMetricsUpdate = time.Now()
-
-	c.logger.Debug("[CLUSTER] Successfully enriched missing details for node: %s", node.Name)
-
-	return nil
-}
-
 // processClusterResources handles storage and VM data from cluster resources.
 func (c *Client) processClusterResources(cluster *Cluster) error {
 	return c.processClusterResourcesWithCache(cluster, ResourceDataTTL)

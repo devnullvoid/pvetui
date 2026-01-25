@@ -51,9 +51,6 @@ func main() {
 
 	// Node
 	r.HandleFunc("/nodes/{node}/status", handleNodeStatus(state)).Methods("GET")
-	r.HandleFunc("/nodes/{node}/disks/list", handleNodeDisksList(state)).Methods("GET")
-	r.HandleFunc("/nodes/{node}/disks/smart", handleNodeDiskSmart(state)).Methods("GET")
-	r.HandleFunc("/nodes/{node}/apt/update", handleNodeUpdates(state)).Methods("GET")
 
 	// VM/CT
 	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/status/current", handleVMStatusCurrent(state)).Methods("GET")

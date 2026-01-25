@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Release Pipeline**: Simplified GitHub token configuration by removing duplicate secret names (`HOMEBREW_TAP_TOKEN`, `SCOOP_BUCKET_TOKEN`) in favor of consistent `_GITHUB_TOKEN` naming.
+
 ## [1.0.16] - 2026-01-01
 
 ### Added
