@@ -382,6 +382,16 @@ func (c *Client) RefreshNodeData(nodeName string) (*Node, error) {
 		}
 	}
 
+	// Fetch Disks
+	if disks, err := c.GetNodeDisks(nodeName); err == nil {
+		freshNode.Disks = disks
+	}
+
+	// Fetch Updates
+	if updates, err := c.GetNodeUpdates(nodeName); err == nil {
+		freshNode.Updates = updates
+	}
+
 	return freshNode, nil
 }
 
@@ -555,4 +565,49 @@ func NewClient(config interfaces.Config, options ...ClientOption) (*Client, erro
 	opts.Logger.Debug("Proxmox API client initialized successfully")
 
 	return client, nil
+}
+
+// enrichNodeMissingDetails enriches a single node with details not available in cluster resources.
+func (c *Client) enrichNodeMissingDetails(node *Node) error {
+	// If the node is already marked as offline, skip detailed metrics
+	if !node.Online {
+		c.logger.Debug("[CLUSTER] Skipping detail enrichment for offline node: %s", node.Name)
+
+		return nil
+	}
+
+	fullStatus, err := c.GetNodeStatus(node.Name)
+	if err != nil {
+		// Mark node as offline if we can't reach it
+		node.Online = false
+		c.logger.Debug("[CLUSTER] Node %s appears to be offline or unreachable for detail enrichment: %v", node.Name, err)
+
+		// Return error for logging but don't make it critical
+		return fmt.Errorf("node %s offline/unreachable for details: %w", node.Name, err)
+	}
+
+	// Only update fields not available in cluster resources
+	node.Version = fullStatus.Version
+	node.KernelVersion = fullStatus.KernelVersion
+	node.CPUInfo = fullStatus.CPUInfo
+	node.LoadAvg = fullStatus.LoadAvg
+	node.lastMetricsUpdate = time.Now()
+
+	// Fetch Disks
+	if disks, err := c.GetNodeDisks(node.Name); err == nil {
+		node.Disks = disks
+	} else {
+		c.logger.Debug("Failed to fetch disks for node %s: %v", node.Name, err)
+	}
+
+	// Fetch Updates
+	if updates, err := c.GetNodeUpdates(node.Name); err == nil {
+		node.Updates = updates
+	} else {
+		c.logger.Debug("Failed to fetch updates for node %s: %v", node.Name, err)
+	}
+
+	c.logger.Debug("[CLUSTER] Successfully enriched missing details for node: %s", node.Name)
+
+	return nil
 }

@@ -303,5 +303,56 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		}
 	}
 
+	// Disks & SMART Info
+	if len(node.Disks) > 0 {
+		nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Disks", "💿", showIcons)).SetTextColor(theme.Colors.HeaderText))
+		row++
+		for _, disk := range node.Disks {
+			// Skip partitions if any slipped through
+			if disk.Used == "partition" {
+				continue
+			}
+
+			diskInfo := fmt.Sprintf("%s (%s) - %s", disk.DevPath, utils.FormatBytes(disk.Size), disk.Model)
+			nd.SetCell(row, 0, tview.NewTableCell("  • "+disk.Type).SetTextColor(theme.Colors.Info))
+			nd.SetCell(row, 1, tview.NewTableCell(diskInfo).SetTextColor(theme.Colors.Primary))
+			row++
+
+			// SMART Status - Assuming health is available directly in disk list or enriched elsewhere
+			// The current node.Disks struct has Health field
+			smartStatus := fmt.Sprintf("Status: %s", disk.Health)
+			smartColor := theme.Colors.Secondary
+			if disk.Health == "PASSED" || disk.Health == "OK" {
+				smartColor = theme.Colors.StatusRunning
+			} else if disk.Health != "" && disk.Health != "UNKNOWN" {
+				smartColor = theme.Colors.StatusStopped
+			}
+
+			nd.SetCell(row, 1, tview.NewTableCell(smartStatus).SetTextColor(smartColor))
+			row++
+		}
+	}
+
+	// System Updates
+	if len(node.Updates) > 0 {
+		nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Updates", "📦", showIcons)).SetTextColor(theme.Colors.HeaderText))
+		updateText := fmt.Sprintf("%d updates available", len(node.Updates))
+		nd.SetCell(row, 1, tview.NewTableCell(updateText).SetTextColor(theme.Colors.Warning))
+		row++
+
+		// Show first few updates as preview
+		limit := 5
+		for i, update := range node.Updates {
+			if i >= limit {
+				nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("...and %d more", len(node.Updates)-limit)).SetTextColor(theme.Colors.Secondary))
+				// Note: row++ removed here as it's not used after this point
+				break
+			}
+			nd.SetCell(row, 0, tview.NewTableCell("  • "+update.Package).SetTextColor(theme.Colors.Info))
+			nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%s -> %s", update.OldVersion, update.Version)).SetTextColor(theme.Colors.Secondary))
+			row++
+		}
+	}
+
 	nd.ScrollToBeginning()
 }

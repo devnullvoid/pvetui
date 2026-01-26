@@ -35,10 +35,12 @@ type Node struct {
 	Online        bool       `json:"-"`
 	CGroupMode    int        `json:"cgroup_mode,omitempty"`
 	Level         string     `json:"level,omitempty"`
-	Storage       []*Storage `json:"storage,omitempty"`
-	VMs           []*VM      `json:"vms,omitempty"`
-	CPUInfo       *CPUInfo   `json:"cpuinfo,omitempty"`
-	LoadAvg       []string   `json:"loadavg,omitempty"`
+	Storage       []*Storage   `json:"storage,omitempty"`
+	VMs           []*VM        `json:"vms,omitempty"`
+	CPUInfo       *CPUInfo     `json:"cpuinfo,omitempty"`
+	LoadAvg       []string     `json:"loadavg,omitempty"`
+	Disks         []NodeDisk   `json:"-"` // Not in API response, populated manually
+	Updates       []NodeUpdate `json:"-"` // Not in API response, populated manually
 
 	// Group cluster support
 	// SourceProfile is the profile name this node came from in group cluster mode.
