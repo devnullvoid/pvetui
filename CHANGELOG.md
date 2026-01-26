@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Node Disk SMART Information**: Node details now display disk health status and SMART data for all attached disks, including disk type (SSD/HDD), size, model, and health status (PASSED/FAILED).
+- **System Update Notifications**: Node details now show available system package updates with version information, displaying up to 5 pending updates with a count of any additional updates.
 - **Icon Toggle**: Added multiple ways to control icons/emojis throughout the UI. Icons are enabled by default. To disable: use `--show-icons=false` CLI flag, `PVETUI_SHOW_ICONS=false` environment variable, or `show_icons: false` in YAML config. (#75)
 
 ### Changed
