@@ -305,7 +305,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	// Disks & SMART Info
 	if len(node.Disks) > 0 {
-		nd.SetCell(row, 0, tview.NewTableCell("💿 Disks").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Disks", "💿", showIcons)).SetTextColor(theme.Colors.HeaderText))
 		row++
 		for _, disk := range node.Disks {
 			// Skip partitions if any slipped through
@@ -335,7 +335,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	// System Updates
 	if len(node.Updates) > 0 {
-		nd.SetCell(row, 0, tview.NewTableCell("📦 Updates").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Updates", "📦", showIcons)).SetTextColor(theme.Colors.HeaderText))
 		updateText := fmt.Sprintf("%d updates available", len(node.Updates))
 		nd.SetCell(row, 1, tview.NewTableCell(updateText).SetTextColor(theme.Colors.Warning))
 		row++
