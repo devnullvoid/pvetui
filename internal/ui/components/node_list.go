@@ -85,7 +85,7 @@ func (nl *NodeList) SetNodes(nodes []*api.Node) {
 			// Check if this node has a pending operation
 			isPending, operation := models.GlobalState.IsNodePending(node)
 
-			// Format the node name with status indicator (including pending state)
+			// Format node name with status indicator (including pending state)
 			statusIndicator := utils.FormatPendingStatusIndicator(statusString, isPending, operation)
 
 			var mainText string

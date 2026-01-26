@@ -88,6 +88,11 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 		return
 	}
 
+	showIcons := true
+	if cs.app != nil {
+		showIcons = cs.app.config.ShowIcons
+	}
+
 	// Update summary table
 	cs.SummaryTable.SetCell(0, 0, tview.NewTableCell("Cluster Name").SetTextColor(theme.Colors.HeaderText))
 	cs.SummaryTable.SetCell(0, 1, tview.NewTableCell(cluster.Name).SetTextColor(theme.Colors.Primary))
@@ -117,15 +122,27 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 
 	if cluster.OnlineNodes == totalNodes {
 		// All nodes online
-		nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, totalNodes)
+		if showIcons {
+			nodeStatusText = fmt.Sprintf("%d/%d 🟢", cluster.OnlineNodes, totalNodes)
+		} else {
+			nodeStatusText = fmt.Sprintf("%d/%d ✓", cluster.OnlineNodes, totalNodes)
+		}
 		nodeStatusColor = theme.Colors.StatusRunning
 	} else if cluster.OnlineNodes > 0 {
 		// Some nodes offline
-		nodeStatusText = fmt.Sprintf("%d/%d ⚠️", cluster.OnlineNodes, totalNodes)
+		if showIcons {
+			nodeStatusText = fmt.Sprintf("%d/%d ⚠️", cluster.OnlineNodes, totalNodes)
+		} else {
+			nodeStatusText = fmt.Sprintf("%d/%d !", cluster.OnlineNodes, totalNodes)
+		}
 		nodeStatusColor = theme.Colors.Warning
 	} else {
 		// All nodes offline (critical)
-		nodeStatusText = fmt.Sprintf("%d/%d 🔴", cluster.OnlineNodes, totalNodes)
+		if showIcons {
+			nodeStatusText = fmt.Sprintf("%d/%d 🔴", cluster.OnlineNodes, totalNodes)
+		} else {
+			nodeStatusText = fmt.Sprintf("%d/%d ✗", cluster.OnlineNodes, totalNodes)
+		}
 		nodeStatusColor = theme.Colors.StatusStopped
 	}
 
@@ -142,10 +159,18 @@ func (cs *ClusterStatus) Update(cluster *api.Cluster) {
 		quorateText = api.StringNA
 		quorateColor = theme.Colors.Info
 	} else if cluster.Quorate {
-		quorateText = "Yes 🟢"
+		if showIcons {
+			quorateText = "Yes 🟢"
+		} else {
+			quorateText = "Yes ✓"
+		}
 		quorateColor = theme.Colors.StatusRunning
 	} else {
-		quorateText = "No  🔴"
+		if showIcons {
+			quorateText = "No  🔴"
+		} else {
+			quorateText = "No  ✗"
+		}
 		quorateColor = theme.Colors.StatusStopped
 	}
 

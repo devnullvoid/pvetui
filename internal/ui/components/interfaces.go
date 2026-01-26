@@ -57,6 +57,7 @@ type TasksListComponent interface {
 type ClusterStatusComponent interface {
 	tview.Primitive
 	Update(*api.Cluster)
+	SetApp(*App)
 }
 
 type HeaderComponent interface {

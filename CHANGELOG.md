@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Icon Toggle**: Added multiple ways to control icons/emojis throughout the UI. Icons are enabled by default. To disable: use `--show-icons=false` CLI flag, `PVETUI_SHOW_ICONS=false` environment variable, or `show_icons: false` in YAML config. (#75)
+
 ### Changed
 
 - **Release Pipeline**: Simplified GitHub token configuration by removing duplicate secret names (`HOMEBREW_TAP_TOKEN`, `SCOOP_BUCKET_TOKEN`) in favor of consistent `_GITHUB_TOKEN` naming.

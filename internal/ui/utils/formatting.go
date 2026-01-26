@@ -8,6 +8,14 @@ import (
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 )
 
+const (
+	// Status constants for formatting
+	statusRunning = "running"
+	statusStopped = "stopped"
+	statusOnline  = "online"
+	statusOffline = "offline"
+)
+
 // FormatUptime formats the uptime in seconds to a human-readable format.
 func FormatUptime(uptime int) string {
 	if uptime <= 0 {
@@ -70,7 +78,7 @@ func FormatBytesFloat(gb float64) string {
 	}
 }
 
-// FormatStatusIndicator returns a string with a colored status emoji.
+// FormatStatusIndicator returns a string with a colored status indicator.
 // Uses theme-aware color tags.
 func FormatStatusIndicator(status string) string {
 	status = strings.ToLower(status)
@@ -78,9 +86,9 @@ func FormatStatusIndicator(status string) string {
 	var tag string
 
 	switch status {
-	case "running", "online":
+	case statusRunning, statusOnline:
 		tag = "[success]▲[-] "
-	case "stopped", "offline":
+	case statusStopped, statusOffline:
 		tag = "[error]▼[-] "
 	default:
 		tag = "[warning]●[-] "
@@ -110,6 +118,32 @@ func FormatPendingStatusIndicator(status string, isPending bool, operation strin
 	}
 
 	return theme.ReplaceSemanticTags(tag)
+}
+
+// GetIconLabel returns a label with or without an icon prefix based on showIcons flag.
+// When showIcons is true, returns "icon label" (with a space separator).
+// When showIcons is false, returns just the label.
+func GetIconLabel(label string, icon string, showIcons bool) string {
+	if showIcons {
+		return icon + " " + label
+	}
+	return label
+}
+
+// GetStatusEmoji returns the appropriate status emoji or text based on showIcons flag.
+func GetStatusEmoji(status string, showIcons bool) string {
+	if !showIcons {
+		return ""
+	}
+
+	switch strings.ToLower(status) {
+	case statusRunning, statusOnline:
+		return "🟢"
+	case statusStopped, statusOffline:
+		return "🔴"
+	default:
+		return "🟡"
+	}
 }
 
 // CalculatePercentage safely calculates percentage from used and total values

@@ -38,6 +38,9 @@ func (a *App) createMainLayout() *tview.Flex {
 
 // setupComponentConnections wires up the interactions between components.
 func (a *App) setupComponentConnections() {
+	// Set app reference for cluster status
+	a.clusterStatus.SetApp(a)
+
 	// Update cluster status
 	a.clusterStatus.Update(a.getDisplayCluster())
 

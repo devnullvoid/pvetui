@@ -91,6 +91,13 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 	cacheDir := viper.GetString("cache_dir")
 	ageDir := viper.GetString("age_dir")
 
+	// Handle show-icons flag - only override if explicitly set
+	var showIconsPtr *bool
+	if cmd.Flags().Changed("show-icons") {
+		showIcons, _ := cmd.Flags().GetBool("show-icons")
+		showIconsPtr = &showIcons
+	}
+
 	return bootstrap.BootstrapOptions{
 		ConfigPath:      configPath,
 		Profile:         profile,
@@ -110,6 +117,7 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 		FlagDebug:       debug,
 		FlagCacheDir:    cacheDir,
 		FlagAgeDir:      ageDir,
+		FlagShowIcons:   showIconsPtr,
 	}
 }
 
@@ -136,6 +144,7 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
 	cmd.PersistentFlags().String("age-dir", "", "Age key directory path")
+	cmd.PersistentFlags().Bool("show-icons", true, "Show icons/emojis in UI (env: PVETUI_SHOW_ICONS)")
 
 	// Bind flags to environment variables
 	viper.SetEnvPrefix("PVETUI")

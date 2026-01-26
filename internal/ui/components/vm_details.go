@@ -59,15 +59,20 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	vd.Clear()
 
+	showIcons := true
+	if vd.app != nil {
+		showIcons = vd.app.config.ShowIcons
+	}
+
 	row := 0
 
 	// Basic Info
-	vd.SetCell(row, 0, tview.NewTableCell("🆔 ID").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("ID", "🆔", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", vm.ID)).SetTextColor(theme.Colors.Primary))
 
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("📛 Name").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Name", "📛", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell(vm.Name).SetTextColor(theme.Colors.Primary))
 
 	row++
@@ -76,19 +81,19 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	if vm.Description != "" {
 		cleanDesc := sanitizeDescription(vm.Description)
 		if cleanDesc != "" {
-			vd.SetCell(row, 0, tview.NewTableCell("📝 Description").SetTextColor(theme.Colors.HeaderText))
+			vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Description", "📝", showIcons)).SetTextColor(theme.Colors.HeaderText))
 			vd.SetCell(row, 1, tview.NewTableCell(cleanDesc).SetTextColor(theme.Colors.Info))
 
 			row++
 		}
 	}
 
-	vd.SetCell(row, 0, tview.NewTableCell("📍 Node").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Node", "📍", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell(vm.Node).SetTextColor(theme.Colors.Primary))
 
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("📦 Type").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Type", "📦", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell(strings.ToUpper(vm.Type)).SetTextColor(theme.Colors.Primary))
 
 	row++
@@ -101,26 +106,23 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	var statusColor tcell.Color
 
-	var statusEmoji string
+	statusEmoji := utils.GetStatusEmoji(vm.Status, showIcons)
 	switch strings.ToLower(vm.Status) {
 	case api.VMStatusRunning:
-		statusEmoji = "🟢"
 		statusColor = theme.Colors.StatusRunning
 	case api.VMStatusStopped:
-		statusEmoji = "🔴"
 		statusColor = theme.Colors.StatusStopped
 	default:
-		statusEmoji = "🟡"
 		statusColor = theme.Colors.StatusPending
 	}
 
-	vd.SetCell(row, 0, tview.NewTableCell(statusEmoji+" Status").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Status", statusEmoji, showIcons)).SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell(statusText).SetTextColor(statusColor))
 
 	row++
 
 	// Tags (if set)
-	vd.SetCell(row, 0, tview.NewTableCell("🏷️ Tags").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Tags", "🏷️", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	if vm.Tags != "" {
 		vd.SetCell(row, 1, tview.NewTableCell(vm.Tags).SetTextColor(theme.Colors.Info))
@@ -131,7 +133,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// IP Address
-	vd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("IP", "📡", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	ipValue := api.StringNA
 	if vm.IP != "" {
@@ -143,7 +145,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// CPU Usage
-	vd.SetCell(row, 0, tview.NewTableCell("🧮 CPU").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("CPU", "🧮", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	cpuValue := api.StringNA
 	cpuUsageColor := theme.Colors.Primary
@@ -162,7 +164,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Memory", "🧠", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	memValue := api.StringNA
 	memUsageColor := theme.Colors.Primary
@@ -179,7 +181,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("💾 Disk").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Disk", "💾", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	diskValue := api.StringNA
 	diskUsageColor := theme.Colors.Primary
@@ -196,7 +198,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	row++
 
-	vd.SetCell(row, 0, tview.NewTableCell("🕒 Uptime").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Uptime", "🕒", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	uptimeValue := api.StringNA
 	if vm.Uptime > 0 {
@@ -208,7 +210,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// Network IO summary
-	vd.SetCell(row, 0, tview.NewTableCell("🔃 Network IO").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Network IO", "🔃", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	if vm.NetIn > 0 || vm.NetOut > 0 {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("In: %s, Out: %s", utils.FormatBytes(vm.NetIn), utils.FormatBytes(vm.NetOut))).SetTextColor(theme.Colors.Primary))
@@ -219,7 +221,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	// Disk IO summary
-	vd.SetCell(row, 0, tview.NewTableCell("🔄 Disk IO").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Disk IO", "🔄", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	if vm.DiskRead > 0 || vm.DiskWrite > 0 {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("Read: %s, Write: %s", utils.FormatBytes(vm.DiskRead), utils.FormatBytes(vm.DiskWrite))).SetTextColor(theme.Colors.Primary))
@@ -231,7 +233,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	// Guest Agent (QEMU only)
 	if vm.Type == api.VMTypeQemu {
-		vd.SetCell(row, 0, tview.NewTableCell("🤖 Guest Agent").SetTextColor(theme.Colors.HeaderText))
+		vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Guest Agent", "🤖", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 		agentStatus := "Not enabled"
 		agentColor := theme.Colors.Secondary
@@ -253,7 +255,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	// Filesystems (detailed storage breakdown)
 	if len(vm.Filesystems) > 0 {
-		vd.SetCell(row, 0, tview.NewTableCell("📂 Filesystems").SetTextColor(theme.Colors.HeaderText))
+		vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Filesystems", "📂", showIcons)).SetTextColor(theme.Colors.HeaderText))
 		vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Primary))
 
 		row++
@@ -292,7 +294,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	// Detailed Network Interfaces (merged config + guest agent)
 	enhancedNetworks := mergeNetworkInterfaces(vm.ConfiguredNetworks, vm.NetInterfaces)
 
-	vd.SetCell(row, 0, tview.NewTableCell("🌐 Network Interfaces").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Network Interfaces", "🌐", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	if len(enhancedNetworks) > 0 {
 		vd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d interface(s)", len(enhancedNetworks))).SetTextColor(theme.Colors.Primary))
@@ -313,9 +315,17 @@ func (vd *VMDetails) Update(vm *api.VM) {
 			// Add status indicator if we have guest agent data
 			if net.HasGuestAgent {
 				if net.IsUp {
-					interfaceText += " 🟢"
+					if showIcons {
+						interfaceText += " 🟢"
+					} else {
+						interfaceText += " ✓"
+					}
 				} else {
-					interfaceText += " 🔴"
+					if showIcons {
+						interfaceText += " 🔴"
+					} else {
+						interfaceText += " ✗"
+					}
 				}
 			}
 			// Mark guest-only interfaces
@@ -395,7 +405,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	// Storage Devices (from config)
 	if len(vm.StorageDevices) > 0 {
-		vd.SetCell(row, 0, tview.NewTableCell("💽 Storage Devices").SetTextColor(theme.Colors.HeaderText))
+		vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Storage Devices", "💽", showIcons)).SetTextColor(theme.Colors.HeaderText))
 		vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Primary))
 
 		row++
@@ -456,7 +466,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	}
 
 	// Configuration Section
-	vd.SetCell(row, 0, tview.NewTableCell("🔨 Configuration").SetTextColor(theme.Colors.HeaderText))
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Configuration", "🔨", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell("").SetTextColor(theme.Colors.Primary))
 
 	row++

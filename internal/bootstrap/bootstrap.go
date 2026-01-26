@@ -42,6 +42,7 @@ type BootstrapOptions struct {
 	FlagDebug       bool
 	FlagCacheDir    string
 	FlagAgeDir      string
+	FlagShowIcons   *bool // Pointer to distinguish "not set" from false
 }
 
 // BootstrapResult contains the result of the bootstrap process.
@@ -347,6 +348,10 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 		expandedAgeDir := config.ExpandHomePath(opts.FlagAgeDir)
 		cfg.AgeDir = expandedAgeDir
 		config.SetAgeDirOverride(expandedAgeDir)
+	}
+	// Only override ShowIcons if flag was explicitly set
+	if opts.FlagShowIcons != nil {
+		cfg.ShowIcons = *opts.FlagShowIcons
 	}
 }
 
