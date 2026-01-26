@@ -97,7 +97,7 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			// Check if this VM has a pending operation
 			isPending, operation := models.GlobalState.IsVMPending(vm)
 
-			// Get the status indicator with pending state awareness
+			// Get status indicator with pending state awareness
 			statusIndicator := utils.FormatPendingStatusIndicator(vm.Status, isPending, operation)
 
 			// Format the VM name with ID

@@ -8,6 +8,7 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
+//nolint:dupl // Test structure similarity is acceptable
 func TestGetNodeUpdates(t *testing.T) {
 	mockResponse := `{
 		"data": [
@@ -24,14 +25,14 @@ func TestGetNodeUpdates(t *testing.T) {
 	}`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api2/json/access/ticket" {
-			w.Write([]byte(`{"data":{"ticket":"ticket","CSRFPreventionToken":"token","username":"user@pam"}}`))
+		if r.URL.Path == testAPITicketPath {
+			_, _ = w.Write([]byte(`{"data":{"ticket":"ticket","CSRFPreventionToken":"token","username":"user@pam"}}`))
 			return
 		}
 		if r.URL.Path != "/api2/json/nodes/pve1/apt/update" {
 			t.Errorf("Expected path /api2/json/nodes/pve1/apt/update, got %s", r.URL.Path)
 		}
-		w.Write([]byte(mockResponse))
+		_, _ = w.Write([]byte(mockResponse))
 	}))
 	defer server.Close()
 

@@ -65,14 +65,19 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	nd.Clear()
 
+	showIcons := true
+	if nd.app != nil {
+		showIcons = nd.app.config.ShowIcons
+	}
+
 	row := 0
 
 	// Basic Info
-	// nd.SetCell(row, 0, tview.NewTableCell("📛 Name").SetTextColor(theme.Colors.HeaderText))
+	// nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Name", "📛", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	// nd.SetCell(row, 1, tview.NewTableCell(node.Name).SetTextColor(theme.Colors.Primary))
 	// row++
 
-	nd.SetCell(row, 0, tview.NewTableCell("🆔 ID").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("ID", "🆔", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(node.ID).SetTextColor(theme.Colors.Primary))
 
 	row++
@@ -90,18 +95,18 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		statusColor = theme.Colors.StatusStopped
 	}
 
-	nd.SetCell(row, 0, tview.NewTableCell("🟢 Status").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Status", utils.GetStatusEmoji(statusText, showIcons), showIcons)).SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(statusText).SetTextColor(statusColor))
 
 	row++
 
-	nd.SetCell(row, 0, tview.NewTableCell("📡 IP").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("IP", "📡", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(node.IP).SetTextColor(theme.Colors.Primary))
 
 	row++
 
 	// CPU Usage
-	nd.SetCell(row, 0, tview.NewTableCell("🧮 CPU").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("CPU", "🧮", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	cpuValue := api.StringNA
 	cpuUsageColor := theme.Colors.Primary
@@ -121,7 +126,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// Load Average
-	nd.SetCell(row, 0, tview.NewTableCell("📊 Load Avg").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Load Avg", "📊", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	loadAvg := api.StringNA
 	if len(node.LoadAvg) >= 3 {
@@ -133,7 +138,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// Memory Usage
-	nd.SetCell(row, 0, tview.NewTableCell("🧠 Memory").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Memory", "🧠", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	memValue := api.StringNA
 	memUsageColor := theme.Colors.Primary
@@ -154,7 +159,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	// Remove the Rootfs row
 
 	// Uptime
-	nd.SetCell(row, 0, tview.NewTableCell("🕒 Uptime").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Uptime", "🕒", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	uptimeValue := api.StringNA
 	if node.Uptime > 0 {
@@ -166,13 +171,13 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	row++
 
 	// Version
-	nd.SetCell(row, 0, tview.NewTableCell("🔧 Version").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Version", "🔧", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(node.Version).SetTextColor(theme.Colors.Primary))
 
 	row++
 
 	// Kernel
-	nd.SetCell(row, 0, tview.NewTableCell("🧬 Kernel").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Kernel", "🧬", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 	kernelValue := node.KernelVersion
 	if idx := strings.Index(kernelValue, "#"); idx != -1 {
@@ -185,14 +190,14 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	// CGroup Mode (int)
 	if node.CGroupMode != 0 {
-		nd.SetCell(row, 0, tview.NewTableCell("🧩 CGroup Mode").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("CGroup Mode", "🧩", showIcons)).SetTextColor(theme.Colors.HeaderText))
 		nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%d", node.CGroupMode)).SetTextColor(theme.Colors.Primary))
 
 		row++
 	}
 	// Level
 	if node.Level != "" {
-		nd.SetCell(row, 0, tview.NewTableCell("📈 Level").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Level", "📈", showIcons)).SetTextColor(theme.Colors.HeaderText))
 		nd.SetCell(row, 1, tview.NewTableCell(node.Level).SetTextColor(theme.Colors.Primary))
 
 		row++
@@ -225,7 +230,7 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 	yellowTag := theme.ColorToTag(theme.Colors.Warning)
 	vmText := fmt.Sprintf("[%s]%d running[-], [%s]%d stopped[-], [%s]%d templates[-]", greenTag, vmRunning, redTag, vmStopped, yellowTag, vmTemplates)
 
-	nd.SetCell(row, 0, tview.NewTableCell("💻 VMs").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("VMs", "💻", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(vmText))
 
 	row++
@@ -251,14 +256,14 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	lxcText := fmt.Sprintf("[%s]%d running[-], [%s]%d stopped[-]", greenTag, lxcRunning, redTag, lxcStopped)
 
-	nd.SetCell(row, 0, tview.NewTableCell("📦 LXC").SetTextColor(theme.Colors.HeaderText))
+	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("LXC", "📦", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(lxcText))
 
 	row++
 
 	// Storage Information (per-pool breakdown)
 	if len(node.Storage) > 0 {
-		nd.SetCell(row, 0, tview.NewTableCell("💾 Storage").SetTextColor(theme.Colors.HeaderText))
+		nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Storage", "💾", showIcons)).SetTextColor(theme.Colors.HeaderText))
 
 		row++
 
@@ -340,17 +345,13 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 		for i, update := range node.Updates {
 			if i >= limit {
 				nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("...and %d more", len(node.Updates)-limit)).SetTextColor(theme.Colors.Secondary))
-				row++
+				// Note: row++ removed here as it's not used after this point
 				break
 			}
 			nd.SetCell(row, 0, tview.NewTableCell("  • "+update.Package).SetTextColor(theme.Colors.Info))
 			nd.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%s -> %s", update.OldVersion, update.Version)).SetTextColor(theme.Colors.Secondary))
 			row++
 		}
-	} else if node.Online { // Only show "up to date" if node is online and we have no updates
-		// We might want to differentiate between "no updates" and "not checked"
-		// For now, if node.Updates is empty, we assume no updates or not fetched yet.
-		// Since we fetch on enrichment, it should be populated if available.
 	}
 
 	nd.ScrollToBeginning()

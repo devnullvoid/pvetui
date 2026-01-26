@@ -8,6 +8,9 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
+const testAPITicketPath = "/api2/json/access/ticket"
+
+//nolint:dupl // Test structure similarity is acceptable
 func TestGetNodeDisks(t *testing.T) {
 	mockResponse := `{
 		"data": [
@@ -24,14 +27,14 @@ func TestGetNodeDisks(t *testing.T) {
 	}`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api2/json/access/ticket" {
-			w.Write([]byte(`{"data":{"ticket":"ticket","CSRFPreventionToken":"token","username":"user@pam"}}`))
+		if r.URL.Path == testAPITicketPath {
+			_, _ = w.Write([]byte(`{"data":{"ticket":"ticket","CSRFPreventionToken":"token","username":"user@pam"}}`))
 			return
 		}
 		if r.URL.Path != "/api2/json/nodes/pve1/disks/list" {
 			t.Errorf("Expected path /api2/json/nodes/pve1/disks/list, got %s", r.URL.Path)
 		}
-		w.Write([]byte(mockResponse))
+		_, _ = w.Write([]byte(mockResponse))
 	}))
 	defer server.Close()
 
@@ -87,8 +90,8 @@ func TestGetNodeDiskSmart(t *testing.T) {
 	}`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api2/json/access/ticket" {
-			w.Write([]byte(`{"data":{"ticket":"ticket","CSRFPreventionToken":"token","username":"user@pam"}}`))
+		if r.URL.Path == testAPITicketPath {
+			_, _ = w.Write([]byte(`{"data":{"ticket":"ticket","CSRFPreventionToken":"token","username":"user@pam"}}`))
 			return
 		}
 		expectedPath := "/api2/json/nodes/pve1/disks/smart"
@@ -98,7 +101,7 @@ func TestGetNodeDiskSmart(t *testing.T) {
 		if r.URL.Query().Get("disk") != "/dev/sda" {
 			t.Errorf("Expected disk query param /dev/sda, got %s", r.URL.Query().Get("disk"))
 		}
-		w.Write([]byte(mockResponse))
+		_, _ = w.Write([]byte(mockResponse))
 	}))
 	defer server.Close()
 

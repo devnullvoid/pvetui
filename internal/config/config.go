@@ -23,6 +23,7 @@
 //   - PROXMOX_INSECURE: Skip TLS verification ("true"/"false")
 //   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
 //   - PROXMOX_CACHE_DIR: Custom cache directory (overrides platform defaults)
+//   - PVETUI_SHOW_ICONS: Show icons/emojis in the UI ("true"/"false", default: "true")
 //
 // Configuration File Format (YAML):
 //
@@ -33,6 +34,7 @@
 //	insecure: false
 //	debug: true
 //	cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
+//	show_icons: true  # Optional: show icons/emojis in UI (default: true)
 //
 // Platform Directory Support:
 //
@@ -112,6 +114,7 @@ type Config struct {
 	KeyBindings KeyBindings  `yaml:"key_bindings"`
 	Theme       ThemeConfig  `yaml:"theme"`
 	Plugins     PluginConfig `yaml:"plugins"`
+	ShowIcons   bool         `yaml:"show_icons"`
 	// Deprecated: legacy single-profile fields for migration
 	Addr        string `yaml:"addr"`
 	User        string `yaml:"user"`
@@ -260,6 +263,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 //   - PVETUI_AGE_DIR: Custom age key directory (overrides platform defaults)
 //   - PVETUI_DEBUG: Enable debug logging ("true"/"false")
 //   - PVETUI_CACHE_DIR: Custom cache directory (overrides platform defaults)
+//   - PVETUI_SHOW_ICONS: Show icons/emojis in the UI ("true"/"false", default: "true")
 //
 // The returned Config should typically be further configured with command-line
 // flags and/or configuration files before validation.
@@ -292,6 +296,7 @@ func NewConfig() *Config {
 		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
 		CacheDir:    ExpandHomePath(os.Getenv("PVETUI_CACHE_DIR")),
 		KeyBindings: DefaultKeyBindings(),
+		ShowIcons:   strings.ToLower(os.Getenv("PVETUI_SHOW_ICONS")) != "false",
 	}
 	// Set default values for Realm and ApiPath only
 	if config.Realm == "" {
@@ -376,6 +381,7 @@ func (c *Config) MergeWithFile(path string) error {
 		Plugins struct {
 			Enabled []string `yaml:"enabled"`
 		} `yaml:"plugins"`
+		ShowIcons *bool `yaml:"show_icons"`
 		// Legacy fields for migration
 		Addr        string `yaml:"addr"`
 		User        string `yaml:"user"`
@@ -588,6 +594,11 @@ func (c *Config) MergeWithFile(path string) error {
 	// Merge plugin configuration if provided
 	if fileConfig.Plugins.Enabled != nil {
 		c.Plugins.Enabled = append([]string{}, fileConfig.Plugins.Enabled...)
+	}
+
+	// Merge show_icons configuration if provided
+	if fileConfig.ShowIcons != nil {
+		c.ShowIcons = *fileConfig.ShowIcons
 	}
 
 	// Merge theme configuration if provided
@@ -958,6 +969,9 @@ func (c *Config) SetDefaults() {
 	if c.Plugins.Enabled == nil {
 		c.Plugins.Enabled = []string{}
 	}
+
+	// ShowIcons defaults to true (icons enabled)
+	// No explicit default needed since it's already set in NewConfig()
 }
 
 // ExpandHomePath expands a leading ~ in paths using the current user's home directory.
