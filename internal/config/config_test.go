@@ -43,6 +43,7 @@ func TestNewConfig(t *testing.T) {
 				"PVETUI_SSH_JUMPHOST_ADDR":    "jump.example.com",
 				"PVETUI_SSH_JUMPHOST_USER":    "jumpuser",
 				"PVETUI_SSH_JUMPHOST_KEYFILE": "/tmp/jump.key",
+				"PVETUI_SSH_JUMPHOST_PORT":    "2222",
 				"PVETUI_DEBUG":                "true",
 				"PVETUI_CACHE_DIR":            "/tmp/cache",
 				"PVETUI_AGE_DIR":              "/tmp/age",
@@ -61,6 +62,7 @@ func TestNewConfig(t *testing.T) {
 					Addr:    "jump.example.com",
 					User:    "jumpuser",
 					Keyfile: "/tmp/jump.key",
+					Port:    2222,
 				},
 				Debug:    true,
 				CacheDir: "/tmp/cache",
@@ -792,6 +794,7 @@ profiles:
     ssh_jump_host:
       addr: "jump.example.com"
       user: "jumpuser"
+      port: 2222
   secondary:
     addr: "https://secondary.example.com:8006"
     user: "secondaryuser"
@@ -824,6 +827,7 @@ debug: true
 	assert.Equal(t, "mergedpass", defaultProfile.Password)
 	assert.Equal(t, "jump.example.com", defaultProfile.SSHJumpHost.Addr)
 	assert.Equal(t, "jumpuser", defaultProfile.SSHJumpHost.User)
+	assert.Equal(t, 2222, defaultProfile.SSHJumpHost.Port)
 
 	// Check secondary profile
 	secondaryProfile, exists := initialConfig.Profiles["secondary"]
@@ -850,6 +854,7 @@ func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 			Addr:    "jump.example.com",
 			User:    "jumpuser",
 			Keyfile: "/tmp/jump.key",
+			Port:    2222,
 		},
 	}
 
@@ -878,6 +883,7 @@ func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 	assert.Equal(t, "jump.example.com", defaultProfile.SSHJumpHost.Addr)
 	assert.Equal(t, "jumpuser", defaultProfile.SSHJumpHost.User)
 	assert.Equal(t, "/tmp/jump.key", defaultProfile.SSHJumpHost.Keyfile)
+	assert.Equal(t, 2222, defaultProfile.SSHJumpHost.Port)
 
 	// Legacy fields should be cleared
 	assert.Equal(t, "", cfg.Addr)
@@ -945,6 +951,7 @@ ssh_jump_host:
   addr: "jump.example.com"
   user: "jumpuser"
   keyfile: "/tmp/jump.key"
+  port: 2222
 debug: true
 cache_dir: "/tmp/test-cache"
 `
@@ -976,6 +983,7 @@ cache_dir: "/tmp/test-cache"
 	assert.Equal(t, "jump.example.com", defaultProfile.SSHJumpHost.Addr)
 	assert.Equal(t, "jumpuser", defaultProfile.SSHJumpHost.User)
 	assert.Equal(t, "/tmp/jump.key", defaultProfile.SSHJumpHost.Keyfile)
+	assert.Equal(t, 2222, defaultProfile.SSHJumpHost.Port)
 
 	// Legacy fields should be cleared
 	assert.Equal(t, "", cfg.Addr)
@@ -1075,6 +1083,7 @@ func clearProxmoxEnvVars() {
 		"PVETUI_SSH_JUMPHOST_ADDR",
 		"PVETUI_SSH_JUMPHOST_USER",
 		"PVETUI_SSH_JUMPHOST_KEYFILE",
+		"PVETUI_SSH_JUMPHOST_PORT",
 		"PVETUI_AGE_DIR",
 		"PVETUI_DEBUG",
 		"PVETUI_CACHE_DIR",

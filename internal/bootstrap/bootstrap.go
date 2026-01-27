@@ -42,6 +42,7 @@ type BootstrapOptions struct {
 	FlagSSHJumpHostAddr    string
 	FlagSSHJumpHostUser    string
 	FlagSSHJumpHostKeyfile string
+	FlagSSHJumpHostPort    int
 	FlagDebug              bool
 	FlagCacheDir           string
 	FlagAgeDir             string
@@ -291,6 +292,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			if opts.FlagSSHJumpHostKeyfile != "" {
 				profile.SSHJumpHost.Keyfile = opts.FlagSSHJumpHostKeyfile
 			}
+			if opts.FlagSSHJumpHostPort > 0 {
+				profile.SSHJumpHost.Port = opts.FlagSSHJumpHostPort
+			}
 			cfg.Profiles[startupProfile] = profile
 		}
 	}
@@ -358,6 +362,9 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 	}
 	if opts.FlagSSHJumpHostKeyfile != "" {
 		cfg.SSHJumpHost.Keyfile = opts.FlagSSHJumpHostKeyfile
+	}
+	if opts.FlagSSHJumpHostPort > 0 {
+		cfg.SSHJumpHost.Port = opts.FlagSSHJumpHostPort
 	}
 	if opts.FlagDebug {
 		cfg.Debug = true

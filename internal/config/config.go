@@ -77,6 +77,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/keys"
@@ -298,6 +299,7 @@ func NewConfig() *Config {
 			Addr:    os.Getenv("PVETUI_SSH_JUMPHOST_ADDR"),
 			User:    os.Getenv("PVETUI_SSH_JUMPHOST_USER"),
 			Keyfile: os.Getenv("PVETUI_SSH_JUMPHOST_KEYFILE"),
+			Port:    parseEnvPort("PVETUI_SSH_JUMPHOST_PORT"),
 		},
 		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
 		CacheDir:    ExpandHomePath(os.Getenv("PVETUI_CACHE_DIR")),
@@ -1023,4 +1025,18 @@ func ExpandHomePath(path string) string {
 	}
 
 	return trimmed
+}
+
+func parseEnvPort(name string) int {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return 0
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return 0
+	}
+
+	return value
 }

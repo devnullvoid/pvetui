@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Node Disk SMART Information**: Node details now display disk health status and SMART data for all attached disks, including disk type (SSD/HDD), size, model, and health status (PASSED/FAILED).
 - **System Update Notifications**: Node details now show available system package updates with version information, displaying up to 5 pending updates with a count of any additional updates.
 - **Icon Toggle**: Added multiple ways to control icons/emojis throughout the UI. Icons are enabled by default. To disable: use `--show-icons=false` CLI flag, `PVETUI_SHOW_ICONS=false` environment variable, or `show_icons: false` in YAML config. (#75)
-- **SSH Jump Host Support**: Added SSH jump host (bastion host) configuration for accessing Proxmox environments through an intermediate SSH server. Configure via config wizard, CLI flags (`--ssh-jumphost-addr`, `--ssh-jumphost-user`, `--ssh-jumphost-keyfile`), environment variables (`PVETUI_SSH_JUMPHOST_ADDR`, `PVETUI_SSH_JUMPHOST_USER`, `PVETUI_SSH_JUMPHOST_KEYFILE`), or YAML config (`ssh_jump_host` section). Per-profile configuration supported.
+- **SSH Jump Host Support**: Added SSH jump host (bastion host) configuration for accessing Proxmox environments through an intermediate SSH server. Configure via config wizard, CLI flags (`--ssh-jumphost-addr`, `--ssh-jumphost-user`, `--ssh-jumphost-keyfile`, `--ssh-jumphost-port`), environment variables (`PVETUI_SSH_JUMPHOST_ADDR`, `PVETUI_SSH_JUMPHOST_USER`, `PVETUI_SSH_JUMPHOST_KEYFILE`, `PVETUI_SSH_JUMPHOST_PORT`), or YAML config (`ssh_jump_host` section). Per-profile configuration supported.
 
 ### Changed
 

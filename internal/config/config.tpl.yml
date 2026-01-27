@@ -15,6 +15,7 @@ profiles:
     #   addr: jump.example.com
     #   user: jumpuser
     #   keyfile: /path/to/jump/key
+    #   port: 2222
 default_profile: default
 
 debug: false

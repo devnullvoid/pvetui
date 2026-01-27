@@ -146,6 +146,7 @@ profiles:
       addr: "jump.example.com"
       user: "jumpuser"
       keyfile: "/path/to/jump.key"
+      port: 2222
     groups:
       - all-servers
 
@@ -160,6 +161,7 @@ profiles:
     vm_ssh_user: "work-vm-user"
     ssh_jump_host:
       addr: "work-jump.example.com"
+      port: 2222
     groups:
       - all-servers
 
@@ -287,6 +289,7 @@ Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secr
 | `--ssh-jumphost-addr` | | SSH jump host address |
 | `--ssh-jumphost-user` | | SSH jump host user |
 | `--ssh-jumphost-keyfile` | | SSH jump host identity file |
+| `--ssh-jumphost-port` | | SSH jump host port |
 | `--debug` | | Enable debug logging |
 | `--cache-dir` | | Cache directory path |
 | `--age-dir` | | Age key directory path |

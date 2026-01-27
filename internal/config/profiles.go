@@ -15,6 +15,7 @@ type SSHJumpHost struct {
 	Addr    string `yaml:"addr,omitempty"`
 	User    string `yaml:"user,omitempty"`
 	Keyfile string `yaml:"keyfile,omitempty"`
+	Port    int    `yaml:"port,omitempty"`
 }
 
 // ProfileConfig holds a single connection profile's settings.

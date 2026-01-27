@@ -43,6 +43,7 @@ type JumpHostConfig struct {
 	Addr    string
 	User    string
 	KeyPath string
+	Port    int
 }
 
 // NewSSHClient creates a new SSH client with the given configuration
@@ -168,7 +169,11 @@ func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
 		return nil, nil, fmt.Errorf("failed to configure jump host: %w", err)
 	}
 
-	jumpAddr := fmt.Sprintf("%s:%d", c.jumpHost.Addr, c.port)
+	jumpPort := c.jumpHost.Port
+	if jumpPort == 0 {
+		jumpPort = c.port
+	}
+	jumpAddr := fmt.Sprintf("%s:%d", c.jumpHost.Addr, jumpPort)
 	jumpClient, err := ssh.Dial("tcp", jumpAddr, jumpConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect to jump host %s: %w", jumpAddr, err)

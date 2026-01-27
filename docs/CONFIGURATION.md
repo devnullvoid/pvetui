@@ -34,6 +34,7 @@ profiles:
       addr: "jump.example.com"
       user: "jumpuser"
       keyfile: "/path/to/jump.key"
+      port: 2222
     groups: # Optional: Add profile to one or more groups
       - home-lab
       - all-servers
@@ -49,6 +50,7 @@ profiles:
     vm_ssh_user: "work-vm-user"
     ssh_jump_host:
       addr: "work-jump.example.com"
+      port: 2222
     groups:
       - all-servers
 
@@ -125,6 +127,7 @@ profiles:
     vm_ssh_user: "root"
     ssh_jump_host:
       addr: "jump.example.com"
+      port: 2222
 ```
 
 ### Password Authentication
@@ -349,10 +352,11 @@ profiles:
       addr: "jump.example.com"
       user: "jumpuser"
       keyfile: "/path/to/jump.key"
+      port: 2222
 ```
 
 You can also configure these via environment variables:
-`PVETUI_SSH_JUMPHOST_ADDR`, `PVETUI_SSH_JUMPHOST_USER`, and `PVETUI_SSH_JUMPHOST_KEYFILE`.
+`PVETUI_SSH_JUMPHOST_ADDR`, `PVETUI_SSH_JUMPHOST_USER`, `PVETUI_SSH_JUMPHOST_KEYFILE`, and `PVETUI_SSH_JUMPHOST_PORT`.
 ```
 
 ## Configuration File Locations

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -182,7 +183,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
-	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile string
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile, sshJumpHostPort string
 	var insecure, useJumpHost bool
 
 	// If we are editing a profile, use its data
@@ -215,6 +216,9 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			sshJumpHostAddr = profile.SSHJumpHost.Addr
 			sshJumpHostUser = profile.SSHJumpHost.User
 			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
+			if profile.SSHJumpHost.Port > 0 {
+				sshJumpHostPort = strconv.Itoa(profile.SSHJumpHost.Port)
+			}
 			if sshJumpHostAddr != "" {
 				useJumpHost = true
 			}
@@ -245,6 +249,9 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		sshJumpHostAddr = cfg.SSHJumpHost.Addr
 		sshJumpHostUser = cfg.SSHJumpHost.User
 		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
+		if cfg.SSHJumpHost.Port > 0 {
+			sshJumpHostPort = strconv.Itoa(cfg.SSHJumpHost.Port)
+		}
 		if sshJumpHostAddr != "" {
 			useJumpHost = true
 		}
@@ -378,6 +385,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			sshJumpHostAddr = ""
 			sshJumpHostUser = ""
 			sshJumpHostKeyfile = ""
+			sshJumpHostPort = ""
 		}
 	})
 
@@ -407,6 +415,15 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			sshJumpHostKeyfile = strings.TrimSpace(text)
 		})
 	form.AddFormItem(jumpHostKeyfileField)
+
+	jumpHostPortField := tview.NewInputField().
+		SetLabel("  Jump Host Port").
+		SetText(sshJumpHostPort).
+		SetFieldWidth(6).
+		SetChangedFunc(func(text string) {
+			sshJumpHostPort = strings.TrimSpace(text)
+		})
+	form.AddFormItem(jumpHostPortField)
 
 	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
 	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
@@ -474,6 +491,16 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			return
 		}
 
+		jumpHostPort := 0
+		if useJumpHost && sshJumpHostPort != "" {
+			parsedPort, err := strconv.Atoi(sshJumpHostPort)
+			if err != nil || parsedPort <= 0 {
+				showWizardModal(pages, form, app, "error", "Jump host port must be a positive number.", nil)
+				return
+			}
+			jumpHostPort = parsedPort
+		}
+
 		// Handle profile creation/updating
 		setAsDefault := defaultCheckbox.IsChecked()
 		if isNewProfile {
@@ -502,6 +529,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 					Addr:    strings.TrimSpace(sshJumpHostAddr),
 					User:    strings.TrimSpace(sshJumpHostUser),
 					Keyfile: strings.TrimSpace(sshJumpHostKeyfile),
+					Port:    jumpHostPort,
 				}
 			}
 
@@ -548,6 +576,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 					Addr:    strings.TrimSpace(sshJumpHostAddr),
 					User:    strings.TrimSpace(sshJumpHostUser),
 					Keyfile: strings.TrimSpace(sshJumpHostKeyfile),
+					Port:    jumpHostPort,
 				}
 			}
 

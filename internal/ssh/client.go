@@ -357,6 +357,9 @@ func buildSSHArgsBase(user, host string, jumphost config.SSHJumpHost) []string {
 			if jumphost.User != "" {
 				proxyCmd += fmt.Sprintf(" -l %s", shellQuote(jumphost.User))
 			}
+			if jumphost.Port > 0 {
+				proxyCmd += fmt.Sprintf(" -p %d", jumphost.Port)
+			}
 			proxyCmd += fmt.Sprintf(" %s", shellQuote(jumphost.Addr))
 
 			args = append(args, "-o", fmt.Sprintf("ProxyCommand=%s", proxyCmd))
@@ -364,6 +367,9 @@ func buildSSHArgsBase(user, host string, jumphost config.SSHJumpHost) []string {
 			jumpSpec := jumphost.Addr
 			if jumphost.User != "" {
 				jumpSpec = fmt.Sprintf("%s@%s", jumphost.User, jumphost.Addr)
+			}
+			if jumphost.Port > 0 {
+				jumpSpec = fmt.Sprintf("%s:%d", jumpSpec, jumphost.Port)
 			}
 			args = append(args, "-J", jumpSpec)
 		}

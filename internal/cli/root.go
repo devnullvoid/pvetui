@@ -90,6 +90,7 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 	sshJumpHostAddr := viper.GetString("ssh_jumphost_addr")
 	sshJumpHostUser := viper.GetString("ssh_jumphost_user")
 	sshJumpHostKeyfile := viper.GetString("ssh_jumphost_keyfile")
+	sshJumpHostPort := viper.GetInt("ssh_jumphost_port")
 	debug := viper.GetBool("debug")
 	cacheDir := viper.GetString("cache_dir")
 	ageDir := viper.GetString("age_dir")
@@ -120,6 +121,7 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 		FlagSSHJumpHostAddr:    sshJumpHostAddr,
 		FlagSSHJumpHostUser:    sshJumpHostUser,
 		FlagSSHJumpHostKeyfile: sshJumpHostKeyfile,
+		FlagSSHJumpHostPort:    sshJumpHostPort,
 		FlagDebug:              debug,
 		FlagCacheDir:           cacheDir,
 		FlagAgeDir:             ageDir,
@@ -150,6 +152,7 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("ssh-jumphost-addr", "", "SSH jump host address")
 	cmd.PersistentFlags().String("ssh-jumphost-user", "", "SSH jump host user")
 	cmd.PersistentFlags().String("ssh-jumphost-keyfile", "", "SSH jump host identity file")
+	cmd.PersistentFlags().Int("ssh-jumphost-port", 0, "SSH jump host port")
 	cmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
 	cmd.PersistentFlags().String("age-dir", "", "Age key directory path")
@@ -198,6 +201,9 @@ func addPersistentFlags(cmd *cobra.Command) {
 	}
 	if err := viper.BindPFlag("ssh_jumphost_keyfile", cmd.PersistentFlags().Lookup("ssh-jumphost-keyfile")); err != nil {
 		panic(fmt.Sprintf("failed to bind ssh_jumphost_keyfile flag: %v", err))
+	}
+	if err := viper.BindPFlag("ssh_jumphost_port", cmd.PersistentFlags().Lookup("ssh-jumphost-port")); err != nil {
+		panic(fmt.Sprintf("failed to bind ssh_jumphost_port flag: %v", err))
 	}
 	if err := viper.BindPFlag("debug", cmd.PersistentFlags().Lookup("debug")); err != nil {
 		panic(fmt.Sprintf("failed to bind debug flag: %v", err))

@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/config"
@@ -62,7 +63,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, groupString string
-	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile string
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile, sshJumpHostPort string
 	var insecure, useJumpHost bool
 
 	// If we have profiles and a default profile, use profile data
@@ -95,6 +96,9 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			sshJumpHostAddr = profile.SSHJumpHost.Addr
 			sshJumpHostUser = profile.SSHJumpHost.User
 			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
+			if profile.SSHJumpHost.Port > 0 {
+				sshJumpHostPort = strconv.Itoa(profile.SSHJumpHost.Port)
+			}
 			if sshJumpHostAddr != "" {
 				useJumpHost = true
 			}
@@ -128,6 +132,9 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		sshJumpHostAddr = cfg.SSHJumpHost.Addr
 		sshJumpHostUser = cfg.SSHJumpHost.User
 		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
+		if cfg.SSHJumpHost.Port > 0 {
+			sshJumpHostPort = strconv.Itoa(cfg.SSHJumpHost.Port)
+		}
 		if sshJumpHostAddr != "" {
 			useJumpHost = true
 		}
@@ -279,6 +286,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			sshJumpHostAddr = ""
 			sshJumpHostUser = ""
 			sshJumpHostKeyfile = ""
+			sshJumpHostPort = ""
 			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 					profile.SSHJumpHost = config.SSHJumpHost{}
@@ -323,6 +331,36 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			}
 		} else {
 			cfg.SSHJumpHost.Keyfile = value
+		}
+	})
+
+	addInput("  Jump Host Port", sshJumpHostPort, 6, nil, func(text string) {
+		value := strings.TrimSpace(text)
+		sshJumpHostPort = value
+		if value == "" {
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.SSHJumpHost.Port = 0
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.SSHJumpHost.Port = 0
+			}
+			return
+		}
+
+		parsedPort, err := strconv.Atoi(value)
+		if err != nil || parsedPort <= 0 {
+			return
+		}
+
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHJumpHost.Port = parsedPort
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHJumpHost.Port = parsedPort
 		}
 	})
 

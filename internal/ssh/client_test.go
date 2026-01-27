@@ -148,13 +148,14 @@ func TestExecuteNodeShellWith_JumpHostProxyCommand(t *testing.T) {
 		Addr:    "jump.example.com",
 		User:    "jumpuser",
 		Keyfile: "/home/test/.ssh/jump key",
+		Port:    2222,
 	}
 
 	err := ExecuteNodeShellWith(ctx, me, "testuser", "192.0.2.1", jumpHost)
 	require.NoError(t, err)
 	require.Equal(t, "ssh", me.lastName)
 
-	expectedProxy := "ProxyCommand=ssh -W %h:%p -i '/home/test/.ssh/jump key' -l 'jumpuser' 'jump.example.com'"
+	expectedProxy := "ProxyCommand=ssh -W %h:%p -i '/home/test/.ssh/jump key' -l 'jumpuser' -p 2222 'jump.example.com'"
 	require.Equal(t, []string{"-o", expectedProxy, "testuser@192.0.2.1"}, me.lastArgs)
 }
 
@@ -165,10 +166,11 @@ func TestExecuteNodeShellWith_JumpHostProxyJump(t *testing.T) {
 	jumpHost := config.SSHJumpHost{
 		Addr: "jump.example.com",
 		User: "jumpuser",
+		Port: 2222,
 	}
 
 	err := ExecuteNodeShellWith(ctx, me, "testuser", "192.0.2.1", jumpHost)
 	require.NoError(t, err)
 	require.Equal(t, "ssh", me.lastName)
-	require.Equal(t, []string{"-J", "jumpuser@jump.example.com", "testuser@192.0.2.1"}, me.lastArgs)
+	require.Equal(t, []string{"-J", "jumpuser@jump.example.com:2222", "testuser@192.0.2.1"}, me.lastArgs)
 }

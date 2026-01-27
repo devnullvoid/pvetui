@@ -251,6 +251,7 @@ func buildSSHClient(appConfig *config.Config, node *api.Node, timeout time.Durat
 			Addr:    jumpHost.Addr,
 			User:    jumpHost.User,
 			KeyPath: jumpHost.Keyfile,
+			Port:    jumpHost.Port,
 		},
 	})
 }
