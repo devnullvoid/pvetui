@@ -21,6 +21,7 @@ type SSHClientImpl struct {
 	keyPath  string
 	timeout  time.Duration
 	port     int
+	jumpHost JumpHostConfig
 }
 
 func crSSHLogger() interfaces.Logger {
@@ -34,6 +35,14 @@ type SSHClientConfig struct {
 	KeyPath  string
 	Timeout  time.Duration
 	Port     int
+	JumpHost JumpHostConfig
+}
+
+// JumpHostConfig holds SSH jump host configuration.
+type JumpHostConfig struct {
+	Addr    string
+	User    string
+	KeyPath string
 }
 
 // NewSSHClient creates a new SSH client with the given configuration
@@ -51,6 +60,7 @@ func NewSSHClient(config SSHClientConfig) *SSHClientImpl {
 		keyPath:  config.KeyPath,
 		timeout:  config.Timeout,
 		port:     config.Port,
+		jumpHost: config.JumpHost,
 	}
 }
 
@@ -58,40 +68,16 @@ func NewSSHClient(config SSHClientConfig) *SSHClientImpl {
 func (c *SSHClientImpl) ExecuteCommand(ctx context.Context, host, command string) (string, error) {
 	crSSHLogger().Debug("SSH exec (host): user=%s host=%s cmd=%s", c.username, host, command)
 
-	// Build SSH client config
-	config := &ssh.ClientConfig{
-		User: c.username,
-		// nolint:gosec // G106: InsecureIgnoreHostKey is acceptable for initial implementation
-		// TODO: Implement proper host key verification (known_hosts)
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         c.timeout,
-	}
-
-	// Add authentication methods
-	// Try key-based authentication first
-	if signers, err := c.loadSSHKeys(); err == nil && len(signers) > 0 {
-		config.Auth = append(config.Auth, ssh.PublicKeys(signers...))
-	}
-
-	// Fallback to password authentication if provided
-	if c.password != "" {
-		config.Auth = append(config.Auth, ssh.Password(c.password))
-	}
-
-	// If no authentication method available, return error
-	if len(config.Auth) == 0 {
-		return "", fmt.Errorf("no SSH authentication method available (no keys in ~/.ssh/ and no password configured)")
-	}
-
-	// Connect to the remote host
-	addr := fmt.Sprintf("%s:%d", host, c.port)
-	client, err := ssh.Dial("tcp", addr, config)
+	client, cleanup, err := c.dialHost(host)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to %s: %w", addr, err)
+		return "", err
 	}
 	defer func() {
 		_ = client.Close() // Error on close is not critical
 	}()
+	if cleanup != nil {
+		defer cleanup()
+	}
 
 	// Create a session
 	session, err := client.NewSession()
@@ -132,8 +118,83 @@ func (c *SSHClientImpl) ExecuteCommand(ctx context.Context, host, command string
 	return stdout.String(), nil
 }
 
+func (c *SSHClientImpl) buildClientConfig(user, password, keyPath string) (*ssh.ClientConfig, error) {
+	config := &ssh.ClientConfig{
+		User: user,
+		// nolint:gosec // G106: InsecureIgnoreHostKey is acceptable for initial implementation
+		// TODO: Implement proper host key verification (known_hosts)
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         c.timeout,
+	}
+
+	if signers, err := c.loadSSHKeys(keyPath); err == nil && len(signers) > 0 {
+		config.Auth = append(config.Auth, ssh.PublicKeys(signers...))
+	}
+
+	if password != "" {
+		config.Auth = append(config.Auth, ssh.Password(password))
+	}
+
+	if len(config.Auth) == 0 {
+		return nil, fmt.Errorf("no SSH authentication method available (no keys in ~/.ssh/ and no password configured)")
+	}
+
+	return config, nil
+}
+
+func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
+	targetConfig, err := c.buildClientConfig(c.username, c.password, c.keyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	addr := fmt.Sprintf("%s:%d", host, c.port)
+
+	if c.jumpHost.Addr == "" {
+		client, err := ssh.Dial("tcp", addr, targetConfig)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to connect to %s: %w", addr, err)
+		}
+		return client, nil, nil
+	}
+
+	jumpUser := c.jumpHost.User
+	if jumpUser == "" {
+		jumpUser = c.username
+	}
+
+	jumpConfig, err := c.buildClientConfig(jumpUser, "", c.jumpHost.KeyPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to configure jump host: %w", err)
+	}
+
+	jumpAddr := fmt.Sprintf("%s:%d", c.jumpHost.Addr, c.port)
+	jumpClient, err := ssh.Dial("tcp", jumpAddr, jumpConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to connect to jump host %s: %w", jumpAddr, err)
+	}
+
+	conn, err := jumpClient.Dial("tcp", addr)
+	if err != nil {
+		_ = jumpClient.Close()
+		return nil, nil, fmt.Errorf("failed to connect to %s via jump host: %w", addr, err)
+	}
+
+	clientConn, chans, reqs, err := ssh.NewClientConn(conn, addr, targetConfig)
+	if err != nil {
+		_ = jumpClient.Close()
+		return nil, nil, fmt.Errorf("failed to establish tunneled SSH connection to %s: %w", addr, err)
+	}
+
+	cleanup := func() {
+		_ = jumpClient.Close()
+	}
+
+	return ssh.NewClient(clientConn, chans, reqs), cleanup, nil
+}
+
 // loadSSHKeys attempts to load SSH private keys from standard locations
-func (c *SSHClientImpl) loadSSHKeys() ([]ssh.Signer, error) {
+func (c *SSHClientImpl) loadSSHKeys(keyPath string) ([]ssh.Signer, error) {
 	var signers []ssh.Signer
 
 	// Get user's home directory
@@ -149,15 +210,14 @@ func (c *SSHClientImpl) loadSSHKeys() ([]ssh.Signer, error) {
 		filepath.Join(homeDir, ".ssh", "id_ecdsa"),
 	}
 
-	// If specific key path is configured, try that first
-	if c.keyPath != "" {
-		keyPaths = append([]string{c.keyPath}, keyPaths...)
+	if keyPath != "" {
+		keyPaths = []string{keyPath}
 	}
 
 	// Try each key path
-	for _, keyPath := range keyPaths {
+	for _, candidate := range keyPaths {
 		// nolint:gosec // G304: Reading SSH keys from standard paths is expected behavior
-		keyBytes, err := os.ReadFile(keyPath)
+		keyBytes, err := os.ReadFile(candidate)
 		if err != nil {
 			continue // Skip if key doesn't exist
 		}
@@ -191,40 +251,16 @@ func (c *SSHClientImpl) loadSSHKeys() ([]ssh.Signer, error) {
 //
 // Returns the command output and any error encountered.
 func (c *SSHClientImpl) ExecuteContainerCommand(ctx context.Context, host string, containerID int, command string) (string, error) {
-	// Build SSH client config
-	config := &ssh.ClientConfig{
-		User: c.username,
-		// nolint:gosec // G106: InsecureIgnoreHostKey is acceptable for initial implementation
-		// TODO: Implement proper host key verification (known_hosts)
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         c.timeout,
-	}
-
-	// Add authentication methods
-	// Try key-based authentication first
-	if signers, err := c.loadSSHKeys(); err == nil && len(signers) > 0 {
-		config.Auth = append(config.Auth, ssh.PublicKeys(signers...))
-	}
-
-	// Fallback to password authentication if provided
-	if c.password != "" {
-		config.Auth = append(config.Auth, ssh.Password(c.password))
-	}
-
-	// If no authentication method available, return error
-	if len(config.Auth) == 0 {
-		return "", fmt.Errorf("no SSH authentication method available (no keys in ~/.ssh/ and no password configured)")
-	}
-
-	// Connect to the remote host
-	addr := fmt.Sprintf("%s:%d", host, c.port)
-	client, err := ssh.Dial("tcp", addr, config)
+	client, cleanup, err := c.dialHost(host)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to %s: %w", addr, err)
+		return "", err
 	}
 	defer func() {
 		_ = client.Close() // Error on close is not critical
 	}()
+	if cleanup != nil {
+		defer cleanup()
+	}
 
 	// Create a session
 	session, err := client.NewSession()

@@ -3,7 +3,9 @@ package commandrunner
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/devnullvoid/pvetui/internal/config"
 	commandrunner "github.com/devnullvoid/pvetui/internal/plugins/command-runner"
 	"github.com/devnullvoid/pvetui/internal/ui/components"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -14,8 +16,9 @@ const PluginID = "command-runner"
 
 // Plugin provides command execution capabilities on Proxmox hosts.
 type Plugin struct {
-	app    *components.App
-	runner *commandrunner.Plugin
+	app     *components.App
+	runner  *commandrunner.Plugin
+	timeout time.Duration
 }
 
 // New creates a fresh plugin instance.
@@ -46,22 +49,11 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 	config := commandrunner.DefaultConfig()
 	// TODO: Load config from app.Config.Plugins.CommandRunner when config structure is added
 	config.Enabled = true // For now, enable if plugin is loaded
-
-	// Get SSH credentials from app config
-	appConfig := app.Config()
-	sshUser := appConfig.SSHUser
-	if sshUser == "" {
-		sshUser = appConfig.GetUser() // Fall back to Proxmox user
-	}
+	p.timeout = config.Timeout
 
 	// Create SSH client
-	sshClient := commandrunner.NewSSHClient(commandrunner.SSHClientConfig{
-		Username: sshUser,
-		// Note: Using SSH key-based auth (no password)
-		// SSH keys should be configured in ~/.ssh/ for the current user
-		Timeout: config.Timeout,
-		Port:    22,
-	})
+	appConfig := app.Config()
+	sshClient := buildSSHClient(appConfig, nil, config.Timeout)
 
 	// Create API client adapter for guest agent commands
 	apiClient := commandrunner.NewAPIClientAdapter(app.Client())
@@ -147,6 +139,8 @@ func (p *Plugin) handleRunCommand(ctx context.Context, app *components.App, node
 		return fmt.Errorf("command runner not initialized")
 	}
 
+	p.updateSSHClient(node)
+
 	// Prefer IP for SSH to avoid DNS/host lookups; fall back to node name.
 	targetHost := node.IP
 	if targetHost == "" {
@@ -176,6 +170,8 @@ func (p *Plugin) handleRunContainerCommand(ctx context.Context, app *components.
 	if p.runner == nil || !p.runner.Enabled() {
 		return fmt.Errorf("command runner not initialized")
 	}
+
+	p.updateSSHClient(node)
 
 	// Prefer IP for SSH to avoid DNS/host lookups; fall back to node name.
 	targetHost := node.IP
@@ -207,6 +203,8 @@ func (p *Plugin) handleRunVMCommand(ctx context.Context, app *components.App, no
 		return fmt.Errorf("command runner not initialized")
 	}
 
+	p.updateSSHClient(node)
+
 	vmCtx := commandrunner.VM{
 		ID:           guest.ID,
 		Node:         node.Name,
@@ -221,4 +219,78 @@ func (p *Plugin) handleRunVMCommand(ctx context.Context, app *components.App, no
 	p.runner.ShowVMCommandMenu(vmCtx, nil)
 
 	return nil
+}
+
+func (p *Plugin) updateSSHClient(node *api.Node) {
+	if p == nil || p.runner == nil {
+		return
+	}
+
+	appConfig := p.app.Config()
+	if appConfig == nil {
+		return
+	}
+
+	sshClient := buildSSHClient(appConfig, node, p.timeout)
+	p.runner.SetSSHClient(sshClient)
+}
+
+func buildSSHClient(appConfig *config.Config, node *api.Node, timeout time.Duration) *commandrunner.SSHClientImpl {
+	sshUser := resolveSSHUser(appConfig, node)
+	if sshUser == "" {
+		sshUser = appConfig.GetUser()
+	}
+
+	jumpHost := resolveJumpHost(appConfig, node)
+
+	return commandrunner.NewSSHClient(commandrunner.SSHClientConfig{
+		Username: sshUser,
+		Timeout:  timeout,
+		Port:     22,
+		JumpHost: commandrunner.JumpHostConfig{
+			Addr:    jumpHost.Addr,
+			User:    jumpHost.User,
+			KeyPath: jumpHost.Keyfile,
+		},
+	})
+}
+
+func resolveSSHUser(appConfig *config.Config, node *api.Node) string {
+	if appConfig == nil {
+		return ""
+	}
+
+	if node != nil && node.SourceProfile != "" {
+		if profile, ok := appConfig.Profiles[node.SourceProfile]; ok && profile.SSHUser != "" {
+			return profile.SSHUser
+		}
+	}
+
+	if appConfig.ActiveProfile != "" {
+		if profile, ok := appConfig.Profiles[appConfig.ActiveProfile]; ok && profile.SSHUser != "" {
+			return profile.SSHUser
+		}
+	}
+
+	return appConfig.SSHUser
+}
+
+func resolveJumpHost(appConfig *config.Config, node *api.Node) config.SSHJumpHost {
+	if appConfig == nil {
+		return config.SSHJumpHost{}
+	}
+
+	if node != nil && node.SourceProfile != "" {
+		if profile, ok := appConfig.Profiles[node.SourceProfile]; ok && profile.SSHJumpHost.Addr != "" {
+			return profile.SSHJumpHost
+		}
+	}
+
+	if appConfig.ActiveProfile != "" {
+		if profile, ok := appConfig.Profiles[appConfig.ActiveProfile]; ok && profile.SSHJumpHost.Addr != "" {
+			return profile.SSHJumpHost
+		}
+	}
+
+	return appConfig.SSHJumpHost
 }

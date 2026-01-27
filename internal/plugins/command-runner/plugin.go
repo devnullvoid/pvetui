@@ -38,6 +38,15 @@ func (p *Plugin) Enabled() bool {
 	return p.config.Enabled
 }
 
+// SetSSHClient updates the SSH client used by the plugin executor.
+func (p *Plugin) SetSSHClient(sshClient SSHClient) {
+	if p == nil || p.executor == nil {
+		return
+	}
+
+	p.executor.SetSSHClient(sshClient)
+}
+
 // ShowHostCommandMenu displays the command menu for a host
 func (p *Plugin) ShowHostCommandMenu(host string, onClose func()) {
 	p.uiManager.ShowCommandMenu(TargetHost, host, onClose)

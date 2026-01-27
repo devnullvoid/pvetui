@@ -56,6 +56,11 @@ func NewExecutor(config Config, sshClient SSHClient, apiClient ProxmoxAPIClient)
 	}
 }
 
+// SetSSHClient updates the SSH client used by the executor.
+func (e *Executor) SetSSHClient(sshClient SSHClient) {
+	e.sshClient = sshClient
+}
+
 // ExecuteHostCommand executes a command on a Proxmox host via SSH
 func (e *Executor) ExecuteHostCommand(ctx context.Context, host, command string) ExecutionResult {
 	start := time.Now()
