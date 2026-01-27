@@ -87,6 +87,9 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 	apiPath := viper.GetString("api_path")
 	sshUser := viper.GetString("ssh_user")
 	vmSSHUser := viper.GetString("vm_ssh_user")
+	sshJumpHostAddr := viper.GetString("ssh_jumphost_addr")
+	sshJumpHostUser := viper.GetString("ssh_jumphost_user")
+	sshJumpHostKeyfile := viper.GetString("ssh_jumphost_keyfile")
 	debug := viper.GetBool("debug")
 	cacheDir := viper.GetString("cache_dir")
 	ageDir := viper.GetString("age_dir")
@@ -99,25 +102,28 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 	}
 
 	return bootstrap.BootstrapOptions{
-		ConfigPath:      configPath,
-		Profile:         profile,
-		NoCache:         noCache,
-		Version:         version,
-		ConfigWizard:    configWizard,
-		FlagAddr:        addr,
-		FlagUser:        user,
-		FlagPassword:    password,
-		FlagTokenID:     tokenID,
-		FlagTokenSecret: tokenSecret,
-		FlagRealm:       realm,
-		FlagInsecure:    insecure,
-		FlagApiPath:     apiPath,
-		FlagSSHUser:     sshUser,
-		FlagVMSSHUser:   vmSSHUser,
-		FlagDebug:       debug,
-		FlagCacheDir:    cacheDir,
-		FlagAgeDir:      ageDir,
-		FlagShowIcons:   showIconsPtr,
+		ConfigPath:             configPath,
+		Profile:                profile,
+		NoCache:                noCache,
+		Version:                version,
+		ConfigWizard:           configWizard,
+		FlagAddr:               addr,
+		FlagUser:               user,
+		FlagPassword:           password,
+		FlagTokenID:            tokenID,
+		FlagTokenSecret:        tokenSecret,
+		FlagRealm:              realm,
+		FlagInsecure:           insecure,
+		FlagApiPath:            apiPath,
+		FlagSSHUser:            sshUser,
+		FlagVMSSHUser:          vmSSHUser,
+		FlagSSHJumpHostAddr:    sshJumpHostAddr,
+		FlagSSHJumpHostUser:    sshJumpHostUser,
+		FlagSSHJumpHostKeyfile: sshJumpHostKeyfile,
+		FlagDebug:              debug,
+		FlagCacheDir:           cacheDir,
+		FlagAgeDir:             ageDir,
+		FlagShowIcons:          showIconsPtr,
 	}
 }
 
@@ -141,6 +147,9 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("api-path", "", "Proxmox API path")
 	cmd.PersistentFlags().String("ssh-user", "", "SSH username")
 	cmd.PersistentFlags().String("vm-ssh-user", "", "QEMU VM SSH username (defaults to ssh-user)")
+	cmd.PersistentFlags().String("ssh-jumphost-addr", "", "SSH jump host address")
+	cmd.PersistentFlags().String("ssh-jumphost-user", "", "SSH jump host user")
+	cmd.PersistentFlags().String("ssh-jumphost-keyfile", "", "SSH jump host identity file")
 	cmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
 	cmd.PersistentFlags().String("age-dir", "", "Age key directory path")
@@ -180,6 +189,15 @@ func addPersistentFlags(cmd *cobra.Command) {
 	}
 	if err := viper.BindPFlag("vm_ssh_user", cmd.PersistentFlags().Lookup("vm-ssh-user")); err != nil {
 		panic(fmt.Sprintf("failed to bind vm_ssh_user flag: %v", err))
+	}
+	if err := viper.BindPFlag("ssh_jumphost_addr", cmd.PersistentFlags().Lookup("ssh-jumphost-addr")); err != nil {
+		panic(fmt.Sprintf("failed to bind ssh_jumphost_addr flag: %v", err))
+	}
+	if err := viper.BindPFlag("ssh_jumphost_user", cmd.PersistentFlags().Lookup("ssh-jumphost-user")); err != nil {
+		panic(fmt.Sprintf("failed to bind ssh_jumphost_user flag: %v", err))
+	}
+	if err := viper.BindPFlag("ssh_jumphost_keyfile", cmd.PersistentFlags().Lookup("ssh-jumphost-keyfile")); err != nil {
+		panic(fmt.Sprintf("failed to bind ssh_jumphost_keyfile flag: %v", err))
 	}
 	if err := viper.BindPFlag("debug", cmd.PersistentFlags().Lookup("debug")); err != nil {
 		panic(fmt.Sprintf("failed to bind debug flag: %v", err))

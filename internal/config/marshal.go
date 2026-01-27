@@ -20,6 +20,7 @@ type marshaledConfig struct {
 	Insecure       bool                     `yaml:"insecure,omitempty"`
 	SSHUser        string                   `yaml:"ssh_user,omitempty"`
 	VMSSHUser      string                   `yaml:"vm_ssh_user,omitempty"`
+	SSHJumpHost    SSHJumpHost              `yaml:"ssh_jump_host,omitempty"`
 }
 
 // MarshalYAML implements yaml.Marshaler to ensure legacy single-profile fields
@@ -51,6 +52,7 @@ func (cfg *Config) MarshalYAML() (any, error) {
 		clean.Insecure = cfg.Insecure
 		clean.SSHUser = cfg.SSHUser
 		clean.VMSSHUser = cfg.VMSSHUser
+		clean.SSHJumpHost = cfg.SSHJumpHost
 	}
 
 	return clean, nil

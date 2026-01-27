@@ -142,6 +142,10 @@ profiles:
     insecure: false
     ssh_user: "your-ssh-user"
     vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VM shells
+    ssh_jump_host:                 # Optional: configure a bastion host for SSH
+      addr: "jump.example.com"
+      user: "jumpuser"
+      keyfile: "/path/to/jump.key"
     groups:
       - all-servers
 
@@ -154,6 +158,8 @@ profiles:
     insecure: false
     ssh_user: "workuser"
     vm_ssh_user: "work-vm-user"
+    ssh_jump_host:
+      addr: "work-jump.example.com"
     groups:
       - all-servers
 
@@ -161,7 +167,7 @@ default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
 ```
 
-`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles.
+`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
 
 ### Plugins
 
@@ -277,6 +283,10 @@ Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secr
 | `--insecure` | | Skip TLS verification |
 | `--api-path` | | Proxmox API path |
 | `--ssh-user` | | SSH username |
+| `--vm-ssh-user` | | QEMU VM SSH username (defaults to ssh-user) |
+| `--ssh-jumphost-addr` | | SSH jump host address |
+| `--ssh-jumphost-user` | | SSH jump host user |
+| `--ssh-jumphost-keyfile` | | SSH jump host identity file |
 | `--debug` | | Enable debug logging |
 | `--cache-dir` | | Cache directory path |
 | `--age-dir` | | Age key directory path |

@@ -10,18 +10,26 @@ import (
 	"strings"
 )
 
+// SSHJumpHost holds configuration for an SSH jump server.
+type SSHJumpHost struct {
+	Addr    string `yaml:"addr,omitempty"`
+	User    string `yaml:"user,omitempty"`
+	Keyfile string `yaml:"keyfile,omitempty"`
+}
+
 // ProfileConfig holds a single connection profile's settings.
 type ProfileConfig struct {
-	Addr        string `yaml:"addr"`
-	User        string `yaml:"user"`
-	Password    string `yaml:"password"`
-	TokenID     string `yaml:"token_id"`
-	TokenSecret string `yaml:"token_secret"`
-	Realm       string `yaml:"realm"`
-	ApiPath     string `yaml:"api_path"`
-	Insecure    bool   `yaml:"insecure"`
-	SSHUser     string `yaml:"ssh_user"`
-	VMSSHUser   string `yaml:"vm_ssh_user"`
+	Addr        string      `yaml:"addr"`
+	User        string      `yaml:"user"`
+	Password    string      `yaml:"password"`
+	TokenID     string      `yaml:"token_id"`
+	TokenSecret string      `yaml:"token_secret"`
+	Realm       string      `yaml:"realm"`
+	ApiPath     string      `yaml:"api_path"`
+	Insecure    bool        `yaml:"insecure"`
+	SSHUser     string      `yaml:"ssh_user"`
+	VMSSHUser   string      `yaml:"vm_ssh_user"`
+	SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 
 	// Groups is a list of group identifiers.
 	// This allows a profile to belong to multiple groups.
@@ -51,6 +59,7 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.Insecure = profile.Insecure
 	c.SSHUser = profile.SSHUser
 	c.VMSSHUser = profile.VMSSHUser
+	c.SSHJumpHost = profile.SSHJumpHost
 
 	// Mark runtime active profile so getters resolve to this profile without changing persisted default
 	c.ActiveProfile = profileName
@@ -63,7 +72,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	// Check if we have legacy fields but no profiles
 	hasLegacyFields := c.Addr != "" || c.User != "" || c.Password != "" ||
 		c.TokenID != "" || c.TokenSecret != "" || c.Realm != "" ||
-		c.ApiPath != "" || c.SSHUser != "" || c.VMSSHUser != ""
+		c.ApiPath != "" || c.SSHUser != "" || c.VMSSHUser != "" || c.SSHJumpHost.Addr != ""
 
 	if !hasLegacyFields || len(c.Profiles) > 0 {
 		return false
@@ -86,6 +95,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 		Insecure:    c.Insecure,
 		SSHUser:     c.SSHUser,
 		VMSSHUser:   c.VMSSHUser,
+		SSHJumpHost: c.SSHJumpHost,
 	}
 
 	// Set default profile
@@ -102,6 +112,7 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	c.Insecure = false
 	c.SSHUser = ""
 	c.VMSSHUser = ""
+	c.SSHJumpHost = SSHJumpHost{}
 
 	return true
 }

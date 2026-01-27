@@ -31,18 +31,21 @@ func TestNewConfig(t *testing.T) {
 		{
 			name: "all environment variables set",
 			envVars: map[string]string{
-				"PVETUI_ADDR":         "https://proxmox.example.com:8006",
-				"PVETUI_USER":         "testuser",
-				"PVETUI_PASSWORD":     "testpass",
-				"PVETUI_TOKEN_ID":     "testtoken",
-				"PVETUI_TOKEN_SECRET": "testsecret",
-				"PVETUI_REALM":        "ldap",
-				"PVETUI_API_PATH":     "/api2/json/custom",
-				"PVETUI_INSECURE":     "true",
-				"PVETUI_SSH_USER":     "sshuser",
-				"PVETUI_DEBUG":        "true",
-				"PVETUI_CACHE_DIR":    "/tmp/cache",
-				"PVETUI_AGE_DIR":      "/tmp/age",
+				"PVETUI_ADDR":                 "https://proxmox.example.com:8006",
+				"PVETUI_USER":                 "testuser",
+				"PVETUI_PASSWORD":             "testpass",
+				"PVETUI_TOKEN_ID":             "testtoken",
+				"PVETUI_TOKEN_SECRET":         "testsecret",
+				"PVETUI_REALM":                "ldap",
+				"PVETUI_API_PATH":             "/api2/json/custom",
+				"PVETUI_INSECURE":             "true",
+				"PVETUI_SSH_USER":             "sshuser",
+				"PVETUI_SSH_JUMPHOST_ADDR":    "jump.example.com",
+				"PVETUI_SSH_JUMPHOST_USER":    "jumpuser",
+				"PVETUI_SSH_JUMPHOST_KEYFILE": "/tmp/jump.key",
+				"PVETUI_DEBUG":                "true",
+				"PVETUI_CACHE_DIR":            "/tmp/cache",
+				"PVETUI_AGE_DIR":              "/tmp/age",
 			},
 			expected: &Config{
 				Addr:        "https://proxmox.example.com:8006",
@@ -54,9 +57,14 @@ func TestNewConfig(t *testing.T) {
 				ApiPath:     "/api2/json/custom",
 				Insecure:    true,
 				SSHUser:     "sshuser",
-				Debug:       true,
-				CacheDir:    "/tmp/cache",
-				AgeDir:      "/tmp/age",
+				SSHJumpHost: SSHJumpHost{
+					Addr:    "jump.example.com",
+					User:    "jumpuser",
+					Keyfile: "/tmp/jump.key",
+				},
+				Debug:    true,
+				CacheDir: "/tmp/cache",
+				AgeDir:   "/tmp/age",
 			},
 		},
 		{
@@ -97,6 +105,7 @@ func TestNewConfig(t *testing.T) {
 			assert.Equal(t, tt.expected.ApiPath, config.ApiPath)
 			assert.Equal(t, tt.expected.Insecure, config.Insecure)
 			assert.Equal(t, tt.expected.SSHUser, config.SSHUser)
+			assert.Equal(t, tt.expected.SSHJumpHost, config.SSHJumpHost)
 			assert.Equal(t, tt.expected.Debug, config.Debug)
 			assert.Equal(t, tt.expected.CacheDir, config.CacheDir)
 
@@ -767,6 +776,9 @@ func TestConfig_MergeWithFile_ProfileBased(t *testing.T) {
 			"default": {
 				Addr: "https://initial.example.com:8006",
 				User: "initialuser",
+				SSHJumpHost: SSHJumpHost{
+					Addr: "initial-jump.example.com",
+				},
 			},
 		},
 		DefaultProfile: "default",
@@ -777,6 +789,9 @@ profiles:
   default:
     addr: "https://merged.example.com:8006"
     password: "mergedpass"
+    ssh_jump_host:
+      addr: "jump.example.com"
+      user: "jumpuser"
   secondary:
     addr: "https://secondary.example.com:8006"
     user: "secondaryuser"
@@ -807,6 +822,8 @@ debug: true
 	assert.Equal(t, "https://merged.example.com:8006", defaultProfile.Addr)
 	assert.Equal(t, "initialuser", defaultProfile.User) // Should keep initial value
 	assert.Equal(t, "mergedpass", defaultProfile.Password)
+	assert.Equal(t, "jump.example.com", defaultProfile.SSHJumpHost.Addr)
+	assert.Equal(t, "jumpuser", defaultProfile.SSHJumpHost.User)
 
 	// Check secondary profile
 	secondaryProfile, exists := initialConfig.Profiles["secondary"]
@@ -829,6 +846,11 @@ func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 		Insecure:  true,
 		SSHUser:   "sshuser",
 		VMSSHUser: "vmuser",
+		SSHJumpHost: SSHJumpHost{
+			Addr:    "jump.example.com",
+			User:    "jumpuser",
+			Keyfile: "/tmp/jump.key",
+		},
 	}
 
 	// Initially should have no profiles
@@ -853,6 +875,9 @@ func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 	assert.True(t, defaultProfile.Insecure)
 	assert.Equal(t, "sshuser", defaultProfile.SSHUser)
 	assert.Equal(t, "vmuser", defaultProfile.VMSSHUser)
+	assert.Equal(t, "jump.example.com", defaultProfile.SSHJumpHost.Addr)
+	assert.Equal(t, "jumpuser", defaultProfile.SSHJumpHost.User)
+	assert.Equal(t, "/tmp/jump.key", defaultProfile.SSHJumpHost.Keyfile)
 
 	// Legacy fields should be cleared
 	assert.Equal(t, "", cfg.Addr)
@@ -862,6 +887,7 @@ func TestConfig_MigrateLegacyToProfiles(t *testing.T) {
 	assert.False(t, cfg.Insecure)
 	assert.Equal(t, "", cfg.SSHUser)
 	assert.Equal(t, "", cfg.VMSSHUser)
+	assert.Equal(t, SSHJumpHost{}, cfg.SSHJumpHost)
 }
 
 func TestConfig_MigrateLegacyToProfiles_NoLegacyFields(t *testing.T) {
@@ -915,6 +941,10 @@ realm: "pam"
 insecure: true
 ssh_user: "sshuser"
 vm_ssh_user: "vmuser"
+ssh_jump_host:
+  addr: "jump.example.com"
+  user: "jumpuser"
+  keyfile: "/tmp/jump.key"
 debug: true
 cache_dir: "/tmp/test-cache"
 `
@@ -943,6 +973,9 @@ cache_dir: "/tmp/test-cache"
 	assert.True(t, defaultProfile.Insecure)
 	assert.Equal(t, "sshuser", defaultProfile.SSHUser)
 	assert.Equal(t, "vmuser", defaultProfile.VMSSHUser)
+	assert.Equal(t, "jump.example.com", defaultProfile.SSHJumpHost.Addr)
+	assert.Equal(t, "jumpuser", defaultProfile.SSHJumpHost.User)
+	assert.Equal(t, "/tmp/jump.key", defaultProfile.SSHJumpHost.Keyfile)
 
 	// Legacy fields should be cleared
 	assert.Equal(t, "", cfg.Addr)
@@ -952,6 +985,7 @@ cache_dir: "/tmp/test-cache"
 	assert.False(t, cfg.Insecure)
 	assert.Equal(t, "", cfg.SSHUser)
 	assert.Equal(t, "", cfg.VMSSHUser)
+	assert.Equal(t, SSHJumpHost{}, cfg.SSHJumpHost)
 
 	// Global settings should be preserved
 	assert.True(t, cfg.Debug)
@@ -1004,6 +1038,9 @@ func TestConfigMarshalYAMLIncludesLegacyFieldsWithoutProfiles(t *testing.T) {
 		Addr:     "https://legacy",
 		User:     "legacy",
 		Password: "legacy-pass",
+		SSHJumpHost: SSHJumpHost{
+			Addr: "jump.example.com",
+		},
 	}
 
 	data, err := yaml.Marshal(cfg)
@@ -1017,6 +1054,9 @@ func TestConfigMarshalYAMLIncludesLegacyFieldsWithoutProfiles(t *testing.T) {
 	}
 	if _, ok := decoded["user"]; !ok {
 		t.Fatalf("expected legacy user field to be serialized when no profiles exist")
+	}
+	if _, ok := decoded["ssh_jump_host"]; !ok {
+		t.Fatalf("expected legacy ssh_jump_host field to be serialized when no profiles exist")
 	}
 }
 
@@ -1032,6 +1072,9 @@ func clearProxmoxEnvVars() {
 		"PVETUI_API_PATH",
 		"PVETUI_INSECURE",
 		"PVETUI_SSH_USER",
+		"PVETUI_SSH_JUMPHOST_ADDR",
+		"PVETUI_SSH_JUMPHOST_USER",
+		"PVETUI_SSH_JUMPHOST_KEYFILE",
 		"PVETUI_AGE_DIR",
 		"PVETUI_DEBUG",
 		"PVETUI_CACHE_DIR",

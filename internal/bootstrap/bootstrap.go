@@ -29,20 +29,23 @@ type BootstrapOptions struct {
 	Version      bool
 	ConfigWizard bool
 	// Flag values for config overrides
-	FlagAddr        string
-	FlagUser        string
-	FlagPassword    string
-	FlagTokenID     string
-	FlagTokenSecret string
-	FlagRealm       string
-	FlagInsecure    bool
-	FlagApiPath     string
-	FlagSSHUser     string
-	FlagVMSSHUser   string
-	FlagDebug       bool
-	FlagCacheDir    string
-	FlagAgeDir      string
-	FlagShowIcons   *bool // Pointer to distinguish "not set" from false
+	FlagAddr               string
+	FlagUser               string
+	FlagPassword           string
+	FlagTokenID            string
+	FlagTokenSecret        string
+	FlagRealm              string
+	FlagInsecure           bool
+	FlagApiPath            string
+	FlagSSHUser            string
+	FlagVMSSHUser          string
+	FlagSSHJumpHostAddr    string
+	FlagSSHJumpHostUser    string
+	FlagSSHJumpHostKeyfile string
+	FlagDebug              bool
+	FlagCacheDir           string
+	FlagAgeDir             string
+	FlagShowIcons          *bool // Pointer to distinguish "not set" from false
 }
 
 // BootstrapResult contains the result of the bootstrap process.
@@ -279,6 +282,15 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			if opts.FlagVMSSHUser != "" {
 				profile.VMSSHUser = opts.FlagVMSSHUser
 			}
+			if opts.FlagSSHJumpHostAddr != "" {
+				profile.SSHJumpHost.Addr = opts.FlagSSHJumpHostAddr
+			}
+			if opts.FlagSSHJumpHostUser != "" {
+				profile.SSHJumpHost.User = opts.FlagSSHJumpHostUser
+			}
+			if opts.FlagSSHJumpHostKeyfile != "" {
+				profile.SSHJumpHost.Keyfile = opts.FlagSSHJumpHostKeyfile
+			}
 			cfg.Profiles[startupProfile] = profile
 		}
 	}
@@ -337,6 +349,15 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 	}
 	if opts.FlagVMSSHUser != "" {
 		cfg.VMSSHUser = opts.FlagVMSSHUser
+	}
+	if opts.FlagSSHJumpHostAddr != "" {
+		cfg.SSHJumpHost.Addr = opts.FlagSSHJumpHostAddr
+	}
+	if opts.FlagSSHJumpHostUser != "" {
+		cfg.SSHJumpHost.User = opts.FlagSSHJumpHostUser
+	}
+	if opts.FlagSSHJumpHostKeyfile != "" {
+		cfg.SSHJumpHost.Keyfile = opts.FlagSSHJumpHostKeyfile
 	}
 	if opts.FlagDebug {
 		cfg.Debug = true

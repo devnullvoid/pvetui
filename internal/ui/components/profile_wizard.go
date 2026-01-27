@@ -62,7 +62,8 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, groupString string
-	var insecure bool
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile string
+	var insecure, useJumpHost bool
 
 	// If we have profiles and a default profile, use profile data
 	//nolint:dupl // Shared with config wizard but kept inline for clarity
@@ -91,6 +92,12 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
+			sshJumpHostAddr = profile.SSHJumpHost.Addr
+			sshJumpHostUser = profile.SSHJumpHost.User
+			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
+			if sshJumpHostAddr != "" {
+				useJumpHost = true
+			}
 
 			// Join groups for display
 			groupString = strings.Join(profile.Groups, ", ")
@@ -118,6 +125,12 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
+		sshJumpHostAddr = cfg.SSHJumpHost.Addr
+		sshJumpHostUser = cfg.SSHJumpHost.User
+		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
+		if sshJumpHostAddr != "" {
+			useJumpHost = true
+		}
 		// Legacy config doesn't have group field
 	}
 
@@ -252,6 +265,67 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			cfg.VMSSHUser = value
 		}
 	})
+
+	// SSH Jump Host configuration (Advanced)
+	showIcons := cfg.ShowIcons
+	jumpHostLabel := "Use SSH Jump Host (Advanced)"
+	if showIcons {
+		jumpHostLabel = "🔀 " + jumpHostLabel
+	}
+	form.AddCheckbox(jumpHostLabel, useJumpHost, func(checked bool) {
+		useJumpHost = checked
+		if !checked {
+			// Clear jumphost values when disabled
+			sshJumpHostAddr = ""
+			sshJumpHostUser = ""
+			sshJumpHostKeyfile = ""
+			if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+				if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+					profile.SSHJumpHost = config.SSHJumpHost{}
+					cfg.Profiles[cfg.DefaultProfile] = profile
+				}
+			} else {
+				cfg.SSHJumpHost = config.SSHJumpHost{}
+			}
+		}
+	})
+
+	addInput("  Jump Host Address", sshJumpHostAddr, 40, nil, func(text string) {
+		value := strings.TrimSpace(text)
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHJumpHost.Addr = value
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHJumpHost.Addr = value
+		}
+	})
+
+	addInput("  Jump Host User", sshJumpHostUser, 20, nil, func(text string) {
+		value := strings.TrimSpace(text)
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHJumpHost.User = value
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHJumpHost.User = value
+		}
+	})
+
+	addInput("  Jump Host Keyfile", sshJumpHostKeyfile, 40, nil, func(text string) {
+		value := strings.TrimSpace(text)
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHJumpHost.Keyfile = value
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHJumpHost.Keyfile = value
+		}
+	})
+
 	addInput("Groups (comma separated)", groupString, 40, nil, func(text string) {
 		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
 			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {

@@ -28,12 +28,16 @@ func (a *App) openNodeShell() {
 
 	// Determine SSH user
 	sshUser := a.config.SSHUser
+	jumpHost := a.config.SSHJumpHost
 
 	// In group mode, try to get the SSH user from the node's source profile
 	if a.isGroupMode && node.SourceProfile != "" {
 		if profile, exists := a.config.Profiles[node.SourceProfile]; exists {
 			if profile.SSHUser != "" {
 				sshUser = profile.SSHUser
+			}
+			if profile.SSHJumpHost.Addr != "" {
+				jumpHost = profile.SSHJumpHost
 			}
 		}
 	}
@@ -49,7 +53,7 @@ func (a *App) openNodeShell() {
 		fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, sshUser)
 
 		// Execute SSH command
-		err := ssh.ExecuteNodeShell(sshUser, node.IP)
+		err := ssh.ExecuteNodeShell(sshUser, node.IP, jumpHost)
 		if err != nil {
 			fmt.Printf("\nError connecting to node: %v\n", err)
 		}
@@ -268,6 +272,7 @@ func (a *App) openVMShell() {
 	// Determine SSH users
 	hostShellUser := a.config.SSHUser
 	vmShellUser := a.config.VMSSHUser
+	jumpHost := a.config.SSHJumpHost
 
 	// In group mode, try to get users from the VM's source profile
 	if a.isGroupMode && vm.SourceProfile != "" {
@@ -277,6 +282,9 @@ func (a *App) openVMShell() {
 			}
 			if profile.VMSSHUser != "" {
 				vmShellUser = profile.VMSSHUser
+			}
+			if profile.SSHJumpHost.Addr != "" {
+				jumpHost = profile.SSHJumpHost
 			}
 		}
 	}
@@ -361,7 +369,7 @@ func (a *App) openVMShell() {
 				containerType, vm.Name, vm.ID, vm.Node, nodeIP)
 
 			// Execute LXC shell command with NixOS detection
-			err := ssh.ExecuteLXCShellWithVM(hostShellUser, nodeIP, vm)
+			err := ssh.ExecuteLXCShellWithVM(hostShellUser, nodeIP, vm, jumpHost)
 			if err != nil {
 				fmt.Printf("\nError connecting to %s: %v\n", containerType, err)
 			}
@@ -370,7 +378,7 @@ func (a *App) openVMShell() {
 			fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH as %s@%s...\n",
 				vm.Name, vm.ID, vmShellUser, vm.IP)
 
-			err := ssh.ExecuteQemuShell(vmShellUser, vm.IP)
+			err := ssh.ExecuteQemuShell(vmShellUser, vm.IP, jumpHost)
 			if err != nil {
 				fmt.Printf("\nFailed to SSH to VM: %v\n", err)
 			}

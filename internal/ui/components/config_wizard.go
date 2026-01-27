@@ -182,7 +182,8 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 	// Determine which data to use for form fields
 	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
-	var insecure bool
+	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile string
+	var insecure, useJumpHost bool
 
 	// If we are editing a profile, use its data
 	//nolint:dupl // Shared with profile wizard to keep legacy/profile editing consistent
@@ -211,6 +212,12 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
+			sshJumpHostAddr = profile.SSHJumpHost.Addr
+			sshJumpHostUser = profile.SSHJumpHost.User
+			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
+			if sshJumpHostAddr != "" {
+				useJumpHost = true
+			}
 		}
 	} else {
 		// Use legacy fields or defaults
@@ -235,6 +242,12 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
+		sshJumpHostAddr = cfg.SSHJumpHost.Addr
+		sshJumpHostUser = cfg.SSHJumpHost.User
+		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
+		if sshJumpHostAddr != "" {
+			useJumpHost = true
+		}
 	}
 
 	addrField := tview.NewInputField().
@@ -351,6 +364,50 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			}
 		})
 	form.AddFormItem(vmSSHUserField)
+
+	// SSH Jump Host configuration (Advanced)
+	showIcons := cfg.ShowIcons
+	jumpHostLabel := "Use SSH Jump Host (Advanced)"
+	if showIcons {
+		jumpHostLabel = "🔀 " + jumpHostLabel
+	}
+	form.AddCheckbox(jumpHostLabel, useJumpHost, func(checked bool) {
+		useJumpHost = checked
+		if !checked {
+			// Clear jumphost values when disabled
+			sshJumpHostAddr = ""
+			sshJumpHostUser = ""
+			sshJumpHostKeyfile = ""
+		}
+	})
+
+	jumpHostAddrField := tview.NewInputField().
+		SetLabel("  Jump Host Address").
+		SetText(sshJumpHostAddr).
+		SetFieldWidth(40).
+		SetChangedFunc(func(text string) {
+			sshJumpHostAddr = strings.TrimSpace(text)
+		})
+	form.AddFormItem(jumpHostAddrField)
+
+	jumpHostUserField := tview.NewInputField().
+		SetLabel("  Jump Host User").
+		SetText(sshJumpHostUser).
+		SetFieldWidth(20).
+		SetChangedFunc(func(text string) {
+			sshJumpHostUser = strings.TrimSpace(text)
+		})
+	form.AddFormItem(jumpHostUserField)
+
+	jumpHostKeyfileField := tview.NewInputField().
+		SetLabel("  Jump Host Keyfile").
+		SetText(sshJumpHostKeyfile).
+		SetFieldWidth(40).
+		SetChangedFunc(func(text string) {
+			sshJumpHostKeyfile = strings.TrimSpace(text)
+		})
+	form.AddFormItem(jumpHostKeyfileField)
+
 	form.AddCheckbox("Enable Debug Logging", cfg.Debug, func(checked bool) { cfg.Debug = checked })
 	form.AddInputField("Cache Directory", cfg.CacheDir, 40, nil, func(text string) { cfg.CacheDir = strings.TrimSpace(text) })
 	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
@@ -436,6 +493,16 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				ApiPath:     strings.TrimSpace(apiPath),
 				Insecure:    insecure,
 				SSHUser:     strings.TrimSpace(sshUser),
+				VMSSHUser:   strings.TrimSpace(vmSSHUser),
+			}
+
+			// Add SSH jumphost if enabled
+			if useJumpHost {
+				newProfile.SSHJumpHost = config.SSHJumpHost{
+					Addr:    strings.TrimSpace(sshJumpHostAddr),
+					User:    strings.TrimSpace(sshJumpHostUser),
+					Keyfile: strings.TrimSpace(sshJumpHostKeyfile),
+				}
 			}
 
 			// Clear conflicting auth method in new profile
@@ -473,6 +540,15 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 				SSHUser:     strings.TrimSpace(sshUser),
 				VMSSHUser:   strings.TrimSpace(vmSSHUser),
 				Groups:      append([]string{}, profile.Groups...),
+			}
+
+			// Add SSH jumphost if enabled
+			if useJumpHost {
+				updated.SSHJumpHost = config.SSHJumpHost{
+					Addr:    strings.TrimSpace(sshJumpHostAddr),
+					User:    strings.TrimSpace(sshJumpHostUser),
+					Keyfile: strings.TrimSpace(sshJumpHostKeyfile),
+				}
 			}
 
 			if hasPassword {

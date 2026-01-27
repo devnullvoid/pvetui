@@ -11,6 +11,10 @@ profiles:
     insecure: true
     ssh_user: root
     vm_ssh_user: root
+    # ssh_jump_host:
+    #   addr: jump.example.com
+    #   user: jumpuser
+    #   keyfile: /path/to/jump/key
 default_profile: default
 
 debug: false

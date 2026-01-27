@@ -116,16 +116,17 @@ type Config struct {
 	Plugins     PluginConfig `yaml:"plugins"`
 	ShowIcons   bool         `yaml:"show_icons"`
 	// Deprecated: legacy single-profile fields for migration
-	Addr        string `yaml:"addr"`
-	User        string `yaml:"user"`
-	Password    string `yaml:"password"`
-	TokenID     string `yaml:"token_id"`
-	TokenSecret string `yaml:"token_secret"`
-	Realm       string `yaml:"realm"`
-	ApiPath     string `yaml:"api_path"`
-	Insecure    bool   `yaml:"insecure"`
-	SSHUser     string `yaml:"ssh_user"`
-	VMSSHUser   string `yaml:"vm_ssh_user"`
+	Addr        string      `yaml:"addr"`
+	User        string      `yaml:"user"`
+	Password    string      `yaml:"password"`
+	TokenID     string      `yaml:"token_id"`
+	TokenSecret string      `yaml:"token_secret"`
+	Realm       string      `yaml:"realm"`
+	ApiPath     string      `yaml:"api_path"`
+	Insecure    bool        `yaml:"insecure"`
+	SSHUser     string      `yaml:"ssh_user"`
+	VMSSHUser   string      `yaml:"vm_ssh_user"`
+	SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 }
 
 func (c *Config) HasCleartextSensitiveData() bool {
@@ -293,6 +294,11 @@ func NewConfig() *Config {
 		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
 		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
 		AgeDir:      ExpandHomePath(os.Getenv("PVETUI_AGE_DIR")),
+		SSHJumpHost: SSHJumpHost{
+			Addr:    os.Getenv("PVETUI_SSH_JUMPHOST_ADDR"),
+			User:    os.Getenv("PVETUI_SSH_JUMPHOST_USER"),
+			Keyfile: os.Getenv("PVETUI_SSH_JUMPHOST_KEYFILE"),
+		},
 		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
 		CacheDir:    ExpandHomePath(os.Getenv("PVETUI_CACHE_DIR")),
 		KeyBindings: DefaultKeyBindings(),
@@ -383,16 +389,17 @@ func (c *Config) MergeWithFile(path string) error {
 		} `yaml:"plugins"`
 		ShowIcons *bool `yaml:"show_icons"`
 		// Legacy fields for migration
-		Addr        string `yaml:"addr"`
-		User        string `yaml:"user"`
-		Password    string `yaml:"password"`
-		TokenID     string `yaml:"token_id"`
-		TokenSecret string `yaml:"token_secret"`
-		Realm       string `yaml:"realm"`
-		ApiPath     string `yaml:"api_path"`
-		Insecure    *bool  `yaml:"insecure"`
-		SSHUser     string `yaml:"ssh_user"`
-		VMSSHUser   string `yaml:"vm_ssh_user"`
+		Addr        string      `yaml:"addr"`
+		User        string      `yaml:"user"`
+		Password    string      `yaml:"password"`
+		TokenID     string      `yaml:"token_id"`
+		TokenSecret string      `yaml:"token_secret"`
+		Realm       string      `yaml:"realm"`
+		ApiPath     string      `yaml:"api_path"`
+		Insecure    *bool       `yaml:"insecure"`
+		SSHUser     string      `yaml:"ssh_user"`
+		VMSSHUser   string      `yaml:"vm_ssh_user"`
+		SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 	}
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
@@ -456,6 +463,9 @@ func (c *Config) MergeWithFile(path string) error {
 				if fileProfile.VMSSHUser != "" {
 					existingProfile.VMSSHUser = fileProfile.VMSSHUser
 				}
+				if fileProfile.SSHJumpHost.Addr != "" {
+					existingProfile.SSHJumpHost = fileProfile.SSHJumpHost
+				}
 
 				c.Profiles[name] = existingProfile
 			}
@@ -499,6 +509,9 @@ func (c *Config) MergeWithFile(path string) error {
 		}
 		if fileConfig.VMSSHUser != "" {
 			c.VMSSHUser = fileConfig.VMSSHUser
+		}
+		if fileConfig.SSHJumpHost.Addr != "" {
+			c.SSHJumpHost = fileConfig.SSHJumpHost
 		}
 	}
 

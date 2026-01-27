@@ -30,6 +30,10 @@ profiles:
     insecure: false
     ssh_user: "your-ssh-user"
     vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VMs
+    ssh_jump_host:                 # Optional: route SSH through a bastion host
+      addr: "jump.example.com"
+      user: "jumpuser"
+      keyfile: "/path/to/jump.key"
     groups: # Optional: Add profile to one or more groups
       - home-lab
       - all-servers
@@ -43,6 +47,8 @@ profiles:
     insecure: false
     ssh_user: "workuser"
     vm_ssh_user: "work-vm-user"
+    ssh_jump_host:
+      addr: "work-jump.example.com"
     groups:
       - all-servers
 
@@ -83,7 +89,7 @@ plugins:
     - "community-scripts"  # Enable the default community scripts plugin
 ```
 
-`vm_ssh_user` lets you specify a different login for QEMU VM shells. If omitted, pvetui falls back to `ssh_user`, so you only need to set it when your VM accounts differ from the Proxmox host user.
+`vm_ssh_user` lets you specify a different login for QEMU VM shells. If omitted, pvetui falls back to `ssh_user`, so you only need to set it when your VM accounts differ from the Proxmox host user. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
 
 ## Profile Management
 
@@ -117,6 +123,8 @@ profiles:
     insecure: false
     ssh_user: "root"
     vm_ssh_user: "root"
+    ssh_jump_host:
+      addr: "jump.example.com"
 ```
 
 ### Password Authentication
@@ -327,6 +335,24 @@ profiles:
     realm: "pam"
     insecure: true  # Allow self-signed certificates
     ssh_user: "your-ssh-user"
+
+### SSH Jump Host
+
+Route SSH connections through a bastion host:
+
+```yaml
+profiles:
+  default:
+    ssh_user: "your-ssh-user"
+    vm_ssh_user: "vm-login-user"
+    ssh_jump_host:
+      addr: "jump.example.com"
+      user: "jumpuser"
+      keyfile: "/path/to/jump.key"
+```
+
+You can also configure these via environment variables:
+`PVETUI_SSH_JUMPHOST_ADDR`, `PVETUI_SSH_JUMPHOST_USER`, and `PVETUI_SSH_JUMPHOST_KEYFILE`.
 ```
 
 ## Configuration File Locations
