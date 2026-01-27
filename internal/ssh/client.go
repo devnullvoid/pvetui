@@ -125,9 +125,8 @@ func ExecuteNodeShell(user, nodeIP string, jumphost config.SSHJumpHost) error {
 //
 // Returns an error if the SSH connection fails.
 func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, jumphost config.SSHJumpHost) error {
-	sshLogger().Debug("SSH node shell: user=%s host=%s jumphost=%+v", user, nodeIP, jumphost)
-
 	args := buildSSHArgs(user, nodeIP, jumphost)
+	sshLogger().Debug("SSH node shell: user=%s host=%s jumphost=%+v args=%v", user, nodeIP, jumphost, args)
 	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
@@ -316,9 +315,8 @@ func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmI
 		return fmt.Errorf("no IP address available for VM")
 	}
 
-	sshLogger().Debug("SSH QEMU shell: user=%s host=%s jumphost=%+v", user, vmIP, jumphost)
-
 	args := buildSSHArgs(user, vmIP, jumphost)
+	sshLogger().Debug("SSH QEMU shell: user=%s host=%s jumphost=%+v args=%v", user, vmIP, jumphost, args)
 	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout

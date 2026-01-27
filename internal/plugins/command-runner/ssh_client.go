@@ -152,6 +152,7 @@ func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
 	addr := fmt.Sprintf("%s:%d", host, c.port)
 
 	if c.jumpHost.Addr == "" {
+		crSSHLogger().Debug("SSH exec: direct dial host=%s port=%d", host, c.port)
 		client, err := ssh.Dial("tcp", addr, targetConfig)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to connect to %s: %w", addr, err)
@@ -174,6 +175,7 @@ func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
 		jumpPort = c.port
 	}
 	jumpAddr := fmt.Sprintf("%s:%d", c.jumpHost.Addr, jumpPort)
+	crSSHLogger().Debug("SSH exec: dial via jump host=%s user=%s target=%s", jumpAddr, jumpUser, addr)
 	jumpClient, err := ssh.Dial("tcp", jumpAddr, jumpConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect to jump host %s: %w", jumpAddr, err)
