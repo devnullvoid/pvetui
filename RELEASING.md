@@ -7,6 +7,9 @@ This document outlines how to create releases with changelog content included in
 - [GitHub CLI](https://cli.github.com/) installed and authenticated
 - Write access to the repository
 - Updated `CHANGELOG.md` with the new version
+- Release announcement secrets configured in GitHub:
+  - `MASTODON_SERVER`, `MASTODON_CLIENT_ID`, `MASTODON_CLIENT_SECRET`, `MASTODON_ACCESS_TOKEN`
+  - `BLUESKY_USERNAME`, `BLUESKY_APP_PASSWORD`
 
 ## Testing Workflows Locally
 
@@ -115,4 +118,4 @@ If release notes are empty:
 ### GitHub CLI Issues
 If `gh` commands fail:
 - Authenticate: `gh auth login`
-- Check repository access: `gh repo view` 
+- Check repository access: `gh repo view`
