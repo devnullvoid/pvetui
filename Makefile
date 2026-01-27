@@ -12,6 +12,18 @@ GO_VERSION := 1.24.2
 # Default to host platform, allow override via environment variables
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
+# Optional full rebuild (set REBUILD=1 to force -a)
+REBUILD ?=
+# Optional trimpath for local builds (set TRIMPATH=0 to disable)
+TRIMPATH ?= 1
+GO_BUILD_FLAGS := -installsuffix cgo \
+	$(if $(filter 1 true yes,$(REBUILD)),-a,) \
+	$(if $(filter 1 true yes,$(TRIMPATH)),-trimpath,)
+
+# Package lists (computed once)
+PKGS_ALL := $(shell go list ./...)
+PKGS_NO_EXAMPLES := $(filter-out %/examples,$(PKGS_ALL))
+PKGS_UNIT := $(filter-out %/test/integration,$(PKGS_NO_EXAMPLES))
 
 # Colors
 GREEN := \033[0;32m
@@ -19,7 +31,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build test clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update
+.PHONY: help build build-fast test test-quick clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update
 
 # Default target
 help: ## Show this help message
@@ -54,10 +66,15 @@ openapi-serve-stop: ## Stop Redoc viewer started by openapi-serve
 build: ## Build the application binary
 	@printf "$(GREEN)Building $(APP_NAME)...$(NC)\n"
 	# Use pure-Go build; only use GOAMD64=v1 and extra tags when targeting Windows/amd64
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -installsuffix cgo \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GO_BUILD_FLAGS) \
 		-ldflags="-X github.com/devnullvoid/pvetui/internal/version.version=$(VERSION) \
 		-X github.com/devnullvoid/pvetui/internal/version.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
 		-X github.com/devnullvoid/pvetui/internal/version.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+		-o ./bin/$(APP_NAME) ./cmd/pvetui
+
+build-fast: ## Fast local build (skip version ldflags)
+	@printf "$(GREEN)Building $(APP_NAME) (fast)...$(NC)\n"
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GO_BUILD_FLAGS) \
 		-o ./bin/$(APP_NAME) ./cmd/pvetui
 
 install: ## Build and install the application from source
@@ -88,7 +105,7 @@ uninstall: ## Uninstall the application
 
 test: ## Run unit tests
 	@printf "$(GREEN)Running unit tests...$(NC)\n"
-	go test -v $(shell go list ./... | grep -v /examples | grep -v /test/integration)
+	go test -v $(PKGS_UNIT)
 
 test-unit: test ## Alias for test (unit tests only)
 
@@ -113,16 +130,20 @@ test-integration-real: ## Run integration tests against real Proxmox (requires P
 
 test-all: ## Run all tests (unit + integration)
 	@printf "$(GREEN)Running all tests...$(NC)\n"
-	go test -v $(shell go list ./... | grep -v /examples)
+	go test -v $(PKGS_NO_EXAMPLES)
+
+test-quick: ## Run unit tests (no race/coverage)
+	@printf "$(GREEN)Running quick unit tests...$(NC)\n"
+	go test -v $(PKGS_UNIT)
 
 test-coverage: ## Run unit tests with coverage
 	@printf "$(GREEN)Running unit tests with coverage...$(NC)\n"
-	go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples | grep -v /test/integration)
+	go test -v -coverprofile=coverage.out $(PKGS_UNIT)
 	go tool cover -html=coverage.out -o coverage.html
 
 test-coverage-all: ## Run all tests with coverage
 	@printf "$(GREEN)Running all tests with coverage...$(NC)\n"
-	go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples)
+	go test -v -coverprofile=coverage.out $(PKGS_NO_EXAMPLES)
 	go tool cover -html=coverage.out -o coverage.html
 
 # Workflow testing targets

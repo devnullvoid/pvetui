@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Release Pipeline**: Simplified GitHub token configuration by removing duplicate secret names (`HOMEBREW_TAP_TOKEN`, `SCOOP_BUCKET_TOKEN`) in favor of consistent `_GITHUB_TOKEN` naming.
+- **Makefile Build**: `make build` now uses the build cache by default; set `REBUILD=1` to force a full toolchain rebuild.
+- **Local Dev Workflow**: Added `build-fast` and `test-quick` targets and cached package lists for faster local builds/tests; optional `TRIMPATH=0` disables trimpath in local builds.
 
 ## [1.0.16] - 2026-01-01
 
