@@ -43,8 +43,11 @@ jobs:
 
             # Extract the 'got:' hash.
             # The output format usually contains:
-            # got:    sha256-...........................................=
-            NEW_HASH=$(echo "$OUTPUT" | grep "got:" | head -n1 | cut -d: -f2 | xargs)
+            #          got:    sha256-...........................................=
+            # or
+            #         got: sha256-...........................................=
+            # Handle variable whitespace before and after "got:"
+            NEW_HASH=$(echo "$OUTPUT" | grep -E "^\s*got:" | head -n1 | sed 's/.*got:\s*//' | xargs)
 
             if [ -n "$NEW_HASH" ]; then
               echo "Found new hash: $NEW_HASH"
@@ -55,8 +58,9 @@ jobs:
 
               if [ "$NEW_HASH" != "$CURRENT_HASH" ]; then
                 # Update flake.nix
-                # Using | as delimiter to avoid issues with / in base64 strings (though unlikely in sha256- format)
-                sed -i "s|vendorHash = \".*\"|vendorHash = \"$NEW_HASH\"|" flake.nix
+                # Only match lines starting with optional whitespace followed by "vendorHash ="
+                # This prevents accidentally matching comments or other occurrences
+                sed -i '/^\s*vendorHash = /s|vendorHash = ".*"|vendorHash = "'$NEW_HASH'"|' flake.nix
                 echo "flake.nix updated."
                 echo "updated=true" >> $GITHUB_OUTPUT
               else
