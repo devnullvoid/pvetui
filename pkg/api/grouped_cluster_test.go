@@ -22,9 +22,9 @@ func TestGroupClientManager_GetGroupNodes_WithOfflineProfile(t *testing.T) {
 		if r.URL.Path == "/api2/json/access/ticket" {
 			// Auth
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
-					"ticket": "ticket1",
+					"ticket":              "ticket1",
 					"CSRFPreventionToken": "csrf1",
 				},
 			})
@@ -32,18 +32,18 @@ func TestGroupClientManager_GetGroupNodes_WithOfflineProfile(t *testing.T) {
 		}
 		if r.URL.Path == "/api2/json/cluster/resources" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": []interface{}{
 					map[string]interface{}{
-						"type": "node",
-						"node": "node1",
-						"cpu": 0.5,
-						"maxcpu": 8,
-						"mem": 8589934592,
-						"maxmem": 17179869184,
-						"disk": 10737418240,
+						"type":    "node",
+						"node":    "node1",
+						"cpu":     0.5,
+						"maxcpu":  8,
+						"mem":     8589934592,
+						"maxmem":  17179869184,
+						"disk":    10737418240,
 						"maxdisk": 107374182400,
-						"uptime": 123456,
+						"uptime":  123456,
 					},
 				},
 			})
@@ -51,12 +51,12 @@ func TestGroupClientManager_GetGroupNodes_WithOfflineProfile(t *testing.T) {
 		}
 		if r.URL.Path == "/api2/json/cluster/status" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": []interface{}{
 					map[string]interface{}{
-						"id": "node/node1",
-						"name": "node1",
-						"type": "node",
+						"id":     "node/node1",
+						"name":   "node1",
+						"type":   "node",
 						"online": 1,
 					},
 				},
@@ -65,10 +65,10 @@ func TestGroupClientManager_GetGroupNodes_WithOfflineProfile(t *testing.T) {
 		}
 		if r.URL.Path == "/api2/json/nodes" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": []interface{}{
 					map[string]interface{}{
-						"node": "node1",
+						"node":   "node1",
 						"status": "online",
 					},
 				},
@@ -91,16 +91,16 @@ func TestGroupClientManager_GetGroupNodes_WithOfflineProfile(t *testing.T) {
 		{
 			Name: "profile1",
 			Config: &MockConfig{
-				Addr: server1.URL,
-				User: "user",
+				Addr:     server1.URL,
+				User:     "user",
 				Password: "password",
 			},
 		},
 		{
 			Name: "profile2",
 			Config: &MockConfig{
-				Addr: server2.URL,
-				User: "user",
+				Addr:     server2.URL,
+				User:     "user",
 				Password: "password",
 			},
 		},
@@ -150,8 +150,9 @@ func TestGroupClientManager_GetGroupNodes_WithOfflineProfile(t *testing.T) {
 }
 
 // MockCache implementation
-type MockCache struct {}
-func (m *MockCache) Get(key string, dest interface{}) (bool, error) { return false, nil }
+type MockCache struct{}
+
+func (m *MockCache) Get(key string, dest interface{}) (bool, error)             { return false, nil }
 func (m *MockCache) Set(key string, value interface{}, ttl time.Duration) error { return nil }
-func (m *MockCache) Delete(key string) error { return nil }
-func (m *MockCache) Clear() error { return nil }
+func (m *MockCache) Delete(key string) error                                    { return nil }
+func (m *MockCache) Clear() error                                               { return nil }

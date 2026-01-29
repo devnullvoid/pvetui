@@ -84,16 +84,15 @@ func (m *GroupClientManager) GetGroupNodes(ctx context.Context) ([]*Node, error)
 			status, lastErr := pc.GetStatus()
 
 			// Determine reason for missing data
-			errorMsg := "Unknown Error"
+			var errorMsg string
 			if status == ProfileStatusConnected {
 				// Connected but returned no nodes?
 				errorMsg = "No Data"
+			} else if lastErr != nil {
+				// Use a short error message
+				errorMsg = "Connection Failed"
 			} else {
 				errorMsg = "Offline"
-				if lastErr != nil {
-					// Use a short error message
-					errorMsg = "Connection Failed"
-				}
 			}
 
 			// Create placeholder node
