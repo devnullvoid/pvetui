@@ -18,7 +18,7 @@ var shellLogger = logger.GetPackageLogger("ui-shell")
 func (a *App) openNodeShell() {
 	node := a.nodeList.GetSelectedNode()
 	if node == nil || node.IP == "" {
-		a.showMessage("Node IP address not available")
+		a.showMessageSafe("Node IP address not available")
 		return
 	}
 
@@ -43,7 +43,7 @@ func (a *App) openNodeShell() {
 	}
 
 	if sshUser == "" {
-		a.showMessage("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
+		a.showMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
 		return
 	}
 

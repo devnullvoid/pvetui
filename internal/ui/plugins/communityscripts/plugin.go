@@ -88,7 +88,7 @@ func (p *Plugin) openSelector(ctx context.Context, app *components.App, node *ap
 
 	sshUser := resolveSSHUser(app, node)
 	if sshUser == "" {
-		app.ShowMessage("SSH user not configured. Please set PROXMOX_SSH_USER or profile ssh_user.")
+		app.ShowMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER or profile ssh_user.")
 
 		return nil
 	}
@@ -112,7 +112,7 @@ func (p *Plugin) openSelectorForLXC(ctx context.Context, app *components.App, no
 
 	sshUser := resolveSSHUser(app, node)
 	if sshUser == "" {
-		app.ShowMessage("SSH user not configured. Please set PROXMOX_SSH_USER or profile ssh_user.")
+		app.ShowMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER or profile ssh_user.")
 		return nil
 	}
 

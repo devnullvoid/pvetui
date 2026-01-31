@@ -776,7 +776,7 @@ func (a *App) showEditProfileDialog(profileName string) {
 
 	if !exists {
 
-		a.showMessage("Profile '" + profileName + "' not found!")
+		a.showMessageSafe("Profile '" + profileName + "' not found!")
 
 		return
 

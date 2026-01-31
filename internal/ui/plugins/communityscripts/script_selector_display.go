@@ -129,7 +129,7 @@ func (s *ScriptSelector) Hide() {
 func (s *ScriptSelector) Show() {
 	// Ensure we have a valid node IP
 	if s.nodeIP == "" {
-		s.app.ShowMessage("Node IP address not available. Cannot connect to install scripts.")
+		s.app.ShowMessageSafe("Node IP address not available. Cannot connect to install scripts.")
 
 		return
 	}
