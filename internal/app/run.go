@@ -66,37 +66,80 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 	// Initialize API client (this just sets up the client, doesn't test connectivity)
 	fmt.Println("🔧 Initializing API client...")
 
-	client, err := api.NewClient(
-		configAdapter,
-		api.WithLogger(loggerAdapter),
-		api.WithCache(cacheAdapter),
-	)
-	if err != nil {
-		// Provide more specific error messages
-		if strings.Contains(err.Error(), "authentication failed") {
-			return fmt.Errorf("authentication failed: %w", err)
-		} else if strings.Contains(err.Error(), "missing port") {
-			return fmt.Errorf("invalid address format (missing port): %w", err)
-		}
+	var client *api.Client
+	var profilesToTry []string
 
-		return fmt.Errorf("failed to initialize API client: %w", err)
+	if opts.InitialGroup != "" {
+		profilesToTry = cfg.GetProfileNamesInGroup(opts.InitialGroup)
+	} else {
+		// Just try the current config (which is already set up)
+		profilesToTry = []string{""}
 	}
 
-	fmt.Println("✅ API client initialized")
+	var connected bool
+	var lastErr error
 
-	// Now test actual connectivity and authentication
-	fmt.Printf("🔗 Testing connection to %s...\n", strings.TrimSuffix(cfg.Addr, "/api2/json"))
-
-	// Try a simple API call to verify connectivity and authentication
-	var result map[string]interface{}
-	if testErr := client.GetNoRetry("/version", &result); testErr != nil {
-		if strings.Contains(testErr.Error(), "authentication failed") || strings.Contains(testErr.Error(), "Unauthorized") {
-			return fmt.Errorf("authentication failed: invalid credentials")
-		} else if strings.Contains(testErr.Error(), "connection") || strings.Contains(testErr.Error(), "timeout") || strings.Contains(testErr.Error(), "dial") || strings.Contains(testErr.Error(), "name resolution") {
-			return fmt.Errorf("connection failed: %w", testErr)
+	for _, profileName := range profilesToTry {
+		if profileName != "" {
+			if err := cfg.ApplyProfile(profileName); err != nil {
+				mainLogger.Error("Failed to apply profile %s: %v", profileName, err)
+				continue
+			}
+			// Normalize the API URL again as ApplyProfile might have reset it
+			cfg.Addr = strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.ApiPath, "/")
 		}
 
-		return fmt.Errorf("API test failed: %w", testErr)
+		client, err = api.NewClient(
+			configAdapter,
+			api.WithLogger(loggerAdapter),
+			api.WithCache(cacheAdapter),
+		)
+		if err != nil {
+			lastErr = err
+			// Provide more specific error messages
+			if strings.Contains(err.Error(), "authentication failed") {
+				mainLogger.Error("Authentication failed for %s: %v", profileName, err)
+			} else if strings.Contains(err.Error(), "missing port") {
+				mainLogger.Error("Invalid address format for %s: %v", profileName, err)
+			} else {
+				mainLogger.Error("Failed to initialize API client for %s: %v", profileName, err)
+			}
+			continue
+		}
+
+		if profileName != "" {
+			fmt.Printf("🔗 Testing connection to %s (%s)...\n", profileName, strings.TrimSuffix(cfg.Addr, "/api2/json"))
+		} else {
+			fmt.Printf("🔗 Testing connection to %s...\n", strings.TrimSuffix(cfg.Addr, "/api2/json"))
+		}
+
+		// Try a simple API call to verify connectivity and authentication
+		var result map[string]interface{}
+		if testErr := client.GetNoRetry("/version", &result); testErr != nil {
+			lastErr = testErr
+			if strings.Contains(testErr.Error(), "authentication failed") || strings.Contains(testErr.Error(), "Unauthorized") {
+				mainLogger.Error("Authentication failed for %s: invalid credentials", profileName)
+			} else if strings.Contains(testErr.Error(), "connection") || strings.Contains(testErr.Error(), "timeout") || strings.Contains(testErr.Error(), "dial") || strings.Contains(testErr.Error(), "name resolution") {
+				mainLogger.Error("Connection failed for %s: %v", profileName, testErr)
+			} else {
+				mainLogger.Error("API test failed for %s: %v", profileName, testErr)
+			}
+			continue
+		}
+
+		connected = true
+		fmt.Println("✅ API client initialized")
+		break
+	}
+
+	if !connected {
+		if lastErr != nil {
+			if strings.Contains(lastErr.Error(), "authentication failed") {
+				return fmt.Errorf("authentication failed: invalid credentials")
+			}
+			return fmt.Errorf("connection failed: %w", lastErr)
+		}
+		return fmt.Errorf("failed to connect to any profile")
 	}
 
 	fmt.Println("✅ Connected successfully")

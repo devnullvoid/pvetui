@@ -52,14 +52,72 @@ func (m *GroupClientManager) GetGroupNodes(ctx context.Context) ([]*Node, error)
 	}
 
 	data, err := m.GetGroupData(ctx, operation, groupFunc)
+
+	// Handle the case where no profiles returned results (possibly all offline)
+	var nodes []*Node
 	if err != nil {
-		return nil, err
+		if err.Error() == "no profiles returned successful results" {
+			nodes = []*Node{}
+		} else {
+			return nil, err
+		}
+	} else {
+		var ok bool
+		nodes, ok = data.([]*Node)
+		if !ok {
+			return nil, fmt.Errorf("unexpected data type returned from grouping")
+		}
 	}
 
-	nodes, ok := data.([]*Node)
-	if !ok {
-		return nil, fmt.Errorf("unexpected data type returned from grouping")
+	// Identify which profiles are represented in the results
+	representedProfiles := make(map[string]bool)
+	for _, node := range nodes {
+		if node != nil {
+			representedProfiles[node.SourceProfile] = true
+		}
 	}
+
+	// Add placeholder nodes for missing/offline profiles
+	allClients := m.GetAllClients()
+	for _, pc := range allClients {
+		if !representedProfiles[pc.ProfileName] {
+			status, lastErr := pc.GetStatus()
+
+			// Determine reason for missing data
+			var errorMsg string
+			if status == ProfileStatusConnected {
+				// Connected but returned no nodes?
+				errorMsg = "No Data"
+			} else if lastErr != nil {
+				// Use a short error message
+				errorMsg = "Connection Failed"
+			} else {
+				errorMsg = "Offline"
+			}
+
+			// Create placeholder node
+			placeholder := &Node{
+				ID:            fmt.Sprintf("offline-%s", pc.ProfileName),
+				Name:          pc.ProfileName,
+				Online:        false,
+				SourceProfile: pc.ProfileName,
+				Version:       errorMsg, // Use Version field to potentially show error
+			}
+			nodes = append(nodes, placeholder)
+		}
+	}
+
+	// Sort nodes again to ensure offline nodes are interleaved correctly
+	sort.Slice(nodes, func(i, j int) bool {
+		if nodes[i] == nil || nodes[j] == nil {
+			return nodes[i] != nil
+		}
+		// Sort by profile name first, then by node name
+		if nodes[i].SourceProfile != nodes[j].SourceProfile {
+			return nodes[i].SourceProfile < nodes[j].SourceProfile
+		}
+		return nodes[i].Name < nodes[j].Name
+	})
 
 	return nodes, nil
 }
