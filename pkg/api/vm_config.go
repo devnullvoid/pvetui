@@ -17,7 +17,7 @@ type VMConfig struct {
 	Memory      int64  `json:"memory,omitempty"` // in bytes
 	Description string `json:"description,omitempty"`
 	OnBoot      *bool  `json:"onboot,omitempty"`
-	// Tags is a comma-separated list of guest tags.
+	// Tags is a semicolon-separated list of guest tags.
 	Tags string `json:"tags,omitempty"`
 	// TagsExplicit controls whether tags should be included in update payloads.
 	TagsExplicit bool `json:"-"`

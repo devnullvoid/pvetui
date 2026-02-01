@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Group Mode Source Profile Preservation**: Fixed VMs losing their cluster association after operations in group mode, which caused "source profile not set" errors. The SourceProfile field is now preserved when refreshing individual VM data.
 - **Group Mode Initial Loading Feedback**: Added header loading message "Loading guest agent data" during initial startup in group mode. Previously, profile names would appear in the UI without warning after a silent enrichment process.
 - **CI Cache Noise**: Removed redundant Go module cache restore in CI to prevent tar "File exists" errors during lint/test/build jobs.
+- **Group Mode Config Polling**: Avoided cross-profile cluster resource polling when only tags change, reducing delays after saving guest configuration.
 
 ## [1.0.16] - 2026-01-01
 

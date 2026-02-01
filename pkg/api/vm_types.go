@@ -56,7 +56,7 @@ type VM struct {
 	// Administrative and cluster information
 	HAState  string `json:"hastate,omitempty"`  // High availability state
 	Lock     string `json:"lock,omitempty"`     // Lock status if VM is locked
-	Tags     string `json:"tags,omitempty"`     // Comma-separated tags
+	Tags     string `json:"tags,omitempty"`     // Semicolon-separated tags
 	Template bool   `json:"template,omitempty"` // Whether this is a template
 	Pool     string `json:"pool,omitempty"`     // Resource pool assignment
 

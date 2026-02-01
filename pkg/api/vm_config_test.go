@@ -26,7 +26,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				"cpu":         "host",
 				"maxmem":      16384.0,
 				"boot":        "order=scsi0;net0",
-				"tags":        "prod,db",
+				"tags":        "prod;db",
 			},
 			expected: &VMConfig{
 				Name:         "test-vm",
@@ -38,7 +38,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				CPUType:      "host",
 				MaxMem:       16384,
 				BootOrder:    "order=scsi0;net0",
-				Tags:         "prod,db",
+				Tags:         "prod;db",
 				TagsExplicit: true,
 			},
 		},
