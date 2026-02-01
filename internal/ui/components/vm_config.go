@@ -118,8 +118,8 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	})
 
 	// Tags
-	initialTags := strings.TrimSpace(config.Tags)
-	form.AddInputField("Tags (comma-separated)", initialTags, 40, nil, func(text string) {
+	initialTags := normalizeTags(config.Tags)
+	form.AddInputField("Tags (semicolon-separated)", initialTags, 40, nil, func(text string) {
 		page.config.Tags = normalizeTags(text)
 		page.config.TagsExplicit = true
 	})
@@ -302,7 +302,7 @@ func normalizeTags(raw string) string {
 		}
 		cleaned = append(cleaned, trimmed)
 	}
-	return strings.Join(cleaned, ",")
+	return strings.Join(cleaned, ";")
 }
 
 // showResizeStorageModal displays a modal for resizing a storage volume.
@@ -429,13 +429,18 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 // to both the config endpoint and the cluster resources endpoint before refreshing the UI.
 // This prevents race conditions where config is updated but cluster resources still show old names.
 func (app *App) pollForConfigChange(vm *api.VM, expectedName string) {
+	client, err := app.getClientForVM(vm)
+	if err != nil {
+		client = app.client
+	}
+
 	// Poll every 500ms for up to 15 seconds (increased timeout for cluster resources propagation)
 	maxAttempts := 30
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		time.Sleep(500 * time.Millisecond)
 
 		// First check if the config endpoint has the new name using the existing API function
-		config, err := app.client.GetVMConfig(vm)
+		config, err := client.GetVMConfig(vm)
 		configUpdated := false
 
 		if err == nil && config != nil {
