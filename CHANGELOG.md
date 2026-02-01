@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Group Mode VM Details Refresh**: Fixed VM details panel not updating after operations (reboot, start, stop, etc.) in group mode by ensuring the correct profile-specific client is used to fetch fresh VM data.
 - **Group Mode Source Profile Preservation**: Fixed VMs losing their cluster association after operations in group mode, which caused "source profile not set" errors. The SourceProfile field is now preserved when refreshing individual VM data.
 - **Group Mode Initial Loading Feedback**: Added header loading message "Loading guest agent data" during initial startup in group mode. Previously, profile names would appear in the UI without warning after a silent enrichment process.
+- **CI Cache Noise**: Removed redundant Go module cache restore in CI to prevent tar "File exists" errors during lint/test/build jobs.
 
 ## [1.0.16] - 2026-01-01
 
