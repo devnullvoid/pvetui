@@ -55,6 +55,10 @@ func (a *App) refreshVMData(vm *api.VM) {
 			// Find the VM in the global state and update it
 			for i, originalVM := range models.GlobalState.OriginalVMs {
 				if originalVM != nil && originalVM.ID == vmID && originalVM.Node == vmNode {
+					// Preserve SourceProfile from original VM (important for group mode)
+					if originalVM.SourceProfile != "" {
+						freshVM.SourceProfile = originalVM.SourceProfile
+					}
 					models.GlobalState.OriginalVMs[i] = freshVM
 
 					break
@@ -64,6 +68,10 @@ func (a *App) refreshVMData(vm *api.VM) {
 			// Update filtered VMs if they exist
 			for i, filteredVM := range models.GlobalState.FilteredVMs {
 				if filteredVM != nil && filteredVM.ID == vmID && filteredVM.Node == vmNode {
+					// Preserve SourceProfile from filtered VM (important for group mode)
+					if filteredVM.SourceProfile != "" {
+						freshVM.SourceProfile = filteredVM.SourceProfile
+					}
 					models.GlobalState.FilteredVMs[i] = freshVM
 
 					break
@@ -157,6 +165,10 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 			// Find the VM in the global state and update it
 			for i, originalVM := range models.GlobalState.OriginalVMs {
 				if originalVM != nil && originalVM.ID == vmID && originalVM.Node == vmNode {
+					// Preserve SourceProfile from original VM (important for group mode)
+					if originalVM.SourceProfile != "" {
+						freshVM.SourceProfile = originalVM.SourceProfile
+					}
 					models.GlobalState.OriginalVMs[i] = freshVM
 
 					break
@@ -166,6 +178,10 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 			// Update filtered VMs if they exist
 			for i, filteredVM := range models.GlobalState.FilteredVMs {
 				if filteredVM != nil && filteredVM.ID == vmID && filteredVM.Node == vmNode {
+					// Preserve SourceProfile from filtered VM (important for group mode)
+					if filteredVM.SourceProfile != "" {
+						freshVM.SourceProfile = filteredVM.SourceProfile
+					}
 					models.GlobalState.FilteredVMs[i] = freshVM
 
 					break
