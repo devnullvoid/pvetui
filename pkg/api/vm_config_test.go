@@ -26,17 +26,20 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				"cpu":         "host",
 				"maxmem":      16384.0,
 				"boot":        "order=scsi0;net0",
+				"tags":        "prod,db",
 			},
 			expected: &VMConfig{
-				Name:        "test-vm",
-				Cores:       4,
-				Sockets:     2,
-				Memory:      8 * 1024 * 1024 * 1024, // 8GB in bytes
-				Description: "Test VM",
-				OnBoot:      &[]bool{true}[0],
-				CPUType:     "host",
-				MaxMem:      16384,
-				BootOrder:   "order=scsi0;net0",
+				Name:         "test-vm",
+				Cores:        4,
+				Sockets:      2,
+				Memory:       8 * 1024 * 1024 * 1024, // 8GB in bytes
+				Description:  "Test VM",
+				OnBoot:       &[]bool{true}[0],
+				CPUType:      "host",
+				MaxMem:       16384,
+				BootOrder:    "order=scsi0;net0",
+				Tags:         "prod,db",
+				TagsExplicit: true,
 			},
 		},
 		{
@@ -100,6 +103,8 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 			assert.Equal(t, tt.expected.Memory, result.Memory)
 			assert.Equal(t, tt.expected.Description, result.Description)
 			assert.Equal(t, tt.expected.OnBoot, result.OnBoot)
+			assert.Equal(t, tt.expected.Tags, result.Tags)
+			assert.Equal(t, tt.expected.TagsExplicit, result.TagsExplicit)
 
 			if tt.vmType == VMTypeQemu {
 				assert.Equal(t, tt.expected.CPUType, result.CPUType)
@@ -138,6 +143,9 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				} else {
 					assert.Equal(t, 0, payload["onboot"])
 				}
+			}
+			if tt.expected.TagsExplicit {
+				assert.Equal(t, tt.expected.Tags, payload["tags"])
 			}
 
 			if tt.vmType == VMTypeQemu {

@@ -116,6 +116,14 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	form.AddTextArea("Description", initialDesc, 0, 3, 0, func(text string) {
 		page.config.Description = utils.TrimTrailingWhitespace(text)
 	})
+
+	// Tags
+	initialTags := strings.TrimSpace(config.Tags)
+	form.AddInputField("Tags (comma-separated)", initialTags, 40, nil, func(text string) {
+		page.config.Tags = normalizeTags(text)
+		page.config.TagsExplicit = true
+	})
+
 	// OnBoot
 	onboot := false
 	if config.OnBoot != nil {
@@ -280,6 +288,21 @@ func isValidHostname(hostname string) bool {
 	}
 
 	return hasValidChar
+}
+
+func normalizeTags(raw string) string {
+	tags := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';'
+	})
+	cleaned := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		trimmed := strings.TrimSpace(tag)
+		if trimmed == "" {
+			continue
+		}
+		cleaned = append(cleaned, trimmed)
+	}
+	return strings.Join(cleaned, ",")
 }
 
 // showResizeStorageModal displays a modal for resizing a storage volume.
