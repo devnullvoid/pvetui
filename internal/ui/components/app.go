@@ -466,13 +466,15 @@ func (a *App) ManualRefresh() {
 }
 
 // ShowMessage displays a modal message, preserving focus when dismissed.
+// This now uses a safe implementation that avoids QueueUpdateDraw deadlocks.
 func (a *App) ShowMessage(message string) {
 	a.showMessage(message)
 }
 
-// ShowMessageSafe displays a modal message without queueing to avoid deadlocks.
+// ShowMessageSafe is now an alias to ShowMessage for backwards compatibility.
+// Both use the same safe implementation that avoids QueueUpdateDraw deadlocks.
 func (a *App) ShowMessageSafe(message string) {
-	a.showMessageSafe(message)
+	a.showMessage(message)
 }
 
 // ClearAPICache clears cached API responses.

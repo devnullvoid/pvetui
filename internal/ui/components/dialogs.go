@@ -7,6 +7,9 @@ import (
 )
 
 // showMessage displays a message to the user.
+// This simplified version sets focus directly without QueueUpdateDraw,
+// which eliminates potential deadlocks when called from menu handlers
+// or other UI event contexts. SetFocus will trigger a redraw automatically.
 func (a *App) showMessage(message string) {
 	// Save current focus before showing modal
 	a.lastFocus = a.GetFocus()
@@ -25,34 +28,14 @@ func (a *App) showMessage(message string) {
 		})
 
 	a.pages.AddPage("message", modal, false, true)
-
-	// Ensure modal gets focus in the next update cycle
-	a.QueueUpdateDraw(func() {
-		a.SetFocus(modal)
-	})
+	// Set focus directly - this triggers a redraw without queuing
+	a.SetFocus(modal)
 }
 
-// showMessageSafe displays a message to the user without using QueueUpdateDraw to avoid deadlocks.
-// Use this when calling from contexts that might already be in a UI update cycle.
+// showMessageSafe is now an alias to showMessage for backwards compatibility.
+// Both use the same safe implementation that avoids QueueUpdateDraw deadlocks.
 func (a *App) showMessageSafe(message string) {
-	// Save current focus before showing modal
-	a.lastFocus = a.GetFocus()
-
-	modal := tview.NewModal().
-		SetText(message).
-		// SetBackgroundColor(theme.Colors.Background).
-		SetTextColor(theme.Colors.Primary).
-		AddButtons([]string{"OK"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			a.removePageIfPresent("message_safe")
-			// Restore focus to the last focused element
-			if a.lastFocus != nil {
-				a.SetFocus(a.lastFocus)
-			}
-		})
-
-	a.pages.AddPage("message_safe", modal, false, true)
-	a.SetFocus(modal)
+	a.showMessage(message)
 }
 
 // showConfirmationDialog displays a confirmation dialog with Yes/No options.
