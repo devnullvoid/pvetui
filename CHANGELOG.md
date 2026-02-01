@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.17] - 2026-02-01
+
 ### Added
 
 - **Node Disk SMART Information**: Node details now display disk health status and SMART data for all attached disks, including disk type (SSD/HDD), size, model, and health status (PASSED/FAILED).
