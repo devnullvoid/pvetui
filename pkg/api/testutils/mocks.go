@@ -69,6 +69,7 @@ package testutils
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -252,24 +253,33 @@ func NewTestConfigWithToken() *TestConfig {
 
 // TestLogger is a simple test logger that captures log messages.
 type TestLogger struct {
+	mu            sync.Mutex
 	DebugMessages []string
 	InfoMessages  []string
 	ErrorMessages []string
 }
 
 func (l *TestLogger) Debug(format string, args ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.DebugMessages = append(l.DebugMessages, fmt.Sprintf(format, args...))
 }
 
 func (l *TestLogger) Info(format string, args ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.InfoMessages = append(l.InfoMessages, fmt.Sprintf(format, args...))
 }
 
 func (l *TestLogger) Error(format string, args ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.ErrorMessages = append(l.ErrorMessages, fmt.Sprintf(format, args...))
 }
 
 func (l *TestLogger) Reset() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.DebugMessages = nil
 	l.InfoMessages = nil
 	l.ErrorMessages = nil
