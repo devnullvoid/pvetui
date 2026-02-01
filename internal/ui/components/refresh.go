@@ -70,10 +70,24 @@ func (a *App) manualRefresh() {
 				// Update GlobalState nodes/VMs; UI lists will be updated after enrichment to reduce flicker.
 				models.GlobalState.OriginalNodes = nodes
 				models.GlobalState.OriginalVMs = vms
-				models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
-				copy(models.GlobalState.FilteredNodes, nodes)
-				models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-				copy(models.GlobalState.FilteredVMs, vms)
+
+				// Apply node filter if active
+				nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+				if nodeSearchState != nil && nodeSearchState.Filter != "" {
+					models.FilterNodes(nodeSearchState.Filter)
+				} else {
+					models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+					copy(models.GlobalState.FilteredNodes, nodes)
+				}
+
+				// Apply VM filter if active
+				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+				if vmSearchState != nil && vmSearchState.Filter != "" {
+					models.FilterVMs(vmSearchState.Filter)
+				} else {
+					models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+					copy(models.GlobalState.FilteredVMs, vms)
+				}
 
 				// Start background enrichment for detailed node stats
 				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
@@ -233,8 +247,13 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
+			// Update details if items are selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {
 				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+			}
+
+			if vm := a.vmList.GetSelectedVM(); vm != nil {
+				a.vmDetails.Update(vm)
 			}
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
@@ -323,8 +342,13 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
+			// Update details if items are selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {
 				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+			}
+
+			if vm := a.vmList.GetSelectedVM(); vm != nil {
+				a.vmDetails.Update(vm)
 			}
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)

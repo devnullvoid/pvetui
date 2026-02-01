@@ -22,6 +22,12 @@ func (a *App) updateVMListWithSelectionPreservation() {
 		hasSelectedVM = true
 	}
 
+	// Reapply filter if one is active
+	vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+	if vmSearchState != nil && vmSearchState.Filter != "" {
+		models.FilterVMs(vmSearchState.Filter)
+	}
+
 	// Update the VM list
 	a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 
@@ -101,12 +107,14 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) error, oper
 		// Small delay before refresh to let success message show
 		time.Sleep(500 * time.Millisecond)
 
+		// Update UI immediately and then fetch fresh data asynchronously
 		a.QueueUpdateDraw(func() {
 			a.updateVMListWithSelectionPreservation()
-			a.refreshVMData(vm)
-			// Also refresh tasks to show any new tasks created by the operation
 			a.loadTasksData()
 		})
+
+		// Fetch fresh VM data in background (this will update again when complete)
+		a.refreshVMData(vm)
 	}()
 }
 

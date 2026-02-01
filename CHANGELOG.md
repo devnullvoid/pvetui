@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **UI Deadlocks**: Eliminated nested QueueUpdateDraw deadlocks that occurred when displaying error messages from menu handlers by switching to direct SetFocus calls. This fixes deadlocks in various scenarios including interacting with offline nodes and group connection handling.
 - **Group Connection Handling**: Improved connection handling during bootstrap and resource fetching in aggregate groups to prevent UI freezes.
+- **Group Mode Filter Persistence**: Fixed active search filters being lost during manual refresh (Ctrl+R) and after VM operations in aggregate group mode. Filters now persist correctly across all refresh operations.
+- **Group Mode VM Details Refresh**: Fixed VM details panel not updating after operations (reboot, start, stop, etc.) in group mode by ensuring the correct profile-specific client is used to fetch fresh VM data.
+- **Group Mode Source Profile Preservation**: Fixed VMs losing their cluster association after operations in group mode, which caused "source profile not set" errors. The SourceProfile field is now preserved when refreshing individual VM data.
 
 ## [1.0.16] - 2026-01-01
 
