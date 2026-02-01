@@ -90,7 +90,8 @@ func (a *App) manualRefresh() {
 				}
 
 				// Start background enrichment for detailed node stats
-				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
+				// Pass false for isInitialLoad since this is a manual refresh
+				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive, false)
 			})
 		} else {
 			// Single profile logic
@@ -265,7 +266,7 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 }
 
 // enrichGroupNodesSequentially enriches group node data in parallel and finalizes the refresh
-func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
+func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool, isInitialLoad bool) {
 	go func() {
 		var wg sync.WaitGroup
 
@@ -357,7 +358,12 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 			a.clusterStatus.Update(a.getDisplayCluster())
 
-			a.header.ShowSuccess("Data refreshed successfully")
+			// Show appropriate success message based on context
+			if isInitialLoad {
+				a.header.ShowSuccess("Guest agent data loaded")
+			} else {
+				a.header.ShowSuccess("Data refreshed successfully")
+			}
 			a.footer.SetLoading(false)
 			a.loadTasksData()
 		})
