@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release Pipeline**: Simplified GitHub token configuration by removing duplicate secret names (`HOMEBREW_TAP_TOKEN`, `SCOOP_BUCKET_TOKEN`) in favor of consistent `_GITHUB_TOKEN` naming.
 - **Makefile Build**: `make build` now uses the build cache by default; set `REBUILD=1` to force a full toolchain rebuild.
 - **Local Dev Workflow**: Added `build-fast` and `test-quick` targets and cached package lists for faster local builds/tests; optional `TRIMPATH=0` disables trimpath in local builds.
+- **Nix Flake**: Automated vendorHash updates with dependency changes to prevent hash mismatches on Nix installations. (#80, #81)
+
+### Fixed
+
+- **UI Deadlocks**: Eliminated nested QueueUpdateDraw deadlocks that occurred when displaying error messages from menu handlers by switching to direct SetFocus calls. This fixes deadlocks in various scenarios including interacting with offline nodes and group connection handling.
+- **Group Connection Handling**: Improved connection handling during bootstrap and resource fetching in aggregate groups to prevent UI freezes.
 
 ## [1.0.16] - 2026-01-01
 
