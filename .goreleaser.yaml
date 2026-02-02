@@ -94,7 +94,7 @@ announce:
     #
     # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
     # Templates: allowed.
-    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}"
+    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }} #proxmox #linux #homelab"
     # Mastodon server URL.
     server: "{{ .Env.MASTODON_SERVER }}"
   bluesky:
@@ -106,7 +106,7 @@ announce:
     #
     # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
     # Templates: allowed.
-    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}"
+    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }} #proxmox #linux #homelab"
     # The username of the account that will post to Bluesky.
     username: "{{ .Env.BLUESKY_USERNAME }}"
 

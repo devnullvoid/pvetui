@@ -138,7 +138,7 @@ def main() -> int:
         print("Release URL is required (use --release-url or RELEASE_URL)", file=sys.stderr)
         return 1
 
-    message = f"{args.project} {tag} is out! Check it out at {release_url}"
+    message = f"{args.project} {tag} is out! Check it out at {release_url} #proxmox #linux #homelab"
 
     posted = []
     if not args.bluesky_only:
