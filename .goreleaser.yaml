@@ -81,7 +81,7 @@ signs:
       - "${artifact}"
 
 release:
-  draft: true
+  draft: false
   prerelease: auto
 
 announce:
@@ -89,7 +89,7 @@ announce:
     # Whether its enabled or not.
     #
     # Templates: allowed (since v2.6).
-    enabled: '{{ and .Env.MASTODON_SERVER .Env.MASTODON_ACCESS_TOKEN .Env.MASTODON_CLIENT_ID .Env.MASTODON_CLIENT_SECRET }}'
+    enabled: '{{ and (isEnvSet "MASTODON_SERVER") (isEnvSet "MASTODON_ACCESS_TOKEN") (isEnvSet "MASTODON_CLIENT_ID") (isEnvSet "MASTODON_CLIENT_SECRET") }}'
     # Message to use while publishing.
     #
     # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
@@ -101,7 +101,7 @@ announce:
     # Whether it's enabled or not.
     #
     # Templates: allowed (since v2.6).
-    enabled: '{{ and .Env.BLUESKY_USERNAME .Env.BLUESKY_APP_PASSWORD }}'
+    enabled: '{{ and (isEnvSet "BLUESKY_USERNAME") (isEnvSet "BLUESKY_APP_PASSWORD") }}'
     # Message template to use while publishing.
     #
     # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
