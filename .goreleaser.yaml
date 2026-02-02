@@ -101,7 +101,7 @@ announce:
     # Whether it's enabled or not.
     #
     # Templates: allowed (since v2.6).
-    enabled: '{{ and (isEnvSet "BLUESKY_USERNAME") (isEnvSet "BLUESKY_APP_PASSWORD") }}'
+    enabled: false
     # Message template to use while publishing.
     #
     # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
