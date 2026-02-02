@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -516,11 +517,13 @@ type TaskStatus struct {
 	User       string `json:"user"`
 	ID         string `json:"id"`
 	PStart     int64  `json:"pstart"`
+	PID        int    `json:"pid"`
 }
 
 // GetTaskStatus retrieves the status of a specific task.
 func (c *Client) GetTaskStatus(node, upid string) (*TaskStatus, error) {
-	path := fmt.Sprintf("/nodes/%s/tasks/%s/status", node, upid)
+	// Escape the UPID as it contains special characters
+	path := fmt.Sprintf("/nodes/%s/tasks/%s/status", node, url.PathEscape(upid))
 
 	var result map[string]interface{}
 	if err := c.Get(path, &result); err != nil {
@@ -554,7 +557,17 @@ func (c *Client) GetTaskStatus(node, upid string) (*TaskStatus, error) {
 		task.PStart = int64(pstart)
 	}
 
+	if pid, ok := data["pid"].(float64); ok {
+		task.PID = int(pid)
+	}
+
 	return task, nil
+}
+
+// StopTask attempts to stop/cancel a running task.
+func (c *Client) StopTask(node, upid string) error {
+	path := fmt.Sprintf("/nodes/%s/tasks/%s", node, url.PathEscape(upid))
+	return c.Delete(path)
 }
 
 // GetClusterTasks retrieves recent cluster tasks.

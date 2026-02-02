@@ -1,4 +1,4 @@
-package main
+package mockpve
 
 import (
 	"fmt"
@@ -13,6 +13,19 @@ type MockState struct {
 	VMs     map[string]*MockVM // Key: vmid (string)
 	Storage []*MockStorage
 	Backups map[string]*MockBackup // Key: volid
+	Tasks   map[string]*MockTask   // Key: upid
+}
+
+type MockTask struct {
+	UPID      string
+	Node      string
+	Type      string
+	ID        string // e.g. "100"
+	User      string
+	StartTime int64
+	EndTime   int64
+	Status    string // "running", "stopped", "OK", "ERR"
+	ExitStatus string // "OK", "ERROR"
 }
 
 type MockBackup struct {
@@ -77,6 +90,7 @@ func NewMockState() *MockState {
 	state := &MockState{
 		VMs:     make(map[string]*MockVM),
 		Backups: make(map[string]*MockBackup),
+		Tasks:   make(map[string]*MockTask),
 	}
 
 	// Default Node
@@ -245,27 +259,83 @@ func (s *MockState) GetClusterResources() []map[string]interface{} {
 	return resources
 }
 
-func (s *MockState) UpdateVMStatus(vmid string, action string) error {
+func (s *MockState) CreateTask(node, taskType, id, user string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	hexTime := fmt.Sprintf("%X", time.Now().Unix())
+	upid := fmt.Sprintf("UPID:%s:%s:%s:%s:%s:%s:%s:", node, hexTime, "00000000", "00000000", taskType, id, user)
+
+	task := &MockTask{
+		UPID: upid,
+		Node: node,
+		Type: taskType,
+		ID: id,
+		User: user,
+		StartTime: time.Now().Unix(),
+		Status: "running",
+	}
+	s.Tasks[upid] = task
+
+	// Auto-complete task after 5 seconds
+	go func(upid string) {
+		time.Sleep(5 * time.Second)
+		s.CompleteTask(upid, "OK")
+	}(upid)
+
+	return upid
+}
+
+func (s *MockState) CompleteTask(upid, exitStatus string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if task, ok := s.Tasks[upid]; ok {
+		task.Status = "stopped"
+		task.ExitStatus = exitStatus
+		task.EndTime = time.Now().Unix()
+	}
+}
+
+func (s *MockState) UpdateVMStatus(vmid string, action string) (string, error) {
+	s.mu.Lock()
+	// Check if VM exists
 	vm, ok := s.VMs[vmid]
+	s.mu.Unlock()
+
 	if !ok {
-		return fmt.Errorf("vm not found")
+		return "", fmt.Errorf("vm not found")
 	}
 
-	switch action {
-	case "start":
-		vm.Status = "running"
-		vm.Uptime = 1 // Just started
-	case "stop", "shutdown":
-		vm.Status = "stopped"
-		vm.Uptime = 0
-	case "reboot":
-		vm.Status = "running"
-		vm.Uptime = 1
-	}
-	return nil
+	// Queue task
+	// NOTE: We queue the task first, but the state update (running -> stopped) happens when the task completes.
+	// OR for simplicity in testing, we might update it immediately or inside the goroutine.
+	// To test "Waiting", we should update it in the goroutine.
+
+	upid := s.CreateTask(vm.Node, "qm"+action, vmid, "root@pam")
+
+	// Schedule state change
+	go func() {
+		time.Sleep(5 * time.Second) // Match task duration
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		if vm, ok := s.VMs[vmid]; ok {
+			switch action {
+			case "start":
+				vm.Status = "running"
+				vm.Uptime = 1
+			case "stop", "shutdown":
+				vm.Status = "stopped"
+				vm.Uptime = 0
+			case "reboot":
+				vm.Status = "running"
+				vm.Uptime = 1
+			}
+		}
+	}()
+
+	return upid, nil
 }
 
 func (s *MockState) DeleteVM(vmid string) error {

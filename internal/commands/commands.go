@@ -41,7 +41,8 @@ func StartVM(client *api.Client, id string) error {
 
 		for _, vm := range node.VMs {
 			if vm != nil && vm.ID == vmID {
-				return client.StartVM(vm)
+				_, err := client.StartVM(vm)
+				return err
 			}
 		}
 	}

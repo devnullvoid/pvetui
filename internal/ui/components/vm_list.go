@@ -95,7 +95,20 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 	for _, vm := range sortedVMs {
 		if vm != nil {
 			// Check if this VM has a pending operation
-			isPending, operation := models.GlobalState.IsVMPending(vm)
+			var isPending bool
+			var operation string
+
+			if vl.app != nil && vl.app.TaskManager() != nil {
+				if task := vl.app.TaskManager().GetActiveTask(vm.ID); task != nil {
+					isPending = true
+					operation = task.Type
+				}
+			}
+
+			// Fallback to global state if app not set (unlikely)
+			if !isPending {
+				isPending, operation = models.GlobalState.IsVMPending(vm)
+			}
 
 			// Get status indicator with pending state awareness
 			statusIndicator := utils.FormatPendingStatusIndicator(vm.Status, isPending, operation)
