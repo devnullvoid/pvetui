@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -64,7 +65,7 @@ def post_bluesky(message: str, release_url: str):
         "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
 
-    facets = build_bluesky_link_facets(message, release_url)
+    facets = build_bluesky_facets(message, release_url)
     if facets:
         record["facets"] = facets
     headers = {"Authorization": f"Bearer {access_jwt}"}
@@ -72,22 +73,39 @@ def post_bluesky(message: str, release_url: str):
     http_post_json("https://bsky.social/xrpc/com.atproto.repo.createRecord", payload, headers=headers)
 
 
-def build_bluesky_link_facets(message: str, release_url: str):
-    if not release_url:
-        return None
-    index = message.find(release_url)
-    if index < 0:
-        return None
-    byte_start = len(message[:index].encode("utf-8"))
-    byte_end = byte_start + len(release_url.encode("utf-8"))
-    return [
-        {
-            "index": {"byteStart": byte_start, "byteEnd": byte_end},
-            "features": [
-                {"$type": "app.bsky.richtext.facet#link", "uri": release_url}
-            ],
-        }
-    ]
+def build_bluesky_facets(message: str, release_url: str):
+    facets = []
+
+    if release_url:
+        index = message.find(release_url)
+        if index >= 0:
+            byte_start = len(message[:index].encode("utf-8"))
+            byte_end = byte_start + len(release_url.encode("utf-8"))
+            facets.append(
+                {
+                    "index": {"byteStart": byte_start, "byteEnd": byte_end},
+                    "features": [
+                        {"$type": "app.bsky.richtext.facet#link", "uri": release_url}
+                    ],
+                }
+            )
+
+    for match in re.finditer(r"#[A-Za-z0-9_]+", message):
+        tag = match.group()[1:]
+        if not tag:
+            continue
+        byte_start = len(message[: match.start()].encode("utf-8"))
+        byte_end = len(message[: match.end()].encode("utf-8"))
+        facets.append(
+            {
+                "index": {"byteStart": byte_start, "byteEnd": byte_end},
+                "features": [
+                    {"$type": "app.bsky.richtext.facet#tag", "tag": tag}
+                ],
+            }
+        )
+
+    return facets or None
 
 
 def repo_url_from_git() -> str:
