@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Nix Flake Source Handling**: `flake.nix` now uses `src = self` for `buildGoModule` to reduce repeated source copying and improve local `nix build`/`nix run` performance.
+
 ## [1.0.17] - 2026-02-01
 
 ### Added

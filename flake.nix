@@ -15,7 +15,7 @@
           pname = "pvetui";
           version = if (self ? rev) then self.shortRev else "dev";
 
-          src = ./.;
+          src = self;
 
           vendorHash = "sha256-+ifWs9gYBWAe2z8sGQ+jy2Bw1HIaAI9WoATlsQAeMXM=";
 
