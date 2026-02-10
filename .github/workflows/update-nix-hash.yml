@@ -5,6 +5,12 @@ on:
     paths:
       - 'go.mod'
       - 'go.sum'
+  push:
+    branches:
+      - master
+    paths:
+      - 'go.mod'
+      - 'go.sum'
 
 permissions:
   contents: write
@@ -15,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
       - uses: cachix/install-nix-action@v31
         with:
