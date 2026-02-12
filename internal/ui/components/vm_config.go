@@ -116,6 +116,14 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	form.AddTextArea("Description", initialDesc, 0, 3, 0, func(text string) {
 		page.config.Description = utils.TrimTrailingWhitespace(text)
 	})
+
+	// Tags
+	initialTags := normalizeTags(config.Tags)
+	form.AddInputField("Tags (semicolon-separated)", initialTags, 40, nil, func(text string) {
+		page.config.Tags = normalizeTags(text)
+		page.config.TagsExplicit = true
+	})
+
 	// OnBoot
 	onboot := false
 	if config.OnBoot != nil {
@@ -187,8 +195,11 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 							expectedName = page.config.Hostname
 						}
 
+						nameChanged := expectedName != "" && expectedName != vm.Name
+						tagsChanged := page.config.TagsExplicit && page.config.Tags != vm.Tags
+
 						// Use the dedicated polling function
-						app.pollForConfigChange(vm, expectedName)
+						app.pollForConfigChange(vm, expectedName, nameChanged, page.config.Tags, tagsChanged)
 					}()
 				}
 			})
@@ -280,6 +291,21 @@ func isValidHostname(hostname string) bool {
 	}
 
 	return hasValidChar
+}
+
+func normalizeTags(raw string) string {
+	tags := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';'
+	})
+	cleaned := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		trimmed := strings.TrimSpace(tag)
+		if trimmed == "" {
+			continue
+		}
+		cleaned = append(cleaned, trimmed)
+	}
+	return strings.Join(cleaned, ";")
 }
 
 // showResizeStorageModal displays a modal for resizing a storage volume.
@@ -405,28 +431,44 @@ func showResizeStorageModal(app *App, vm *api.VM) {
 // pollForConfigChange polls the Proxmox API to verify that a configuration change has propagated
 // to both the config endpoint and the cluster resources endpoint before refreshing the UI.
 // This prevents race conditions where config is updated but cluster resources still show old names.
-func (app *App) pollForConfigChange(vm *api.VM, expectedName string) {
+func (app *App) pollForConfigChange(vm *api.VM, expectedName string, nameChanged bool, expectedTags string, tagsChanged bool) {
+	client, err := app.getClientForVM(vm)
+	if err != nil {
+		client = app.client
+	}
+
 	// Poll every 500ms for up to 15 seconds (increased timeout for cluster resources propagation)
 	maxAttempts := 30
+	if !nameChanged {
+		maxAttempts = 10
+	}
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		time.Sleep(500 * time.Millisecond)
 
 		// First check if the config endpoint has the new name using the existing API function
-		config, err := app.client.GetVMConfig(vm)
-		configUpdated := false
+		config, err := client.GetVMConfig(vm)
+		configUpdated := true
 
 		if err == nil && config != nil {
-			if vm.Type == api.VMTypeQemu && config.Name == expectedName {
-				configUpdated = true
-			} else if vm.Type == api.VMTypeLXC && config.Hostname == expectedName {
-				configUpdated = true
+			if nameChanged {
+				if vm.Type == api.VMTypeQemu && config.Name != expectedName {
+					configUpdated = false
+				} else if vm.Type == api.VMTypeLXC && config.Hostname != expectedName {
+					configUpdated = false
+				}
 			}
+
+			if tagsChanged && config.Tags != expectedTags {
+				configUpdated = false
+			}
+		} else {
+			configUpdated = false
 		}
 
-		// If config is updated, also check if cluster resources reflect the change
-		if configUpdated {
+		// If config is updated, also check if cluster resources reflect the change when needed
+		if configUpdated && nameChanged {
 			// Use the existing GetVmList function to check cluster resources
-			vmList, err := app.client.GetVmList(context.Background())
+			vmList, err := client.GetVmList(context.Background())
 			if err == nil {
 				for _, vmData := range vmList {
 					if resType, exists := vmData["type"].(string); exists && resType == vm.Type {
@@ -445,6 +487,11 @@ func (app *App) pollForConfigChange(vm *api.VM, expectedName string) {
 					}
 				}
 			}
+		} else if configUpdated {
+			app.QueueUpdateDraw(func() {
+				app.manualRefresh()
+			})
+			return
 		}
 	}
 

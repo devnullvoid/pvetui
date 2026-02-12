@@ -26,22 +26,8 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Compute Go cache key
-        id: gomod
-        run: |
-          echo "key=${RUNNER_OS}-go-$(git hash-object go.sum)" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Cache Go modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/go/bin
-          key: ${{ steps.gomod.outputs.key }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Run go vet
         run: go vet ./...
@@ -66,22 +52,8 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Compute Go cache key
-        id: gomod
-        run: |
-          echo "key=${RUNNER_OS}-go-$(git hash-object go.sum)" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Cache Go modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/go/bin
-          key: ${{ steps.gomod.outputs.key }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Run tests
         run: |
@@ -110,22 +82,8 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Compute Go cache key
-        id: gomod
-        run: |
-          echo "key=${RUNNER_OS}-go-$(git hash-object go.sum)" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Cache Go modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/go/bin
-          key: ${{ steps.gomod.outputs.key }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Build binary (Windows)
         if: matrix.os == 'windows-latest'

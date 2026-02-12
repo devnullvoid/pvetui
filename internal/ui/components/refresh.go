@@ -70,13 +70,28 @@ func (a *App) manualRefresh() {
 				// Update GlobalState nodes/VMs; UI lists will be updated after enrichment to reduce flicker.
 				models.GlobalState.OriginalNodes = nodes
 				models.GlobalState.OriginalVMs = vms
-				models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
-				copy(models.GlobalState.FilteredNodes, nodes)
-				models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
-				copy(models.GlobalState.FilteredVMs, vms)
+
+				// Apply node filter if active
+				nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+				if nodeSearchState != nil && nodeSearchState.Filter != "" {
+					models.FilterNodes(nodeSearchState.Filter)
+				} else {
+					models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
+					copy(models.GlobalState.FilteredNodes, nodes)
+				}
+
+				// Apply VM filter if active
+				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+				if vmSearchState != nil && vmSearchState.Filter != "" {
+					models.FilterVMs(vmSearchState.Filter)
+				} else {
+					models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
+					copy(models.GlobalState.FilteredVMs, vms)
+				}
 
 				// Start background enrichment for detailed node stats
-				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
+				// Pass false for isInitialLoad since this is a manual refresh
+				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive, false)
 			})
 		} else {
 			// Single profile logic
@@ -233,8 +248,13 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
+			// Update details if items are selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {
 				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+			}
+
+			if vm := a.vmList.GetSelectedVM(); vm != nil {
+				a.vmDetails.Update(vm)
 			}
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
@@ -246,7 +266,7 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 }
 
 // enrichGroupNodesSequentially enriches group node data in parallel and finalizes the refresh
-func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
+func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool, isInitialLoad bool) {
 	go func() {
 		var wg sync.WaitGroup
 
@@ -323,8 +343,13 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
+			// Update details if items are selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {
 				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+			}
+
+			if vm := a.vmList.GetSelectedVM(); vm != nil {
+				a.vmDetails.Update(vm)
 			}
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
@@ -333,7 +358,12 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 			a.clusterStatus.Update(a.getDisplayCluster())
 
-			a.header.ShowSuccess("Data refreshed successfully")
+			// Show appropriate success message based on context
+			if isInitialLoad {
+				a.header.ShowSuccess("Guest agent data loaded")
+			} else {
+				a.header.ShowSuccess("Data refreshed successfully")
+			}
 			a.footer.SetLoading(false)
 			a.loadTasksData()
 		})

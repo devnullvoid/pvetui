@@ -24,8 +24,17 @@ func (a *App) refreshVMData(vm *api.VM) {
 
 	// Run refresh in goroutine to avoid blocking UI
 	go func() {
+		// Get the correct client for this VM (important for group mode)
+		client, err := a.getClientForVM(vm)
+		if err != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Error refreshing VM: %v", err))
+			})
+			return
+		}
+
 		// Fetch fresh VM data with callback for when enrichment completes
-		freshVM, err := a.client.RefreshVMData(vm, func(enrichedVM *api.VM) {
+		freshVM, err := client.RefreshVMData(vm, func(enrichedVM *api.VM) {
 			// This callback is called after guest agent data has been loaded
 			a.QueueUpdateDraw(func() {
 				// Update VM details if this VM is currently selected
@@ -55,6 +64,10 @@ func (a *App) refreshVMData(vm *api.VM) {
 			// Find the VM in the global state and update it
 			for i, originalVM := range models.GlobalState.OriginalVMs {
 				if originalVM != nil && originalVM.ID == vmID && originalVM.Node == vmNode {
+					// Preserve SourceProfile from original VM (important for group mode)
+					if originalVM.SourceProfile != "" {
+						freshVM.SourceProfile = originalVM.SourceProfile
+					}
 					models.GlobalState.OriginalVMs[i] = freshVM
 
 					break
@@ -64,6 +77,10 @@ func (a *App) refreshVMData(vm *api.VM) {
 			// Update filtered VMs if they exist
 			for i, filteredVM := range models.GlobalState.FilteredVMs {
 				if filteredVM != nil && filteredVM.ID == vmID && filteredVM.Node == vmNode {
+					// Preserve SourceProfile from filtered VM (important for group mode)
+					if filteredVM.SourceProfile != "" {
+						freshVM.SourceProfile = filteredVM.SourceProfile
+					}
 					models.GlobalState.FilteredVMs[i] = freshVM
 
 					break
@@ -83,6 +100,11 @@ func (a *App) refreshVMData(vm *api.VM) {
 
 					break
 				}
+			}
+
+			// Reapply filter if one is active
+			if vmSearchState != nil && vmSearchState.Filter != "" {
+				models.FilterVMs(vmSearchState.Filter)
 			}
 
 			// Update the VM list display
@@ -126,8 +148,17 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 
 	// Run refresh in goroutine to avoid blocking UI
 	go func() {
+		// Get the correct client for this VM (important for group mode)
+		client, err := a.getClientForVM(vm)
+		if err != nil {
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Error refreshing VM: %v", err))
+			})
+			return
+		}
+
 		// Fetch fresh VM data with callback for when enrichment completes
-		freshVM, err := a.client.RefreshVMData(vm, func(enrichedVM *api.VM) {
+		freshVM, err := client.RefreshVMData(vm, func(enrichedVM *api.VM) {
 			// This callback is called after guest agent data has been loaded
 			a.QueueUpdateDraw(func() {
 				// Update VM details if this VM is currently selected
@@ -157,6 +188,10 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 			// Find the VM in the global state and update it
 			for i, originalVM := range models.GlobalState.OriginalVMs {
 				if originalVM != nil && originalVM.ID == vmID && originalVM.Node == vmNode {
+					// Preserve SourceProfile from original VM (important for group mode)
+					if originalVM.SourceProfile != "" {
+						freshVM.SourceProfile = originalVM.SourceProfile
+					}
 					models.GlobalState.OriginalVMs[i] = freshVM
 
 					break
@@ -166,6 +201,10 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 			// Update filtered VMs if they exist
 			for i, filteredVM := range models.GlobalState.FilteredVMs {
 				if filteredVM != nil && filteredVM.ID == vmID && filteredVM.Node == vmNode {
+					// Preserve SourceProfile from filtered VM (important for group mode)
+					if filteredVM.SourceProfile != "" {
+						freshVM.SourceProfile = filteredVM.SourceProfile
+					}
 					models.GlobalState.FilteredVMs[i] = freshVM
 
 					break
@@ -185,6 +224,11 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 
 					break
 				}
+			}
+
+			// Reapply filter if one is active
+			if vmSearchState != nil && vmSearchState.Filter != "" {
+				models.FilterVMs(vmSearchState.Filter)
 			}
 
 			// Update the VM list display

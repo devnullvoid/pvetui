@@ -17,6 +17,10 @@ type VMConfig struct {
 	Memory      int64  `json:"memory,omitempty"` // in bytes
 	Description string `json:"description,omitempty"`
 	OnBoot      *bool  `json:"onboot,omitempty"`
+	// Tags is a semicolon-separated list of guest tags.
+	Tags string `json:"tags,omitempty"`
+	// TagsExplicit controls whether tags should be included in update payloads.
+	TagsExplicit bool `json:"-"`
 
 	// QEMU-specific
 	CPUType   string `json:"cpu,omitempty"`
@@ -129,6 +133,11 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 		cfg.Description = v
 	}
 
+	if v, ok := data["tags"].(string); ok {
+		cfg.Tags = v
+		cfg.TagsExplicit = true
+	}
+
 	if v, ok := data["onboot"].(float64); ok {
 		b := v != 0
 		cfg.OnBoot = &b
@@ -193,6 +202,10 @@ func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} 
 		} else {
 			data["onboot"] = 0
 		}
+	}
+
+	if config.TagsExplicit {
+		data["tags"] = config.Tags
 	}
 
 	if vmType == VMTypeQemu {

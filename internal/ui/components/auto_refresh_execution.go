@@ -127,8 +127,8 @@ func (a *App) autoRefreshData() {
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 
 			// Start background enrichment for detailed node stats
-
-			a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
+			// Pass false for isInitialLoad since this is auto-refresh
+			a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive, false)
 
 			a.autoRefreshCountdown = 10
 

@@ -187,11 +187,12 @@ func (a *App) switchToGroup(groupName string) {
 			// Update header
 			a.updateHeaderWithActiveProfile()
 
-			// Show warning if some profiles failed
+			// Show warning if some profiles failed, otherwise show loading for enrichment
 			if summary.ErrorCount > 0 {
 				a.header.ShowWarning(fmt.Sprintf("Connected to %d/%d profiles", summary.ConnectedCount, summary.TotalProfiles))
 			} else {
-				a.header.ShowSuccess(fmt.Sprintf("Connected to group '%s' (%d profiles)", groupName, summary.ConnectedCount))
+				// Show loading message - enrichment will update this when complete
+				a.header.ShowLoading("Loading guest agent data")
 			}
 		})
 
@@ -232,7 +233,8 @@ func (a *App) switchToGroup(groupName string) {
 
 				// Start background enrichment for detailed node stats
 				// This ensures nodes get Version, Kernel, LoadAvg etc. populated
-				a.enrichGroupNodesSequentially(nodes, false, "", false, 0, "", false)
+				// Pass true for isInitialLoad to show "Guest agent data loaded" message
+				a.enrichGroupNodesSequentially(nodes, false, "", false, 0, "", false, true)
 			}
 
 			// Update selection and details

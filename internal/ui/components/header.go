@@ -1,7 +1,9 @@
 package components
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/rivo/tview"
@@ -15,9 +17,10 @@ const appName = "pvetui"
 type Header struct {
 	*tview.TextView
 
+	mu             sync.Mutex
 	isLoading      bool
 	loadingText    string
-	stopLoading    chan bool
+	loadingCancel  context.CancelFunc
 	app            *tview.Application
 	currentProfile string // Track the current active profile
 }
@@ -34,8 +37,7 @@ func NewHeader() *Header {
 	header.SetTextColor(theme.Colors.HeaderText)
 
 	return &Header{
-		TextView:    header,
-		stopLoading: make(chan bool, 1),
+		TextView: header,
 	}
 }
 
@@ -56,43 +58,57 @@ func (h *Header) SetText(text string) {
 
 // ShowLoading displays an animated loading indicator.
 func (h *Header) ShowLoading(message string) {
-	// Stop any existing loading first to avoid overlapping animations
-	if h.isLoading {
-		h.isLoading = false
-		select {
-		case h.stopLoading <- true:
-		default:
-		}
+	h.mu.Lock()
+	if h.isLoading && h.loadingText == message {
+		h.mu.Unlock()
+		return
+	}
+
+	if h.isLoading && h.loadingCancel != nil {
+		h.loadingCancel()
 	}
 
 	h.isLoading = true
 	h.loadingText = message
-	h.stopLoading = make(chan bool, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	h.loadingCancel = cancel
+	h.mu.Unlock()
 
-	// Start the loading animation
-	go h.animateLoading()
+	go h.animateLoading(ctx)
 }
 
 // StopLoading stops the loading animation.
 func (h *Header) StopLoading() {
-	if h.isLoading {
-		h.isLoading = false
-		select {
-		case h.stopLoading <- true:
-		default:
-		}
+	h.mu.Lock()
+	if !h.isLoading {
+		h.mu.Unlock()
+		return
 	}
+	h.isLoading = false
+	if h.loadingCancel != nil {
+		h.loadingCancel()
+		h.loadingCancel = nil
+	}
+	h.mu.Unlock()
 }
 
 // IsLoading reports whether the header is currently showing a loading state.
 func (h *Header) IsLoading() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.isLoading
 }
 
 // ShowSuccess displays a success message temporarily.
 func (h *Header) ShowSuccess(message string) {
 	// Mark not loading before changing text to prevent race with animateLoading
+	h.mu.Lock()
 	h.isLoading = false
+	if h.loadingCancel != nil {
+		h.loadingCancel()
+		h.loadingCancel = nil
+	}
+	h.mu.Unlock()
 	h.StopLoading()
 	h.SetText(theme.ReplaceSemanticTags("[success]✓ " + message + "[-]"))
 
@@ -102,7 +118,13 @@ func (h *Header) ShowSuccess(message string) {
 
 // ShowError displays an error message temporarily.
 func (h *Header) ShowError(message string) {
+	h.mu.Lock()
 	h.isLoading = false
+	if h.loadingCancel != nil {
+		h.loadingCancel()
+		h.loadingCancel = nil
+	}
+	h.mu.Unlock()
 	h.StopLoading()
 	h.SetText(theme.ReplaceSemanticTags("[error]✗ " + message + "[-]"))
 
@@ -112,7 +134,13 @@ func (h *Header) ShowError(message string) {
 
 // ShowWarning displays a warning message temporarily.
 func (h *Header) ShowWarning(message string) {
+	h.mu.Lock()
 	h.isLoading = false
+	if h.loadingCancel != nil {
+		h.loadingCancel()
+		h.loadingCancel = nil
+	}
+	h.mu.Unlock()
 	h.StopLoading()
 	h.SetText(theme.ReplaceSemanticTags("[warning]⚠ " + message + "[-]"))
 
@@ -131,7 +159,13 @@ func (h *Header) formatProfileText(profileName string) string {
 
 // ShowActiveProfile displays the active profile in the header.
 func (h *Header) ShowActiveProfile(profileName string) {
+	h.mu.Lock()
 	h.isLoading = false
+	if h.loadingCancel != nil {
+		h.loadingCancel()
+		h.loadingCancel = nil
+	}
+	h.mu.Unlock()
 	h.StopLoading()
 	h.currentProfile = profileName // Store the profile name
 	h.SetText(h.formatProfileText(profileName))
@@ -155,7 +189,10 @@ func (h *Header) clearMessageAfterDelay(delay time.Duration) {
 		if h.app != nil {
 			h.app.QueueUpdateDraw(func() {
 				// Avoid overriding an active loading indicator that may have started after ShowSuccess/ShowError
-				if h.isLoading {
+				h.mu.Lock()
+				loading := h.isLoading
+				h.mu.Unlock()
+				if loading {
 					return
 				}
 				// Restore the current profile if it exists, otherwise reset to default
@@ -170,28 +207,40 @@ func (h *Header) clearMessageAfterDelay(delay time.Duration) {
 }
 
 // animateLoading displays an animated loading indicator.
-func (h *Header) animateLoading() {
+func (h *Header) animateLoading(ctx context.Context) {
 	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	index := 0
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 
-	for h.isLoading {
+	for {
 		select {
-		case <-h.stopLoading:
+		case <-ctx.Done():
 			return
-		default:
+		case <-ticker.C:
+			h.mu.Lock()
+			loading := h.isLoading
+			h.mu.Unlock()
+
+			if !loading {
+				return
+			}
+
 			if h.app != nil {
+				spinnerChar := spinner[index]
 				h.app.QueueUpdateDraw(func() {
+					h.mu.Lock()
 					if !h.isLoading {
+						h.mu.Unlock()
 						return
 					}
-					spinnerChar := spinner[index]
-					h.SetText(theme.ReplaceSemanticTags(fmt.Sprintf("[info]%s %s[-]", spinnerChar, h.loadingText)))
+					currentMessage := h.loadingText
+					h.mu.Unlock()
+					h.SetText(theme.ReplaceSemanticTags(fmt.Sprintf("[info]%s %s[-]", spinnerChar, currentMessage)))
 				})
 			}
 
 			index = (index + 1) % len(spinner)
-
-			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }

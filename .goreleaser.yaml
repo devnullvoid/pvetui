@@ -81,7 +81,7 @@ signs:
       - "${artifact}"
 
 release:
-  draft: true
+  draft: false
   prerelease: auto
 
 announce:
@@ -89,24 +89,24 @@ announce:
     # Whether its enabled or not.
     #
     # Templates: allowed (since v2.6).
-    enabled: true
+    enabled: '{{ and (isEnvSet "MASTODON_SERVER") (isEnvSet "MASTODON_ACCESS_TOKEN") (isEnvSet "MASTODON_CLIENT_ID") (isEnvSet "MASTODON_CLIENT_SECRET") }}'
     # Message to use while publishing.
     #
     # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
     # Templates: allowed.
-    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}"
+    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }} #proxmox #linux #homelab"
     # Mastodon server URL.
     server: "{{ .Env.MASTODON_SERVER }}"
   bluesky:
     # Whether it's enabled or not.
     #
     # Templates: allowed (since v2.6).
-    enabled: true
+    enabled: false
     # Message template to use while publishing.
     #
     # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
     # Templates: allowed.
-    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}"
+    message_template: "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }} #proxmox #linux #homelab"
     # The username of the account that will post to Bluesky.
     username: "{{ .Env.BLUESKY_USERNAME }}"
 

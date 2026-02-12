@@ -263,6 +263,7 @@ Key architectural decisions and rationale:
 
 ## Common Pitfalls
 
+- **Do not push without explicit approval**: Always ask for confirmation before pushing to any remote, even after committing locally.
 - BadgerDB requires proper cleanup channel to prevent goroutine leaks
 - Test files should use 0o600 permissions for sensitive data
 - All API methods should have timeouts to prevent indefinite hangs
@@ -277,6 +278,7 @@ Key architectural decisions and rationale:
 - **UI text**: Use tview color tags `[primary]text[-]` for colored text; brackets need escaping as `[[` or use color tags instead
 - **tview QueueUpdateDraw deadlocks**: Never call functions that use `QueueUpdateDraw` from within another `QueueUpdateDraw` callback - this creates nested calls that deadlock tview. Always separate UI updates into sequential, non-nested calls.
 - **Pending state and refreshes**: Always clear pending state BEFORE calling refresh functions (`manualRefresh`, `refreshVMData`), as these functions check for pending operations and will block if any exist
+- **Header loading animation**: Multiple overlapping `ShowLoading` calls can spawn concurrent animations and make the spinner appear too fast; ensure loading state is serialized (single animation, cancelable ticker).
 
 ## Troubleshooting
 

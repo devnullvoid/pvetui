@@ -5,6 +5,12 @@ on:
     paths:
       - 'go.mod'
       - 'go.sum'
+  push:
+    branches:
+      - master
+    paths:
+      - 'go.mod'
+      - 'go.sum'
 
 permissions:
   contents: write
@@ -13,11 +19,11 @@ jobs:
   update-nix-hash:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
-      - uses: cachix/install-nix-action@v27
+      - uses: cachix/install-nix-action@v31
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -85,7 +91,7 @@ jobs:
 
       - name: Commit changes
         if: steps.update.outputs.updated == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore(nix): update vendorHash"
           file_pattern: flake.nix

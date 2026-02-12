@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Async Task Queue Node Isolation**: Task queue scheduling now keys active/queued operations by `node+vmid` instead of VMID alone, preventing unrelated VMs with the same ID on different nodes/clusters from blocking each other.
+
+## [1.0.17] - 2026-02-01
+
 ### Added
 
 - **Node Disk SMART Information**: Node details now display disk health status and SMART data for all attached disks, including disk type (SSD/HDD), size, model, and health status (PASSED/FAILED).
 - **System Update Notifications**: Node details now show available system package updates with version information, displaying up to 5 pending updates with a count of any additional updates.
 - **Icon Toggle**: Added multiple ways to control icons/emojis throughout the UI. Icons are enabled by default. To disable: use `--show-icons=false` CLI flag, `PVETUI_SHOW_ICONS=false` environment variable, or `show_icons: false` in YAML config. (#75)
+- **Guest Tags**: Added editable tag list for VM/LXC configuration, using a semicolon-separated tag field in the Edit Configuration form. (#76)
 - **SSH Jump Host Support**: Added SSH jump host (bastion host) configuration for accessing Proxmox environments through an intermediate SSH server. Configure via config wizard, CLI flags (`--ssh-jumphost-addr`, `--ssh-jumphost-user`, `--ssh-jumphost-keyfile`, `--ssh-jumphost-port`), environment variables (`PVETUI_SSH_JUMPHOST_ADDR`, `PVETUI_SSH_JUMPHOST_USER`, `PVETUI_SSH_JUMPHOST_KEYFILE`, `PVETUI_SSH_JUMPHOST_PORT`), or YAML config (`ssh_jump_host` section). Per-profile configuration supported.
 - **Release Announcements**: GoReleaser now posts release announcements to Mastodon and Bluesky when the required secrets are configured.
 
@@ -26,7 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **UI Deadlocks**: Eliminated nested QueueUpdateDraw deadlocks that occurred when displaying error messages from menu handlers by switching to direct SetFocus calls. This fixes deadlocks in various scenarios including interacting with offline nodes and group connection handling.
 - **Group Connection Handling**: Improved connection handling during bootstrap and resource fetching in aggregate groups to prevent UI freezes.
-- **Async Task Queue Node Isolation**: Task queue scheduling now keys active/queued operations by `node+vmid` instead of VMID alone, preventing unrelated VMs with the same ID on different nodes/clusters from blocking each other.
+- **Group Mode Filter Persistence**: Fixed active search filters being lost during manual refresh (Ctrl+R) and after VM operations in aggregate group mode. Filters now persist correctly across all refresh operations.
+- **Group Mode VM Details Refresh**: Fixed VM details panel not updating after operations (reboot, start, stop, etc.) in group mode by ensuring the correct profile-specific client is used to fetch fresh VM data.
+- **Group Mode Source Profile Preservation**: Fixed VMs losing their cluster association after operations in group mode, which caused "source profile not set" errors. The SourceProfile field is now preserved when refreshing individual VM data.
+- **Group Mode Initial Loading Feedback**: Added header loading message "Loading guest agent data" during initial startup in group mode. Previously, profile names would appear in the UI without warning after a silent enrichment process.
+- **CI Cache Noise**: Removed redundant Go module cache restore in CI to prevent tar "File exists" errors during lint/test/build jobs.
+- **Group Mode Config Polling**: Avoided cross-profile cluster resource polling when only tags change, reducing delays after saving guest configuration.
+- **Header Loading Animation**: Prevented overlapping loading spinners that made the header animation appear overly fast during concurrent updates.
 
 ## [1.0.16] - 2026-01-01
 
