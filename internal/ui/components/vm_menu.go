@@ -40,7 +40,7 @@ func (a *App) ShowVMContextMenu() {
 	var isPending bool
 	var pendingOperation string
 	if a.taskManager != nil {
-		if task := a.taskManager.GetActiveTask(vm.ID); task != nil {
+		if task := a.taskManager.GetActiveTaskForVM(vm.Node, vm.ID); task != nil {
 			isPending = true
 			pendingOperation = task.Type
 			if task.Status == taskmanager.StatusQueued {

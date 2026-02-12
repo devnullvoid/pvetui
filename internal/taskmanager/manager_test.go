@@ -34,7 +34,7 @@ func TestTaskManager(t *testing.T) {
 	// Mock auth endpoint to avoid 401
 	r.HandleFunc("/api2/json/access/ticket", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data": {"ticket": "dummy", "CSRFPreventionToken": "dummy"}}`)
+		_, _ = fmt.Fprint(w, `{"data": {"ticket": "dummy", "CSRFPreventionToken": "dummy"}}`)
 	})
 
 	server := httptest.NewServer(r)
@@ -79,7 +79,7 @@ func TestTaskManager(t *testing.T) {
 
 	// Wait for task to be picked up
 	assert.Eventually(t, func() bool {
-		t := tm.GetActiveTask(100)
+		t := tm.GetActiveTaskForVM("pve", 100)
 		return t != nil && t.Status == StatusRunning
 	}, 1*time.Second, 100*time.Millisecond)
 
@@ -89,7 +89,7 @@ func TestTaskManager(t *testing.T) {
 
 	assert.Eventually(t, func() bool {
 		// Task should be removed from active and queue
-		return tm.GetActiveTask(100) == nil
+		return tm.GetActiveTaskForVM("pve", 100) == nil
 	}, 5*time.Second, 100*time.Millisecond)
 
 	assert.Equal(t, StatusCompleted, task.Status)
@@ -104,7 +104,7 @@ func TestTaskManager_Cancel(t *testing.T) {
 	r.HandleFunc("/api2/json/nodes/{node}/tasks/{upid}", mockpve.HandleStopTask(state)).Methods("DELETE")
 	r.HandleFunc("/api2/json/access/ticket", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data": {"ticket": "dummy", "CSRFPreventionToken": "dummy"}}`)
+		_, _ = fmt.Fprint(w, `{"data": {"ticket": "dummy", "CSRFPreventionToken": "dummy"}}`)
 	})
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -150,15 +150,79 @@ func TestTaskManager_Cancel(t *testing.T) {
 	}, 6*time.Second, 100*time.Millisecond)
 }
 
+func TestTaskManager_AllowsSameVMIDOnDifferentNodes(t *testing.T) {
+	state := mockpve.NewMockState()
+	r := mux.NewRouter()
+	r.HandleFunc("/api2/json/nodes/{node}/tasks/{upid}/status", mockpve.HandleTaskStatus(state)).Methods("GET")
+	r.HandleFunc("/api2/json/nodes/{node}/tasks/{upid}", mockpve.HandleStopTask(state)).Methods("DELETE")
+	r.HandleFunc("/api2/json/access/ticket", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"data": {"ticket": "dummy", "CSRFPreventionToken": "dummy"}}`)
+	})
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	config := &mockConfig{addr: server.URL}
+	opts := api.ClientOption(func(c *api.ClientOptions) {
+		c.Logger = &mockLogger{}
+		c.Cache = &interfaces.NoOpCache{}
+	})
+	client, err := api.NewClient(config, opts)
+	require.NoError(t, err)
+
+	resolver := func(nodeName string) (*api.Client, error) {
+		return client, nil
+	}
+	tm := NewTaskManager(resolver, nil)
+	defer tm.Stop()
+
+	upidNode1 := state.CreateTask("pve", "qmstart", "100", "root@pam")
+	upidNode2 := state.CreateTask("pve2", "qmstart", "100", "root@pam")
+
+	taskNode1 := &Task{
+		TargetVMID: 100,
+		TargetNode: "pve",
+		Type:       "Start",
+		Operation: func() (string, error) {
+			return upidNode1, nil
+		},
+	}
+	taskNode2 := &Task{
+		TargetVMID: 100,
+		TargetNode: "pve2",
+		Type:       "Start",
+		Operation: func() (string, error) {
+			return upidNode2, nil
+		},
+	}
+
+	tm.Enqueue(taskNode1)
+	tm.Enqueue(taskNode2)
+
+	assert.Eventually(t, func() bool {
+		t1 := tm.GetActiveTaskForVM("pve", 100)
+		t2 := tm.GetActiveTaskForVM("pve2", 100)
+		return t1 != nil && t2 != nil && t1.Status == StatusRunning && t2.Status == StatusRunning
+	}, 1*time.Second, 50*time.Millisecond)
+
+	state.CompleteTask(upidNode1, "OK")
+	state.CompleteTask(upidNode2, "OK")
+
+	assert.Eventually(t, func() bool {
+		return tm.GetActiveTaskForVM("pve", 100) == nil && tm.GetActiveTaskForVM("pve2", 100) == nil
+	}, 5*time.Second, 100*time.Millisecond)
+}
+
 type mockConfig struct {
 	addr string
 }
-func (m *mockConfig) GetAddr() string { return m.addr }
-func (m *mockConfig) GetUser() string { return "user" }
-func (m *mockConfig) GetPassword() string { return "pass" }
-func (m *mockConfig) GetRealm() string { return "pam" }
-func (m *mockConfig) GetAPIToken() string { return "" }
-func (m *mockConfig) GetTokenID() string { return "" }
+
+func (m *mockConfig) GetAddr() string        { return m.addr }
+func (m *mockConfig) GetUser() string        { return "user" }
+func (m *mockConfig) GetPassword() string    { return "pass" }
+func (m *mockConfig) GetRealm() string       { return "pam" }
+func (m *mockConfig) GetAPIToken() string    { return "" }
+func (m *mockConfig) GetTokenID() string     { return "" }
 func (m *mockConfig) GetTokenSecret() string { return "" }
-func (m *mockConfig) GetInsecure() bool { return true }
+func (m *mockConfig) GetInsecure() bool      { return true }
 func (m *mockConfig) IsUsingTokenAuth() bool { return false }

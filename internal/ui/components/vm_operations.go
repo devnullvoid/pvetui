@@ -5,41 +5,8 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/taskmanager"
-	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
-
-// updateVMListWithSelectionPreservation updates the VM list while preserving the currently selected VM.
-func (a *App) updateVMListWithSelectionPreservation() {
-	// Store current selection
-	var selectedVMID int
-	var selectedVMNode string
-	var hasSelectedVM bool
-
-	if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
-		selectedVMID = selectedVM.ID
-		selectedVMNode = selectedVM.Node
-		hasSelectedVM = true
-	}
-
-	// Update the VM list
-	a.vmList.SetVMs(models.GlobalState.FilteredVMs)
-
-	// Restore selection if we had one
-	if hasSelectedVM {
-		vmList := a.vmList.GetVMs()
-		for i, vm := range vmList {
-			if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
-				a.vmList.SetCurrentItem(i)
-				// Manually trigger the VM changed callback to update details
-				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
-					a.vmDetails.Update(selectedVM)
-				}
-				break
-			}
-		}
-	}
-}
 
 // performVMOperation performs an asynchronous VM operation via the TaskManager.
 func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) (string, error), operationName string) {

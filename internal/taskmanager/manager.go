@@ -50,8 +50,8 @@ type ClientResolver func(nodeName string) (*api.Client, error)
 
 type TaskManager struct {
 	mu             sync.RWMutex
-	queue          map[int][]*Task // Key: TargetVMID
-	activeTasks    map[int]*Task   // Key: TargetVMID
+	queue          map[string][]*Task // Key: node/vmid
+	activeTasks    map[string]*Task   // Key: node/vmid
 	clientResolver ClientResolver
 	updateNotify   func()
 
@@ -60,12 +60,16 @@ type TaskManager struct {
 
 func NewTaskManager(clientResolver ClientResolver, updateNotify func()) *TaskManager {
 	return &TaskManager{
-		queue:          make(map[int][]*Task),
-		activeTasks:    make(map[int]*Task),
+		queue:          make(map[string][]*Task),
+		activeTasks:    make(map[string]*Task),
 		clientResolver: clientResolver,
 		updateNotify:   updateNotify,
 		stopChan:       make(chan struct{}),
 	}
+}
+
+func taskKey(node string, vmid int) string {
+	return fmt.Sprintf("%s/%d", node, vmid)
 }
 
 func (tm *TaskManager) Enqueue(task *Task) {
@@ -78,14 +82,16 @@ func (tm *TaskManager) Enqueue(task *Task) {
 	task.Status = StatusQueued
 	task.CreatedAt = time.Now()
 
-	// Check if there is an active task for this VM
-	if _, active := tm.activeTasks[task.TargetVMID]; !active {
+	key := taskKey(task.TargetNode, task.TargetVMID)
+
+	// Check if there is an active task for this VM on this node
+	if _, active := tm.activeTasks[key]; !active {
 		// No active task, start immediately
-		tm.activeTasks[task.TargetVMID] = task
+		tm.activeTasks[key] = task
 		go tm.runTask(task)
 	} else {
 		// Active task exists, append to queue
-		tm.queue[task.TargetVMID] = append(tm.queue[task.TargetVMID], task)
+		tm.queue[key] = append(tm.queue[key], task)
 	}
 
 	if tm.updateNotify != nil {
@@ -164,20 +170,22 @@ func (tm *TaskManager) completeTask(task *Task, status TaskStatus, err error) {
 	task.Error = err
 	task.FinishedAt = time.Now()
 
+	key := taskKey(task.TargetNode, task.TargetVMID)
+
 	// Remove from active
-	delete(tm.activeTasks, task.TargetVMID)
+	delete(tm.activeTasks, key)
 
 	// Check queue for next task
 	var nextTask *Task
-	if queue, ok := tm.queue[task.TargetVMID]; ok && len(queue) > 0 {
+	if queue, ok := tm.queue[key]; ok && len(queue) > 0 {
 		nextTask = queue[0]
-		tm.queue[task.TargetVMID] = queue[1:]
-		if len(tm.queue[task.TargetVMID]) == 0 {
-			delete(tm.queue, task.TargetVMID)
+		tm.queue[key] = queue[1:]
+		if len(tm.queue[key]) == 0 {
+			delete(tm.queue, key)
 		}
 
 		// Set as active
-		tm.activeTasks[task.TargetVMID] = nextTask
+		tm.activeTasks[key] = nextTask
 	}
 	tm.mu.Unlock()
 
@@ -197,13 +205,13 @@ func (tm *TaskManager) completeTask(task *Task, status TaskStatus, err error) {
 func (tm *TaskManager) CancelTask(taskID string) error {
 	// First check queues and remove if found (fast operation, keep lock)
 	tm.mu.Lock()
-	for vmid, queue := range tm.queue {
+	for key, queue := range tm.queue {
 		for i, task := range queue {
 			if task.ID == taskID {
 				// Remove from queue
-				tm.queue[vmid] = append(queue[:i], queue[i+1:]...)
-				if len(tm.queue[vmid]) == 0 {
-					delete(tm.queue, vmid)
+				tm.queue[key] = append(queue[:i], queue[i+1:]...)
+				if len(tm.queue[key]) == 0 {
+					delete(tm.queue, key)
 				}
 				task.Status = StatusCancelled
 				task.FinishedAt = time.Now()
@@ -256,7 +264,18 @@ func (tm *TaskManager) CancelTask(taskID string) error {
 func (tm *TaskManager) GetActiveTask(vmid int) *Task {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
-	return tm.activeTasks[vmid]
+	for _, task := range tm.activeTasks {
+		if task.TargetVMID == vmid {
+			return task
+		}
+	}
+	return nil
+}
+
+func (tm *TaskManager) GetActiveTaskForVM(node string, vmid int) *Task {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	return tm.activeTasks[taskKey(node, vmid)]
 }
 
 func (tm *TaskManager) GetAllTasks() []*Task {

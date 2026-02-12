@@ -99,7 +99,7 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			var operation string
 
 			if vl.app != nil && vl.app.TaskManager() != nil {
-				if task := vl.app.TaskManager().GetActiveTask(vm.ID); task != nil {
+				if task := vl.app.TaskManager().GetActiveTaskForVM(vm.Node, vm.ID); task != nil {
 					isPending = true
 					operation = task.Type
 				}

@@ -345,7 +345,7 @@ func HandleTaskStatus(state *MockState) http.HandlerFunc {
 			"upid":      task.UPID,
 		}
 
-		if task.Status == "stopped" {
+		if task.Status == taskStatusStopped {
 			data["exitstatus"] = task.ExitStatus
 			data["endtime"] = task.EndTime
 		}

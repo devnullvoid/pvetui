@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **UI Deadlocks**: Eliminated nested QueueUpdateDraw deadlocks that occurred when displaying error messages from menu handlers by switching to direct SetFocus calls. This fixes deadlocks in various scenarios including interacting with offline nodes and group connection handling.
 - **Group Connection Handling**: Improved connection handling during bootstrap and resource fetching in aggregate groups to prevent UI freezes.
+- **Async Task Queue Node Isolation**: Task queue scheduling now keys active/queued operations by `node+vmid` instead of VMID alone, preventing unrelated VMs with the same ID on different nodes/clusters from blocking each other.
 
 ## [1.0.16] - 2026-01-01
 

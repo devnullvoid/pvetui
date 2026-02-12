@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+const (
+	taskStatusRunning = "running"
+	taskStatusStopped = "stopped"
+)
+
 type MockState struct {
 	mu      sync.RWMutex
 	Nodes   []*MockNode
@@ -17,14 +22,14 @@ type MockState struct {
 }
 
 type MockTask struct {
-	UPID      string
-	Node      string
-	Type      string
-	ID        string // e.g. "100"
-	User      string
-	StartTime int64
-	EndTime   int64
-	Status    string // "running", "stopped", "OK", "ERR"
+	UPID       string
+	Node       string
+	Type       string
+	ID         string // e.g. "100"
+	User       string
+	StartTime  int64
+	EndTime    int64
+	Status     string // "running", "stopped", "OK", "ERR"
 	ExitStatus string // "OK", "ERROR"
 }
 
@@ -48,12 +53,12 @@ type MockNode struct {
 	MaxCPU  float64
 	MaxMem  int64
 	MaxDisk int64
-    // Detailed stats
-    KernelVersion string
-    PVEVersion    string
-    CPUModel      string
-    CPUSockets    int
-    CPUCores      int
+	// Detailed stats
+	KernelVersion string
+	PVEVersion    string
+	CPUModel      string
+	CPUSockets    int
+	CPUCores      int
 }
 
 type MockVM struct {
@@ -71,19 +76,19 @@ type MockVM struct {
 	DiskRead  int64
 	DiskWrite int64
 
-    // Configuration
-    Config map[string]interface{}
+	// Configuration
+	Config map[string]interface{}
 }
 
 type MockStorage struct {
-	ID         string // "local"
-	Node       string
-	Type       string
-	Content    string
-	Disk       int64
-	MaxDisk    int64
-	Status     string // "active"
-	Shared     int
+	ID      string // "local"
+	Node    string
+	Type    string
+	Content string
+	Disk    int64
+	MaxDisk int64
+	Status  string // "active"
+	Shared  int
 }
 
 func NewMockState() *MockState {
@@ -101,13 +106,13 @@ func NewMockState() *MockState {
 		IP:            "127.0.0.1",
 		Uptime:        10000,
 		MaxCPU:        16,
-		MaxMem:        32 * 1024 * 1024 * 1024, // 32GB
+		MaxMem:        32 * 1024 * 1024 * 1024,   // 32GB
 		MaxDisk:       1000 * 1024 * 1024 * 1024, // 1TB
-        KernelVersion: "6.5.11-7-pve",
-        PVEVersion:    "8.1.3",
-        CPUModel:      "Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz",
-        CPUSockets:    2,
-        CPUCores:      8,
+		KernelVersion: "6.5.11-7-pve",
+		PVEVersion:    "8.1.3",
+		CPUModel:      "Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz",
+		CPUSockets:    2,
+		CPUCores:      8,
 	}
 	state.Nodes = append(state.Nodes, node)
 
@@ -145,16 +150,16 @@ func NewMockState() *MockState {
 		MaxDisk: 32 * 1024 * 1024 * 1024,
 		CPUs:    2,
 		Uptime:  3600,
-        Config: map[string]interface{}{
-            "name": "test-vm",
-            "memory": "4096",
-            "cores": "2",
-            "sockets": "1",
-            "net0": "virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0",
-            "scsi0": "local-zfs:vm-100-disk-0,size=32G",
-            "ostype": "l26",
-            "boot": "order=scsi0;ide2;net0",
-        },
+		Config: map[string]interface{}{
+			"name":    "test-vm",
+			"memory":  "4096",
+			"cores":   "2",
+			"sockets": "1",
+			"net0":    "virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0",
+			"scsi0":   "local-zfs:vm-100-disk-0,size=32G",
+			"ostype":  "l26",
+			"boot":    "order=scsi0;ide2;net0",
+		},
 	}
 	vm2 := &MockVM{
 		ID:      101,
@@ -166,14 +171,14 @@ func NewMockState() *MockState {
 		MaxDisk: 8 * 1024 * 1024 * 1024,
 		CPUs:    1,
 		Uptime:  0,
-        Config: map[string]interface{}{
-            "hostname": "test-ct",
-            "memory": "512",
-            "cores": "1",
-            "net0": "name=eth0,bridge=vmbr0,hwaddr=AA:BB:CC:DD:EE:01,ip=dhcp",
-            "rootfs": "local-zfs:subvol-101-disk-0,size=8G",
-            "ostype": "debian",
-        },
+		Config: map[string]interface{}{
+			"hostname": "test-ct",
+			"memory":   "512",
+			"cores":    "1",
+			"net0":     "name=eth0,bridge=vmbr0,hwaddr=AA:BB:CC:DD:EE:01,ip=dhcp",
+			"rootfs":   "local-zfs:subvol-101-disk-0,size=8G",
+			"ostype":   "debian",
+		},
 	}
 	state.VMs["100"] = vm1
 	state.VMs["101"] = vm2
@@ -252,7 +257,7 @@ func (s *MockState) GetClusterResources() []map[string]interface{} {
 			"diskwrite": vm.DiskWrite,
 			"cpu":       0.05, // mock usage
 			"mem":       vm.MaxMem / 2,
-            "template":  0,
+			"template":  0,
 		})
 	}
 
@@ -267,13 +272,13 @@ func (s *MockState) CreateTask(node, taskType, id, user string) string {
 	upid := fmt.Sprintf("UPID:%s:%s:%s:%s:%s:%s:%s:", node, hexTime, "00000000", "00000000", taskType, id, user)
 
 	task := &MockTask{
-		UPID: upid,
-		Node: node,
-		Type: taskType,
-		ID: id,
-		User: user,
+		UPID:      upid,
+		Node:      node,
+		Type:      taskType,
+		ID:        id,
+		User:      user,
 		StartTime: time.Now().Unix(),
-		Status: "running",
+		Status:    taskStatusRunning,
 	}
 	s.Tasks[upid] = task
 
@@ -291,7 +296,7 @@ func (s *MockState) CompleteTask(upid, exitStatus string) {
 	defer s.mu.Unlock()
 
 	if task, ok := s.Tasks[upid]; ok {
-		task.Status = "stopped"
+		task.Status = taskStatusStopped
 		task.ExitStatus = exitStatus
 		task.EndTime = time.Now().Unix()
 	}
@@ -361,32 +366,32 @@ func (s *MockState) CreateVM(vmid int, name string, vmType string, node string) 
 		Status: "stopped",
 		MaxMem: 1024 * 1024 * 1024,
 		CPUs:   1,
-        Config: map[string]interface{}{
-            "name": name,
-            "memory": "1024",
-            "cores": "1",
-        },
+		Config: map[string]interface{}{
+			"name":   name,
+			"memory": "1024",
+			"cores":  "1",
+		},
 	}
 }
 
 func (s *MockState) UpdateVMConfig(vmid string, config map[string]interface{}) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-    vm, ok := s.VMs[vmid]
-    if !ok {
-        return fmt.Errorf("vm not found")
-    }
+	vm, ok := s.VMs[vmid]
+	if !ok {
+		return fmt.Errorf("vm not found")
+	}
 
-    for k, v := range config {
-        vm.Config[k] = v
-        if k == "name" || k == "hostname" {
-            if val, ok := v.(string); ok {
-                vm.Name = val
-            }
-        }
-    }
-    return nil
+	for k, v := range config {
+		vm.Config[k] = v
+		if k == "name" || k == "hostname" {
+			if val, ok := v.(string); ok {
+				vm.Name = val
+			}
+		}
+	}
+	return nil
 }
 
 func (s *MockState) CreateBackup(vmid int, storage string, mode string, notes string) string {

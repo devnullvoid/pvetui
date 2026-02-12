@@ -131,12 +131,6 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		return app.getClientForNode(targetNode)
 	}, func() {
 		app.QueueUpdateDraw(func() {
-			// Trigger updates for components that might display task status
-			if app.vmList != nil {
-				// We need a way to force redraw or update status
-				// vmList usually updates on data change or selection change.
-				// We'll rely on global redraw for now, and ensure Draw methods check TaskManager.
-			}
 			if app.tasksList != nil {
 				app.tasksList.Refresh()
 			}
