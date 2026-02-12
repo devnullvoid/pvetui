@@ -55,6 +55,11 @@ var activeTasksColumns = []struct {
 	{title: "UPID", expansion: 3},
 }
 
+const (
+	historyPanelRatio = 2
+	queuePanelRatio   = 1
+)
+
 // NewTasksList creates a new tasks list panel.
 func NewTasksList() *TasksList {
 	activeTable := tview.NewTable()
@@ -74,9 +79,6 @@ func NewTasksList() *TasksList {
 	historyTable.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse))
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
-	// Show queue panel by default; user can toggle with 'v'.
-	flex.AddItem(activeTable, 10, 0, false)
-	flex.AddItem(historyTable, 0, 1, true)
 
 	tl := &TasksList{
 		Flex:         flex,
@@ -87,6 +89,7 @@ func NewTasksList() *TasksList {
 	}
 
 	tl.setupKeyHandlers()
+	tl.syncLayout()
 
 	return tl
 }
@@ -417,10 +420,11 @@ func (tl *TasksList) toggleActiveQueueVisibility() {
 
 func (tl *TasksList) syncLayout() {
 	tl.Flex.Clear()
+	tl.Flex.AddItem(tl.historyTable, 0, historyPanelRatio, true)
+
 	if tl.showActive {
-		tl.Flex.AddItem(tl.activeTable, 10, 0, false)
+		tl.Flex.AddItem(tl.activeTable, 0, queuePanelRatio, false)
 	}
-	tl.Flex.AddItem(tl.historyTable, 0, 1, true)
 
 	if tl.app != nil && !tl.showActive && tl.app.GetFocus() == tl.activeTable {
 		tl.app.SetFocus(tl.historyTable)

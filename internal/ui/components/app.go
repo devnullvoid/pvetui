@@ -134,6 +134,11 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 			if app.tasksList != nil {
 				app.tasksList.Refresh()
 			}
+			// Re-render guest rows so pending-task indicators stay in sync
+			// with TaskManager state transitions (queued/running/completed).
+			if app.vmList != nil {
+				app.vmList.SetVMs(app.vmList.GetVMs())
+			}
 		})
 	})
 
