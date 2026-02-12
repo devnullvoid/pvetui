@@ -95,7 +95,7 @@ func (tm *TaskManager) Enqueue(task *Task) {
 	}
 
 	if tm.updateNotify != nil {
-		tm.updateNotify()
+		go tm.updateNotify()
 	}
 }
 
@@ -107,7 +107,7 @@ func (tm *TaskManager) runTask(task *Task) {
 	tm.mu.Unlock()
 
 	if tm.updateNotify != nil {
-		tm.updateNotify()
+		go tm.updateNotify()
 	}
 
 	// Execute operation
@@ -194,7 +194,7 @@ func (tm *TaskManager) completeTask(task *Task, status TaskStatus, err error) {
 	}
 
 	if tm.updateNotify != nil {
-		tm.updateNotify()
+		go tm.updateNotify()
 	}
 
 	if nextTask != nil {
@@ -218,7 +218,7 @@ func (tm *TaskManager) CancelTask(taskID string) error {
 				tm.mu.Unlock()
 
 				if tm.updateNotify != nil {
-					tm.updateNotify()
+					go tm.updateNotify()
 				}
 				return nil
 			}
