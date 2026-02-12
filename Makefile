@@ -31,7 +31,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build build-fast test test-quick clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update
+.PHONY: help build build-fast test test-quick clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update queuedraw-check
 
 # Default target
 help: ## Show this help message
@@ -265,7 +265,11 @@ lint: ## Run linters
 	@printf "$(GREEN)Running linters...$(NC)\n"
 	golangci-lint run
 
-code-quality: vet lint ## Run all code quality checks (go vet + linters)
+queuedraw-check: ## Run static check for nested QueueUpdateDraw calls
+	@printf "$(GREEN)Running QueueUpdateDraw deadlock check...$(NC)\n"
+	go run ./cmd/queuedrawcheck ./internal/...
+
+code-quality: vet lint queuedraw-check ## Run all code quality checks (go vet + linters + deadlock check)
 
 format: ## Format code
 	@printf "$(GREEN)Formatting code...$(NC)\n"
