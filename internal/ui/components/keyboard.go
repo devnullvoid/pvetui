@@ -296,6 +296,7 @@ func (a *App) setupKeyboardHandlers() {
 			if currentPage == api.PageNodes {
 				// Handle node VNC shell session
 				a.openNodeVNC()
+				return nil
 			} else if currentPage == api.PageGuests {
 				// Handle VM VNC console session - check for pending operations
 				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
@@ -305,9 +306,8 @@ func (a *App) setupKeyboardHandlers() {
 					}
 				}
 				a.openVMVNC()
+				return nil
 			}
-
-			return nil
 		}
 
 		if keyMatch(event, a.config.KeyBindings.Help) {

@@ -6,26 +6,41 @@ import (
 )
 
 // StartVM starts a VM or container.
-func (c *Client) StartVM(vm *VM) error {
+func (c *Client) StartVM(vm *VM) (string, error) {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/start", vm.Node, vm.Type, vm.ID)
 
-	return c.Post(path, nil)
+	var response map[string]interface{}
+	if err := c.PostWithResponse(path, nil, &response); err != nil {
+		return "", err
+	}
+
+	return c.extractUPID(response)
 }
 
 // StopVM stops a VM or container.
-func (c *Client) StopVM(vm *VM) error {
+func (c *Client) StopVM(vm *VM) (string, error) {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/stop", vm.Node, vm.Type, vm.ID)
 
-	return c.Post(path, nil)
+	var response map[string]interface{}
+	if err := c.PostWithResponse(path, nil, &response); err != nil {
+		return "", err
+	}
+
+	return c.extractUPID(response)
 }
 
 // ShutdownVM requests a graceful shutdown via the guest OS.
 // For both QEMU and LXC, Proxmox exposes `/status/shutdown`.
 // The guest tools/agent should be installed for reliable behavior.
-func (c *Client) ShutdownVM(vm *VM) error {
+func (c *Client) ShutdownVM(vm *VM) (string, error) {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/shutdown", vm.Node, vm.Type, vm.ID)
 
-	return c.Post(path, nil)
+	var response map[string]interface{}
+	if err := c.PostWithResponse(path, nil, &response); err != nil {
+		return "", err
+	}
+
+	return c.extractUPID(response)
 }
 
 // RestartVM restarts a VM or container
@@ -36,24 +51,46 @@ func (c *Client) ShutdownVM(vm *VM) error {
 // Parameters:
 //   - vm: The VM or container to restart
 //
-// Returns an error if the restart operation fails.
-func (c *Client) RestartVM(vm *VM) error {
+// Returns the task UPID and an error if the restart operation fails.
+func (c *Client) RestartVM(vm *VM) (string, error) {
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/reboot", vm.Node, vm.Type, vm.ID)
 	c.logger.Info("Rebooting %s %s (ID: %d) using /status/reboot endpoint", vm.Type, vm.Name, vm.ID)
 
-	return c.Post(path, nil)
+	var response map[string]interface{}
+	if err := c.PostWithResponse(path, nil, &response); err != nil {
+		return "", err
+	}
+
+	return c.extractUPID(response)
 }
 
 // ResetVM performs a hard reset (like pressing the reset button).
 // Only supported for QEMU VMs. Not applicable to LXC.
-func (c *Client) ResetVM(vm *VM) error {
+func (c *Client) ResetVM(vm *VM) (string, error) {
 	if vm.Type != VMTypeQemu {
-		return fmt.Errorf("reset is only supported for QEMU VMs")
+		return "", fmt.Errorf("reset is only supported for QEMU VMs")
 	}
 
 	path := fmt.Sprintf("/nodes/%s/%s/%d/status/reset", vm.Node, vm.Type, vm.ID)
 
-	return c.Post(path, nil)
+	var response map[string]interface{}
+	if err := c.PostWithResponse(path, nil, &response); err != nil {
+		return "", err
+	}
+
+	return c.extractUPID(response)
+}
+
+// extractUPID extracts the UPID from a Proxmox API response.
+func (c *Client) extractUPID(response map[string]interface{}) (string, error) {
+	if dataField, ok := response["data"]; ok {
+		if upidStr, ok := dataField.(string); ok && strings.HasPrefix(upidStr, "UPID:") {
+			return upidStr, nil
+		}
+	}
+	// Some operations might not return a UPID (sync ops), or return it differently
+	// But most async ops return UPID. If missing, return empty string but no error if the call was successful.
+	return "", nil
 }
 
 // MigrationOptions contains configuration options for migrating a VM or container.
@@ -236,25 +273,12 @@ func (c *Client) MigrateVM(vm *VM, options *MigrationOptions) (string, error) {
 
 	c.logger.Info("Migration API response: %+v", response)
 
-	// Extract UPID from response
-	upid := ""
-	if dataField, ok := response["data"]; ok {
-		if upidStr, ok := dataField.(string); ok && strings.HasPrefix(upidStr, "UPID:") {
-			upid = upidStr
-			c.logger.Debug("Migration task queued with UPID: %s", upid)
-		}
-	}
-
-	if upid == "" {
-		c.logger.Debug("Migration initiated but no UPID returned in response")
-	}
-
-	return upid, nil
+	return c.extractUPID(response)
 }
 
 // DeleteVM permanently deletes a VM or container
 // WARNING: This operation is irreversible and will destroy all VM data including disks.
-func (c *Client) DeleteVM(vm *VM) error {
+func (c *Client) DeleteVM(vm *VM) (string, error) {
 	return c.DeleteVMWithOptions(vm, nil)
 }
 
@@ -272,7 +296,7 @@ type DeleteVMOptions struct {
 
 // DeleteVMWithOptions permanently deletes a VM or container with specific options
 // WARNING: This operation is irreversible and will destroy all VM data including disks.
-func (c *Client) DeleteVMWithOptions(vm *VM, options *DeleteVMOptions) error {
+func (c *Client) DeleteVMWithOptions(vm *VM, options *DeleteVMOptions) (string, error) {
 	path := fmt.Sprintf("/nodes/%s/%s/%d", vm.Node, vm.Type, vm.ID)
 
 	// Build query parameters
@@ -306,5 +330,10 @@ func (c *Client) DeleteVMWithOptions(vm *VM, options *DeleteVMOptions) error {
 		path += "?" + strings.Join(queryParts, "&")
 	}
 
-	return c.Delete(path)
+	var response map[string]interface{}
+	if err := c.DeleteWithResponse(path, &response); err != nil {
+		return "", err
+	}
+
+	return c.extractUPID(response)
 }

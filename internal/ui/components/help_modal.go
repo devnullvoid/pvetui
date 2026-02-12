@@ -66,6 +66,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.NodesPage, Desc: "Switch to Nodes tab"},
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
+		{Key: "Tab / Shift+Tab", Desc: "Switch focus between Tasks page panels"},
 		{Cat: ""}, // Spacer
 		{Cat: "[warning]Actions[-]"},
 		{Key: keys.Search, Desc: "Search/Filter current list"},
@@ -75,6 +76,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.GlobalMenu, Desc: "Open global menu"},
 		{Key: keys.Refresh, Desc: "Manual refresh"},
 		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},
+		{Key: "v (Tasks page)", Desc: "Toggle active queue panel visibility"},
 		{Key: keys.Quit, Desc: "Quit application"},
 		{Cat: ""},
 		{Cat: "[warning]Tips & Usage[-]"},

@@ -52,6 +52,7 @@ type TasksListComponent interface {
 	GetSelectedTask() *api.ClusterTask
 	Select(row, column int) *tview.Table
 	Clear() *tview.Table
+	Refresh()
 }
 
 type ClusterStatusComponent interface {

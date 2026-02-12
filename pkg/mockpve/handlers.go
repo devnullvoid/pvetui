@@ -1,4 +1,4 @@
-package main
+package mockpve
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func handleClusterResources(state *MockState) http.HandlerFunc {
+func HandleClusterResources(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resources := state.GetClusterResources()
 
@@ -22,7 +22,7 @@ func handleClusterResources(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleClusterStatus(state *MockState) http.HandlerFunc {
+func HandleClusterStatus(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Mock cluster status
 		state.mu.RLock()
@@ -47,7 +47,7 @@ func handleClusterStatus(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleNodeStatus(state *MockState) http.HandlerFunc {
+func HandleNodeStatus(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		nodeName := vars["node"]
@@ -96,13 +96,13 @@ func handleNodeStatus(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleVMStatusAction(state *MockState) http.HandlerFunc {
+func HandleVMStatusAction(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		vmid := vars["vmid"]
 		action := vars["action"]
 
-		err := state.UpdateVMStatus(vmid, action)
+		upid, err := state.UpdateVMStatus(vmid, action)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -110,12 +110,12 @@ func handleVMStatusAction(state *MockState) http.HandlerFunc {
 
 		// Return UPID (task ID) as Proxmox does
 		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"data": "UPID:pve:00000000:00000000:00000000:task:id:root@pam:",
+			"data": upid,
 		})
 	}
 }
 
-func handleDeleteVM(state *MockState) http.HandlerFunc {
+func HandleDeleteVM(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		vmid := vars["vmid"]
@@ -132,7 +132,7 @@ func handleDeleteVM(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleVMStatusCurrent(state *MockState) http.HandlerFunc {
+func HandleVMStatusCurrent(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		vmid := vars["vmid"]
@@ -164,7 +164,7 @@ func handleVMStatusCurrent(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleVMConfig(state *MockState) http.HandlerFunc {
+func HandleVMConfig(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		vmid := vars["vmid"]
@@ -227,7 +227,7 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	}
 }
 
-func handleVzdump(state *MockState) http.HandlerFunc {
+func HandleVzdump(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params map[string]interface{}
 		_ = json.NewDecoder(r.Body).Decode(&params)
@@ -260,7 +260,7 @@ func handleVzdump(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleStorageContent(state *MockState) http.HandlerFunc {
+func HandleStorageContent(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		storage := vars["storage"]
@@ -295,7 +295,7 @@ func handleStorageContent(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleDeleteStorageContent(state *MockState) http.HandlerFunc {
+func HandleDeleteStorageContent(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		volume := vars["volume"]
@@ -312,10 +312,59 @@ func handleDeleteStorageContent(state *MockState) http.HandlerFunc {
 	}
 }
 
-func handleRestore(state *MockState) http.HandlerFunc {
+func HandleRestore(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"data": "UPID:pve:00000000:00000000:00000000:task:qmrestore:root@pam:",
+		})
+	}
+}
+
+func HandleTaskStatus(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		upid := vars["upid"]
+
+		state.mu.RLock()
+		task, ok := state.Tasks[upid]
+		state.mu.RUnlock()
+
+		if !ok {
+			http.Error(w, "Task not found", http.StatusNotFound)
+			return
+		}
+
+		data := map[string]interface{}{
+			"status":    task.Status,
+			"pid":       1234,
+			"starttime": task.StartTime,
+			"id":        task.ID,
+			"type":      task.Type,
+			"user":      task.User,
+			"node":      task.Node,
+			"upid":      task.UPID,
+		}
+
+		if task.Status == taskStatusStopped {
+			data["exitstatus"] = task.ExitStatus
+			data["endtime"] = task.EndTime
+		}
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": data,
+		})
+	}
+}
+
+func HandleStopTask(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		upid := vars["upid"]
+
+		state.CompleteTask(upid, "ERROR") // Stopped tasks usually have exit status "ERROR" or similar, or just stopped.
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": nil,
 		})
 	}
 }

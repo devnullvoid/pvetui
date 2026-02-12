@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devnullvoid/pvetui/pkg/mockpve"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/gorilla/mux"
@@ -43,29 +44,33 @@ func main() {
 	r := mux.NewRouter()
 
 	// Initialize State
-	state := NewMockState()
+	state := mockpve.NewMockState()
 
 	// Stateful Handlers (Priority)
-	r.HandleFunc("/cluster/resources", handleClusterResources(state)).Methods("GET")
-	r.HandleFunc("/cluster/status", handleClusterStatus(state)).Methods("GET")
+	r.HandleFunc("/cluster/resources", mockpve.HandleClusterResources(state)).Methods("GET")
+	r.HandleFunc("/cluster/status", mockpve.HandleClusterStatus(state)).Methods("GET")
 
 	// Node
-	r.HandleFunc("/nodes/{node}/status", handleNodeStatus(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/status", mockpve.HandleNodeStatus(state)).Methods("GET")
 
 	// VM/CT
-	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/status/current", handleVMStatusCurrent(state)).Methods("GET")
-	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/status/{action}", handleVMStatusAction(state)).Methods("POST")
-	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/config", handleVMConfig(state)).Methods("GET", "POST", "PUT")
-	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}", handleDeleteVM(state)).Methods("DELETE")
+	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/status/current", mockpve.HandleVMStatusCurrent(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/status/{action}", mockpve.HandleVMStatusAction(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/config", mockpve.HandleVMConfig(state)).Methods("GET", "POST", "PUT")
+	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}", mockpve.HandleDeleteVM(state)).Methods("DELETE")
 
 	// Backups
-	r.HandleFunc("/nodes/{node}/vzdump", handleVzdump(state)).Methods("POST")
-	r.HandleFunc("/nodes/{node}/storage/{storage}/content", handleStorageContent(state)).Methods("GET")
-	r.HandleFunc("/nodes/{node}/storage/{storage}/content/{volume:.+}", handleDeleteStorageContent(state)).Methods("DELETE")
+	r.HandleFunc("/nodes/{node}/vzdump", mockpve.HandleVzdump(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/content", mockpve.HandleStorageContent(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/content/{volume:.+}", mockpve.HandleDeleteStorageContent(state)).Methods("DELETE")
 
 	// Restore (Create VM/CT)
-	r.HandleFunc("/nodes/{node}/qemu", handleRestore(state)).Methods("POST")
-	r.HandleFunc("/nodes/{node}/lxc", handleRestore(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/qemu", mockpve.HandleRestore(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/lxc", mockpve.HandleRestore(state)).Methods("POST")
+
+	// Tasks
+	r.HandleFunc("/nodes/{node}/tasks/{upid}/status", mockpve.HandleTaskStatus(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/tasks/{upid}", mockpve.HandleStopTask(state)).Methods("DELETE")
 
 	// Generic Fallback
 	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

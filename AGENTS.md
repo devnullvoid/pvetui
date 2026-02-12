@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** November 2025 | **For:** pvetui - Proxmox TUI
+**Last Updated:** February 2026 | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -277,6 +277,9 @@ Key architectural decisions and rationale:
 - **Keyboard events**: Use `SetInputCapture()` on focused elements (e.g., input fields, text views) not flex containers to properly consume events
 - **UI text**: Use tview color tags `[primary]text[-]` for colored text; brackets need escaping as `[[` or use color tags instead
 - **tview QueueUpdateDraw deadlocks**: Never call functions that use `QueueUpdateDraw` from within another `QueueUpdateDraw` callback - this creates nested calls that deadlock tview. Always separate UI updates into sequential, non-nested calls.
+- **UI callback re-entrancy**: Treat modal/button callbacks, `SetDoneFunc`, and input handlers as UI-thread contexts. Prefer `go func() { ... }` for background work and keep callback bodies non-blocking.
+- **TaskManager/UI notify path**: If a background manager notifies UI code that uses `QueueUpdateDraw`, dispatch the notifier asynchronously (e.g. `go notify()`) to avoid blocking UI event handlers.
+- **Pre-PR deadlock scan**: Before merging UI changes, scan for risky call sites with `rg -n "QueueUpdateDraw|SetDoneFunc|SetInputCapture" internal/ui/components internal/taskmanager` and verify no nested `QueueUpdateDraw` chains were introduced.
 - **Pending state and refreshes**: Always clear pending state BEFORE calling refresh functions (`manualRefresh`, `refreshVMData`), as these functions check for pending operations and will block if any exist
 - **Header loading animation**: Multiple overlapping `ShowLoading` calls can spawn concurrent animations and make the spinner appear too fast; ensure loading state is serialized (single animation, cancelable ticker).
 
@@ -303,6 +306,19 @@ Key architectural decisions and rationale:
 1. Ensure `badgerCache.Close()` is deferred in all initialization code paths
 2. Check that cleanup channel is being listened to and properly closed
 3. Use `defer` immediately after successful cache initialization
+
+### UI Deadlock During Actions
+
+**Symptoms:** TUI freezes immediately after confirming an action (for example Start/Stop/Shutdown), keyboard input stops responding, and no further redraw occurs
+
+**Root cause:** Nested or re-entrant `QueueUpdateDraw` usage, or synchronous UI notification from code running in a UI callback path
+
+**Fix:**
+1. Check recent changes for nested update paths:
+   - `rg -n "QueueUpdateDraw|SetDoneFunc|SetInputCapture" internal/ui/components internal/taskmanager`
+2. Ensure UI callbacks do not perform blocking work; move long-running work into goroutines.
+3. If a manager/background worker triggers UI refreshes, call notifier callbacks asynchronously (`go notify()`), then use `QueueUpdateDraw` inside the notifier.
+4. Re-run `make test-quick` after the fix and manually verify the action flow that froze.
 
 ### Test Timeouts
 

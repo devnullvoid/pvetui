@@ -11,6 +11,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/adapters"
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/logger"
+	"github.com/devnullvoid/pvetui/internal/taskmanager"
 	"github.com/devnullvoid/pvetui/internal/taskpoller"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/vnc"
@@ -50,7 +51,8 @@ type App struct {
 	cancel context.CancelFunc
 
 	// Background task monitoring
-	poller *taskpoller.Poller
+	poller      *taskpoller.Poller
+	taskManager *taskmanager.TaskManager
 
 	// Auto-refresh functionality
 	autoRefreshEnabled       bool
@@ -107,6 +109,38 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	}
 
 	uiLogger.Debug("Initializing UI components")
+
+	// Initialize TaskManager
+	app.taskManager = taskmanager.NewTaskManager(func(nodeName string) (*api.Client, error) {
+		if !app.isGroupMode {
+			return app.client, nil
+		}
+
+		// In group mode, find the node in global state
+		var targetNode *api.Node
+		for _, n := range models.GlobalState.OriginalNodes {
+			if n.Name == nodeName {
+				targetNode = n
+				break
+			}
+		}
+		if targetNode == nil {
+			return nil, fmt.Errorf("node %s not found in group state", nodeName)
+		}
+
+		return app.getClientForNode(targetNode)
+	}, func() {
+		app.QueueUpdateDraw(func() {
+			if app.tasksList != nil {
+				app.tasksList.Refresh()
+			}
+			// Re-render guest rows so pending-task indicators stay in sync
+			// with TaskManager state transitions (queued/running/completed).
+			if app.vmList != nil {
+				app.vmList.SetVMs(app.vmList.GetVMs())
+			}
+		})
+	})
 
 	// Initialize components
 	app.header = NewHeader()
@@ -423,6 +457,11 @@ func (a *App) Config() *config.Config {
 // Client exposes the underlying API client for plugin use.
 func (a *App) Client() *api.Client {
 	return a.client
+}
+
+// TaskManager returns the application task manager.
+func (a *App) TaskManager() *taskmanager.TaskManager {
+	return a.taskManager
 }
 
 // IsGroupMode returns whether the app is running in group cluster mode.
