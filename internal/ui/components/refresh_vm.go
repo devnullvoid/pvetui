@@ -110,24 +110,14 @@ func (a *App) refreshVMData(vm *api.VM) {
 			// Update the VM list display
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 
-			// Find and select the refreshed VM by ID and node in the widget's list
-			vmList := a.vmList.GetVMs()
-			for i, refreshedVM := range vmList {
-				if refreshedVM != nil && refreshedVM.ID == vmID && refreshedVM.Node == vmNode {
-					a.vmList.SetCurrentItem(i)
-
-					if vmSearchState != nil {
-						vmSearchState.SelectedIndex = i
-					}
-
-					break
-				}
+			// Preserve whichever VM the user is currently focused on (selection is restored by SetVMs).
+			if vmSearchState != nil {
+				vmSearchState.SelectedIndex = a.vmList.GetCurrentItem()
 			}
 
-			// Update VM details if this VM is currently selected
-			selectedVM := a.vmList.GetSelectedVM()
-			if selectedVM != nil && selectedVM.ID == vmID && selectedVM.Node == vmNode {
-				a.vmDetails.Update(freshVM)
+			// Update VM details for the currently selected VM.
+			if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+				a.vmDetails.Update(selectedVM)
 			}
 
 			// Show success message
@@ -234,24 +224,14 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 			// Update the VM list display
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 
-			// Find and select the refreshed VM by ID and node in the widget's list
-			vmList := a.vmList.GetVMs()
-			for i, refreshedVM := range vmList {
-				if refreshedVM != nil && refreshedVM.ID == vmID && refreshedVM.Node == vmNode {
-					a.vmList.SetCurrentItem(i)
-
-					if vmSearchState != nil {
-						vmSearchState.SelectedIndex = i
-					}
-
-					break
-				}
+			// Preserve whichever VM the user is currently focused on (selection is restored by SetVMs).
+			if vmSearchState != nil {
+				vmSearchState.SelectedIndex = a.vmList.GetCurrentItem()
 			}
 
-			// Update VM details if this VM is currently selected
-			selectedVM := a.vmList.GetSelectedVM()
-			if selectedVM != nil && selectedVM.ID == vmID && selectedVM.Node == vmNode {
-				a.vmDetails.Update(freshVM)
+			// Update VM details for the currently selected VM.
+			if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+				a.vmDetails.Update(selectedVM)
 			}
 
 			// Also refresh tasks to show any new tasks created by the operation
