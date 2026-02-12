@@ -19,6 +19,7 @@ type TasksList struct {
 
 	activeTable  *tview.Table
 	historyTable *tview.Table
+	showActive   bool
 
 	tasks []*api.ClusterTask
 	app   *App
@@ -58,7 +59,7 @@ var activeTasksColumns = []struct {
 func NewTasksList() *TasksList {
 	activeTable := tview.NewTable()
 	activeTable.SetBorders(false)
-	activeTable.SetTitle(" Active Operations ")
+	activeTable.SetTitle(" Active Operations [v:toggle] ")
 	activeTable.SetBorder(true)
 	activeTable.SetSelectable(true, false)
 	activeTable.SetFixed(1, 0)
@@ -73,13 +74,15 @@ func NewTasksList() *TasksList {
 	historyTable.SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse))
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
-	// Initially show only history, active table will be shown when there are tasks
+	// Show queue panel by default; user can toggle with 'v'.
+	flex.AddItem(activeTable, 10, 0, false)
 	flex.AddItem(historyTable, 0, 1, true)
 
 	tl := &TasksList{
 		Flex:         flex,
 		activeTable:  activeTable,
 		historyTable: historyTable,
+		showActive:   true,
 		tasks:        make([]*api.ClusterTask, 0),
 	}
 
@@ -218,24 +221,15 @@ func (tl *TasksList) Refresh() {
 			// Store task ID in reference for key handler
 			tl.activeTable.GetCell(row, 0).SetReference(task)
 		}
-
-		// Ensure active table is visible
-		if tl.Flex.GetItemCount() == 1 {
-			tl.Flex.Clear()
-			tl.Flex.AddItem(tl.activeTable, 10, 0, false) // Fixed height for active tasks? Or flexible?
-			tl.Flex.AddItem(tl.historyTable, 0, 1, true)
-		}
 	} else {
-		// Hide active table if no tasks
-		if tl.Flex.GetItemCount() > 1 {
-			tl.Flex.Clear()
-			tl.Flex.AddItem(tl.historyTable, 0, 1, true)
-			// Return focus to history table if active table was focused
-			if tl.app.GetFocus() == tl.activeTable {
-				tl.app.SetFocus(tl.historyTable)
-			}
-		}
+		tl.activeTable.SetCell(1, 0, tview.NewTableCell("No active operations").
+			SetTextColor(theme.Colors.Secondary).
+			SetAlign(tview.AlignCenter).
+			SetSelectable(false).
+			SetExpansion(1))
 	}
+
+	tl.syncLayout()
 }
 
 // updateHistoryTable refreshes the history table content.
@@ -349,12 +343,25 @@ func (tl *TasksList) updateHistoryTable() {
 func (tl *TasksList) setupKeyHandlers() {
 	handler := func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyTab:
+			if tl.showActive {
+				tl.focusOtherPane()
+				return nil
+			}
+		case tcell.KeyBacktab:
+			if tl.showActive {
+				tl.focusOtherPane()
+				return nil
+			}
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'j':
 				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
 			case 'k':
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+			case 'v':
+				tl.toggleActiveQueueVisibility()
+				return nil
 			}
 		}
 		return event
@@ -365,6 +372,9 @@ func (tl *TasksList) setupKeyHandlers() {
 	tl.activeTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
+			case 'v':
+				tl.toggleActiveQueueVisibility()
+				return nil
 			case 'x', 's':
 				// Stop task
 				row, _ := tl.activeTable.GetSelection()
@@ -398,4 +408,34 @@ func (tl *TasksList) setupKeyHandlers() {
 		}
 		return handler(event)
 	})
+}
+
+func (tl *TasksList) toggleActiveQueueVisibility() {
+	tl.showActive = !tl.showActive
+	tl.syncLayout()
+}
+
+func (tl *TasksList) syncLayout() {
+	tl.Flex.Clear()
+	if tl.showActive {
+		tl.Flex.AddItem(tl.activeTable, 10, 0, false)
+	}
+	tl.Flex.AddItem(tl.historyTable, 0, 1, true)
+
+	if tl.app != nil && !tl.showActive && tl.app.GetFocus() == tl.activeTable {
+		tl.app.SetFocus(tl.historyTable)
+	}
+}
+
+func (tl *TasksList) focusOtherPane() {
+	if tl.app == nil || !tl.showActive {
+		return
+	}
+
+	if tl.app.GetFocus() == tl.activeTable {
+		tl.app.SetFocus(tl.historyTable)
+		return
+	}
+
+	tl.app.SetFocus(tl.activeTable)
 }
