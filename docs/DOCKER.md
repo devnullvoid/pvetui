@@ -55,21 +55,21 @@ The application can be configured using environment variables. Copy `.env.exampl
 
 ```bash
 # Required: Proxmox server details
-PROXMOX_ADDR=https://your-proxmox-server:8006
-PROXMOX_USER=root
-PROXMOX_PASSWORD=your-password
-PROXMOX_REALM=pam
+PVETUI_ADDR=https://your-proxmox-server:8006
+PVETUI_USER=root
+PVETUI_PASSWORD=your-password
+PVETUI_REALM=pam
 
 # Alternative: Use API tokens (recommended for production)
-# PROXMOX_TOKEN_ID=your-token-id
-# PROXMOX_TOKEN_SECRET=your-token-secret
+# PVETUI_TOKEN_ID=your-token-id
+# PVETUI_TOKEN_SECRET=your-token-secret
 
 # Optional: Application settings
-PROXMOX_DEBUG=false
-PROXMOX_CACHE_DIR=/app/cache
-PROXMOX_API_PATH=/api2/json
-PROXMOX_INSECURE=false
-PROXMOX_SSH_USER=root
+PVETUI_DEBUG=false
+PVETUI_CACHE_DIR=/app/cache
+PVETUI_API_PATH=/api2/json
+PVETUI_INSECURE=false
+PVETUI_SSH_USER=root
 ```
 
 ### Volume Mounts
@@ -199,7 +199,7 @@ The container doesn't expose any ports by default. Network access is only needed
 1. **TLS Certificate Issues:**
    ```bash
    # Add to .env for testing (not recommended for production)
-   PROXMOX_INSECURE=true
+   PVETUI_INSECURE=true
    ```
 
 2. **Container Won't Start:**
@@ -212,16 +212,16 @@ The container doesn't expose any ports by default. Network access is only needed
 
 3. **Environment Variable Issues:**
    Make sure you're using the correct variable names from `config.go`:
-   - `PROXMOX_USER` (not `PROXMOX_USERNAME`)
-   - `PROXMOX_DEBUG` (not `DEBUG`)
-   - `PROXMOX_CACHE_DIR` (not `CACHE_DIR`)
+   - `PVETUI_USER` (not `PVETUI_USERNAME`)
+   - `PVETUI_DEBUG` (not `DEBUG`)
+   - `PVETUI_CACHE_DIR` (not `CACHE_DIR`)
 
 ### Debug Mode
 
-Enable debug mode by setting `PROXMOX_DEBUG=true` in your `.env` file:
+Enable debug mode by setting `PVETUI_DEBUG=true` in your `.env` file:
 
 ```bash
-PROXMOX_DEBUG=true
+PVETUI_DEBUG=true
 ```
 
 This will provide verbose logging to help diagnose issues.
@@ -301,9 +301,9 @@ Instead of passwords, use Proxmox API tokens:
 
 2. Configure in `.env`:
    ```bash
-   PROXMOX_TOKEN_ID=your-token-id
-   PROXMOX_TOKEN_SECRET=your-token-secret
-   # Remove or comment out PROXMOX_PASSWORD
+   PVETUI_TOKEN_ID=your-token-id
+   PVETUI_TOKEN_SECRET=your-token-secret
+   # Remove or comment out PVETUI_PASSWORD
    ```
 
 ### Resource Limits

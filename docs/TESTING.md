@@ -467,11 +467,11 @@ func TestCache_SetAndGet(t *testing.T) {
 ```go
 func TestConfig_FromEnvironment(t *testing.T) {
     // Save original environment
-    originalAddr := os.Getenv("PROXMOX_ADDR")
-    defer os.Setenv("PROXMOX_ADDR", originalAddr)
+    originalAddr := os.Getenv("PVETUI_ADDR")
+    defer os.Setenv("PVETUI_ADDR", originalAddr)
 
     // Set test environment
-    os.Setenv("PROXMOX_ADDR", "https://test.com")
+    os.Setenv("PVETUI_ADDR", "https://test.com")
 
     config := NewConfig()
     assert.Equal(t, "https://test.com", config.Addr)
