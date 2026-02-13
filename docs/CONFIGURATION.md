@@ -274,14 +274,14 @@ pvetui loads optional features through a plugin system. Plugins contribute UI ac
 - The `plugins.enabled` list controls which plugins are activated at startup.
 - When omitted or left empty, no plugins are loaded. Enable functionality explicitly to opt in.
 - Set `plugins.enabled: []` to keep all optional features disabled (e.g., in hardened environments).
-- Built-in plugin identifiers: `community-scripts`, `demo-guest-list`.
+- Built-in plugin identifiers: `community-scripts`, `guest-insights` (legacy alias: `demo-guest-list`).
 - See [PLUGINS.md](PLUGINS.md) for implementation details and authoring guidance.
 
 ```yaml
 plugins:
   enabled:
     - "community-scripts"  # Opt-in to the community script installer plugin
-    - "demo-guest-list"    # Optional demo plugin that lists running guests on a node
+    - "guest-insights"     # Optional Guest Insights plugin (legacy alias: demo-guest-list)
 ```
 
 ## Advanced Options

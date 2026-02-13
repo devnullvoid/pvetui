@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Async Task Queue Node Isolation**: Task queue scheduling now keys active/queued operations by `node+vmid` instead of VMID alone, preventing unrelated VMs with the same ID on different nodes/clusters from blocking each other.
+- **Guest Insights Plugin ID Compatibility**: Renamed the plugin identifier to `guest-insights` while keeping `demo-guest-list` as a backward-compatible alias so existing configs continue to load without changes.
 
 ## [1.0.17] - 2026-02-01
 

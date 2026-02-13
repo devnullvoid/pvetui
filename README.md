@@ -179,7 +179,7 @@ pvetui includes an opt-in plugin system for optional features. Plugins are **dis
 
 - **`community-scripts`**: Adds the popular Community Scripts installer to node context menus
 - **`command-runner`**: Execute whitelisted commands on Proxmox hosts via SSH (requires SSH key setup)
-- **`demo-guest-list`** *(alias: Guest Insights)*: Full guest insights modal (filter/sort/jump-to-guest); kept under the legacy ID for backward compatibility
+- **`guest-insights`** *(legacy alias: `demo-guest-list`)*: Full guest insights modal (filter/sort/jump-to-guest)
 
 #### Enabling Plugins
 
@@ -201,7 +201,7 @@ plugins:
   enabled:
     - "community-scripts"
     - "command-runner"
-    - "demo-guest-list"    # Guest Insights (kept under legacy plugin ID)
+    - "guest-insights"     # Guest Insights plugin (legacy alias: demo-guest-list)
 ```
 
 **📖 For plugin development and advanced details, see [docs/PLUGINS.md](docs/PLUGINS.md)**

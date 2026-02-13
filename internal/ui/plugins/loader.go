@@ -18,6 +18,10 @@ var registry = map[string]factory{
 	guestlist.PluginID:        func() components.Plugin { return guestlist.New() },
 }
 
+var legacyAliases = map[string]string{
+	guestlist.LegacyPluginID: guestlist.PluginID,
+}
+
 var defaultEnabled = []string{}
 
 // EnabledFromConfig resolves the effective plugin set for the provided configuration.
@@ -38,6 +42,10 @@ func resolve(ids []string) ([]components.Plugin, []string) {
 	for _, id := range ids {
 		if id == "" {
 			continue
+		}
+
+		if canonical, ok := legacyAliases[id]; ok {
+			id = canonical
 		}
 
 		if _, exists := seen[id]; exists {
