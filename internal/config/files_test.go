@@ -3,42 +3,110 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
-func TestCreateDefaultConfigFileAt(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "config.yml")
+func TestFindDefaultConfigPathForOS_WindowsXDGFallback(t *testing.T) {
+	tmp := t.TempDir()
+	appData := filepath.Join(tmp, "appdata")
+	home := filepath.Join(tmp, "home")
 
-	gotPath, err := CreateDefaultConfigFileAt(path)
-	if err != nil {
-		t.Fatalf("CreateDefaultConfigFileAt error: %v", err)
-	}
-	if gotPath != path {
-		t.Fatalf("expected path %q, got %q", path, gotPath)
-	}
+	t.Setenv("APPDATA", appData)
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read file: %v", err)
+	legacyConfig := filepath.Join(home, ".config", "pvetui", "config.yml")
+	if err := os.MkdirAll(filepath.Dir(legacyConfig), 0o755); err != nil {
+		t.Fatalf("create legacy config dir: %v", err)
 	}
-	if !strings.Contains(string(data), "profiles:") {
-		t.Fatalf("expected template content to include profiles, got %q", string(data))
+	if err := os.WriteFile(legacyConfig, []byte("profiles: {}\n"), 0o600); err != nil {
+		t.Fatalf("write legacy config: %v", err)
 	}
 
-	// Second call should be a no-op and keep same path.
-	gotPath, err = CreateDefaultConfigFileAt(path)
-	if err != nil {
-		t.Fatalf("CreateDefaultConfigFileAt second call error: %v", err)
+	got, found := findDefaultConfigPathForOS("windows")
+	if !found {
+		t.Fatalf("expected config path to be found")
 	}
-	if gotPath != path {
-		t.Fatalf("expected path %q on second call, got %q", path, gotPath)
+	if got != legacyConfig {
+		t.Fatalf("expected legacy config path %q, got %q", legacyConfig, got)
 	}
 }
 
-func TestCreateDefaultConfigFileAt_EmptyPath(t *testing.T) {
-	if _, err := CreateDefaultConfigFileAt(""); err == nil {
-		t.Fatal("expected error for empty path")
+func TestFindDefaultConfigPathForOS_WindowsPrefersAppData(t *testing.T) {
+	tmp := t.TempDir()
+	appData := filepath.Join(tmp, "appdata")
+	home := filepath.Join(tmp, "home")
+
+	t.Setenv("APPDATA", appData)
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	newConfig := filepath.Join(appData, "pvetui", "config.yml")
+	if err := os.MkdirAll(filepath.Dir(newConfig), 0o755); err != nil {
+		t.Fatalf("create appdata config dir: %v", err)
+	}
+	if err := os.WriteFile(newConfig, []byte("profiles: {}\n"), 0o600); err != nil {
+		t.Fatalf("write appdata config: %v", err)
+	}
+
+	legacyConfig := filepath.Join(home, ".config", "pvetui", "config.yml")
+	if err := os.MkdirAll(filepath.Dir(legacyConfig), 0o755); err != nil {
+		t.Fatalf("create legacy config dir: %v", err)
+	}
+	if err := os.WriteFile(legacyConfig, []byte("profiles: {}\n"), 0o600); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	got, found := findDefaultConfigPathForOS("windows")
+	if !found {
+		t.Fatalf("expected config path to be found")
+	}
+	if got != newConfig {
+		t.Fatalf("expected appdata config path %q, got %q", newConfig, got)
+	}
+}
+
+func TestGetCacheDirForOS_WindowsLegacyFallback(t *testing.T) {
+	tmp := t.TempDir()
+	localAppData := filepath.Join(tmp, "localappdata")
+	home := filepath.Join(tmp, "home")
+
+	t.Setenv("LOCALAPPDATA", localAppData)
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CACHE_HOME", "")
+
+	legacyCache := filepath.Join(home, ".cache", "pvetui")
+	if err := os.MkdirAll(legacyCache, 0o755); err != nil {
+		t.Fatalf("create legacy cache dir: %v", err)
+	}
+
+	got := getCacheDirForOS("windows")
+	if got != legacyCache {
+		t.Fatalf("expected legacy cache path %q, got %q", legacyCache, got)
+	}
+}
+
+func TestGetCacheDirForOS_WindowsPrefersLocalAppData(t *testing.T) {
+	tmp := t.TempDir()
+	localAppData := filepath.Join(tmp, "localappdata")
+	home := filepath.Join(tmp, "home")
+
+	t.Setenv("LOCALAPPDATA", localAppData)
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CACHE_HOME", "")
+
+	preferredCache := filepath.Join(localAppData, "pvetui")
+	if err := os.MkdirAll(preferredCache, 0o755); err != nil {
+		t.Fatalf("create preferred cache dir: %v", err)
+	}
+
+	legacyCache := filepath.Join(home, ".cache", "pvetui")
+	if err := os.MkdirAll(legacyCache, 0o755); err != nil {
+		t.Fatalf("create legacy cache dir: %v", err)
+	}
+
+	got := getCacheDirForOS("windows")
+	if got != preferredCache {
+		t.Fatalf("expected preferred cache path %q, got %q", preferredCache, got)
 	}
 }

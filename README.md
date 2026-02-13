@@ -273,6 +273,10 @@ Default paths:
 - Windows config: `%APPDATA%/pvetui/config.yml`
 - Windows cache: `%LOCALAPPDATA%/pvetui`
 
+Windows legacy fallback:
+- Existing `~/.config/pvetui/config.yml` is still auto-detected.
+- Existing `~/.cache/pvetui` is still used if the newer `%LOCALAPPDATA%/pvetui` path does not exist.
+
 ### Command Line Options
 
 | Flag | Short | Environment Variable | Description |

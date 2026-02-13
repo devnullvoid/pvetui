@@ -366,11 +366,16 @@ pvetui looks for configuration files in the following order:
 1. File specified with `--config` flag
 2. Platform-appropriate config directory:
    - **Windows**: `%APPDATA%/pvetui/config.yml`
-- **macOS**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
-- **Linux**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
+   - **macOS**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
+   - **Linux**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
 3. `./config.yml` (current directory)
 
-> **Important**: If you're upgrading from a previous version on Windows and have existing config files in `~/.config/pvetui/`, you'll need to move them to the new platform-specific location (`%APPDATA%/pvetui/`). macOS and Linux users can continue using their existing config files without any changes.
+> **Windows compatibility note**: pvetui now defaults to `%APPDATA%/pvetui/config.yml`, but it will still detect legacy configs at `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`) as a fallback.
+
+Cache directories follow platform defaults:
+- **Windows**: `%LOCALAPPDATA%/pvetui` (with legacy `~/.cache/pvetui` / `$XDG_CACHE_HOME/pvetui` fallback if present)
+- **macOS**: `~/.cache/pvetui` (or `$XDG_CACHE_HOME/pvetui`)
+- **Linux**: `~/.cache/pvetui` (or `$XDG_CACHE_HOME/pvetui`)
 
 ## First Run & Interactive Config Wizard
 

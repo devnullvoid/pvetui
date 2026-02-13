@@ -135,15 +135,37 @@ func getConfigDirForOS(goos string) string {
 
 // getCacheDir returns the appropriate cache directory path for the current platform.
 func getCacheDir() string {
-	switch runtime.GOOS {
+	return getCacheDirForOS(runtime.GOOS)
+}
+
+func getCacheDirForOS(goos string) string {
+	switch goos {
 	case "windows":
+		preferred := ""
 		// Windows: Use %LOCALAPPDATA% for cache files
 		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			return filepath.Join(localAppData, "pvetui")
+			preferred = filepath.Join(localAppData, "pvetui")
+		} else if homeDir, err := os.UserHomeDir(); err == nil {
+			// Fallback to user home directory
+			preferred = filepath.Join(homeDir, "AppData", "Local", "pvetui")
 		}
-		// Fallback to user home directory
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(homeDir, "AppData", "Local", "pvetui")
+
+		// Backwards compatibility:
+		// If an older XDG-style cache path exists and the preferred Windows path
+		// does not, continue using the existing legacy cache location.
+		legacy := filepath.Join(getXDGBaseCacheDir(), "pvetui")
+		if preferred != "" {
+			if _, err := os.Stat(preferred); err == nil {
+				return preferred
+			}
+			if _, err := os.Stat(legacy); err == nil {
+				return legacy
+			}
+			return preferred
+		}
+
+		if _, err := os.Stat(legacy); err == nil {
+			return legacy
 		}
 	default:
 		// macOS, Linux, and other Unix-like systems: Use XDG Base Directory Specification
@@ -179,6 +201,18 @@ func getXDGBaseConfigDir() string {
 	}
 
 	return ".config"
+}
+
+func getXDGBaseCacheDir() string {
+	// Respect XDG_CACHE_HOME when set; otherwise fall back to ~/.cache.
+	if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
+		return xdgCache
+	}
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(homeDir, ".cache")
+	}
+
+	return ".cache"
 }
 
 // getXDGCacheDir returns the XDG cache directory path.
