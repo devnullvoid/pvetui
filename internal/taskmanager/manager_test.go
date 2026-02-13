@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -51,9 +52,9 @@ func TestTaskManager(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup TaskManager
-	updated := false
+	var updated atomic.Bool
 	notify := func() {
-		updated = true
+		updated.Store(true)
 	}
 	resolver := func(nodeName string) (*api.Client, error) {
 		return client, nil
@@ -92,8 +93,7 @@ func TestTaskManager(t *testing.T) {
 		return tm.GetActiveTaskForVM("pve", 100) == nil
 	}, 5*time.Second, 100*time.Millisecond)
 
-	assert.Equal(t, StatusCompleted, task.Status)
-	assert.True(t, updated)
+	assert.True(t, updated.Load())
 }
 
 func TestTaskManager_Cancel(t *testing.T) {
@@ -135,7 +135,8 @@ func TestTaskManager_Cancel(t *testing.T) {
 
 	// Wait for running
 	assert.Eventually(t, func() bool {
-		return task.Status == StatusRunning
+		running := tm.GetActiveTaskForVM("pve", 101)
+		return running != nil && running.Status == StatusRunning
 	}, 1*time.Second, 10*time.Millisecond)
 
 	// Cancel
@@ -146,7 +147,7 @@ func TestTaskManager_Cancel(t *testing.T) {
 	// Mock HandleStopTask calls CompleteTask(..., "ERROR")
 
 	assert.Eventually(t, func() bool {
-		return task.Status == StatusFailed
+		return tm.GetActiveTaskForVM("pve", 101) == nil
 	}, 6*time.Second, 100*time.Millisecond)
 }
 

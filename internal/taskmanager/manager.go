@@ -58,6 +58,15 @@ type TaskManager struct {
 	stopChan chan struct{}
 }
 
+func cloneTask(task *Task) *Task {
+	if task == nil {
+		return nil
+	}
+
+	cloned := *task
+	return &cloned
+}
+
 func NewTaskManager(clientResolver ClientResolver, updateNotify func()) *TaskManager {
 	return &TaskManager{
 		queue:          make(map[string][]*Task),
@@ -73,25 +82,33 @@ func taskKey(node string, vmid int) string {
 }
 
 func (tm *TaskManager) Enqueue(task *Task) {
+	if task == nil {
+		return
+	}
+
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
 	if task.ID == "" {
 		task.ID = uuid.New().String()
 	}
-	task.Status = StatusQueued
-	task.CreatedAt = time.Now()
 
-	key := taskKey(task.TargetNode, task.TargetVMID)
+	// Keep task manager state isolated from caller-owned memory to avoid
+	// cross-goroutine races when callers inspect their original task pointer.
+	internalTask := cloneTask(task)
+	internalTask.Status = StatusQueued
+	internalTask.CreatedAt = time.Now()
+
+	key := taskKey(internalTask.TargetNode, internalTask.TargetVMID)
 
 	// Check if there is an active task for this VM on this node
 	if _, active := tm.activeTasks[key]; !active {
 		// No active task, start immediately
-		tm.activeTasks[key] = task
-		go tm.runTask(task)
+		tm.activeTasks[key] = internalTask
+		go tm.runTask(internalTask)
 	} else {
 		// Active task exists, append to queue
-		tm.queue[key] = append(tm.queue[key], task)
+		tm.queue[key] = append(tm.queue[key], internalTask)
 	}
 
 	if tm.updateNotify != nil {
@@ -266,7 +283,7 @@ func (tm *TaskManager) GetActiveTask(vmid int) *Task {
 	defer tm.mu.RUnlock()
 	for _, task := range tm.activeTasks {
 		if task.TargetVMID == vmid {
-			return task
+			return cloneTask(task)
 		}
 	}
 	return nil
@@ -275,7 +292,7 @@ func (tm *TaskManager) GetActiveTask(vmid int) *Task {
 func (tm *TaskManager) GetActiveTaskForVM(node string, vmid int) *Task {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
-	return tm.activeTasks[taskKey(node, vmid)]
+	return cloneTask(tm.activeTasks[taskKey(node, vmid)])
 }
 
 func (tm *TaskManager) GetAllTasks() []*Task {
@@ -284,10 +301,12 @@ func (tm *TaskManager) GetAllTasks() []*Task {
 
 	var tasks []*Task
 	for _, t := range tm.activeTasks {
-		tasks = append(tasks, t)
+		tasks = append(tasks, cloneTask(t))
 	}
 	for _, queue := range tm.queue {
-		tasks = append(tasks, queue...)
+		for _, task := range queue {
+			tasks = append(tasks, cloneTask(task))
+		}
 	}
 	return tasks
 }
