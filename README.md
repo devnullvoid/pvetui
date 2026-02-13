@@ -59,7 +59,7 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 
 ### Quick Start
 
-### **Install via Go** (Go 1.24+)
+### **Install via Go** (Go 1.25+)
 
 > **Recommended for Go users**: pvetui now supports one-command install using Go modules!
 
@@ -267,32 +267,39 @@ Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secr
 ./pvetui --config /path/to/config.yml
 ```
 
+Default paths:
+- Linux/macOS config: `~/.config/pvetui/config.yml`
+- Linux/macOS cache: `~/.cache/pvetui`
+- Windows config: `%APPDATA%/pvetui/config.yml`
+- Windows cache: `%LOCALAPPDATA%/pvetui`
+
 ### Command Line Options
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--config` | `-c` | Path to YAML config file |
-| `--profile` | `-p` | Connection profile to use (overrides default_profile) |
-| `--no-cache` | `-n` | Disable caching |
-| `--version` | `-v` | Show version information |
-| `--config-wizard` | `-w` | Launch interactive config wizard and exit |
-| `--addr` | | Proxmox API URL |
-| `--user` | | Proxmox username |
-| `--password` | | Proxmox password |
-| `--token-id` | | Proxmox API token ID |
-| `--token-secret` | | Proxmox API token secret |
-| `--realm` | | Proxmox realm |
-| `--insecure` | | Skip TLS verification |
-| `--api-path` | | Proxmox API path |
-| `--ssh-user` | | SSH username |
-| `--vm-ssh-user` | | QEMU VM SSH username (defaults to ssh-user) |
-| `--ssh-jumphost-addr` | | SSH jump host address |
-| `--ssh-jumphost-user` | | SSH jump host user |
-| `--ssh-jumphost-keyfile` | | SSH jump host identity file |
-| `--ssh-jumphost-port` | | SSH jump host port |
-| `--debug` | | Enable debug logging |
-| `--cache-dir` | | Cache directory path |
-| `--age-dir` | | Age key directory path |
+| Flag | Short | Environment Variable | Description |
+|------|-------|----------------------|-------------|
+| `--config` | `-c` | n/a | Path to YAML config file |
+| `--profile` | `-p` | n/a | Connection profile to use (overrides default_profile) |
+| `--no-cache` | `-n` | n/a | Disable caching |
+| `--version` | `-v` | n/a | Show version information |
+| `--config-wizard` | `-w` | n/a | Launch interactive config wizard and exit |
+| `--addr` | | `PVETUI_ADDR` | Proxmox API URL |
+| `--user` | | `PVETUI_USER` | Proxmox username |
+| `--password` | | `PVETUI_PASSWORD` | Proxmox password |
+| `--token-id` | | `PVETUI_TOKEN_ID` | Proxmox API token ID |
+| `--token-secret` | | `PVETUI_TOKEN_SECRET` | Proxmox API token secret |
+| `--realm` | | `PVETUI_REALM` | Proxmox realm |
+| `--insecure` | | `PVETUI_INSECURE` | Skip TLS verification |
+| `--api-path` | | `PVETUI_API_PATH` | Proxmox API path |
+| `--ssh-user` | | `PVETUI_SSH_USER` | SSH username |
+| `--vm-ssh-user` | | `PVETUI_VM_SSH_USER` | QEMU VM SSH username (defaults to ssh-user) |
+| `--ssh-jumphost-addr` | | `PVETUI_SSH_JUMPHOST_ADDR` | SSH jump host address |
+| `--ssh-jumphost-user` | | `PVETUI_SSH_JUMPHOST_USER` | SSH jump host user |
+| `--ssh-jumphost-keyfile` | | `PVETUI_SSH_JUMPHOST_KEYFILE` | SSH jump host identity file |
+| `--ssh-jumphost-port` | | `PVETUI_SSH_JUMPHOST_PORT` | SSH jump host port |
+| `--debug` | | `PVETUI_DEBUG` | Enable debug logging |
+| `--cache-dir` | | `PVETUI_CACHE_DIR` | Cache directory path |
+| `--age-dir` | | `PVETUI_AGE_DIR` | Age key directory path |
+| `--show-icons` | | `PVETUI_SHOW_ICONS` | Show icons/emojis in UI |
 
 **Environment Variables**: All flags can also be set via environment variables with `PVETUI_` prefix (e.g., `PVETUI_ADDR`, `PVETUI_USER`).
 
@@ -333,7 +340,7 @@ Built-in noVNC client provides seamless console access:
 
 - Access to Proxmox VE cluster
 - SSH access for shell functionality
-- Go 1.24+ (for building from source)
+- Go 1.25+ (for building from source)
 
 ## 💡 Tips
 
