@@ -59,7 +59,7 @@ https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
 
 ### Quick Start
 
-### **Install via Go** (Go 1.25+)
+### **Install via Go** (Go 1.24+)
 
 > **Recommended for Go users**: pvetui now supports one-command install using Go modules!
 
@@ -340,7 +340,7 @@ Built-in noVNC client provides seamless console access:
 
 - Access to Proxmox VE cluster
 - SSH access for shell functionality
-- Go 1.25+ (for building from source)
+- Go 1.24+ (for building from source)
 
 ## 💡 Tips
 
