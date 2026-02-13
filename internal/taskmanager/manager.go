@@ -145,6 +145,12 @@ func (tm *TaskManager) runTask(task *Task) {
 	task.UPID = upid
 	tm.mu.Unlock()
 
+	// Notify consumers as soon as UPID is available so the active queue can
+	// render it immediately instead of waiting for the next state transition.
+	if tm.updateNotify != nil {
+		go tm.updateNotify()
+	}
+
 	// Poll for completion
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
