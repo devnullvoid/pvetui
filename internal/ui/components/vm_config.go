@@ -133,6 +133,17 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	form.AddCheckbox("Start at boot", onboot, func(checked bool) {
 		page.config.OnBoot = &checked
 	})
+
+	if vm.Type == api.VMTypeQemu {
+		agentEnabled := vm.AgentEnabled
+		if config.Agent != nil {
+			agentEnabled = *config.Agent
+		}
+
+		form.AddCheckbox("Enable QEMU guest agent", agentEnabled, func(checked bool) {
+			page.config.Agent = &checked
+		})
+	}
 	// Save/Cancel buttons
 	form.AddButton("Save", func() {
 		// * Check if VM has pending operations

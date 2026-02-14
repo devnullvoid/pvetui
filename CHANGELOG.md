@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Profile/Group CLI Listing**: Added `--list-profiles` to print configured connection profiles and aggregate groups (including key connection details and memberships) and exit, making it easier to pair with `--profile` for direct startup selection.
+- **QEMU Guest Agent Toggle in VM Config Editor**: Added a checkbox to VM Edit Configuration so the QEMU guest agent can be enabled/disabled directly from the TUI.
 
 ### Fixed
 
