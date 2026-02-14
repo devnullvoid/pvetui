@@ -56,6 +56,7 @@ profiles:
 
 default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
+show_icons: true               # Optional: toggle icons/emojis in the UI
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 
@@ -92,6 +93,9 @@ plugins:
 ```
 
 `vm_ssh_user` lets you specify a different login for QEMU VM shells. If omitted, pvetui falls back to `ssh_user`, so you only need to set it when your VM accounts differ from the Proxmox host user. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
+
+Guest tags can be edited directly in the VM/LXC **Edit Configuration** form.
+Use a semicolon-separated format such as `prod;monitoring;db`.
 
 ## Profile Management
 
@@ -286,6 +290,17 @@ plugins:
 
 ## Advanced Options
 
+### Icon Toggle
+
+Enable or disable icons/emojis in the UI:
+
+```yaml
+show_icons: false
+```
+
+Equivalent environment variable: `PVETUI_SHOW_ICONS=false`
+Equivalent CLI flag: `--show-icons=false`
+
 ### Encrypted Configuration
 
 Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `--config` and it will decrypt automatically.
@@ -323,6 +338,12 @@ Enable debug logging:
 ```yaml
 debug: true
 ```
+
+### Node Details Data
+
+The Node Details panel includes:
+- Disk SMART/health data (including disk type, model, size, and health state)
+- System package update notifications (up to 5 updates listed with version details, plus remaining count)
 
 ### Insecure Connections
 

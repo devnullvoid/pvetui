@@ -19,6 +19,7 @@ profiles:
 default_profile: default
 
 debug: false
+show_icons: true
 # cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 # age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 
@@ -29,6 +30,7 @@ key_bindings:
   guests_page: "Alt+2"
   tasks_page: "Alt+3"
   menu: m
+  global_menu: g
   shell: s
   vnc: v
   refresh: "Ctrl+r"
@@ -71,3 +73,6 @@ theme:
     # usagemedium: "yellow"
     # usagehigh: "red"
     # usagecritical: "fuchsia"
+
+plugins:
+  enabled: []
