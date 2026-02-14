@@ -28,8 +28,7 @@ type VMConfigPage struct {
 
 // NewVMConfigPage creates a new config editor for the given VM.
 func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*api.VMConfig) error) *VMConfigPage {
-	form := tview.NewForm().SetHorizontal(false)
-	form.SetLabelColor(theme.Colors.HeaderText)
+	form := newStandardForm().SetHorizontal(false)
 	page := &VMConfigPage{
 		Form:   form,
 		app:    app,
@@ -322,8 +321,7 @@ func normalizeTags(raw string) string {
 
 // showResizeStorageModal displays a modal for resizing a storage volume.
 func showResizeStorageModal(app *App, vm *api.VM) {
-	modal := tview.NewForm().SetHorizontal(false)
-	modal.SetLabelColor(theme.Colors.HeaderText)
+	modal := newStandardForm().SetHorizontal(false)
 
 	// Build list of storage devices (filter to only resizable volumes)
 	var deviceNames []string

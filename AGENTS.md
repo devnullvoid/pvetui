@@ -276,6 +276,7 @@ Key architectural decisions and rationale:
 - **Plugin modals**: Always implement `ModalPageNames()` in plugins to prevent global keybindings from firing in plugin modals
 - **Keyboard events**: Use `SetInputCapture()` on focused elements (e.g., input fields, text views) not flex containers to properly consume events
 - **UI text**: Use tview color tags `[primary]text[-]` for colored text; brackets need escaping as `[[` or use color tags instead
+- **Form label readability**: Use `newStandardForm()` (in `internal/ui/components/form_helpers.go`) instead of raw `tview.NewForm()` so form labels consistently use `theme.Colors.HeaderText`; avoid relying on default secondary text for labels.
 - **tview QueueUpdateDraw deadlocks**: Never call functions that use `QueueUpdateDraw` from within another `QueueUpdateDraw` callback - this creates nested calls that deadlock tview. Always separate UI updates into sequential, non-nested calls.
 - **UI callback re-entrancy**: Treat modal/button callbacks, `SetDoneFunc`, and input handlers as UI-thread contexts. Prefer `go func() { ... }` for background work and keep callback bodies non-blocking.
 - **TaskManager/UI notify path**: If a background manager notifies UI code that uses `QueueUpdateDraw`, dispatch the notifier asynchronously (e.g. `go notify()`) to avoid blocking UI event handlers.

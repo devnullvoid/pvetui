@@ -853,15 +853,13 @@ func (a *App) showAddGroupDialog() {
 
 	}
 
-	form := tview.NewForm()
+	form := newStandardForm()
 
 	form.SetBorder(true)
 
 	form.SetTitle(" Create New Group ")
 
 	form.SetBorderColor(theme.Colors.Border)
-
-	form.SetLabelColor(theme.Colors.HeaderText)
 
 	// Group Name Input
 
@@ -971,7 +969,7 @@ func (a *App) showEditGroupDialog(groupName string) {
 
 	}
 
-	form := tview.NewForm()
+	form := newStandardForm()
 
 	form.SetBorder(true)
 
@@ -980,8 +978,6 @@ func (a *App) showEditGroupDialog(groupName string) {
 	form.SetTitleColor(theme.Colors.Title)
 
 	form.SetBorderColor(theme.Colors.Border)
-
-	form.SetLabelColor(theme.Colors.HeaderText)
 
 	// Collect and sort profile names
 

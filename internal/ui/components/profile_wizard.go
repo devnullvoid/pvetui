@@ -15,8 +15,7 @@ import (
 
 // createEmbeddedConfigWizard creates a config wizard that doesn't call app.Stop() when canceling
 func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- WizardResult) tview.Primitive {
-	form := tview.NewForm().SetHorizontal(false)
-	form.SetLabelColor(theme.Colors.HeaderText)
+	form := newStandardForm().SetHorizontal(false)
 	pages := tview.NewPages()
 	pages.AddPage("form", form, true, true)
 

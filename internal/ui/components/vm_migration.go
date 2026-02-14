@@ -53,12 +53,11 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	}
 
 	// Create form
-	form := tview.NewForm()
+	form := newStandardForm()
 	form.SetBorder(true)
 	form.SetTitle(fmt.Sprintf(" Migrate %s '%s' (ID: %d) ", strings.ToUpper(vm.Type), vm.Name, vm.ID))
 	form.SetTitleColor(theme.Colors.Primary)
 	form.SetBorderColor(theme.Colors.Border)
-	form.SetLabelColor(theme.Colors.HeaderText)
 
 	// Target node dropdown
 	nodeOptions := make([]string, len(availableNodes))
