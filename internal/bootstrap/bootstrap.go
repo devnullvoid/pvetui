@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/app"
@@ -28,6 +29,7 @@ type BootstrapOptions struct {
 	NoCache      bool
 	Version      bool
 	ConfigWizard bool
+	ListProfiles bool
 	// Flag values for config overrides
 	FlagAddr               string
 	FlagUser               string
@@ -61,7 +63,7 @@ type BootstrapResult struct {
 // ParseFlags parses command line flags and returns bootstrap options.
 func ParseFlags() BootstrapOptions {
 	var configPath, profile string
-	var noCache, version, configWizard bool
+	var noCache, version, configWizard, listProfiles bool
 
 	// Bootstrap flags
 	flag.StringVar(&configPath, "config", "", "Path to YAML config file")
@@ -74,6 +76,7 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&version, "v", false, "Short for --version")
 	flag.BoolVar(&configWizard, "config-wizard", false, "Launch interactive config wizard and exit")
 	flag.BoolVar(&configWizard, "w", false, "Short for --config-wizard")
+	flag.BoolVar(&listProfiles, "list-profiles", false, "List available connection profiles/groups and exit")
 
 	// Config flags (these will be applied to the config object later)
 	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagCacheDir, flagAgeDir string
@@ -113,6 +116,7 @@ func ParseFlags() BootstrapOptions {
 		NoCache:      noCache,
 		Version:      version,
 		ConfigWizard: configWizard,
+		ListProfiles: listProfiles,
 		// Store flag values for later use
 		FlagAddr:        flagAddr,
 		FlagUser:        flagUser,
@@ -138,8 +142,6 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, nil
 	}
 
-	fmt.Println("🚀 Starting pvetui...")
-
 	// Initialize configuration
 	cfg := config.NewConfig()
 
@@ -150,6 +152,24 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		cfg.AgeDir = expandedAgeDir
 		config.SetAgeDirOverride(expandedAgeDir)
 	}
+
+	// Handle profile listing BEFORE wizard/startup flow.
+	if opts.ListProfiles {
+		if configPath != "" {
+			if err := cfg.MergeWithFile(configPath); err != nil {
+				return nil, fmt.Errorf("failed to load config file: %w", err)
+			}
+		}
+		cfg.SetDefaults()
+		selectedProfile, err := profile.ResolveProfile(opts.Profile, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("profile resolution failed: %w", err)
+		}
+		fmt.Print(formatProfileAndGroupList(cfg, selectedProfile))
+		return nil, nil
+	}
+
+	fmt.Println("🚀 Starting pvetui...")
 
 	// Handle config wizard BEFORE config loading and profile resolution
 	// This allows the wizard to work even when no config file exists
@@ -480,4 +500,92 @@ func printVersion() {
 	fmt.Printf("Commit: %s\n", info.Commit)
 	fmt.Printf("Go version: %s\n", info.GoVersion)
 	fmt.Printf("OS/Arch: %s/%s\n", info.OS, info.Arch)
+}
+
+func formatProfileAndGroupList(cfg *config.Config, selectedProfile string) string {
+	var out strings.Builder
+	out.WriteString("Available connection profiles:\n")
+
+	if len(cfg.Profiles) == 0 {
+		out.WriteString("  (none configured)\n")
+	} else {
+		profileNames := make([]string, 0, len(cfg.Profiles))
+		for name := range cfg.Profiles {
+			profileNames = append(profileNames, name)
+		}
+		sort.Strings(profileNames)
+
+		for _, name := range profileNames {
+			p := cfg.Profiles[name]
+			marker := " "
+			if selectedProfile == name {
+				marker = "*"
+			}
+
+			auth := "none"
+			switch {
+			case p.TokenID != "" && p.TokenSecret != "":
+				auth = "api-token"
+			case p.Password != "":
+				auth = "password"
+			}
+
+			groups := "-"
+			if len(p.Groups) > 0 {
+				groupNames := append([]string(nil), p.Groups...)
+				sort.Strings(groupNames)
+				groups = strings.Join(groupNames, ", ")
+			}
+
+			realm := p.Realm
+			if realm == "" {
+				realm = "-"
+			}
+
+			out.WriteString(fmt.Sprintf("%s %s\n", marker, name))
+			out.WriteString(fmt.Sprintf("    addr: %s\n", valueOrDash(p.Addr)))
+			out.WriteString(fmt.Sprintf("    user: %s\n", valueOrDash(p.User)))
+			out.WriteString(fmt.Sprintf("    realm: %s\n", realm))
+			out.WriteString(fmt.Sprintf("    auth: %s\n", auth))
+			out.WriteString(fmt.Sprintf("    groups: %s\n", groups))
+		}
+	}
+
+	out.WriteString("\nAvailable profile groups:\n")
+	groups := cfg.GetGroups()
+	if len(groups) == 0 {
+		out.WriteString("  (none configured)\n")
+	} else {
+		groupNames := make([]string, 0, len(groups))
+		for groupName := range groups {
+			groupNames = append(groupNames, groupName)
+		}
+		sort.Strings(groupNames)
+
+		for _, groupName := range groupNames {
+			marker := " "
+			if selectedProfile == groupName {
+				marker = "*"
+			}
+
+			members := groups[groupName]
+			out.WriteString(fmt.Sprintf("%s %s (%d profiles)\n", marker, groupName, len(members)))
+			out.WriteString(fmt.Sprintf("    members: %s\n", strings.Join(members, ", ")))
+		}
+	}
+
+	out.WriteString("\nDefault profile: ")
+	out.WriteString(valueOrDash(cfg.DefaultProfile))
+	out.WriteString("\nSelected by current flags/config: ")
+	out.WriteString(valueOrDash(selectedProfile))
+	out.WriteString("\n\nUse --profile <name> to connect directly to a profile or group.\n")
+
+	return out.String()
+}
+
+func valueOrDash(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "-"
+	}
+	return value
 }

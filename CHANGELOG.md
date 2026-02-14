@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Profile/Group CLI Listing**: Added `--list-profiles` to print configured connection profiles and aggregate groups (including key connection details and memberships) and exit, making it easier to pair with `--profile` for direct startup selection.
+
 ### Fixed
 
 - **Async Task Queue Node Isolation**: Task queue scheduling now keys active/queued operations by `node+vmid` instead of VMID alone, preventing unrelated VMs with the same ID on different nodes/clusters from blocking each other.

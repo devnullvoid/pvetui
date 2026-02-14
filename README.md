@@ -301,6 +301,7 @@ Windows legacy fallback:
 | `--no-cache` | `-n` | n/a | Disable caching |
 | `--version` | `-v` | n/a | Show version information |
 | `--config-wizard` | `-w` | n/a | Launch interactive config wizard and exit |
+| `--list-profiles` | | n/a | List available connection profiles/groups and exit |
 | `--addr` | | `PVETUI_ADDR` | Proxmox API URL |
 | `--user` | | `PVETUI_USER` | Proxmox username |
 | `--password` | | `PVETUI_PASSWORD` | Proxmox password |

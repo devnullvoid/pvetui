@@ -53,6 +53,7 @@ func TestPersistentFlags(t *testing.T) {
 		"no-cache",
 		"version",
 		"config-wizard",
+		"list-profiles",
 		"addr",
 		"user",
 		"password",
