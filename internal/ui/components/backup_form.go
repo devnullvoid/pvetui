@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -109,6 +110,7 @@ func (bf *BackupForm) displayCreateForm(storageOptions []string) {
 		AddFormItem(compressDropdown).
 		AddFormItem(notesField).
 		AddFormItem(removeCheck)
+	form.SetLabelColor(theme.Colors.HeaderText)
 
 	form.AddButton("Backup", func() {
 		storageIdx, _ := storageDropdown.GetCurrentOption()

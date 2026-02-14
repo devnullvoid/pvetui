@@ -121,6 +121,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	}
 
 	form := tview.NewForm().SetHorizontal(false)
+	form.SetLabelColor(theme.Colors.HeaderText)
 	pages := tview.NewPages()
 	pages.AddPage("form", form, true, true)
 

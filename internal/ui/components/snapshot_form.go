@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 
+	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -34,6 +35,7 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 	form := tview.NewForm().
 		AddFormItem(nameField).
 		AddFormItem(descField)
+	form.SetLabelColor(theme.Colors.HeaderText)
 
 	// Only show VM State for QEMU guests
 	var vmStateCheck *tview.Checkbox
