@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-02-14
+
 ### Added
 
 - **Profile/Group CLI Listing**: Added `--list-profiles` to print configured connection profiles and aggregate groups (including key connection details and memberships) and exit, making it easier to pair with `--profile` for direct startup selection.
