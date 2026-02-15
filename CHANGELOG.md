@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Release Workflow Social Announcements**: Prevented Mastodon announcement failures from breaking GoReleaser runs by handling social posting in the non-blocking release announcement script step.
+- **Community Script Install on Fish Shells**: Forced remote script installer commands to execute under `/bin/bash -lc` so node accounts using `fish` as default shell can install community scripts without shell syntax errors.
 
 ## [1.0.18] - 2026-02-14
 

@@ -200,6 +200,16 @@ func TestInstallScript_Validation(t *testing.T) {
 	}
 }
 
+func TestShellSingleQuote(t *testing.T) {
+	assert.Equal(t, "plain", shellSingleQuote("plain"))
+	assert.Equal(t, `it'"'"'s`, shellSingleQuote("it's"))
+}
+
+func TestWrapRemoteCommandWithBash(t *testing.T) {
+	wrapped := wrapRemoteCommandWithBash("if true; then echo 'ok'; fi")
+	assert.Equal(t, `/bin/bash -lc 'if true; then echo '"'"'ok'"'"'; fi'`, wrapped)
+}
+
 func TestScript_Methods(t *testing.T) {
 	script := &Script{
 		Name:        "Test Script",

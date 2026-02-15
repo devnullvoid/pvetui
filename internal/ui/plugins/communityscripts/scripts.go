@@ -425,6 +425,14 @@ func validateScriptPath(scriptPath string) error {
 	return nil
 }
 
+func shellSingleQuote(s string) string {
+	return strings.ReplaceAll(s, "'", `'"'"'`)
+}
+
+func wrapRemoteCommandWithBash(cmd string) string {
+	return fmt.Sprintf("/bin/bash -lc '%s'", shellSingleQuote(cmd))
+}
+
 // InstallScript installs a script on a Proxmox node.
 // Returns the remote exit code (0 on success) and any error encountered.
 // When skipWait is true, it will not prompt/await Enter after completion.
@@ -444,6 +452,7 @@ func InstallScript(user, nodeIP, scriptPath string, skipWait bool) (int, error) 
 	if !strings.EqualFold(user, "root") {
 		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c '%s'; else su - root -c '%s'; fi", installCmd, installCmd)
 	}
+	remoteCmd = wrapRemoteCommandWithBash(remoteCmd)
 	getScriptsLogger().Debug("community-script install via SSH: user=%s host=%s cmd=%s", user, nodeIP, remoteCmd)
 
 	// Use SSH to run the script installation command interactively with proper terminal environment
@@ -500,6 +509,7 @@ func InstallScriptInLXC(user, nodeIP string, vmid int, scriptPath string, skipWa
 	if !strings.EqualFold(user, "root") {
 		pctCmd = "sudo " + pctCmd
 	}
+	pctCmd = wrapRemoteCommandWithBash(pctCmd)
 
 	// #nosec G204 -- command arguments are constructed from validated paths and vmid.
 	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), pctCmd)
