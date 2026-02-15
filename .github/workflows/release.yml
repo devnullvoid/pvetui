@@ -60,7 +60,6 @@ jobs:
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
 
       - name: Post Release Announcements
-        if: ${{ (secrets.MASTODON_SERVER != '' && secrets.MASTODON_ACCESS_TOKEN != '') || (secrets.BLUESKY_USERNAME != '' && secrets.BLUESKY_APP_PASSWORD != '') }}
         continue-on-error: true
         run: |
           ./scripts/post-release-announcement.sh \
