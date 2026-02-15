@@ -10,6 +10,10 @@ import (
 
 // performVMOperation performs an asynchronous VM operation via the TaskManager.
 func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) (string, error), operationName string) {
+	a.enqueueVMOperation(vm, operation, operationName, true)
+}
+
+func (a *App) enqueueVMOperation(vm *api.VM, operation func(*api.VM) (string, error), operationName string, notifyQueued bool) {
 	// Create task
 	task := &taskmanager.Task{
 		Type:        operationName,
@@ -36,7 +40,9 @@ func (a *App) performVMOperation(vm *api.VM, operation func(*api.VM) (string, er
 	}
 
 	a.taskManager.Enqueue(task)
-	a.header.ShowSuccess(fmt.Sprintf("Queued %s for %s", operationName, vm.Name))
+	if notifyQueued {
+		a.header.ShowSuccess(fmt.Sprintf("Queued %s for %s", operationName, vm.Name))
+	}
 }
 
 // performVMDeleteOperation performs an asynchronous VM delete operation via the TaskManager.

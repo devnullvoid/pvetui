@@ -263,11 +263,15 @@ func (a *App) setupKeyboardHandlers() {
 			if currentPage == api.PageNodes {
 				a.ShowNodeContextMenu()
 			} else if currentPage == api.PageGuests {
-				// Check if selected VM has pending operations before showing menu
-				if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
-					if isPending, pendingOperation := models.GlobalState.IsVMPending(selectedVM); isPending {
-						a.showMessageSafe(fmt.Sprintf("Cannot open context menu while '%s' is in progress", pendingOperation))
-						return nil
+				// Check if selected VM has pending operations before showing menu for single-item actions.
+				// In batch mode (more than one selected), we still allow opening the menu and will
+				// handle ineligible guests per action.
+				if a.guestSelectionCount() <= 1 {
+					if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+						if isPending, pendingOperation := models.GlobalState.IsVMPending(selectedVM); isPending {
+							a.showMessageSafe(fmt.Sprintf("Cannot open context menu while '%s' is in progress", pendingOperation))
+							return nil
+						}
 					}
 				}
 				a.ShowVMContextMenu()

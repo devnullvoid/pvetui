@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
@@ -94,4 +95,47 @@ func (a *App) updateGuestSelectionIndicators() {
 	if a.footer != nil {
 		a.footer.UpdateSelectedGuestsCount(a.guestSelectionCount())
 	}
+}
+
+func (a *App) selectedGuestsFromCurrentList() []*api.VM {
+	if a == nil || a.vmList == nil || len(a.guestSelections) == 0 {
+		return nil
+	}
+
+	selected := make([]*api.VM, 0, len(a.guestSelections))
+	for _, vm := range a.vmList.GetVMs() {
+		if vm == nil {
+			continue
+		}
+		if a.isGuestSelected(vm) {
+			selected = append(selected, vm)
+		}
+	}
+
+	return selected
+}
+
+func (a *App) clearGuestSelections() {
+	if a == nil || len(a.guestSelections) == 0 {
+		return
+	}
+
+	clear(a.guestSelections)
+	a.updateGuestSelectionIndicators()
+	if a.vmList != nil {
+		a.vmList.SetVMs(a.vmList.GetVMs())
+	}
+}
+
+func sortVMsByIdentity(vms []*api.VM) {
+	sort.Slice(vms, func(i, j int) bool {
+		if vms[i].SourceProfile != vms[j].SourceProfile {
+			return vms[i].SourceProfile < vms[j].SourceProfile
+		}
+		if vms[i].Node != vms[j].Node {
+			return vms[i].Node < vms[j].Node
+		}
+
+		return vms[i].ID < vms[j].ID
+	})
 }
