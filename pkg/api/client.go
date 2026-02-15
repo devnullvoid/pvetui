@@ -114,6 +114,16 @@ func (c *Client) Delete(path string) error {
 	return c.httpClient.Delete(ctx, path, nil)
 }
 
+// DeleteWithResponse makes a DELETE request to the Proxmox API and returns the response with timeout.
+func (c *Client) DeleteWithResponse(path string, result *map[string]interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPITimeout)
+	defer cancel()
+
+	c.logger.Debug("API DELETE with response: %s", path)
+
+	return c.httpClient.Delete(ctx, path, result)
+}
+
 // IsUsingTokenAuth returns true if the client is using API token authentication.
 func (c *Client) IsUsingTokenAuth() bool {
 	// Check if the auth manager is using token authentication

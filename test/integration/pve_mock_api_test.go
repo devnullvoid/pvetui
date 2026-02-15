@@ -72,6 +72,7 @@ func TestPVEMockAPI(t *testing.T) {
 	// 3. Setup client
 	mockURL := fmt.Sprintf("http://localhost:%d", port)
 	itc := testutils.NewIntegrationTestConfig(t)
+	itc.ProxmoxAddr = mockURL
 	cfg := itc.CreateTestConfig()
 	cfg.Addr = mockURL
 	cfg.Insecure = true
@@ -141,20 +142,28 @@ func TestPVEMockAPI(t *testing.T) {
 		}
 
 		// Stop
-		err := client.StopVM(vm)
+		_, err := client.StopVM(vm)
 		require.NoError(t, err)
 
-		// Refresh to see update (GetVmStatus is cached)
-		refreshedVM, err := client.RefreshVMData(vm, nil)
-		require.NoError(t, err)
-		require.Equal(t, "stopped", refreshedVM.Status)
+		// Status transitions are async; wait for task completion to be reflected
+		require.Eventually(t, func() bool {
+			refreshedVM, refreshErr := client.RefreshVMData(vm, nil)
+			if refreshErr != nil {
+				return false
+			}
+			return refreshedVM.Status == "stopped"
+		}, 8*time.Second, 200*time.Millisecond)
 
 		// Start
-		err = client.StartVM(vm)
+		_, err = client.StartVM(vm)
 		require.NoError(t, err)
 
-		refreshedVM, err = client.RefreshVMData(vm, nil)
-		require.NoError(t, err)
-		require.Equal(t, "running", refreshedVM.Status)
+		require.Eventually(t, func() bool {
+			refreshedVM, refreshErr := client.RefreshVMData(vm, nil)
+			if refreshErr != nil {
+				return false
+			}
+			return refreshedVM.Status == "running"
+		}, 8*time.Second, 200*time.Millisecond)
 	})
 }

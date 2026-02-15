@@ -86,10 +86,10 @@ go test -v ./test/integration/...
 ### Real Proxmox Testing
 ```bash
 # Set environment variables for your test Proxmox server
-export PROXMOX_INTEGRATION_TEST=true
-export PROXMOX_TEST_ADDR="https://your-test-proxmox.example.com:8006"
-export PROXMOX_TEST_USER="testuser@pam"
-export PROXMOX_TEST_PASS="testpassword"
+export PVETUI_INTEGRATION_TEST=true
+export PVETUI_TEST_ADDR="https://your-test-proxmox.example.com:8006"
+export PVETUI_TEST_USER="testuser@pam"
+export PVETUI_TEST_PASS="testpassword"
 
 # Run integration tests against real Proxmox
 make test-integration-real

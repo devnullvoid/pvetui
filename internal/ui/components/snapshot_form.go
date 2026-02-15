@@ -31,7 +31,7 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 	nameField := tview.NewInputField().SetLabel("Snapshot Name").SetFieldWidth(20)
 	descField := tview.NewInputField().SetLabel("Description").SetFieldWidth(40)
 
-	form := tview.NewForm().
+	form := newStandardForm().
 		AddFormItem(nameField).
 		AddFormItem(descField)
 

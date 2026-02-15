@@ -24,7 +24,7 @@
 </p>
 
 <!-- Demo Video -->
-https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef
+<https://github.com/user-attachments/assets/c8e1183a-7204-47ac-9a15-e39ba8e275ef>
 
 ## 🚀 Features
 
@@ -68,6 +68,7 @@ go install github.com/devnullvoid/pvetui/cmd/pvetui@latest
 ```
 
 **From Pre-compiled Binaries:**
+
 1. Download from [Releases](https://github.com/devnullvoid/pvetui/releases)
 2. Extract and run: `./pvetui`
 
@@ -79,6 +80,7 @@ go install github.com/devnullvoid/pvetui/cmd/pvetui@latest
 [![pvetui-bin on AUR](https://img.shields.io/aur/version/pvetui-bin?label=pvetui-bin)](https://aur.archlinux.org/packages/pvetui-git/)
 [![pvetui on AUR](https://img.shields.io/aur/version/pvetui?label=pvetui)](https://aur.archlinux.org/packages/pvetui/)
 [![pvetui-git on AUR](https://img.shields.io/aur/version/pvetui-git?label=pvetui-git)](https://aur.archlinux.org/packages/pvetui-git/)
+
 ```bash
 # Binary package (recommended)
 yay -S pvetui-bin
@@ -91,12 +93,14 @@ yay -S pvetui-git
 ```
 
 **macOS (Homebrew Cask):**
+
 ```bash
 # Install directly from the tap (brew will auto-clone devnullvoid/homebrew-pvetui)
 brew install --cask devnullvoid/pvetui/pvetui
 ```
 
 **Windows (Scoop):**
+
 ```bash
 # Add the bucket
 scoop bucket add pvetui https://github.com/devnullvoid/scoop-pvetui
@@ -106,6 +110,7 @@ scoop install pvetui
 ```
 
 **From Source:**
+
 ```bash
 git clone https://github.com/devnullvoid/pvetui.git
 cd pvetui
@@ -113,10 +118,10 @@ make install  # Build and install from source
 # or: make install-go  # Install via Go toolchain
 ```
 
-
 ## 🔧 Configuration
 
 ### First Run & Interactive Config Wizard
+
 - On first run, the app will offer to create and edit a config file in a user-friendly TUI wizard
 - Launch the wizard anytime with `--config-wizard`
 - Create and manage multiple connection profiles with validation
@@ -167,9 +172,12 @@ profiles:
 
 default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
+show_icons: true
 ```
 
 `vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
+
+Guest tags can be edited from the VM/LXC **Edit Configuration** form using a semicolon-separated list (for example: `prod;monitoring;db`).
 
 ### Plugins
 
@@ -179,7 +187,7 @@ pvetui includes an opt-in plugin system for optional features. Plugins are **dis
 
 - **`community-scripts`**: Adds the popular Community Scripts installer to node context menus
 - **`command-runner`**: Execute whitelisted commands on Proxmox hosts via SSH (requires SSH key setup)
-- **`demo-guest-list`** *(alias: Guest Insights)*: Full guest insights modal (filter/sort/jump-to-guest); kept under the legacy ID for backward compatibility
+- **`guest-insights`** *(legacy alias: `demo-guest-list`)*: Full guest insights modal (filter/sort/jump-to-guest)
 
 #### Enabling Plugins
 
@@ -201,7 +209,7 @@ plugins:
   enabled:
     - "community-scripts"
     - "command-runner"
-    - "demo-guest-list"    # Guest Insights (kept under legacy plugin ID)
+    - "guest-insights"     # Guest Insights plugin (legacy alias: demo-guest-list)
 ```
 
 **📖 For plugin development and advanced details, see [docs/PLUGINS.md](docs/PLUGINS.md)**
@@ -209,6 +217,7 @@ plugins:
 ### Profile Management
 
 The built-in profile manager allows you to:
+
 - **Switch between profiles** (e.g., home, work, development)
 - **Add new profiles** with different Proxmox connections
 - **Edit existing profiles** with validation
@@ -222,16 +231,19 @@ Access the profile manager through the global menu.
 Combine several profiles into a named group to see a unified cluster view (CPU/mem/storage/tasks/guests). Actions are routed to each guest’s source profile/cluster; migration targets are limited to the VM’s own cluster.
 
 Launch directly into a group:
+
 ```bash
 pvetui --profile="my-group"
 ```
 
 Notes:
+
 - Group names must not conflict with profile names (validation enforced).
 - Refreshes fetch fresh data from all member profiles; pending states are tracked per source profile.
 - Migrations stay within the VM’s original cluster; groups of standalone nodes will show “No other online nodes available.”
 
 ### API Token Setup (Recommended)
+
 1. In Proxmox web interface: **Datacenter → Permissions → API Tokens**
 2. Click **Add** → Set user (e.g., `root`) → Enter token ID
 3. Copy the generated **Token ID** and **Secret** to your config
@@ -249,6 +261,7 @@ profiles:
 ```
 
 ### Encrypted Configuration
+
 Supports [SOPS](https://github.com/getsops/sops) encrypted config files. Point to an encrypted YAML file with `--config` and it will decrypt automatically.
 
 Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secret` values in plain YAML configs and rewrites the file with encrypted blobs (while updating the running config) as soon as you connect successfully. That keeps legacy configs safe without forcing you to adopt a new workflow.
@@ -267,32 +280,46 @@ Not using SOPS yet? pvetui now auto-detects cleartext `password` and `token_secr
 ./pvetui --config /path/to/config.yml
 ```
 
+Default paths:
+
+- Linux/macOS config: `~/.config/pvetui/config.yml`
+- Linux/macOS cache: `~/.cache/pvetui`
+- Windows config: `%APPDATA%/pvetui/config.yml`
+- Windows cache: `%LOCALAPPDATA%/pvetui`
+
+Windows legacy fallback:
+
+- Existing `~/.config/pvetui/config.yml` is still auto-detected.
+- Existing `~/.cache/pvetui` is still used if the newer `%LOCALAPPDATA%/pvetui` path does not exist.
+
 ### Command Line Options
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--config` | `-c` | Path to YAML config file |
-| `--profile` | `-p` | Connection profile to use (overrides default_profile) |
-| `--no-cache` | `-n` | Disable caching |
-| `--version` | `-v` | Show version information |
-| `--config-wizard` | `-w` | Launch interactive config wizard and exit |
-| `--addr` | | Proxmox API URL |
-| `--user` | | Proxmox username |
-| `--password` | | Proxmox password |
-| `--token-id` | | Proxmox API token ID |
-| `--token-secret` | | Proxmox API token secret |
-| `--realm` | | Proxmox realm |
-| `--insecure` | | Skip TLS verification |
-| `--api-path` | | Proxmox API path |
-| `--ssh-user` | | SSH username |
-| `--vm-ssh-user` | | QEMU VM SSH username (defaults to ssh-user) |
-| `--ssh-jumphost-addr` | | SSH jump host address |
-| `--ssh-jumphost-user` | | SSH jump host user |
-| `--ssh-jumphost-keyfile` | | SSH jump host identity file |
-| `--ssh-jumphost-port` | | SSH jump host port |
-| `--debug` | | Enable debug logging |
-| `--cache-dir` | | Cache directory path |
-| `--age-dir` | | Age key directory path |
+| Flag | Short | Environment Variable | Description |
+|------|-------|----------------------|-------------|
+| `--config` | `-c` | n/a | Path to YAML config file |
+| `--profile` | `-p` | n/a | Connection profile to use (overrides default_profile) |
+| `--no-cache` | `-n` | n/a | Disable caching |
+| `--version` | `-v` | n/a | Show version information |
+| `--config-wizard` | `-w` | n/a | Launch interactive config wizard and exit |
+| `--list-profiles` | | n/a | List available connection profiles/groups and exit |
+| `--addr` | | `PVETUI_ADDR` | Proxmox API URL |
+| `--user` | | `PVETUI_USER` | Proxmox username |
+| `--password` | | `PVETUI_PASSWORD` | Proxmox password |
+| `--token-id` | | `PVETUI_TOKEN_ID` | Proxmox API token ID |
+| `--token-secret` | | `PVETUI_TOKEN_SECRET` | Proxmox API token secret |
+| `--realm` | | `PVETUI_REALM` | Proxmox realm |
+| `--insecure` | | `PVETUI_INSECURE` | Skip TLS verification |
+| `--api-path` | | `PVETUI_API_PATH` | Proxmox API path |
+| `--ssh-user` | | `PVETUI_SSH_USER` | SSH username |
+| `--vm-ssh-user` | | `PVETUI_VM_SSH_USER` | QEMU VM SSH username (defaults to ssh-user) |
+| `--ssh-jumphost-addr` | | `PVETUI_SSH_JUMPHOST_ADDR` | SSH jump host address |
+| `--ssh-jumphost-user` | | `PVETUI_SSH_JUMPHOST_USER` | SSH jump host user |
+| `--ssh-jumphost-keyfile` | | `PVETUI_SSH_JUMPHOST_KEYFILE` | SSH jump host identity file |
+| `--ssh-jumphost-port` | | `PVETUI_SSH_JUMPHOST_PORT` | SSH jump host port |
+| `--debug` | | `PVETUI_DEBUG` | Enable debug logging |
+| `--cache-dir` | | `PVETUI_CACHE_DIR` | Cache directory path |
+| `--age-dir` | | `PVETUI_AGE_DIR` | Age key directory path |
+| `--show-icons` | | `PVETUI_SHOW_ICONS` | Show icons/emojis in UI |
 
 **Environment Variables**: All flags can also be set via environment variables with `PVETUI_` prefix (e.g., `PVETUI_ADDR`, `PVETUI_USER`).
 
@@ -318,6 +345,7 @@ pvetui supports semantic theming with automatic adaptation to your terminal's co
 ## 📺 VNC Console Access
 
 Built-in noVNC client provides seamless console access:
+
 - **Zero Configuration**: Works out of the box
 - **Automatic Authentication**: No separate login required
 - **Universal Support**: VMs, containers, and node shells
@@ -339,6 +367,7 @@ Built-in noVNC client provides seamless console access:
 
 - **Use SSH keys for authentication**: For best security and convenience, set up SSH key-based authentication with your Proxmox hosts. Avoid password-based SSH logins.
 - **Passwordless pct access**: Add a sudoers rule on your Proxmox hosts to allow your user to run `pct enter` and `pct exec` without being prompted for a password. Proxmox VE does **not** install `sudo` by default, so either install it (and grant your non-root `ssh_user` rights) or connect as `root` so commands run without `sudo`. Example sudoers line:
+
   ```
   youruser ALL=(ALL) NOPASSWD: /usr/sbin/pct enter *, /usr/sbin/pct exec *
   ```
@@ -378,7 +407,9 @@ This repository vendors assets from [noVNC](https://github.com/novnc/noVNC) unde
 **Proxmox®** is a registered trademark of Proxmox Server Solutions GmbH in the EU, the U.S., and other countries. This project is not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH. "Proxmox" is used solely to describe compatibility with Proxmox Virtual Environment software.
 
 ---
+
 ### Upgrading Embedded noVNC
+
 This repository includes the noVNC HTML/JS client under `internal/vnc/novnc` via [git subtree](https://www.atlassian.com/git/tutorials/git-subtree). To upgrade to a newer noVNC version, run:
 
 ```bash

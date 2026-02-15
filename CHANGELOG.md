@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-02-14
+
+### Added
+
+- **Profile/Group CLI Listing**: Added `--list-profiles` to print configured connection profiles and aggregate groups (including key connection details and memberships) and exit, making it easier to pair with `--profile` for direct startup selection.
+- **QEMU Guest Agent Toggle in VM Config Editor**: Added a checkbox to VM Edit Configuration so the QEMU guest agent can be enabled/disabled directly from the TUI.
+
 ### Changed
 
 - **Nix Flake Source Handling**: `flake.nix` now uses `src = self` for `buildGoModule` to reduce repeated source copying and improve local `nix build`/`nix run` performance.
+
+### Fixed
+
+- **Async Task Queue Node Isolation**: Task queue scheduling now keys active/queued operations by `node+vmid` instead of VMID alone, preventing unrelated VMs with the same ID on different nodes/clusters from blocking each other.
+- **Guest Insights Plugin ID Compatibility**: Renamed the plugin identifier to `guest-insights` while keeping `demo-guest-list` as a backward-compatible alias so existing configs continue to load without changes.
+- **Form Label Readability**: Standardized form field labels to use `HeaderText` color across VM/task/wizard dialogs for improved readability in terminal themes where default secondary text appears too dim.
 
 ## [1.0.17] - 2026-02-01
 

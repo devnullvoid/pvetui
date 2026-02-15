@@ -56,6 +56,7 @@ profiles:
 
 default_profile: "all-servers" # Can be a profile name or a group name
 debug: false
+show_icons: true               # Optional: toggle icons/emojis in the UI
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 
@@ -92,6 +93,9 @@ plugins:
 ```
 
 `vm_ssh_user` lets you specify a different login for QEMU VM shells. If omitted, pvetui falls back to `ssh_user`, so you only need to set it when your VM accounts differ from the Proxmox host user. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
+
+Guest tags can be edited directly in the VM/LXC **Edit Configuration** form.
+Use a semicolon-separated format such as `prod;monitoring;db`.
 
 ## Profile Management
 
@@ -274,17 +278,28 @@ pvetui loads optional features through a plugin system. Plugins contribute UI ac
 - The `plugins.enabled` list controls which plugins are activated at startup.
 - When omitted or left empty, no plugins are loaded. Enable functionality explicitly to opt in.
 - Set `plugins.enabled: []` to keep all optional features disabled (e.g., in hardened environments).
-- Built-in plugin identifiers: `community-scripts`, `demo-guest-list`.
+- Built-in plugin identifiers: `community-scripts`, `guest-insights` (legacy alias: `demo-guest-list`).
 - See [PLUGINS.md](PLUGINS.md) for implementation details and authoring guidance.
 
 ```yaml
 plugins:
   enabled:
     - "community-scripts"  # Opt-in to the community script installer plugin
-    - "demo-guest-list"    # Optional demo plugin that lists running guests on a node
+    - "guest-insights"     # Optional Guest Insights plugin (legacy alias: demo-guest-list)
 ```
 
 ## Advanced Options
+
+### Icon Toggle
+
+Enable or disable icons/emojis in the UI:
+
+```yaml
+show_icons: false
+```
+
+Equivalent environment variable: `PVETUI_SHOW_ICONS=false`
+Equivalent CLI flag: `--show-icons=false`
 
 ### Encrypted Configuration
 
@@ -323,6 +338,12 @@ Enable debug logging:
 ```yaml
 debug: true
 ```
+
+### Node Details Data
+
+The Node Details panel includes:
+- Disk SMART/health data (including disk type, model, size, and health state)
+- System package update notifications (up to 5 updates listed with version details, plus remaining count)
 
 ### Insecure Connections
 
@@ -366,11 +387,16 @@ pvetui looks for configuration files in the following order:
 1. File specified with `--config` flag
 2. Platform-appropriate config directory:
    - **Windows**: `%APPDATA%/pvetui/config.yml`
-- **macOS**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
-- **Linux**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
+   - **macOS**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
+   - **Linux**: `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`)
 3. `./config.yml` (current directory)
 
-> **Important**: If you're upgrading from a previous version on Windows and have existing config files in `~/.config/pvetui/`, you'll need to move them to the new platform-specific location (`%APPDATA%/pvetui/`). macOS and Linux users can continue using their existing config files without any changes.
+> **Windows compatibility note**: pvetui now defaults to `%APPDATA%/pvetui/config.yml`, but it will still detect legacy configs at `~/.config/pvetui/config.yml` (or `$XDG_CONFIG_HOME/pvetui/config.yml`) as a fallback.
+
+Cache directories follow platform defaults:
+- **Windows**: `%LOCALAPPDATA%/pvetui` (with legacy `~/.cache/pvetui` / `$XDG_CACHE_HOME/pvetui` fallback if present)
+- **macOS**: `~/.cache/pvetui` (or `$XDG_CACHE_HOME/pvetui`)
+- **Linux**: `~/.cache/pvetui` (or `$XDG_CACHE_HOME/pvetui`)
 
 ## First Run & Interactive Config Wizard
 

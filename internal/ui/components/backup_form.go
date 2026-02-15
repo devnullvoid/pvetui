@@ -103,7 +103,7 @@ func (bf *BackupForm) displayCreateForm(storageOptions []string) {
 		SetLabel("Prune (Remove old)").
 		SetChecked(false)
 
-	form := tview.NewForm().
+	form := newStandardForm().
 		AddFormItem(storageDropdown).
 		AddFormItem(modeDropdown).
 		AddFormItem(compressDropdown).

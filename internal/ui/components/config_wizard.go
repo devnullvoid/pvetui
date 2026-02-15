@@ -120,7 +120,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		sopsRuleExists = findSOPSRule(filepath.Dir(configPath))
 	}
 
-	form := tview.NewForm().SetHorizontal(false)
+	form := newStandardForm().SetHorizontal(false)
 	pages := tview.NewPages()
 	pages.AddPage("form", form, true, true)
 

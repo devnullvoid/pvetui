@@ -3,11 +3,11 @@ package components
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/devnullvoid/pvetui/internal/taskmanager"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -53,7 +53,7 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	}
 
 	// Create form
-	form := tview.NewForm()
+	form := newStandardForm()
 	form.SetBorder(true)
 	form.SetTitle(fmt.Sprintf(" Migrate %s '%s' (ID: %d) ", strings.ToUpper(vm.Type), vm.Name, vm.ID))
 	form.SetTitleColor(theme.Colors.Primary)
@@ -149,9 +149,8 @@ func (a *App) showMigrationDialog(vm *api.VM) {
 	a.SetFocus(form)
 }
 
-// performMigrationOperation performs an asynchronous VM migration operation.
+// performMigrationOperation performs an asynchronous VM migration operation via the TaskManager.
 func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOptions) {
-	// Set pending state immediately for visual feedback
 	const (
 		migrationTypeOffline = "offline"
 		migrationTypeRestart = "restart"
@@ -165,97 +164,41 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 		migrationTypeStr = migrationTypeOnline
 	}
 
-	models.GlobalState.SetVMPending(vm, "Migrating - will move to new node")
-
-	// Show loading indicator
-	a.header.ShowLoading(fmt.Sprintf("Migrating %s to %s (%s)", vm.Name, options.Target, migrationTypeStr))
-
-	// Show visual feedback with small delay to avoid UI deadlock
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		a.QueueUpdateDraw(func() {
-			a.updateVMListWithSelectionPreservation()
-		})
-	}()
-
-	// originalUptime no longer needed
-
-	// Run operation in goroutine to avoid blocking UI
-	go func() {
-		defer func() {
-			// * Clear pending state after final refresh to ensure clean state
-			// Note: For migration, we clear pending state after the final refresh
-			// because the VM still exists (just on a different node)
-		}()
-
-		client, err := a.getClientForVM(vm)
-		if err != nil {
+	task := &taskmanager.Task{
+		Type:        "Migrate",
+		Description: fmt.Sprintf("Migrate %s (%d) to %s (%s)", vm.Name, vm.ID, options.Target, migrationTypeStr),
+		TargetVMID:  vm.ID,
+		TargetNode:  vm.Node,
+		TargetName:  vm.Name,
+		Operation: func() (string, error) {
+			client, err := a.getClientForVM(vm)
+			if err != nil {
+				return "", err
+			}
+			return client.MigrateVM(vm, options)
+		},
+		OnComplete: func(err error) {
 			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Failed to get client for migration: %v", err))
+				if err != nil {
+					a.header.ShowError(fmt.Sprintf("Migration error: %v", err))
+					a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v",
+						strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, err))
+				} else {
+					a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s completed successfully", vm.Name, options.Target))
+
+					// Clear API cache for the specific client
+					client, _ := a.getClientForVM(vm)
+					if client != nil {
+						client.ClearAPICache()
+					}
+
+					// Full refresh needed as node changed
+					a.manualRefresh()
+				}
 			})
-			models.GlobalState.ClearVMPending(vm)
-			a.QueueUpdateDraw(func() {
-				a.updateVMListWithSelectionPreservation()
-			})
-			return
-		}
+		},
+	}
 
-		// Initiate migration and get the task UPID
-		upid, err := client.MigrateVM(vm, options)
-		if err != nil {
-			// Update header with error
-			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Migration failed: %v", err))
-			})
-			// Show message dialog (showMessage has its own QueueUpdateDraw, don't nest)
-			a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
-				strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, err))
-			// Clear pending state on error
-			models.GlobalState.ClearVMPending(vm)
-			a.QueueUpdateDraw(func() {
-				a.updateVMListWithSelectionPreservation()
-			})
-
-			return
-		}
-
-		// Migration started successfully
-		// Wait for the migration task to complete using the UPID
-		// Most migrations complete within 2-3 minutes; timeout at 3 minutes
-		maxWaitTime := 3 * time.Minute
-		migrationErr := client.WaitForTaskCompletion(upid, "VM migration", maxWaitTime)
-
-		if migrationErr != nil {
-			// Update header with error
-			a.QueueUpdateDraw(func() {
-				a.header.ShowError(fmt.Sprintf("Migration error: %v", migrationErr))
-			})
-			// Show message dialog (showMessage has its own QueueUpdateDraw, don't nest)
-			a.showMessage(fmt.Sprintf("Migration of %s '%s' (ID: %d) to %s failed:\n\n%v\n\nCheck the logs for more details.",
-				strings.ToUpper(vm.Type), vm.Name, vm.ID, options.Target, migrationErr))
-			// Clear pending state on error
-			models.GlobalState.ClearVMPending(vm)
-			a.QueueUpdateDraw(func() {
-				a.updateVMListWithSelectionPreservation()
-			})
-
-			return
-		}
-
-		// Migration task completed successfully
-		a.QueueUpdateDraw(func() {
-			a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s completed successfully", vm.Name, options.Target))
-		})
-
-		// Clear pending state BEFORE refresh so manualRefresh doesn't block
-		models.GlobalState.ClearVMPending(vm)
-
-		// Clear API cache to ensure fresh data is loaded
-		client.ClearAPICache()
-
-		// Final refresh after migration - now that pending state is clear
-		a.QueueUpdateDraw(func() {
-			a.manualRefresh() // Refresh all data to show updated VM location and tasks
-		})
-	}()
+	a.taskManager.Enqueue(task)
+	a.header.ShowSuccess(fmt.Sprintf("Queued migration for %s", vm.Name))
 }

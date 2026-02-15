@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const stringYes = "yes"
+
 // VMConfig represents editable configuration for both QEMU and LXC guests.
 type VMConfig struct {
 	// Common fields (match Proxmox API)
@@ -26,6 +28,7 @@ type VMConfig struct {
 	CPUType   string `json:"cpu,omitempty"`
 	MaxMem    int64  `json:"maxmem,omitempty"`
 	BootOrder string `json:"boot,omitempty"`
+	Agent     *bool  `json:"agent,omitempty"`
 	// Add more QEMU fields as needed
 
 	// LXC-specific
@@ -144,7 +147,7 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 	}
 
 	if v, ok := data["onboot"].(string); ok {
-		b := v == "1" || strings.ToLower(v) == "yes"
+		b := v == "1" || strings.ToLower(v) == stringYes
 		cfg.OnBoot = &b
 	}
 
@@ -159,6 +162,11 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 
 		if v, ok := data["boot"].(string); ok {
 			cfg.BootOrder = v
+		}
+
+		if agentVal, ok := data["agent"]; ok {
+			enabled := parseQEMUAgentEnabled(agentVal)
+			cfg.Agent = &enabled
 		}
 	}
 
@@ -220,6 +228,14 @@ func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} 
 		if config.BootOrder != "" {
 			data["boot"] = config.BootOrder
 		}
+
+		if config.Agent != nil {
+			if *config.Agent {
+				data["agent"] = 1
+			} else {
+				data["agent"] = 0
+			}
+		}
 	}
 
 	if vmType == VMTypeLXC {
@@ -229,4 +245,34 @@ func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} 
 	}
 
 	return data
+}
+
+func parseQEMUAgentEnabled(raw interface{}) bool {
+	switch v := raw.(type) {
+	case bool:
+		return v
+	case int:
+		return v != 0
+	case float64:
+		return v != 0
+	case string:
+		normalized := strings.TrimSpace(strings.ToLower(v))
+		if normalized == "1" || normalized == stringYes || normalized == StringTrue {
+			return true
+		}
+		if normalized == "0" || normalized == "no" || normalized == "false" {
+			return false
+		}
+
+		parts := strings.Split(normalized, ",")
+		for _, part := range parts {
+			kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+			if len(kv) != 2 || kv[0] != "enabled" {
+				continue
+			}
+			return kv[1] == "1" || kv[1] == stringYes || kv[1] == StringTrue
+		}
+	}
+
+	return false
 }

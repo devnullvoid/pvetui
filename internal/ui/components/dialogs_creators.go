@@ -13,7 +13,7 @@ import (
 
 // CreateLoginForm creates a login form dialog.
 func CreateLoginForm() *tview.Form {
-	form := tview.NewForm()
+	form := newStandardForm()
 	form.SetBorder(true)
 	form.SetTitle(" Login ")
 	form.SetTitleColor(theme.Colors.Primary)
@@ -169,7 +169,7 @@ func CreateSuccessDialogWithURL(title, message string, onClose func()) *tview.Mo
 
 // CreateFormDialog creates a form dialog with custom fields.
 func CreateFormDialog(title string, fields []FormField, onSubmit, onCancel func(map[string]string)) *tview.Form {
-	form := tview.NewForm()
+	form := newStandardForm()
 	form.SetBorder(true)
 	form.SetTitle(fmt.Sprintf(" %s ", title))
 	form.SetTitleColor(theme.Colors.Title)

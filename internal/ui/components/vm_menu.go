@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 
-	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/taskmanager"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -37,7 +37,17 @@ func (a *App) ShowVMContextMenu() {
 	node := a.vmList.GetNodeForVM(vm)
 
 	// Check if this VM has a pending operation
-	isPending, pendingOperation := models.GlobalState.IsVMPending(vm)
+	var isPending bool
+	var pendingOperation string
+	if a.taskManager != nil {
+		if task := a.taskManager.GetActiveTaskForVM(vm.Node, vm.ID); task != nil {
+			isPending = true
+			pendingOperation = task.Type
+			if task.Status == taskmanager.StatusQueued {
+				pendingOperation += " (Queued)"
+			}
+		}
+	}
 
 	// Store last focused primitive
 	a.lastFocus = a.GetFocus()
@@ -64,23 +74,23 @@ func (a *App) ShowVMContextMenu() {
 		}
 	}
 
-	// * Only show lifecycle actions if no operation is pending
-	if !isPending {
-		if vm.Status == api.VMStatusRunning {
-			// When running, offer graceful Shutdown, force Stop, and Restart
-			menuItems = append(menuItems, vmActionShutdown, vmActionStop, vmActionRestart)
-			// Hard Reset is QEMU-only
-			if vm.Type == api.VMTypeQemu {
-				menuItems = append(menuItems, vmActionReset)
-			}
-		} else if vm.Status == api.VMStatusStopped {
-			menuItems = append(menuItems, vmActionStart)
+	// Always show lifecycle actions, allowing queuing
+	if vm.Status == api.VMStatusRunning {
+		// When running, offer graceful Shutdown, force Stop, and Restart
+		menuItems = append(menuItems, vmActionShutdown, vmActionStop, vmActionRestart)
+		// Hard Reset is QEMU-only
+		if vm.Type == api.VMTypeQemu {
+			menuItems = append(menuItems, vmActionReset)
 		}
+	} else if vm.Status == api.VMStatusStopped {
+		menuItems = append(menuItems, vmActionStart)
+	}
 
-		menuItems = append(menuItems, vmActionMigrate)
-		menuItems = append(menuItems, vmActionDelete)
-	} else {
-		// * Show pending operation info in menu title
+	menuItems = append(menuItems, vmActionMigrate)
+	menuItems = append(menuItems, vmActionDelete)
+
+	if isPending {
+		// * Show pending operation info in menu
 		menuItems = append(menuItems, fmt.Sprintf("⚠️  %s in progress...", pendingOperation))
 	}
 

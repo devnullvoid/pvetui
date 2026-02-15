@@ -28,7 +28,7 @@ type VMConfigPage struct {
 
 // NewVMConfigPage creates a new config editor for the given VM.
 func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*api.VMConfig) error) *VMConfigPage {
-	form := tview.NewForm().SetHorizontal(false)
+	form := newStandardForm().SetHorizontal(false)
 	page := &VMConfigPage{
 		Form:   form,
 		app:    app,
@@ -133,6 +133,17 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 	form.AddCheckbox("Start at boot", onboot, func(checked bool) {
 		page.config.OnBoot = &checked
 	})
+
+	if vm.Type == api.VMTypeQemu {
+		agentEnabled := vm.AgentEnabled
+		if config.Agent != nil {
+			agentEnabled = *config.Agent
+		}
+
+		form.AddCheckbox("Enable QEMU guest agent", agentEnabled, func(checked bool) {
+			page.config.Agent = &checked
+		})
+	}
 	// Save/Cancel buttons
 	form.AddButton("Save", func() {
 		// * Check if VM has pending operations
@@ -310,7 +321,7 @@ func normalizeTags(raw string) string {
 
 // showResizeStorageModal displays a modal for resizing a storage volume.
 func showResizeStorageModal(app *App, vm *api.VM) {
-	modal := tview.NewForm().SetHorizontal(false)
+	modal := newStandardForm().SetHorizontal(false)
 
 	// Build list of storage devices (filter to only resizable volumes)
 	var deviceNames []string

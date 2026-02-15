@@ -9,8 +9,11 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
-// PluginID identifies the demo guest list plugin for configuration toggles.
-const PluginID = "demo-guest-list"
+// PluginID identifies the Guest Insights plugin for configuration toggles.
+const PluginID = "guest-insights"
+
+// LegacyPluginID is accepted for backwards compatibility with older configs.
+const LegacyPluginID = "demo-guest-list"
 
 // guestListModalPageName is the page identifier registered with the global keyboard handler.
 const guestListModalPageName = "plugin.demoGuestList.modal"

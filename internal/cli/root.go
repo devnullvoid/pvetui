@@ -75,6 +75,7 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 	noCache, _ := cmd.Flags().GetBool("no-cache")
 	version, _ := cmd.Flags().GetBool("version")
 	configWizard, _ := cmd.Flags().GetBool("config-wizard")
+	listProfiles, _ := cmd.Flags().GetBool("list-profiles")
 
 	// Get config values from viper (which handles env vars)
 	addr := viper.GetString("addr")
@@ -108,6 +109,7 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 		NoCache:                noCache,
 		Version:                version,
 		ConfigWizard:           configWizard,
+		ListProfiles:           listProfiles,
 		FlagAddr:               addr,
 		FlagUser:               user,
 		FlagPassword:           password,
@@ -137,6 +139,7 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolP("no-cache", "n", false, "Disable caching")
 	cmd.PersistentFlags().BoolP("version", "v", false, "Show version information")
 	cmd.PersistentFlags().BoolP("config-wizard", "w", false, "Launch interactive config wizard and exit")
+	cmd.PersistentFlags().Bool("list-profiles", false, "List available connection profiles/groups and exit")
 
 	// Config flags
 	cmd.PersistentFlags().String("addr", "", "Proxmox API URL")

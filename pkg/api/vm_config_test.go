@@ -26,6 +26,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				"cpu":         "host",
 				"maxmem":      16384.0,
 				"boot":        "order=scsi0;net0",
+				"agent":       "enabled=1,fstrim_cloned_disks=1",
 				"tags":        "prod;db",
 			},
 			expected: &VMConfig{
@@ -38,6 +39,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				CPUType:      "host",
 				MaxMem:       16384,
 				BootOrder:    "order=scsi0;net0",
+				Agent:        &[]bool{true}[0],
 				Tags:         "prod;db",
 				TagsExplicit: true,
 			},
@@ -110,6 +112,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				assert.Equal(t, tt.expected.CPUType, result.CPUType)
 				assert.Equal(t, tt.expected.MaxMem, result.MaxMem)
 				assert.Equal(t, tt.expected.BootOrder, result.BootOrder)
+				assert.Equal(t, tt.expected.Agent, result.Agent)
 			}
 
 			if tt.vmType == VMTypeLXC {
@@ -158,6 +161,13 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				if tt.expected.BootOrder != "" {
 					assert.Equal(t, tt.expected.BootOrder, payload["boot"])
 				}
+				if tt.expected.Agent != nil {
+					if *tt.expected.Agent {
+						assert.Equal(t, 1, payload["agent"])
+					} else {
+						assert.Equal(t, 0, payload["agent"])
+					}
+				}
 			}
 
 			if tt.vmType == VMTypeLXC {
@@ -165,6 +175,28 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 					assert.Equal(t, tt.expected.Swap/1024/1024, payload["swap"])
 				}
 			}
+		})
+	}
+}
+
+func TestParseQEMUAgentEnabled(t *testing.T) {
+	tests := []struct {
+		name string
+		in   interface{}
+		want bool
+	}{
+		{name: "bool true", in: true, want: true},
+		{name: "float 0", in: 0.0, want: false},
+		{name: "string 1", in: "1", want: true},
+		{name: "string enabled 1", in: "enabled=1,fstrim_cloned_disks=1", want: true},
+		{name: "string enabled 0", in: "enabled=0", want: false},
+		{name: "string false", in: "false", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseQEMUAgentEnabled(tt.in)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

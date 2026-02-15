@@ -13,14 +13,14 @@ This guide explains how to work with the pvetui plugin system, including enablin
 The repository currently ships with the following built-in plugins:
 
 - `community-scripts`: exposes the community script installer from the node context menu
-- `demo-guest-list`: adds a demo action that lists running guests for the selected node
+- `guest-insights` (legacy alias: `demo-guest-list`): adds Guest Insights actions for the selected node
 - `command-runner`: execute whitelisted commands on Proxmox hosts via SSH
 
 ```yaml
 plugins:
   enabled:
     - "community-scripts"
-    - "demo-guest-list"
+    - "guest-insights"   # Legacy alias: demo-guest-list
     - "command-runner"
 ```
 
@@ -98,7 +98,7 @@ ssh_user: root  # SSH username for command execution
 
 ## Guest Insights Plugin
 
-The `demo-guest-list` plugin has grown into the fully supported **Guest Insights** experience. When enabled it adds an `I` shortcut (and node context menu entry) to launch a modal that shows live metrics for every guest on the selected node. The table supports filtering (`/`), sorting (`n/c/m/u/i`), toggling stopped guests (`a`), and jump-to-guest navigation (`enter`/`g`). Refresh with `r` to pull fresh CPU/memory stats, and press `enter` or `g` on a row to close the modal, switch to the Guests page, and focus the highlighted VM.
+The `guest-insights` plugin (legacy alias: `demo-guest-list`) is the fully supported **Guest Insights** experience. When enabled it adds an `I` shortcut (and node context menu entry) to launch a modal that shows live metrics for every guest on the selected node. The table supports filtering (`/`), sorting (`n/c/m/u/i`), toggling stopped guests (`a`), and jump-to-guest navigation (`enter`/`g`). Refresh with `r` to pull fresh CPU/memory stats, and press `enter` or `g` on a row to close the modal, switch to the Guests page, and focus the highlighted VM.
 
 ## Writing a New Plugin
 

@@ -33,6 +33,19 @@ func TestEnabledFromConfig_CustomList(t *testing.T) {
 	require.Equal(t, communityscripts.PluginID, plugins[0].ID())
 }
 
+func TestEnabledFromConfig_LegacyAlias(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.SetDefaults()
+
+	cfg.Plugins.Enabled = []string{guestlist.LegacyPluginID}
+
+	plugins, missing := EnabledFromConfig(cfg)
+
+	require.Empty(t, missing)
+	require.Len(t, plugins, 1)
+	require.Equal(t, guestlist.PluginID, plugins[0].ID())
+}
+
 func TestAvailableIDs(t *testing.T) {
 	ids := AvailableIDs()
 	require.Contains(t, ids, communityscripts.PluginID)
