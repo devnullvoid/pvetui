@@ -64,7 +64,7 @@ const (
 func NewTasksList() *TasksList {
 	activeTable := tview.NewTable()
 	activeTable.SetBorders(false)
-	activeTable.SetTitle(" Active Operations [v:toggle] ")
+	activeTable.SetTitle(" Active Operations [t:toggle] [x:stop-cancel] ")
 	activeTable.SetBorder(true)
 	activeTable.SetSelectable(true, false)
 	activeTable.SetFixed(1, 0)
@@ -362,7 +362,7 @@ func (tl *TasksList) setupKeyHandlers() {
 				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
 			case 'k':
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-			case 'v':
+			case 't':
 				tl.toggleActiveQueueVisibility()
 				return nil
 			}
@@ -375,10 +375,10 @@ func (tl *TasksList) setupKeyHandlers() {
 	tl.activeTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
-			case 'v':
+			case 't':
 				tl.toggleActiveQueueVisibility()
 				return nil
-			case 'x', 's':
+			case 'x':
 				// Stop task
 				row, _ := tl.activeTable.GetSelection()
 				if row > 0 {
