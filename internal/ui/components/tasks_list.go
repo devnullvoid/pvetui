@@ -386,8 +386,14 @@ func (tl *TasksList) setupKeyHandlers() {
 					if ref := cell.GetReference(); ref != nil {
 						if task, ok := ref.(*taskmanager.Task); ok {
 							if tl.app != nil {
+								actionLabel := "Stop"
+								successMessage := "Task stop requested"
+								if task.Status == taskmanager.StatusQueued {
+									actionLabel = "Cancel"
+									successMessage = "Queued task cancelled"
+								}
 								tl.app.showConfirmationDialog(
-									fmt.Sprintf("Stop/Cancel task '%s'?", task.Description),
+									fmt.Sprintf("%s task '%s'?", actionLabel, task.Description),
 									func() {
 										go func() {
 											if err := tl.app.TaskManager().CancelTask(task.ID); err != nil {
@@ -396,7 +402,7 @@ func (tl *TasksList) setupKeyHandlers() {
 												})
 											} else {
 												tl.app.QueueUpdateDraw(func() {
-													tl.app.header.ShowSuccess("Task stop requested")
+													tl.app.header.ShowSuccess(successMessage)
 												})
 											}
 										}()

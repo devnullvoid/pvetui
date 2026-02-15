@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -212,6 +213,112 @@ func TestTaskManager_AllowsSameVMIDOnDifferentNodes(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		return tm.GetActiveTaskForVM("pve", 100) == nil && tm.GetActiveTaskForVM("pve2", 100) == nil
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func TestTaskManager_RespectsGlobalMaxRunningLimit(t *testing.T) {
+	const maxRunning = 2
+	tm := NewTaskManagerWithMaxRunning(func(nodeName string) (*api.Client, error) {
+		return nil, nil
+	}, nil, maxRunning)
+	defer tm.Stop()
+
+	var currentRunning int32
+	var maxObserved int32
+	var once sync.Once
+	startedTwo := make(chan struct{})
+	release := make(chan struct{})
+
+	makeTask := func(vmid int) *Task {
+		return &Task{
+			TargetVMID: vmid,
+			TargetNode: "pve",
+			Type:       "Start",
+			Operation: func() (string, error) {
+				running := atomic.AddInt32(&currentRunning, 1)
+				for {
+					prev := atomic.LoadInt32(&maxObserved)
+					if running <= prev || atomic.CompareAndSwapInt32(&maxObserved, prev, running) {
+						break
+					}
+				}
+				if running == maxRunning {
+					once.Do(func() { close(startedTwo) })
+				}
+				<-release
+				atomic.AddInt32(&currentRunning, -1)
+				return "", nil
+			},
+		}
+	}
+
+	tm.Enqueue(makeTask(101))
+	tm.Enqueue(makeTask(102))
+	tm.Enqueue(makeTask(103))
+	tm.Enqueue(makeTask(104))
+
+	select {
+	case <-startedTwo:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected two tasks to start running")
+	}
+
+	require.LessOrEqual(t, atomic.LoadInt32(&maxObserved), int32(maxRunning))
+	require.Equal(t, 4, len(tm.GetAllTasks())) // 2 running + 2 queued
+
+	close(release)
+
+	assert.Eventually(t, func() bool {
+		return len(tm.GetAllTasks()) == 0
+	}, 5*time.Second, 50*time.Millisecond)
+}
+
+func TestTaskManager_CancelQueuedTaskBeforeStart(t *testing.T) {
+	tm := NewTaskManagerWithMaxRunning(func(nodeName string) (*api.Client, error) {
+		return nil, nil
+	}, nil, 1)
+	defer tm.Stop()
+
+	release := make(chan struct{})
+	var task2Started atomic.Bool
+
+	task1 := &Task{
+		TargetVMID: 201,
+		TargetNode: "pve",
+		Type:       "Start",
+		Operation: func() (string, error) {
+			<-release
+			return "", nil
+		},
+	}
+	task2 := &Task{
+		TargetVMID: 202,
+		TargetNode: "pve",
+		Type:       "Start",
+		Operation: func() (string, error) {
+			task2Started.Store(true)
+			return "", nil
+		},
+	}
+
+	tm.Enqueue(task1)
+	tm.Enqueue(task2)
+
+	assert.Eventually(t, func() bool {
+		active1 := tm.GetActiveTaskForVM("pve", 201)
+		all := tm.GetAllTasks()
+		return active1 != nil && active1.Status == StatusRunning && len(all) == 2
+	}, 1*time.Second, 20*time.Millisecond)
+
+	err := tm.CancelTask(task2.ID)
+	require.NoError(t, err)
+
+	close(release)
+
+	assert.Eventually(t, func() bool {
+		return tm.GetActiveTaskForVM("pve", 201) == nil
+	}, 2*time.Second, 20*time.Millisecond)
+
+	require.False(t, task2Started.Load(), "queued task should not start after cancellation")
 }
 
 type mockConfig struct {
