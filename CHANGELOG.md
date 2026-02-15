@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release Workflow Social Announcements**: Prevented Mastodon announcement failures from breaking GoReleaser runs by handling social posting in the non-blocking release announcement script step.
+
 ## [1.0.18] - 2026-02-14
 
 ### Added

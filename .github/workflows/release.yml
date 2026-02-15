@@ -59,13 +59,14 @@ jobs:
           BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
 
-      - name: Post Bluesky release announcement
-        if: ${{ env.BLUESKY_USERNAME != '' && env.BLUESKY_APP_PASSWORD != '' }}
+      - name: Post Release Announcements
+        if: ${{ (secrets.MASTODON_SERVER != '' && secrets.MASTODON_ACCESS_TOKEN != '') || (secrets.BLUESKY_USERNAME != '' && secrets.BLUESKY_APP_PASSWORD != '') }}
         continue-on-error: true
         run: |
           ./scripts/post-release-announcement.sh \
-            --bluesky-only \
             --tag "${GITHUB_REF_NAME}"
         env:
+          MASTODON_SERVER: ${{ secrets.MASTODON_SERVER }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
           BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
