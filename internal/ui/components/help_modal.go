@@ -67,8 +67,8 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
 		{Key: "Tab / Shift+Tab", Desc: "Switch focus between Tasks page panels"},
-		{Key: "t (Tasks page)", Desc: "Toggle active queue panel visibility"},
-		{Key: "x (Active queue)", Desc: "Cancel queued task / stop running task"},
+		{Key: fmt.Sprintf("%s (Tasks page)", keys.TasksToggleQueue), Desc: "Toggle active queue panel visibility"},
+		{Key: fmt.Sprintf("%s (Active queue)", keys.TaskStopCancel), Desc: "Cancel queued task / stop running task"},
 		{Cat: ""}, // Spacer
 		{Cat: "[warning]Actions[-]"},
 		{Key: keys.Search, Desc: "Search/Filter current list"},

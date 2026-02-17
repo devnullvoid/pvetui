@@ -29,6 +29,8 @@ key_bindings:
   nodes_page: "Alt+1"
   guests_page: "Alt+2"
   tasks_page: "Alt+3"
+  tasks_toggle_queue: t
+  task_stop_cancel: x
   menu: m
   global_menu: g
   shell: s

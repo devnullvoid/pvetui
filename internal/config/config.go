@@ -144,18 +144,20 @@ func (c *Config) MarkSensitiveDataEncrypted() {
 type KeyBindings struct {
 	SwitchView        string `yaml:"switch_view"` // Switch between pages
 	SwitchViewReverse string `yaml:"switch_view_reverse"`
-	NodesPage         string `yaml:"nodes_page"`   // Jump to Nodes page
-	GuestsPage        string `yaml:"guests_page"`  // Jump to Guests page
-	TasksPage         string `yaml:"tasks_page"`   // Jump to Tasks page
-	Menu              string `yaml:"menu"`         // Open context menu
-	GlobalMenu        string `yaml:"global_menu"`  // Open global context menu
-	Shell             string `yaml:"shell"`        // Open shell session
-	VNC               string `yaml:"vnc"`          // Open VNC console
-	Refresh           string `yaml:"refresh"`      // Manual refresh
-	AutoRefresh       string `yaml:"auto_refresh"` // Toggle auto-refresh
-	Search            string `yaml:"search"`       // Activate search
-	Help              string `yaml:"help"`         // Toggle help modal
-	Quit              string `yaml:"quit"`         // Quit application
+	NodesPage         string `yaml:"nodes_page"`         // Jump to Nodes page
+	GuestsPage        string `yaml:"guests_page"`        // Jump to Guests page
+	TasksPage         string `yaml:"tasks_page"`         // Jump to Tasks page
+	TasksToggleQueue  string `yaml:"tasks_toggle_queue"` // Toggle active queue panel in Tasks page
+	TaskStopCancel    string `yaml:"task_stop_cancel"`   // Stop running task / cancel queued task
+	Menu              string `yaml:"menu"`               // Open context menu
+	GlobalMenu        string `yaml:"global_menu"`        // Open global context menu
+	Shell             string `yaml:"shell"`              // Open shell session
+	VNC               string `yaml:"vnc"`                // Open VNC console
+	Refresh           string `yaml:"refresh"`            // Manual refresh
+	AutoRefresh       string `yaml:"auto_refresh"`       // Toggle auto-refresh
+	Search            string `yaml:"search"`             // Activate search
+	Help              string `yaml:"help"`               // Toggle help modal
+	Quit              string `yaml:"quit"`               // Quit application
 }
 
 // ThemeConfig defines theme-related configuration options.
@@ -182,6 +184,8 @@ func DefaultKeyBindings() KeyBindings {
 		NodesPage:         "Alt+1",
 		GuestsPage:        "Alt+2",
 		TasksPage:         "Alt+3",
+		TasksToggleQueue:  "t",
+		TaskStopCancel:    "x",
 		Menu:              "m",
 		GlobalMenu:        "g",
 		Shell:             "s",
@@ -202,6 +206,8 @@ func keyBindingsToMap(kb KeyBindings) map[string]string {
 		"nodes_page":          kb.NodesPage,
 		"guests_page":         kb.GuestsPage,
 		"tasks_page":          kb.TasksPage,
+		"tasks_toggle_queue":  kb.TasksToggleQueue,
+		"task_stop_cancel":    kb.TaskStopCancel,
 		"menu":                kb.Menu,
 		"global_menu":         kb.GlobalMenu,
 		"shell":               kb.Shell,
@@ -371,6 +377,8 @@ func (c *Config) MergeWithFile(path string) error {
 			NodesPage         string `yaml:"nodes_page"`
 			GuestsPage        string `yaml:"guests_page"`
 			TasksPage         string `yaml:"tasks_page"`
+			TasksToggleQueue  string `yaml:"tasks_toggle_queue"`
+			TaskStopCancel    string `yaml:"task_stop_cancel"`
 			Menu              string `yaml:"menu"`
 			GlobalMenu        string `yaml:"global_menu"`
 			Shell             string `yaml:"shell"`
@@ -538,6 +546,8 @@ func (c *Config) MergeWithFile(path string) error {
 		NodesPage         string `yaml:"nodes_page"`
 		GuestsPage        string `yaml:"guests_page"`
 		TasksPage         string `yaml:"tasks_page"`
+		TasksToggleQueue  string `yaml:"tasks_toggle_queue"`
+		TaskStopCancel    string `yaml:"task_stop_cancel"`
 		Menu              string `yaml:"menu"`
 		GlobalMenu        string `yaml:"global_menu"`
 		Shell             string `yaml:"shell"`
@@ -567,6 +577,12 @@ func (c *Config) MergeWithFile(path string) error {
 
 		if kb.TasksPage != "" {
 			c.KeyBindings.TasksPage = kb.TasksPage
+		}
+		if kb.TasksToggleQueue != "" {
+			c.KeyBindings.TasksToggleQueue = kb.TasksToggleQueue
+		}
+		if kb.TaskStopCancel != "" {
+			c.KeyBindings.TaskStopCancel = kb.TaskStopCancel
 		}
 
 		if kb.Menu != "" {
@@ -938,6 +954,12 @@ func (c *Config) SetDefaults() {
 
 	if c.KeyBindings.TasksPage == "" {
 		c.KeyBindings.TasksPage = defaults.TasksPage
+	}
+	if c.KeyBindings.TasksToggleQueue == "" {
+		c.KeyBindings.TasksToggleQueue = defaults.TasksToggleQueue
+	}
+	if c.KeyBindings.TaskStopCancel == "" {
+		c.KeyBindings.TaskStopCancel = defaults.TaskStopCancel
 	}
 
 	if c.KeyBindings.Menu == "" {
