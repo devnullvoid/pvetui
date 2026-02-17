@@ -67,6 +67,8 @@ key_bindings:
   nodes_page: "Alt+1"
   guests_page: "Alt+2"
   tasks_page: "Alt+3"
+  tasks_toggle_queue: "t"
+  task_stop_cancel: "x"
   menu: "m"
   global_menu: "g"
   shell: "s"
@@ -162,6 +164,8 @@ pvetui supports fully customizable key bindings through the `key_bindings` secti
 | `nodes_page` | `Alt+1` | Jump to Nodes page |
 | `guests_page` | `Alt+2` | Jump to Guests page |
 | `tasks_page` | `Alt+3` | Jump to Tasks page |
+| `tasks_toggle_queue` | `t` | Toggle active queue panel visibility in Tasks page |
+| `task_stop_cancel` | `x` | Stop running task / cancel queued task in active queue |
 | `menu` | `m` | Open context menu |
 | `global_menu` | `g` | Open global menu |
 | `shell` | `s` | Open SSH shell |
@@ -181,6 +185,8 @@ key_bindings:
   nodes_page: "F1"
   guests_page: "F2"
   tasks_page: "F3"
+  tasks_toggle_queue: "t"
+  task_stop_cancel: "x"
   menu: "Space"
   global_menu: "g"
   shell: "s"
