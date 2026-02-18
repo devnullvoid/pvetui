@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Latest golangci-lint Compatibility**: Updated affected code paths to satisfy current gosec/staticcheck rules (log taint handling, URL validation hardening for community script metadata fetches, and `fmt.Fprintf` formatting fixes), keeping local and CI lint runs aligned.
 - **Global Menu Defaults**: `Esc` is now the primary global menu key by default, while `global_menu` remains configurable as an optional additional shortcut.
 - **Global Menu Unbind Support**: `key_bindings.global_menu: ""` now correctly disables the additional global-menu shortcut instead of silently reverting to the default.
+- **Back Navigation Consistency**: Standardized back/close handling so Backspace works alongside Escape in Command Runner, Snapshot Manager, and Backup Manager flows.
 
 ## [1.0.18] - 2026-02-14
 

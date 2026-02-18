@@ -88,6 +88,9 @@ func (bm *BackupManager) setupKeyboardNavigation() {
 		case tcell.KeyEsc:
 			bm.goBack()
 			return nil
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			bm.goBack()
+			return nil
 		case tcell.KeyTab:
 			currentFocus := bm.app.GetFocus()
 			if currentFocus == bm.backupTable {

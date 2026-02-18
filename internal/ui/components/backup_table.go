@@ -32,11 +32,18 @@ func NewBackupTable(app *App, vm *api.VM) *BackupTable {
 		SetFixed(1, 0).
 		SetSelectedStyle(tcell.StyleDefault.Background(theme.Colors.Selection).Foreground(theme.Colors.Primary).Attributes(tcell.AttrReverse)).
 		SetDoneFunc(func(key tcell.Key) {
-			// Go back when Escape is pressed
-			if key == tcell.KeyEsc {
+			// Go back when a back key is pressed.
+			if key == tcell.KeyEsc || key == tcell.KeyBackspace || key == tcell.KeyBackspace2 {
 				bt.goBack()
 			}
 		})
+	bt.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
+			bt.goBack()
+			return nil
+		}
+		return event
+	})
 
 	bt.SetBorder(true)
 	bt.SetBorderColor(theme.Colors.Border)
