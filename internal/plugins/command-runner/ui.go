@@ -284,11 +284,11 @@ func (u *UIManager) ShowResultModal(result ExecutionResult, onClose func()) {
 
 	var text strings.Builder
 
-	text.WriteString(fmt.Sprintf("Command: %s\n", result.Command))
-	text.WriteString(fmt.Sprintf("Duration: %v\n\n", result.Duration))
+	fmt.Fprintf(&text, "Command: %s\n", result.Command)
+	fmt.Fprintf(&text, "Duration: %v\n\n", result.Duration)
 
 	if result.Error != nil {
-		text.WriteString(fmt.Sprintf("Error: %v\n\n", result.Error))
+		fmt.Fprintf(&text, "Error: %v\n\n", result.Error)
 		if result.Output != "" {
 			text.WriteString("Output:\n")
 			text.WriteString(result.Output)

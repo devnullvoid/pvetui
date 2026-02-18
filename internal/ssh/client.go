@@ -30,7 +30,6 @@ func sshLogger() interfaces.Logger {
 type SSHClient struct {
 	Host     string
 	User     string
-	Password string
 	JumpHost config.SSHJumpHost
 	executor CommandExecutor
 }
@@ -71,7 +70,8 @@ func WithJumpHost(jumpHost config.SSHJumpHost) Option {
 //
 // Returns a configured SSHClient instance or an error if initialization fails.
 func NewSSHClient(host, user, password string, opts ...Option) (*SSHClient, error) {
-	client := &SSHClient{Host: host, User: user, Password: password, executor: NewDefaultExecutor()}
+	_ = password // reserved for future support; current SSH flow uses external ssh auth methods
+	client := &SSHClient{Host: host, User: user, executor: NewDefaultExecutor()}
 	for _, opt := range opts {
 		opt(client)
 	}

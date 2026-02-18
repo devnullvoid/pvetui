@@ -234,7 +234,6 @@ func (tl *TasksList) Refresh() {
 			SetExpansion(1))
 	}
 
-	tl.syncLayout()
 }
 
 // updateHistoryTable refreshes the history table content.
@@ -467,10 +466,12 @@ func (tl *TasksList) focusOtherPane() {
 		return
 	}
 
-	if tl.app.GetFocus() == tl.activeTable {
+	current := tl.app.GetFocus()
+	if current == tl.activeTable {
 		tl.app.SetFocus(tl.historyTable)
 		return
 	}
-
-	tl.app.SetFocus(tl.activeTable)
+	if current == tl.historyTable {
+		tl.app.SetFocus(tl.activeTable)
+	}
 }

@@ -109,12 +109,12 @@ func buildHelpText(keys config.KeyBindings) string {
 
 	for _, item := range items {
 		if item.Cat != "" {
-			builder.WriteString(fmt.Sprintf("%s\n", item.Cat))
+			fmt.Fprintf(&builder, "%s\n", item.Cat)
 		} else if item.Key != "" {
 			padding := maxKeyWidth - tview.TaggedStringWidth(item.Key)
-			builder.WriteString(fmt.Sprintf("  [primary]%-s%s[-]  %s\n", item.Key, strings.Repeat(" ", padding), item.Desc))
+			fmt.Fprintf(&builder, "  [primary]%-s%s[-]  %s\n", item.Key, strings.Repeat(" ", padding), item.Desc)
 		} else if item.Desc != "" {
-			builder.WriteString(fmt.Sprintf("  %s\n", item.Desc))
+			fmt.Fprintf(&builder, "  %s\n", item.Desc)
 		} else {
 			builder.WriteString("\n")
 		}
@@ -122,7 +122,7 @@ func buildHelpText(keys config.KeyBindings) string {
 
 	// Add the final footer text
 	builder.WriteString("\n")
-	builder.WriteString(fmt.Sprintf("[info]Press [primary]%s[-][info] again, [primary]Escape[-][info], or [primary]%s[-][info] to exit this help[-]", strings.ToLower(keys.Help), strings.ToLower(keys.Quit)))
+	fmt.Fprintf(&builder, "[info]Press [primary]%s[-][info] again, [primary]Escape[-][info], or [primary]%s[-][info] to exit this help[-]", strings.ToLower(keys.Help), strings.ToLower(keys.Quit))
 
 	return theme.ReplaceSemanticTags(builder.String())
 }

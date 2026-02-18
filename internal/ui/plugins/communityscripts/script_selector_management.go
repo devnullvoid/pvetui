@@ -17,50 +17,50 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 	var sb strings.Builder
 
 	labelColor := theme.ColorToTag(theme.Colors.Warning)
-	sb.WriteString(fmt.Sprintf("[%s]Name:[-] %s\n\n", labelColor, script.Name))
-	sb.WriteString(fmt.Sprintf("[%s]Description:[-] %s\n\n", labelColor, script.Description))
+	fmt.Fprintf(&sb, "[%s]Name:[-] %s\n\n", labelColor, script.Name)
+	fmt.Fprintf(&sb, "[%s]Description:[-] %s\n\n", labelColor, script.Description)
 
 	if script.Type == scriptTypeCT {
-		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Container Template\n", labelColor))
+		fmt.Fprintf(&sb, "[%s]Type:[-] Container Template\n", labelColor)
 	} else if script.Type == scriptTypeVM {
-		sb.WriteString(fmt.Sprintf("[%s]Type:[-] Virtual Machine\n", labelColor))
+		fmt.Fprintf(&sb, "[%s]Type:[-] Virtual Machine\n", labelColor)
 	} else {
-		sb.WriteString(fmt.Sprintf("[%s]Type:[-] %s\n", labelColor, script.Type))
+		fmt.Fprintf(&sb, "[%s]Type:[-] %s\n", labelColor, script.Type)
 	}
 
 	if script.ScriptPath != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath))
+		fmt.Fprintf(&sb, "[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath)
 	}
 
 	if script.Slug != "" {
 		pageURL := fmt.Sprintf("https://community-scripts.github.io/ProxmoxVE/scripts?id=%s", script.Slug)
-		sb.WriteString(fmt.Sprintf("[%s]Script Page:[-] %s\n", labelColor, pageURL))
+		fmt.Fprintf(&sb, "[%s]Script Page:[-] %s\n", labelColor, pageURL)
 	}
 
 	if script.ScriptPath != "" {
 		installCmd := fmt.Sprintf(`bash -c "$(curl -fsSL %s/%s)"`, RawGitHubRepo, script.ScriptPath)
-		sb.WriteString(fmt.Sprintf("[%s]Install Command:[-] %s\n", labelColor, installCmd))
+		fmt.Fprintf(&sb, "[%s]Install Command:[-] %s\n", labelColor, installCmd)
 	}
 
 	if script.Website != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Website:[-] %s\n", labelColor, script.Website))
+		fmt.Fprintf(&sb, "[%s]Website:[-] %s\n", labelColor, script.Website)
 	}
 
 	if script.Documentation != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Documentation:[-] %s\n", labelColor, script.Documentation))
+		fmt.Fprintf(&sb, "[%s]Documentation:[-] %s\n", labelColor, script.Documentation)
 	}
 
 	if script.DateCreated != "" {
-		sb.WriteString(fmt.Sprintf("[%s]Date Created:[-] %s\n", labelColor, script.DateCreated))
+		fmt.Fprintf(&sb, "[%s]Date Created:[-] %s\n", labelColor, script.DateCreated)
 	}
 
-	sb.WriteString(fmt.Sprintf("\n[%s]Target Node:[-] %s\n", labelColor, s.node.Name))
+	fmt.Fprintf(&sb, "\n[%s]Target Node:[-] %s\n", labelColor, s.node.Name)
 
 	if s.vm != nil {
-		sb.WriteString(fmt.Sprintf("[%s]Context:[-] VM %s\n", labelColor, s.vm.Name))
+		fmt.Fprintf(&sb, "[%s]Context:[-] VM %s\n", labelColor, s.vm.Name)
 	}
 
-	sb.WriteString(fmt.Sprintf("\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor))
+	fmt.Fprintf(&sb, "\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor)
 
 	if script.Type == scriptTypeCT {
 		sb.WriteString(" This will create a new LXC container.")

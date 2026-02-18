@@ -2,6 +2,7 @@ package communityscripts
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -14,6 +15,10 @@ import (
 )
 
 func isTerminal(fd uintptr) bool {
+	if fd > uintptr(math.MaxInt) {
+		return false
+	}
+
 	return term.IsTerminal(int(fd))
 }
 
