@@ -7,7 +7,6 @@ import (
 	"github.com/devnullvoid/pvetui/internal/taskmanager"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 // VM menu action constants
@@ -275,26 +274,15 @@ func (a *App) ShowVMContextMenu() {
 		return event
 	})
 
-	a.contextMenu = menuList
-	a.isMenuOpen = true
-
 	// * Update menu title to show pending status if applicable
 	menuTitle := " Guest Actions "
 	if isPending {
 		menuTitle = fmt.Sprintf(" Guest Actions (%s) ", pendingOperation)
 	}
 
-	a.pages.AddPage("contextMenu", tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(menuList, len(menuItems)+2, 1, true).
-			AddItem(nil, 0, 1, false), 30, 1, true).
-		AddItem(nil, 0, 1, false), true, true)
-
 	// Update the menu title to reflect pending status
 	menuList.SetTitle(menuTitle)
-	a.SetFocus(menuList)
+	a.showContextMenuPage(menuList, menuItems, 30, true)
 }
 
 func (a *App) showBatchVMContextMenu() {
@@ -349,16 +337,7 @@ func (a *App) showBatchVMContextMenu() {
 		return event
 	})
 
-	a.contextMenu = menuList
-	a.isMenuOpen = true
-	a.pages.AddPage("contextMenu", tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(menuList, len(menuItems)+2, 1, true).
-			AddItem(nil, 0, 1, false), 34, 1, true).
-		AddItem(nil, 0, 1, false), true, true)
-	a.SetFocus(menuList)
+	a.showContextMenuPage(menuList, menuItems, 34, true)
 }
 
 func (a *App) confirmAndQueueBatchOperation(action string, selected []*api.VM) {

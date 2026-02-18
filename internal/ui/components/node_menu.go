@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 // Node menu action constants
@@ -95,15 +94,5 @@ func (a *App) ShowNodeContextMenu() {
 		return event
 	})
 
-	a.contextMenu = menuList
-	a.isMenuOpen = true
-
-	a.pages.AddPage("contextMenu", tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(menuList, len(menuItems)+2, 1, true). // +2 for border
-			AddItem(nil, 0, 1, false), 30, 1, true).
-		AddItem(nil, 0, 1, false), true, true)
-	a.SetFocus(menuList)
+	a.showContextMenuPage(menuList, menuItems, 30, true)
 }
