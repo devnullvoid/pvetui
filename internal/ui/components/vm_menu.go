@@ -282,7 +282,7 @@ func (a *App) ShowVMContextMenu() {
 
 	// Update the menu title to reflect pending status
 	menuList.SetTitle(menuTitle)
-	a.showContextMenuPage(menuList, menuItems, 30, true)
+	a.showContextMenuPage(menuList, menuItems, 30, true, a.vmList)
 }
 
 func (a *App) showBatchVMContextMenu() {
@@ -337,7 +337,7 @@ func (a *App) showBatchVMContextMenu() {
 		return event
 	})
 
-	a.showContextMenuPage(menuList, menuItems, 34, true)
+	a.showContextMenuPage(menuList, menuItems, 34, true, a.vmList)
 }
 
 func (a *App) confirmAndQueueBatchOperation(action string, selected []*api.VM) {

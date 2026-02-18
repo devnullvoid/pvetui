@@ -94,5 +94,5 @@ func (a *App) ShowNodeContextMenu() {
 		return event
 	})
 
-	a.showContextMenuPage(menuList, menuItems, 30, true)
+	a.showContextMenuPage(menuList, menuItems, 30, true, a.nodeList)
 }

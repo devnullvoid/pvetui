@@ -193,13 +193,16 @@ func screenSizeForMenu(app *App) (int, int) {
 	return 120, 40
 }
 
-func (a *App) anchoredContextMenuPosition(menuWidth, menuHeight, screenW, screenH int) (int, int) {
+func (a *App) anchoredContextMenuPosition(anchor tview.Primitive, menuWidth, menuHeight, screenW, screenH int) (int, int) {
 	x := (screenW - menuWidth) / 2
 	y := (screenH - menuHeight) / 2
 
-	focus := a.lastFocus
+	focus := anchor
 	if focus == nil {
-		focus = a.GetFocus()
+		focus = a.lastFocus
+		if focus == nil {
+			focus = a.GetFocus()
+		}
 	}
 	if focus == nil {
 		return clamp(x, 0, max(0, screenW-menuWidth)), clamp(y, 0, max(0, screenH-menuHeight))
@@ -222,7 +225,7 @@ func (a *App) anchoredContextMenuPosition(menuWidth, menuHeight, screenW, screen
 	return x, y
 }
 
-func (a *App) showContextMenuPage(menuList *tview.List, menuItems []string, preferredWidth int, anchorToFocus bool) {
+func (a *App) showContextMenuPage(menuList *tview.List, menuItems []string, preferredWidth int, anchorToFocus bool, anchor tview.Primitive) {
 	a.contextMenu = menuList
 	a.isMenuOpen = true
 
@@ -237,7 +240,7 @@ func (a *App) showContextMenuPage(menuList *tview.List, menuItems []string, pref
 
 	var x, y int
 	if anchorToFocus {
-		x, y = a.anchoredContextMenuPosition(menuW, menuH, screenW, screenH)
+		x, y = a.anchoredContextMenuPosition(anchor, menuW, menuH, screenW, screenH)
 	} else {
 		x = (screenW - menuW) / 2
 		y = (screenH - menuH) / 2

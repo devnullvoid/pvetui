@@ -74,7 +74,7 @@ func (a *App) ShowGlobalContextMenu() {
 		return event
 	})
 
-	a.showContextMenuPage(menuList, menuItems, 30, false)
+	a.showContextMenuPage(menuList, menuItems, 30, false, nil)
 }
 
 // showAboutDialog displays information about the application.
