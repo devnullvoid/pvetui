@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/taskmanager"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -24,10 +25,16 @@ const (
 	vmActionReset      = "Reset (hard)"
 	vmActionMigrate    = "Migrate"
 	vmActionDelete     = "Delete"
+	vmActionClearBatch = "Clear Selection"
 )
 
 // ShowVMContextMenu displays the context menu for VM actions.
 func (a *App) ShowVMContextMenu() {
+	if a.guestSelectionCount() > 1 {
+		a.showBatchVMContextMenu()
+		return
+	}
+
 	vm := a.vmList.GetSelectedVM()
 	if vm == nil {
 		return
@@ -288,6 +295,155 @@ func (a *App) ShowVMContextMenu() {
 	// Update the menu title to reflect pending status
 	menuList.SetTitle(menuTitle)
 	a.SetFocus(menuList)
+}
+
+func (a *App) showBatchVMContextMenu() {
+	selected := a.selectedGuestsFromCurrentList()
+	if len(selected) <= 1 {
+		// Selection may have changed while opening the menu; fallback to single item flow.
+		return
+	}
+
+	// Keep selection order deterministic for summaries/confirm copy.
+	sortVMsByIdentity(selected)
+
+	menuItems := []string{
+		vmActionStart,
+		vmActionShutdown,
+		vmActionStop,
+		vmActionRestart,
+		vmActionReset,
+		vmActionClearBatch,
+	}
+	shortcuts := []rune{'t', 'd', 'D', 'a', 'R', 'c'}
+
+	a.lastFocus = a.GetFocus()
+
+	menu := NewContextMenuWithShortcuts(
+		fmt.Sprintf(" Batch Actions (%d selected) ", len(selected)),
+		menuItems,
+		shortcuts,
+		func(_ int, action string) {
+			a.CloseContextMenu()
+			if action == vmActionClearBatch {
+				a.clearGuestSelections()
+				a.header.ShowSuccess("Cleared guest selection")
+				return
+			}
+
+			a.confirmAndQueueBatchOperation(action, selected)
+		},
+	)
+	menu.SetApp(a)
+
+	menuList := menu.Show()
+	oldCapture := menuList.GetInputCapture()
+	menuList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape || (event.Key() == tcell.KeyRune && event.Rune() == 'h') {
+			a.CloseContextMenu()
+			return nil
+		}
+		if oldCapture != nil {
+			return oldCapture(event)
+		}
+		return event
+	})
+
+	a.contextMenu = menuList
+	a.isMenuOpen = true
+	a.pages.AddPage("contextMenu", tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(menuList, len(menuItems)+2, 1, true).
+			AddItem(nil, 0, 1, false), 34, 1, true).
+		AddItem(nil, 0, 1, false), true, true)
+	a.SetFocus(menuList)
+}
+
+func (a *App) confirmAndQueueBatchOperation(action string, selected []*api.VM) {
+	if len(selected) == 0 {
+		return
+	}
+
+	var opLabel string
+	switch action {
+	case vmActionStart:
+		opLabel = "start"
+	case vmActionShutdown:
+		opLabel = "shutdown"
+	case vmActionStop:
+		opLabel = "stop"
+	case vmActionRestart:
+		opLabel = "restart"
+	case vmActionReset:
+		opLabel = "reset"
+	default:
+		return
+	}
+
+	msg := fmt.Sprintf("Queue %s for %d selected guests?", strings.ToUpper(opLabel), len(selected))
+	a.showConfirmationDialog(msg, func() {
+		submitted, skipped, failed := a.queueBatchOperation(action, selected)
+		a.header.ShowSuccess(fmt.Sprintf("Batch %s queued: %d submitted, %d skipped, %d failed", opLabel, submitted, skipped, failed))
+	})
+}
+
+func (a *App) queueBatchOperation(action string, selected []*api.VM) (submitted, skipped, failed int) {
+	for _, vm := range selected {
+		if vm == nil {
+			skipped++
+			continue
+		}
+
+		if !isEligibleForBatchAction(vm, action) {
+			skipped++
+			continue
+		}
+
+		client, err := a.getClientForVM(vm)
+		if err != nil {
+			failed++
+			continue
+		}
+
+		switch action {
+		case vmActionStart:
+			a.enqueueVMOperation(vm, client.StartVM, "Starting", false)
+		case vmActionShutdown:
+			a.enqueueVMOperation(vm, client.ShutdownVM, "Shutting down", false)
+		case vmActionStop:
+			a.enqueueVMOperation(vm, client.StopVM, "Stopping", false)
+		case vmActionRestart:
+			a.enqueueVMOperation(vm, client.RestartVM, "Restarting", false)
+		case vmActionReset:
+			a.enqueueVMOperation(vm, client.ResetVM, "Resetting", false)
+		default:
+			skipped++
+			continue
+		}
+
+		submitted++
+	}
+
+	return submitted, skipped, failed
+}
+
+func isEligibleForBatchAction(vm *api.VM, action string) bool {
+	if vm == nil {
+		return false
+	}
+
+	switch action {
+	case vmActionStart:
+		return vm.Status == api.VMStatusStopped
+	case vmActionShutdown, vmActionStop, vmActionRestart:
+		return vm.Status == api.VMStatusRunning
+	case vmActionReset:
+		return vm.Status == api.VMStatusRunning && vm.Type == api.VMTypeQemu
+	default:
+		return false
+	}
 }
 
 // generateVMShortcuts generates letter shortcuts for VM menu items.

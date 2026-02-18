@@ -334,7 +334,7 @@ Windows legacy fallback:
 | `/` | Search | `a` | Auto-refresh |
 | `?` | Help | `q` | Quit |
 
-Customize keys via the `key_bindings` section in your config. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
+Customize keys via the `key_bindings` section in your config. This includes task-panel controls (`tasks_toggle_queue`, `task_stop_cancel`) in addition to global navigation/actions. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
 
 ## 🎨 Theming
 

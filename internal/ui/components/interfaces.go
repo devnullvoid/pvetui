@@ -81,6 +81,7 @@ type FooterComponent interface {
 	UpdateVNCSessionCount(int)
 	UpdateAutoRefreshStatus(bool)
 	UpdateAutoRefreshCountdown(int)
+	UpdateSelectedGuestsCount(int)
 	SetLoading(bool)
 	IsLoading() bool
 	TickSpinner()

@@ -66,6 +66,8 @@ type App struct {
 	pluginCatalog  []PluginInfo
 
 	hotkeyOverride func(*tcell.EventKey) *tcell.EventKey
+
+	guestSelections map[string]struct{}
 }
 
 // removePageIfPresent removes a page by name if it exists, ignoring errors.
@@ -106,6 +108,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		plugins:            make(map[string]Plugin),
 		pluginRegistry:     newPluginRegistry(),
 		poller:             poller,
+		guestSelections:    make(map[string]struct{}),
 	}
 
 	uiLogger.Debug("Initializing UI components")
