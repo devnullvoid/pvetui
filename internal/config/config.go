@@ -107,6 +107,9 @@ type Config struct {
 	// hasCleartextSensitive tracks whether the last-loaded config file contained
 	// unencrypted sensitive data. It is ignored by YAML marshaling.
 	hasCleartextSensitive bool `yaml:"-"`
+	// globalMenuConfigured indicates key_bindings.global_menu was explicitly set
+	// in config input, including an empty string to intentionally disable it.
+	globalMenuConfigured bool `yaml:"-"`
 	// The following fields are global settings, not per-profile
 	Debug    bool   `yaml:"debug"`
 	CacheDir string `yaml:"cache_dir"`
@@ -187,7 +190,7 @@ func DefaultKeyBindings() KeyBindings {
 		TasksToggleQueue:  "t",
 		TaskStopCancel:    "x",
 		Menu:              "m",
-		GlobalMenu:        "g",
+		GlobalMenu:        "Ctrl+g",
 		Shell:             "s",
 		VNC:               "v",
 		Refresh:           "Ctrl+r",
@@ -416,6 +419,17 @@ func (c *Config) MergeWithFile(path string) error {
 		return err
 	}
 
+	var fileConfigRaw struct {
+		KeyBindings map[string]any `yaml:"key_bindings"`
+	}
+	if err := yaml.Unmarshal(data, &fileConfigRaw); err != nil {
+		return err
+	}
+	hasGlobalMenuKey := false
+	if fileConfigRaw.KeyBindings != nil {
+		_, hasGlobalMenuKey = fileConfigRaw.KeyBindings["global_menu"]
+	}
+
 	if !isSOPSEncrypted && detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret) {
 		c.hasCleartextSensitive = true
 	}
@@ -540,6 +554,11 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	// Merge key bindings if provided
+	if hasGlobalMenuKey {
+		c.globalMenuConfigured = true
+		c.KeyBindings.GlobalMenu = fileConfig.KeyBindings.GlobalMenu
+	}
+
 	if kb := fileConfig.KeyBindings; kb != struct {
 		SwitchView        string `yaml:"switch_view"`
 		SwitchViewReverse string `yaml:"switch_view_reverse"`
@@ -966,7 +985,7 @@ func (c *Config) SetDefaults() {
 		c.KeyBindings.Menu = defaults.Menu
 	}
 
-	if c.KeyBindings.GlobalMenu == "" {
+	if c.KeyBindings.GlobalMenu == "" && !c.globalMenuConfigured {
 		c.KeyBindings.GlobalMenu = defaults.GlobalMenu
 	}
 

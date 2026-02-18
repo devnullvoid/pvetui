@@ -37,6 +37,12 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 
 	if target.exists {
 		fmt.Printf("✅ Found existing configuration at '%s'.\n", target.path)
+		if isKeyBindingValidationError(validationErr) {
+			fmt.Printf("💡 Key binding errors must be fixed directly in '%s' under key_bindings.\n", target.path)
+			fmt.Printf("💡 Please update the configuration file to resolve: %v\n", validationErr)
+			fmt.Println("🚪 Exiting.")
+			os.Exit(0)
+		}
 		if !promptYesNo("Would you like to open the interactive editor to fix it?") {
 			fmt.Printf("💡 Please update the configuration file to resolve: %v\n", validationErr)
 			fmt.Println("🚪 Exiting.")
@@ -158,4 +164,12 @@ func promptYesNo(prompt string) bool {
 // launchConfigWizard launches the configuration wizard.
 func launchConfigWizard(cfg *config.Config, configPath string, activeProfile string) components.WizardResult {
 	return components.LaunchConfigWizard(cfg, configPath, activeProfile)
+}
+
+func isKeyBindingValidationError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(strings.ToLower(err.Error()), "key binding ")
 }

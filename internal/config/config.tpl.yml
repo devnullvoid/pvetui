@@ -32,7 +32,7 @@ key_bindings:
   tasks_toggle_queue: t
   task_stop_cancel: x
   menu: m
-  global_menu: g
+  global_menu: "Ctrl+g"
   shell: s
   vnc: v
   refresh: "Ctrl+r"

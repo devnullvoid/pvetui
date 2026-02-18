@@ -345,7 +345,18 @@ func (tl *TasksList) updateHistoryTable() {
 
 // setupKeyHandlers configures vi-style navigation.
 func (tl *TasksList) setupKeyHandlers() {
+	var historyPendingG bool
+	var activePendingG bool
+
 	handler := func(event *tcell.EventKey) *tcell.EventKey {
+		if handleVimTopBottomRune(event, &historyPendingG, func() {
+			jumpTableTop(tl.historyTable)
+		}, func() {
+			jumpTableBottom(tl.historyTable)
+		}) {
+			return nil
+		}
+
 		switch event.Key() {
 		case tcell.KeyTab:
 			if tl.showActive {
@@ -375,6 +386,14 @@ func (tl *TasksList) setupKeyHandlers() {
 	tl.historyTable.SetInputCapture(handler)
 
 	tl.activeTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if handleVimTopBottomRune(event, &activePendingG, func() {
+			jumpTableTop(tl.activeTable)
+		}, func() {
+			jumpTableBottom(tl.activeTable)
+		}) {
+			return nil
+		}
+
 		if keyMatch(event, tl.tasksToggleQueueKeySpec()) {
 			tl.toggleActiveQueueVisibility()
 			return nil

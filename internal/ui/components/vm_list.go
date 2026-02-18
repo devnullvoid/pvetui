@@ -52,7 +52,15 @@ func (vl *VMList) SetApp(app *App) {
 
 	// Set up input capture for arrow keys and VI-like navigation (hjkl)
 	navigationCapture := createNavigationInputCapture(vl.app, nil, vl.app.vmDetails)
+	var pendingG bool
 	vl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if handleVimTopBottomRune(event, &pendingG, func() {
+			jumpListTop(vl.List)
+		}, func() {
+			jumpListBottom(vl.List)
+		}) {
+			return nil
+		}
 		if event.Key() == tcell.KeyRune && event.Rune() == ' ' {
 			if vm := vl.GetSelectedVM(); vm != nil && vl.app != nil {
 				vl.app.toggleGuestSelection(vm)

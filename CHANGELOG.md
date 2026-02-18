@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Vim-Style List Navigation**: Added `gg` (top) and `G` (bottom) navigation in focused Nodes, Guests, and Tasks lists/tables.
+
 ### Fixed
 
 - **Release Workflow Social Announcements**: Prevented Mastodon announcement failures from breaking GoReleaser runs by handling social posting in the non-blocking release announcement script step.
 - **Community Script Install on Fish Shells**: Forced remote script installer commands to execute under `/bin/bash -lc` so node accounts using `fish` as default shell can install community scripts without shell syntax errors.
 - **Task Panel Focus Stability**: Prevented a Tasks-page freeze when tabbing between Task History and Active Operations by avoiding layout rebuilds during active task refreshes and tightening pane focus switching logic.
 - **Latest golangci-lint Compatibility**: Updated affected code paths to satisfy current gosec/staticcheck rules (log taint handling, URL validation hardening for community script metadata fetches, and `fmt.Fprintf` formatting fixes), keeping local and CI lint runs aligned.
+- **Global Menu Defaults**: `Esc` is now the primary global menu key by default, while `global_menu` remains configurable as an optional additional shortcut.
+- **Global Menu Unbind Support**: `key_bindings.global_menu: ""` now correctly disables the additional global-menu shortcut instead of silently reverting to the default.
 
 ## [1.0.18] - 2026-02-14
 

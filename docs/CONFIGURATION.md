@@ -70,7 +70,7 @@ key_bindings:
   tasks_toggle_queue: "t"
   task_stop_cancel: "x"
   menu: "m"
-  global_menu: "g"
+  global_menu: "Ctrl+g"  # Optional additional key; set "" to disable extra key (Esc always opens global menu)
   shell: "s"
   vnc: "v"
   refresh: "Ctrl+r"
@@ -108,7 +108,7 @@ The built-in profile manager allows you to:
 - **Delete profiles** with confirmation
 - **Set default profile or group** for automatic startup
 
-Access the profile manager through the global menu (`g` key) or context menus.
+Access the profile manager through the global menu (`Esc`) or context menus.
 
 ## Authentication Methods
 
@@ -167,7 +167,7 @@ pvetui supports fully customizable key bindings through the `key_bindings` secti
 | `tasks_toggle_queue` | `t` | Toggle active queue panel visibility in Tasks page |
 | `task_stop_cancel` | `x` | Stop running task / cancel queued task in active queue |
 | `menu` | `m` | Open context menu |
-| `global_menu` | `g` | Open global menu |
+| `global_menu` | `Ctrl+g` | Additional key to open global menu (Esc always works). Set `""` to disable this extra shortcut. |
 | `shell` | `s` | Open SSH shell |
 | `vnc` | `v` | Open VNC console |
 | `refresh` | `Ctrl+r` | Manual refresh |
@@ -188,7 +188,7 @@ key_bindings:
   tasks_toggle_queue: "t"
   task_stop_cancel: "x"
   menu: "Space"
-  global_menu: "g"
+  global_menu: "Ctrl+g"
   shell: "s"
   vnc: "v"
   refresh: "Ctrl+r"

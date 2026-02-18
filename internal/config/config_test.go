@@ -565,6 +565,28 @@ func TestConfig_SetDefaults(t *testing.T) {
 	assert.Empty(t, config.Plugins.Enabled)
 }
 
+func TestConfig_MergeWithFile_GlobalMenuExplicitEmptyDisablesShortcut(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "config-global-menu-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	yamlContent := `
+key_bindings:
+  global_menu: ""
+`
+	_, err = tempFile.WriteString(yamlContent)
+	require.NoError(t, err)
+	require.NoError(t, tempFile.Close())
+
+	cfg := NewConfig()
+	require.Equal(t, "Ctrl+g", cfg.KeyBindings.GlobalMenu)
+
+	require.NoError(t, cfg.MergeWithFile(tempFile.Name()))
+	cfg.SetDefaults()
+
+	assert.Equal(t, "", cfg.KeyBindings.GlobalMenu)
+}
+
 // testXDGPathHelper runs tests for XDG path functions with common setup and teardown.
 func testXDGPathHelper(t *testing.T, envVar string, testFunc func() string, expectedSuffix string) {
 	// Save original environment
