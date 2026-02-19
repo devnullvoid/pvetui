@@ -2,6 +2,11 @@
 
 This document describes how to build and run the pvetui application using Docker or Podman containers.
 
+## Recommended Use
+
+Container usage is best for development, testing, and reproducible local environments.
+For normal day-to-day usage, prefer native installation from releases, package managers, or `go install` as documented in the main `README.md`.
+
 ## Quick Start
 
 ### Using Docker
