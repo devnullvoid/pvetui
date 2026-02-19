@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Vim-Style List Navigation**: Added `gg` (top) and `G` (bottom) navigation in focused Nodes, Guests, and Tasks lists/tables.
+- **Guest Multi-Select + Batch Actions**: Added `Space`-based guest multi-selection and batch context-menu actions so you can queue operations across multiple selected guests.
+- **Task Queue Throughput Control**: Added a global in-progress concurrency limit so queued operations are processed without overloading the API/task polling path.
+- **Queued Task Cancellation**: Added support for canceling queued tasks before they enter the running state.
 
 ### Fixed
 
@@ -19,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Latest golangci-lint Compatibility**: Updated affected code paths to satisfy current gosec/staticcheck rules (log taint handling, URL validation hardening for community script metadata fetches, and `fmt.Fprintf` formatting fixes), keeping local and CI lint runs aligned.
 - **Global Menu Defaults**: `Esc` is now the primary global menu key by default, while `global_menu` remains configurable as an optional additional shortcut.
 - **Global Menu Unbind Support**: `key_bindings.global_menu: ""` now correctly disables the additional global-menu shortcut instead of silently reverting to the default.
+- **Task Keybind Configurability**: `toggle_task_panel` and `task_stop_cancel` can now be customized like other key bindings.
+- **Help Modal Keybinding Layout**: Reorganized help sections so task controls and page-specific actions are grouped more clearly.
 - **Back Navigation Consistency**: Standardized back/close handling so Backspace works alongside Escape in Command Runner, Snapshot Manager, and Backup Manager flows.
 - **Context Menu Placement**: Node/Guest context menus are now anchored near the focused list selection instead of always centered, keeping details panes visible while menus are open.
 
