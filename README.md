@@ -10,7 +10,6 @@
   <a href="#-configuration">Configuration</a> •
   <a href="#-usage">Usage</a> •
   <a href="#-theming">Theming</a> •
-  <a href="#-features-roadmap">Roadmap</a> •
   <a href="#-vnc-console-access">VNC Console</a>
 </p>
 
