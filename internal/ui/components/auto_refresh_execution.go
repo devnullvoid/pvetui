@@ -225,7 +225,7 @@ func (a *App) autoRefreshData() {
 			a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
 		}
 
-		if vmSearchState != nil && vmSearchState.Filter != "" {
+		if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 			models.FilterVMs(vmSearchState.Filter)
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 		} else {

@@ -76,6 +76,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Cat: ""}, // Spacer
 		{Cat: "[warning]Actions[-]"},
 		{Key: keys.Search, Desc: "Search/Filter current list"},
+		{Key: "Ctrl+f", Desc: "Advanced guest filter modal (Guests page)"},
 		{Key: keys.Menu, Desc: "Open context menu"},
 		{Key: globalMenuBinding, Desc: "Open global menu"},
 		{Key: keys.Refresh, Desc: "Manual refresh"},

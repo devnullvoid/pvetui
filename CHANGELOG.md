@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Guest Multi-Select + Batch Actions**: Added `Space`-based guest multi-selection and batch context-menu actions so you can queue operations across multiple selected guests.
 - **Task Queue Throughput Control**: Added a global in-progress concurrency limit so queued operations are processed without overloading the API/task polling path.
 - **Queued Task Cancellation**: Added support for canceling queued tasks before they enter the running state.
+- **Advanced Guest Filter Modal**: Added a Guests-page advanced filter modal (`Ctrl+f`) with structured criteria for status, type, node, and tag matching, while preserving combined text-search + advanced filtering across refreshes.
 
 ### Fixed
 

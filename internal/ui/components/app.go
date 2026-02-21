@@ -222,7 +222,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 
 				// Check if there's an active search filter and apply it
 				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
-				if vmSearchState != nil && vmSearchState.Filter != "" {
+				if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 					// Apply existing filter to the enriched data
 					models.FilterVMs(vmSearchState.Filter)
 					app.vmList.SetVMs(models.GlobalState.FilteredVMs)

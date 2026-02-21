@@ -1,6 +1,8 @@
 package components
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -104,33 +106,7 @@ func (a *App) activateSearch() {
 
 	// Function to update VM selection with filtered results
 	updateVMSelection := func() {
-		// Update VM list with filtered VMs
-		a.vmList.SetVMs(models.GlobalState.FilteredVMs)
-
-		// Update selected index if needed
-		if len(models.GlobalState.FilteredVMs) > 0 {
-			idx := 0
-			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-				idx = state.SelectedIndex
-				if idx < 0 || idx >= len(models.GlobalState.FilteredVMs) {
-					idx = 0
-				}
-
-				state.SelectedIndex = idx
-			}
-
-			a.vmList.SetCurrentItem(idx)
-			// Manually trigger the VM changed callback to update details
-			if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
-				a.vmDetails.Update(selectedVM)
-			}
-		} else {
-			a.vmDetails.Clear()
-
-			if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
-				state.SelectedIndex = 0
-			}
-		}
+		a.refreshVMSelection(currentPage)
 	}
 
 	// Function to update tasks selection with filtered results
@@ -210,6 +186,209 @@ func (a *App) activateSearch() {
 	})
 }
 
+func (a *App) refreshVMSelection(currentPage string) {
+	// Update VM list with filtered VMs
+	a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+
+	// Update selected index if needed
+	if len(models.GlobalState.FilteredVMs) > 0 {
+		idx := 0
+		if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
+			idx = state.SelectedIndex
+			if idx < 0 || idx >= len(models.GlobalState.FilteredVMs) {
+				idx = 0
+			}
+
+			state.SelectedIndex = idx
+		}
+
+		a.vmList.SetCurrentItem(idx)
+		// Manually trigger the VM changed callback to update details
+		if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+			a.vmDetails.Update(selectedVM)
+		}
+	} else {
+		a.vmDetails.Clear()
+
+		if state, exists := models.GlobalState.SearchStates[currentPage]; exists {
+			state.SelectedIndex = 0
+		}
+	}
+}
+
+func uniqueSortedVMStatuses(vms []*api.VM) []string {
+	set := map[string]struct{}{}
+	for _, vm := range vms {
+		if vm == nil {
+			continue
+		}
+		status := strings.TrimSpace(vm.Status)
+		if status == "" {
+			continue
+		}
+		set[status] = struct{}{}
+	}
+
+	out := make([]string, 0, len(set))
+	for status := range set {
+		out = append(out, status)
+	}
+	sort.Strings(out)
+
+	return out
+}
+
+func uniqueSortedVMNodes(vms []*api.VM) []string {
+	set := map[string]struct{}{}
+	for _, vm := range vms {
+		if vm == nil {
+			continue
+		}
+		node := strings.TrimSpace(vm.Node)
+		if node == "" {
+			continue
+		}
+		set[node] = struct{}{}
+	}
+
+	out := make([]string, 0, len(set))
+	for node := range set {
+		out = append(out, node)
+	}
+	sort.Strings(out)
+
+	return out
+}
+
+func indexOfOption(options []string, target string) int {
+	for i, option := range options {
+		if strings.EqualFold(option, target) {
+			return i
+		}
+	}
+	return 0
+}
+
+// showAdvancedGuestFilterModal displays structured filters for the Guests page.
+func (a *App) showAdvancedGuestFilterModal() {
+	currentPage, _ := a.pages.GetFrontPage()
+	if currentPage != api.PageGuests {
+		return
+	}
+
+	state, exists := models.GlobalState.SearchStates[api.PageGuests]
+	if !exists {
+		state = &models.SearchState{CurrentPage: api.PageGuests}
+		models.GlobalState.SearchStates[api.PageGuests] = state
+	}
+
+	statusOptions := append([]string{"Any"}, uniqueSortedVMStatuses(models.GlobalState.OriginalVMs)...)
+	typeOptions := []string{"Any", api.VMTypeQemu, api.VMTypeLXC}
+	nodeOptions := append([]string{"Any"}, uniqueSortedVMNodes(models.GlobalState.OriginalVMs)...)
+
+	form := newStandardForm()
+	form.SetBorder(true)
+	form.SetTitle(" Advanced Guest Filter ")
+
+	form.AddInputField("Query", state.Filter, 0, nil, nil)
+	form.AddDropDown("Status", statusOptions, indexOfOption(statusOptions, state.VMFilters.Status), nil)
+	form.AddDropDown("Type", typeOptions, indexOfOption(typeOptions, state.VMFilters.Type), nil)
+	form.AddDropDown("Node", nodeOptions, indexOfOption(nodeOptions, state.VMFilters.Node), nil)
+	form.AddInputField("Tag Contains", state.VMFilters.TagContains, 0, nil, nil)
+
+	form.AddButton("Apply", func() {
+		query := strings.TrimSpace(form.GetFormItemByLabel("Query").(*tview.InputField).GetText())
+		state.Filter = query
+
+		_, selectedStatus := form.GetFormItemByLabel("Status").(*tview.DropDown).GetCurrentOption()
+		if strings.EqualFold(selectedStatus, "Any") {
+			selectedStatus = ""
+		}
+
+		_, selectedType := form.GetFormItemByLabel("Type").(*tview.DropDown).GetCurrentOption()
+		if strings.EqualFold(selectedType, "Any") {
+			selectedType = ""
+		}
+
+		_, selectedNode := form.GetFormItemByLabel("Node").(*tview.DropDown).GetCurrentOption()
+		if strings.EqualFold(selectedNode, "Any") {
+			selectedNode = ""
+		}
+
+		tagContains := strings.TrimSpace(form.GetFormItemByLabel("Tag Contains").(*tview.InputField).GetText())
+
+		state.VMFilters = models.VMFilterOptions{
+			Status:      selectedStatus,
+			Type:        selectedType,
+			Node:        selectedNode,
+			TagContains: tagContains,
+		}
+		state.SelectedIndex = 0
+
+		models.FilterVMs(state.Filter)
+		a.refreshVMSelection(api.PageGuests)
+		a.removePageIfPresent("advancedGuestFilter")
+
+		activeCriteria := 0
+		if strings.TrimSpace(state.Filter) != "" {
+			activeCriteria++
+		}
+		if strings.TrimSpace(state.VMFilters.Status) != "" {
+			activeCriteria++
+		}
+		if strings.TrimSpace(state.VMFilters.Type) != "" {
+			activeCriteria++
+		}
+		if strings.TrimSpace(state.VMFilters.Node) != "" {
+			activeCriteria++
+		}
+		if strings.TrimSpace(state.VMFilters.TagContains) != "" {
+			activeCriteria++
+		}
+
+		if activeCriteria == 0 {
+			a.header.ShowSuccess("Guest filters cleared")
+		} else {
+			a.header.ShowSuccess(fmt.Sprintf("Applied guest filters (%d active)", activeCriteria))
+		}
+	})
+
+	form.AddButton("Clear", func() {
+		state.Filter = ""
+		state.VMFilters = models.VMFilterOptions{}
+		state.SelectedIndex = 0
+
+		models.FilterVMs("")
+		a.refreshVMSelection(api.PageGuests)
+		a.removePageIfPresent("advancedGuestFilter")
+		a.header.ShowSuccess("Guest filters cleared")
+	})
+
+	form.AddButton("Cancel", func() {
+		a.removePageIfPresent("advancedGuestFilter")
+	})
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			a.removePageIfPresent("advancedGuestFilter")
+			return nil
+		}
+
+		return event
+	})
+
+	modal := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(form, 14, 0, true).
+			AddItem(nil, 0, 1, false), 72, 1, true).
+		AddItem(nil, 0, 1, false)
+
+	a.pages.AddPage("advancedGuestFilter", modal, true, true)
+	a.SetFocus(form)
+}
+
 // restoreSearchUI restores the search input UI state if it was active before a refresh.
 func (a *App) restoreSearchUI(searchWasActive bool, nodeSearchState, vmSearchState *models.SearchState) {
 	if !searchWasActive {
@@ -231,7 +410,7 @@ func (a *App) restoreSearchUI(searchWasActive bool, nodeSearchState, vmSearchSta
 
 				if currentPage == api.PageNodes && nodeSearchState != nil && nodeSearchState.Filter != "" {
 					hasActiveFilter = true
-				} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.Filter != "" {
+				} else if currentPage == api.PageGuests && vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 					hasActiveFilter = true
 				} else if currentPage == api.PageTasks {
 					if taskSearchState := models.GlobalState.GetSearchState(api.PageTasks); taskSearchState != nil && taskSearchState.Filter != "" {
