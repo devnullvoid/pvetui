@@ -160,7 +160,7 @@ func (a *App) setupKeyboardHandlers() {
 		}
 
 		// Advanced guest filter modal (Guests page only).
-		if keyMatch(event, "Ctrl+f") {
+		if keyMatch(event, a.config.KeyBindings.AdvancedGuestFilter) {
 			currentPage, _ := a.pages.GetFrontPage()
 			if currentPage == api.PageGuests {
 				a.showAdvancedGuestFilterModal()
