@@ -72,7 +72,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
 		{Key: "gg / G", Desc: "Jump to top/bottom in focused list"},
-		{Key: "Tab / Shift+Tab", Desc: "Switch focus between Tasks page panels"},
+		{Key: "Tab / Shift+Tab", Desc: "Switch focus between fields and panels"},
 		{Cat: ""}, // Spacer
 		{Cat: "[warning]Actions[-]"},
 		{Key: keys.Search, Desc: "Search/Filter current list"},
@@ -85,6 +85,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Cat: "[warning]Nodes/Guests Page[-]"},
 		{Key: keys.Shell, Desc: "Open SSH shell (when on Nodes/Guests page)"},
 		{Key: keys.VNC, Desc: "Open VNC shell/console (when on Nodes/Guests page)"},
+		{Key: keys.AdvancedGuestFilter, Desc: "Advanced guest filter modal (Guests page)"},
 		{Cat: ""},
 		{Cat: "[warning]Tasks Page[-]"},
 		{Key: keys.TasksToggleQueue, Desc: "Toggle active queue panel visibility"},

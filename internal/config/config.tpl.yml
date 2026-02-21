@@ -38,6 +38,7 @@ key_bindings:
   refresh: "Ctrl+r"
   auto_refresh: a
   search: "/"
+  advanced_guest_filter: "Ctrl+f"
   help: "?"
   quit: q
 # Reserved keys (h, j, k, l, arrows, Tab, Enter, Esc, Backspace) cannot be reassigned.

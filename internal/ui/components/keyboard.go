@@ -128,6 +128,7 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("pluginsManager") ||
 			a.pages.HasPage("contextMenu") ||
 			a.pages.HasPage("about") ||
+			a.pages.HasPage("advancedGuestFilter") ||
 			a.pages.HasPage("snapshots") ||
 			a.pages.HasPage("createSnapshot") ||
 			a.pages.HasPage("backups") ||
@@ -156,6 +157,15 @@ func (a *App) setupKeyboardHandlers() {
 		if event.Key() == tcell.KeyEscape {
 			a.ShowGlobalContextMenu()
 			return nil
+		}
+
+		// Advanced guest filter modal (Guests page only).
+		if keyMatch(event, a.config.KeyBindings.AdvancedGuestFilter) {
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageGuests {
+				a.showAdvancedGuestFilterModal()
+				return nil
+			}
 		}
 
 		// Handle configured switch view shortcut

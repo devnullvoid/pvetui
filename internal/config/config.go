@@ -145,22 +145,23 @@ func (c *Config) MarkSensitiveDataEncrypted() {
 // Each field represents a single keyboard key that triggers the action.
 // Only single characters and function keys (e.g. "F1") are supported.
 type KeyBindings struct {
-	SwitchView        string `yaml:"switch_view"` // Switch between pages
-	SwitchViewReverse string `yaml:"switch_view_reverse"`
-	NodesPage         string `yaml:"nodes_page"`         // Jump to Nodes page
-	GuestsPage        string `yaml:"guests_page"`        // Jump to Guests page
-	TasksPage         string `yaml:"tasks_page"`         // Jump to Tasks page
-	TasksToggleQueue  string `yaml:"tasks_toggle_queue"` // Toggle active queue panel in Tasks page
-	TaskStopCancel    string `yaml:"task_stop_cancel"`   // Stop running task / cancel queued task
-	Menu              string `yaml:"menu"`               // Open context menu
-	GlobalMenu        string `yaml:"global_menu"`        // Open global context menu
-	Shell             string `yaml:"shell"`              // Open shell session
-	VNC               string `yaml:"vnc"`                // Open VNC console
-	Refresh           string `yaml:"refresh"`            // Manual refresh
-	AutoRefresh       string `yaml:"auto_refresh"`       // Toggle auto-refresh
-	Search            string `yaml:"search"`             // Activate search
-	Help              string `yaml:"help"`               // Toggle help modal
-	Quit              string `yaml:"quit"`               // Quit application
+	SwitchView          string `yaml:"switch_view"` // Switch between pages
+	SwitchViewReverse   string `yaml:"switch_view_reverse"`
+	NodesPage           string `yaml:"nodes_page"`            // Jump to Nodes page
+	GuestsPage          string `yaml:"guests_page"`           // Jump to Guests page
+	TasksPage           string `yaml:"tasks_page"`            // Jump to Tasks page
+	TasksToggleQueue    string `yaml:"tasks_toggle_queue"`    // Toggle active queue panel in Tasks page
+	TaskStopCancel      string `yaml:"task_stop_cancel"`      // Stop running task / cancel queued task
+	Menu                string `yaml:"menu"`                  // Open context menu
+	GlobalMenu          string `yaml:"global_menu"`           // Open global context menu
+	Shell               string `yaml:"shell"`                 // Open shell session
+	VNC                 string `yaml:"vnc"`                   // Open VNC console
+	Refresh             string `yaml:"refresh"`               // Manual refresh
+	AutoRefresh         string `yaml:"auto_refresh"`          // Toggle auto-refresh
+	Search              string `yaml:"search"`                // Activate search
+	AdvancedGuestFilter string `yaml:"advanced_guest_filter"` // Open advanced guest filter modal
+	Help                string `yaml:"help"`                  // Toggle help modal
+	Quit                string `yaml:"quit"`                  // Quit application
 }
 
 // ThemeConfig defines theme-related configuration options.
@@ -182,44 +183,46 @@ type PluginConfig struct {
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
 func DefaultKeyBindings() KeyBindings {
 	return KeyBindings{
-		SwitchView:        "]",
-		SwitchViewReverse: "[",
-		NodesPage:         "Alt+1",
-		GuestsPage:        "Alt+2",
-		TasksPage:         "Alt+3",
-		TasksToggleQueue:  "t",
-		TaskStopCancel:    "x",
-		Menu:              "m",
-		GlobalMenu:        "Ctrl+g",
-		Shell:             "s",
-		VNC:               "v",
-		Refresh:           "Ctrl+r",
-		AutoRefresh:       "a",
-		Search:            "/",
-		Help:              "?",
-		Quit:              "q",
+		SwitchView:          "]",
+		SwitchViewReverse:   "[",
+		NodesPage:           "Alt+1",
+		GuestsPage:          "Alt+2",
+		TasksPage:           "Alt+3",
+		TasksToggleQueue:    "t",
+		TaskStopCancel:      "x",
+		Menu:                "m",
+		GlobalMenu:          "Ctrl+g",
+		Shell:               "s",
+		VNC:                 "v",
+		Refresh:             "Ctrl+r",
+		AutoRefresh:         "a",
+		Search:              "/",
+		AdvancedGuestFilter: "Ctrl+f",
+		Help:                "?",
+		Quit:                "q",
 	}
 }
 
 // keyBindingsToMap converts a KeyBindings struct to a map for validation.
 func keyBindingsToMap(kb KeyBindings) map[string]string {
 	return map[string]string{
-		"switch_view":         kb.SwitchView,
-		"switch_view_reverse": kb.SwitchViewReverse,
-		"nodes_page":          kb.NodesPage,
-		"guests_page":         kb.GuestsPage,
-		"tasks_page":          kb.TasksPage,
-		"tasks_toggle_queue":  kb.TasksToggleQueue,
-		"task_stop_cancel":    kb.TaskStopCancel,
-		"menu":                kb.Menu,
-		"global_menu":         kb.GlobalMenu,
-		"shell":               kb.Shell,
-		"vnc":                 kb.VNC,
-		"refresh":             kb.Refresh,
-		"auto_refresh":        kb.AutoRefresh,
-		"search":              kb.Search,
-		"help":                kb.Help,
-		"quit":                kb.Quit,
+		"switch_view":           kb.SwitchView,
+		"switch_view_reverse":   kb.SwitchViewReverse,
+		"nodes_page":            kb.NodesPage,
+		"guests_page":           kb.GuestsPage,
+		"tasks_page":            kb.TasksPage,
+		"tasks_toggle_queue":    kb.TasksToggleQueue,
+		"task_stop_cancel":      kb.TaskStopCancel,
+		"menu":                  kb.Menu,
+		"global_menu":           kb.GlobalMenu,
+		"shell":                 kb.Shell,
+		"vnc":                   kb.VNC,
+		"refresh":               kb.Refresh,
+		"auto_refresh":          kb.AutoRefresh,
+		"search":                kb.Search,
+		"advanced_guest_filter": kb.AdvancedGuestFilter,
+		"help":                  kb.Help,
+		"quit":                  kb.Quit,
 	}
 }
 
@@ -375,23 +378,24 @@ func (c *Config) MergeWithFile(path string) error {
 		CacheDir       string                   `yaml:"cache_dir"`
 		AgeDir         string                   `yaml:"age_dir"`
 		KeyBindings    struct {
-			SwitchView        string `yaml:"switch_view"`
-			SwitchViewReverse string `yaml:"switch_view_reverse"`
-			NodesPage         string `yaml:"nodes_page"`
-			GuestsPage        string `yaml:"guests_page"`
-			TasksPage         string `yaml:"tasks_page"`
-			TasksToggleQueue  string `yaml:"tasks_toggle_queue"`
-			TaskStopCancel    string `yaml:"task_stop_cancel"`
-			Menu              string `yaml:"menu"`
-			GlobalMenu        string `yaml:"global_menu"`
-			Shell             string `yaml:"shell"`
-			VNC               string `yaml:"vnc"`
-			Scripts           string `yaml:"scripts"`
-			Refresh           string `yaml:"refresh"`
-			AutoRefresh       string `yaml:"auto_refresh"`
-			Search            string `yaml:"search"`
-			Help              string `yaml:"help"`
-			Quit              string `yaml:"quit"`
+			SwitchView          string `yaml:"switch_view"`
+			SwitchViewReverse   string `yaml:"switch_view_reverse"`
+			NodesPage           string `yaml:"nodes_page"`
+			GuestsPage          string `yaml:"guests_page"`
+			TasksPage           string `yaml:"tasks_page"`
+			TasksToggleQueue    string `yaml:"tasks_toggle_queue"`
+			TaskStopCancel      string `yaml:"task_stop_cancel"`
+			Menu                string `yaml:"menu"`
+			GlobalMenu          string `yaml:"global_menu"`
+			Shell               string `yaml:"shell"`
+			VNC                 string `yaml:"vnc"`
+			Scripts             string `yaml:"scripts"`
+			Refresh             string `yaml:"refresh"`
+			AutoRefresh         string `yaml:"auto_refresh"`
+			Search              string `yaml:"search"`
+			AdvancedGuestFilter string `yaml:"advanced_guest_filter"`
+			Help                string `yaml:"help"`
+			Quit                string `yaml:"quit"`
 		} `yaml:"key_bindings"`
 		Theme struct {
 			Name   string            `yaml:"name"`
@@ -560,23 +564,24 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	if kb := fileConfig.KeyBindings; kb != struct {
-		SwitchView        string `yaml:"switch_view"`
-		SwitchViewReverse string `yaml:"switch_view_reverse"`
-		NodesPage         string `yaml:"nodes_page"`
-		GuestsPage        string `yaml:"guests_page"`
-		TasksPage         string `yaml:"tasks_page"`
-		TasksToggleQueue  string `yaml:"tasks_toggle_queue"`
-		TaskStopCancel    string `yaml:"task_stop_cancel"`
-		Menu              string `yaml:"menu"`
-		GlobalMenu        string `yaml:"global_menu"`
-		Shell             string `yaml:"shell"`
-		VNC               string `yaml:"vnc"`
-		Scripts           string `yaml:"scripts"`
-		Refresh           string `yaml:"refresh"`
-		AutoRefresh       string `yaml:"auto_refresh"`
-		Search            string `yaml:"search"`
-		Help              string `yaml:"help"`
-		Quit              string `yaml:"quit"`
+		SwitchView          string `yaml:"switch_view"`
+		SwitchViewReverse   string `yaml:"switch_view_reverse"`
+		NodesPage           string `yaml:"nodes_page"`
+		GuestsPage          string `yaml:"guests_page"`
+		TasksPage           string `yaml:"tasks_page"`
+		TasksToggleQueue    string `yaml:"tasks_toggle_queue"`
+		TaskStopCancel      string `yaml:"task_stop_cancel"`
+		Menu                string `yaml:"menu"`
+		GlobalMenu          string `yaml:"global_menu"`
+		Shell               string `yaml:"shell"`
+		VNC                 string `yaml:"vnc"`
+		Scripts             string `yaml:"scripts"`
+		Refresh             string `yaml:"refresh"`
+		AutoRefresh         string `yaml:"auto_refresh"`
+		Search              string `yaml:"search"`
+		AdvancedGuestFilter string `yaml:"advanced_guest_filter"`
+		Help                string `yaml:"help"`
+		Quit                string `yaml:"quit"`
 	}{} {
 		if kb.SwitchView != "" {
 			c.KeyBindings.SwitchView = kb.SwitchView
@@ -630,6 +635,9 @@ func (c *Config) MergeWithFile(path string) error {
 
 		if kb.Search != "" {
 			c.KeyBindings.Search = kb.Search
+		}
+		if kb.AdvancedGuestFilter != "" {
+			c.KeyBindings.AdvancedGuestFilter = kb.AdvancedGuestFilter
 		}
 
 		if kb.Help != "" {
@@ -1007,6 +1015,9 @@ func (c *Config) SetDefaults() {
 
 	if c.KeyBindings.Search == "" {
 		c.KeyBindings.Search = defaults.Search
+	}
+	if c.KeyBindings.AdvancedGuestFilter == "" {
+		c.KeyBindings.AdvancedGuestFilter = defaults.AdvancedGuestFilter
 	}
 
 	if c.KeyBindings.Help == "" {

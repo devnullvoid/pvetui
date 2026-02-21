@@ -282,6 +282,7 @@ Key architectural decisions and rationale:
 - **TaskManager/UI notify path**: If a background manager notifies UI code that uses `QueueUpdateDraw`, dispatch the notifier asynchronously (e.g. `go notify()`) to avoid blocking UI event handlers.
 - **Pre-PR deadlock scan**: Before merging UI changes, scan for risky call sites with `rg -n "QueueUpdateDraw|SetDoneFunc|SetInputCapture" internal/ui/components internal/taskmanager` and verify no nested `QueueUpdateDraw` chains were introduced.
 - **Pending state and refreshes**: Always clear pending state BEFORE calling refresh functions (`manualRefresh`, `refreshVMData`), as these functions check for pending operations and will block if any exist
+- **Guest advanced filter persistence**: When checking whether Guests filters are active, use `SearchState.HasActiveVMFilter()` (not only `SearchState.Filter != ""`) so structured filters (status/type/node/tag) persist across manual refresh, auto-refresh, and VM refresh paths.
 - **Header loading animation**: Multiple overlapping `ShowLoading` calls can spawn concurrent animations and make the spinner appear too fast; ensure loading state is serialized (single animation, cancelable ticker).
 - **Context menu anchoring**: Anchor node/guest context menus to their source list primitives (`nodeList`/`vmList`), not the currently focused pane; focus can be in details and produce inconsistent placement.
 - **Context menu geometry**: Compute/clamp modal placement against the `pages` container rect (not `mainLayout`) to avoid low/clipped menus on smaller terminals.
