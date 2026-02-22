@@ -28,6 +28,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				"boot":        "order=scsi0;net0",
 				"agent":       "enabled=1,fstrim_cloned_disks=1",
 				"tags":        "prod;db",
+				"net0":        "virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,tag=100",
 			},
 			expected: &VMConfig{
 				Name:         "test-vm",
@@ -42,6 +43,9 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				Agent:        &[]bool{true}[0],
 				Tags:         "prod;db",
 				TagsExplicit: true,
+				NetworkInterfaces: map[string]string{
+					"net0": "virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,tag=100",
+				},
 			},
 		},
 		{
@@ -54,6 +58,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				"description": "Test Container",
 				"onboot":      0.0,
 				"swap":        1024.0,
+				"net0":        "name=eth0,bridge=vmbr1,ip=dhcp,gw=10.0.0.1",
 			},
 			expected: &VMConfig{
 				Hostname:    "test-container",
@@ -62,6 +67,9 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				Description: "Test Container",
 				OnBoot:      &[]bool{false}[0],
 				Swap:        1 * 1024 * 1024 * 1024, // 1GB in bytes
+				NetworkInterfaces: map[string]string{
+					"net0": "name=eth0,bridge=vmbr1,ip=dhcp,gw=10.0.0.1",
+				},
 			},
 		},
 		{
@@ -107,6 +115,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 			assert.Equal(t, tt.expected.OnBoot, result.OnBoot)
 			assert.Equal(t, tt.expected.Tags, result.Tags)
 			assert.Equal(t, tt.expected.TagsExplicit, result.TagsExplicit)
+			assert.Equal(t, tt.expected.NetworkInterfaces, result.NetworkInterfaces)
 
 			if tt.vmType == VMTypeQemu {
 				assert.Equal(t, tt.expected.CPUType, result.CPUType)
@@ -149,6 +158,9 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 			}
 			if tt.expected.TagsExplicit {
 				assert.Equal(t, tt.expected.Tags, payload["tags"])
+			}
+			for key, expectedRaw := range tt.expected.NetworkInterfaces {
+				assert.Equal(t, expectedRaw, payload[key])
 			}
 
 			if tt.vmType == VMTypeQemu {

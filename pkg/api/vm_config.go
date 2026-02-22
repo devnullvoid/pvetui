@@ -3,11 +3,14 @@ package api
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
 const stringYes = "yes"
+
+var networkConfigKeyPattern = regexp.MustCompile(`^net[0-9]+$`)
 
 // VMConfig represents editable configuration for both QEMU and LXC guests.
 type VMConfig struct {
@@ -37,6 +40,10 @@ type VMConfig struct {
 
 	// Storage (for resizing, etc.)
 	Disks map[string]int64 `json:"disks,omitempty"` // disk name -> size in bytes
+
+	// NetworkInterfaces stores raw Proxmox network config entries keyed by netX (e.g., net0).
+	// Keeping raw values avoids dropping unknown interface options.
+	NetworkInterfaces map[string]string `json:"network_interfaces,omitempty"`
 }
 
 // GetVMConfig fetches the configuration for a VM or container.
@@ -175,6 +182,21 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 			cfg.Swap = int64(v) * 1024 * 1024
 		}
 	}
+
+	for key, raw := range data {
+		if !networkConfigKeyPattern.MatchString(key) {
+			continue
+		}
+		rawValue, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		if cfg.NetworkInterfaces == nil {
+			cfg.NetworkInterfaces = make(map[string]string)
+		}
+		cfg.NetworkInterfaces[key] = rawValue
+	}
+
 	// Storage parsing can be added here
 	return cfg
 }
@@ -242,6 +264,17 @@ func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} 
 		if config.Swap > 0 {
 			data["swap"] = config.Swap / 1024 / 1024 // MB
 		}
+	}
+
+	for key, value := range config.NetworkInterfaces {
+		if !networkConfigKeyPattern.MatchString(key) {
+			continue
+		}
+		trimmedValue := strings.TrimSpace(value)
+		if trimmedValue == "" {
+			continue
+		}
+		data[key] = trimmedValue
 	}
 
 	return data

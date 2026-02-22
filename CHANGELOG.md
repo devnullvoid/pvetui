@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Task Queue Throughput Control**: Added a global in-progress concurrency limit so queued operations are processed without overloading the API/task polling path.
 - **Queued Task Cancellation**: Added support for canceling queued tasks before they enter the running state.
 - **Advanced Guest Filter Modal**: Added a Guests-page advanced filter modal (default `Ctrl+f`, configurable via `key_bindings.advanced_guest_filter`) with structured criteria for status, type, node, and tag matching, while preserving combined text-search + advanced filtering across refreshes.
+- **Guest Network Config Editor (MVP)**: Added an “Edit Network Interfaces” action in guest configuration with a dedicated interface editor (bridge/VLAN/rate/firewall plus VM/CT-specific fields), writing back to Proxmox `netX` config entries on save.
 
 ### Fixed
 
