@@ -46,7 +46,7 @@ func newGuestListView(app *components.App, node *api.Node, rows []guestRow) *gue
 		includeStopped: false,
 		sortKey:        sortByCPU,
 		sortDesc:       true,
-		helpBase:       "↑/↓ navigate  •  enter/g jump to guest  •  / search  •  a toggle stopped  •  n/c/m/u/i sort  •  r refresh metrics  •  esc close",
+		helpBase:       "↑/↓ navigate  •  enter/g jump to guest  •  / search  •  a toggle stopped  •  n/c/m/u/i sort  •  r refresh metrics  •  esc/backspace close",
 	}
 }
 
@@ -95,7 +95,7 @@ func (v *guestListView) buildLayout() {
 	v.table.SetBorder(true)
 	v.table.SetBorderColor(theme.Colors.Border)
 	v.table.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEscape {
+		if key == tcell.KeyEscape || key == tcell.KeyBackspace || key == tcell.KeyBackspace2 {
 			v.close()
 		}
 	})
@@ -145,6 +145,9 @@ func (v *guestListView) buildLayout() {
 			v.jumpToRow(row)
 			return nil
 		case tcell.KeyEscape:
+			v.close()
+			return nil
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
 			v.close()
 			return nil
 		}

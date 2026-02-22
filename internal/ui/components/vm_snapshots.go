@@ -86,6 +86,9 @@ func (sm *SnapshotManager) setupKeyboardNavigation() {
 		case tcell.KeyEsc:
 			sm.goBack()
 			return nil
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			sm.goBack()
+			return nil
 		case tcell.KeyTab:
 			// Handle Tab navigation between table and buttons
 			currentFocus := sm.app.GetFocus()

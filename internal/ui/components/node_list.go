@@ -50,7 +50,18 @@ func (nl *NodeList) SetApp(app *App) {
 	nl.app = app
 
 	// Set up input capture for arrow keys and VI-like navigation (hjkl)
-	nl.SetInputCapture(createNavigationInputCapture(nl.app, nil, nl.app.nodeDetails))
+	navigationCapture := createNavigationInputCapture(nl.app, nil, nl.app.nodeDetails)
+	var pendingG bool
+	nl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if handleVimTopBottomRune(event, &pendingG, func() {
+			jumpListTop(nl.List)
+		}, func() {
+			jumpListBottom(nl.List)
+		}) {
+			return nil
+		}
+		return navigationCapture(event)
+	})
 }
 
 // SetNodes updates the list with the provided nodes.

@@ -14,6 +14,7 @@ type CommandExecutor interface {
 type defaultExecutor struct{}
 
 func (defaultExecutor) CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
+	// #nosec G204 -- command name/args come from vetted internal call sites.
 	return exec.CommandContext(ctx, name, args...)
 }
 

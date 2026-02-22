@@ -87,7 +87,7 @@ func (a *App) setupComponentConnections() {
 
 	// Now set the VMs - check for existing search filters first
 	vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
-	if vmSearchState != nil && vmSearchState.Filter != "" {
+	if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 		// Apply existing filter
 		models.FilterVMs(vmSearchState.Filter)
 		a.vmList.SetVMs(models.GlobalState.FilteredVMs)

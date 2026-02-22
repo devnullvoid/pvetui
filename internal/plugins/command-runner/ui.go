@@ -23,6 +23,14 @@ type UIManager struct {
 	vmTargets map[string]VM
 }
 
+func isBackKey(event *tcell.EventKey) bool {
+	if event == nil {
+		return false
+	}
+
+	return event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2
+}
+
 // NewUIManager creates a new UI manager
 func NewUIManager(app UIApp, executor *Executor) *UIManager {
 	return &UIManager{
@@ -84,7 +92,7 @@ func (u *UIManager) showCommandMenu(targetType TargetType, target string, comman
 
 	// Set input handler for Esc key and vi-style navigation
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
+		if isBackKey(event) {
 			closeMenu()
 			return nil
 		}
@@ -159,9 +167,9 @@ func (u *UIManager) showParameterForm(targetType TargetType, target, command str
 
 	form.AddButton("Cancel", closeForm)
 
-	// Set input handler for Esc key
+	// Set input handler for back keys
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
+		if isBackKey(event) {
 			closeForm()
 			return nil
 		}
@@ -284,11 +292,11 @@ func (u *UIManager) ShowResultModal(result ExecutionResult, onClose func()) {
 
 	var text strings.Builder
 
-	text.WriteString(fmt.Sprintf("Command: %s\n", result.Command))
-	text.WriteString(fmt.Sprintf("Duration: %v\n\n", result.Duration))
+	fmt.Fprintf(&text, "Command: %s\n", result.Command)
+	fmt.Fprintf(&text, "Duration: %v\n\n", result.Duration)
 
 	if result.Error != nil {
-		text.WriteString(fmt.Sprintf("Error: %v\n\n", result.Error))
+		fmt.Fprintf(&text, "Error: %v\n\n", result.Error)
 		if result.Output != "" {
 			text.WriteString("Output:\n")
 			text.WriteString(result.Output)
@@ -313,7 +321,7 @@ func (u *UIManager) ShowResultModal(result ExecutionResult, onClose func()) {
 
 	// Set input handler on the text view (which will have focus)
 	textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
+		if isBackKey(event) {
 			closeResult()
 			return nil // Consume the event to prevent bubbling
 		}
@@ -322,7 +330,7 @@ func (u *UIManager) ShowResultModal(result ExecutionResult, onClose func()) {
 
 	// Add button bar at bottom with color tags
 	buttons := tview.NewTextView().
-		SetText(" [primary]ESC[-] Close | [primary]↑/↓[-] Scroll ").
+		SetText(" [primary]ESC/Backspace[-] Close | [primary]↑/↓[-] Scroll ").
 		SetTextAlign(tview.AlignCenter).
 		SetDynamicColors(true)
 
@@ -352,6 +360,14 @@ func (u *UIManager) ShowErrorModal(title, message string, onClose func()) {
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			closeError()
 		})
+	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if isBackKey(event) {
+			closeError()
+			return nil
+		}
+
+		return event
+	})
 
 	pages.AddPage("commandError", modal, true, true)
 }

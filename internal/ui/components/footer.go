@@ -16,6 +16,7 @@ type Footer struct {
 
 	vncSessionCount   int
 	autoRefreshActive bool
+	selectedGuests    int
 	baseText          string
 	refreshCountdown  int // seconds until next auto-refresh
 	isLoading         bool
@@ -48,14 +49,20 @@ func NewFooter() *Footer {
 
 // FormatFooterText builds the footer key binding text from config.
 func FormatFooterText(keys config.KeyBindings) string {
+	globalMenuLabel := "Esc"
+	if keys.GlobalMenu != "" {
+		globalMenuLabel = fmt.Sprintf("Esc/%s", keys.GlobalMenu)
+	}
+
 	return fmt.Sprintf(
-		"[%s]%s:[%s]Nodes  [%s]%s:[%s]Guests  [%s]%s:[%s]Tasks  [%s]%s:[%s]Search  [%s]Esc/%s:[%s]Global  [%s]%s:[%s]Context  [%s]%s:[%s]Help  [%s]%s:[%s]Quit",
+		"[%s]%s:[%s]Nodes  [%s]%s:[%s]Guests  [%s]%s:[%s]Tasks  [%s]%s:[%s]Search  [%s]%s:[%s]Global  [%s]%s:[%s]Context  [%s]Space:[%s]Select  [%s]%s:[%s]Help  [%s]%s:[%s]Quit",
 		theme.Colors.HeaderText, keys.NodesPage, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.GuestsPage, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.TasksPage, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Search, theme.Colors.Primary,
-		theme.Colors.HeaderText, keys.GlobalMenu, theme.Colors.Primary,
+		theme.Colors.HeaderText, globalMenuLabel, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Menu, theme.Colors.Primary,
+		theme.Colors.HeaderText, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Help, theme.Colors.Primary,
 		theme.Colors.HeaderText, keys.Quit, theme.Colors.Primary,
 	)
@@ -82,6 +89,12 @@ func (f *Footer) UpdateAutoRefreshStatus(active bool) {
 // UpdateAutoRefreshCountdown updates the countdown for the next auto-refresh.
 func (f *Footer) UpdateAutoRefreshCountdown(seconds int) {
 	f.refreshCountdown = seconds
+	f.updateDisplay()
+}
+
+// UpdateSelectedGuestsCount updates the selected guest counter in the footer status area.
+func (f *Footer) UpdateSelectedGuestsCount(count int) {
+	f.selectedGuests = count
 	f.updateDisplay()
 }
 
@@ -140,6 +153,10 @@ func (f *Footer) updateDisplayWithWidth(width int) {
 		} else {
 			statusParts = append(statusParts, "[info]Auto-Refresh:[secondary]ON")
 		}
+	}
+
+	if f.selectedGuests > 0 {
+		statusParts = append(statusParts, fmt.Sprintf("[info]Selected:[secondary]%d", f.selectedGuests))
 	}
 
 	statusText := strings.Join(statusParts, "  ")

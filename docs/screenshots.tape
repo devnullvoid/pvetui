@@ -6,7 +6,7 @@ Sleep 1s
 Screenshot docs/screenshot-nodes-menu.png
 Type "h"
 Sleep 100ms
-Type "g"
+Escape
 Sleep 1s
 Screenshot docs/screenshot-global-menu.png
 Escape

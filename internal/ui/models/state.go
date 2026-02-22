@@ -17,6 +17,32 @@ type SearchState struct {
 	CurrentPage   string
 	Filter        string
 	SelectedIndex int
+	VMFilters     VMFilterOptions
+}
+
+// VMFilterOptions holds advanced filter criteria for guests.
+type VMFilterOptions struct {
+	Status      string
+	Type        string
+	Node        string
+	TagContains string
+}
+
+// IsZero returns true when no advanced guest filter criteria are set.
+func (f VMFilterOptions) IsZero() bool {
+	return strings.TrimSpace(f.Status) == "" &&
+		strings.TrimSpace(f.Type) == "" &&
+		strings.TrimSpace(f.Node) == "" &&
+		strings.TrimSpace(f.TagContains) == ""
+}
+
+// HasActiveVMFilter returns true when either free-text search or advanced VM filters are active.
+func (s *SearchState) HasActiveVMFilter() bool {
+	if s == nil {
+		return false
+	}
+
+	return strings.TrimSpace(s.Filter) != "" || !s.VMFilters.IsZero()
 }
 
 // State holds all UI state components.
@@ -136,16 +162,26 @@ func FilterNodes(filter string) {
 
 // FilterVMs filters the VMs based on the given search string.
 func FilterVMs(filter string) {
-	if filter == "" {
+	filter = strings.ToLower(strings.TrimSpace(filter))
+
+	vmSearchState := GlobalState.GetSearchState(api.PageGuests)
+	vmFilters := VMFilterOptions{}
+	if vmSearchState != nil {
+		vmFilters = vmSearchState.VMFilters
+	}
+
+	statusFilter := strings.ToLower(strings.TrimSpace(vmFilters.Status))
+	typeFilter := strings.ToLower(strings.TrimSpace(vmFilters.Type))
+	nodeFilter := strings.ToLower(strings.TrimSpace(vmFilters.Node))
+	tagFilter := strings.ToLower(strings.TrimSpace(vmFilters.TagContains))
+
+	if filter == "" && statusFilter == "" && typeFilter == "" && nodeFilter == "" && tagFilter == "" {
 		// No filter, use all VMs
 		GlobalState.FilteredVMs = make([]*api.VM, len(GlobalState.OriginalVMs))
 		copy(GlobalState.FilteredVMs, GlobalState.OriginalVMs)
 
 		return
 	}
-
-	// Convert filter to lowercase for case-insensitive search
-	filter = strings.ToLower(filter)
 
 	// Create a new filtered list
 	GlobalState.FilteredVMs = make([]*api.VM, 0)
@@ -156,55 +192,69 @@ func FilterVMs(filter string) {
 			continue
 		}
 
-		// Check VM name
-		if strings.Contains(strings.ToLower(vm.Name), filter) {
-			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
-
+		if statusFilter != "" && !strings.EqualFold(vm.Status, statusFilter) {
 			continue
 		}
 
-		// Check VM ID (convert int to string)
-		vmIDStr := fmt.Sprintf("%d", vm.ID)
-		if strings.Contains(vmIDStr, filter) {
-			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
-
+		if typeFilter != "" && !strings.EqualFold(vm.Type, typeFilter) {
 			continue
 		}
 
-		// Check VM type
-		if strings.Contains(strings.ToLower(vm.Type), filter) {
-			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
-
+		if nodeFilter != "" && !strings.EqualFold(vm.Node, nodeFilter) {
 			continue
 		}
 
-		// Check VM status
-		if strings.Contains(strings.ToLower(vm.Status), filter) {
-			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
-
+		if tagFilter != "" && !strings.Contains(strings.ToLower(vm.Tags), tagFilter) {
 			continue
 		}
 
-		// Check VM node
-		if strings.Contains(strings.ToLower(vm.Node), filter) {
-			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
+		if filter != "" {
+			matchesTextFilter := false
 
-			continue
+			// Check VM name
+			if strings.Contains(strings.ToLower(vm.Name), filter) {
+				matchesTextFilter = true
+			}
+
+			// Check VM ID (convert int to string)
+			if !matchesTextFilter {
+				vmIDStr := fmt.Sprintf("%d", vm.ID)
+				if strings.Contains(vmIDStr, filter) {
+					matchesTextFilter = true
+				}
+			}
+
+			// Check VM type
+			if !matchesTextFilter && strings.Contains(strings.ToLower(vm.Type), filter) {
+				matchesTextFilter = true
+			}
+
+			// Check VM status
+			if !matchesTextFilter && strings.Contains(strings.ToLower(vm.Status), filter) {
+				matchesTextFilter = true
+			}
+
+			// Check VM node
+			if !matchesTextFilter && strings.Contains(strings.ToLower(vm.Node), filter) {
+				matchesTextFilter = true
+			}
+
+			// Check VM IP address
+			if !matchesTextFilter && strings.Contains(strings.ToLower(vm.IP), filter) {
+				matchesTextFilter = true
+			}
+
+			// Check VM tags
+			if !matchesTextFilter && strings.Contains(strings.ToLower(vm.Tags), filter) {
+				matchesTextFilter = true
+			}
+
+			if !matchesTextFilter {
+				continue
+			}
 		}
 
-		// Check VM IP address
-		if strings.Contains(strings.ToLower(vm.IP), filter) {
-			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
-
-			continue
-		}
-
-		// Check VM tags
-		if strings.Contains(strings.ToLower(vm.Tags), filter) {
-			GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
-
-			continue
-		}
+		GlobalState.FilteredVMs = append(GlobalState.FilteredVMs, vm)
 	}
 	// GetUILogger().Debug("Filtered VMs from %d to %d with filter '%s'",
 	//

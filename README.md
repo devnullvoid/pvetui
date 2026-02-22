@@ -334,7 +334,7 @@ Windows legacy fallback:
 | `/` | Search | `a` | Auto-refresh |
 | `?` | Help | `q` | Quit |
 
-Customize keys via the `key_bindings` section in your config. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
+Customize keys via the `key_bindings` section in your config. This includes task-panel controls (`tasks_toggle_queue`, `task_stop_cancel`) in addition to global navigation/actions. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
 
 ## 🎨 Theming
 
@@ -381,16 +381,27 @@ Check our **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** for solutions to 
 - 🐧 **Linux permission** problems
 - 🔧 **General installation** and configuration issues
 
-## 🐳 Docker Usage
+## 🐳 Container Usage (Dev/Test)
 
-```bash
-git clone https://github.com/devnullvoid/pvetui.git
-cd pvetui
-cp .env.example .env  # Edit with your Proxmox details
-docker compose run --rm pvetui
-```
+Container-based runs are supported for development and testing workflows.
 
-See [docs/DOCKER.md](docs/DOCKER.md) for advanced usage.
+See [docs/DOCKER.md](docs/DOCKER.md) for Docker/Podman details.
+
+## 🗺️ Features Roadmap
+
+Planned and actively prioritized:
+
+- **Role-aware operation mode**: Compatibility with non-admin Proxmox roles (for example, "operator"-style permissions) with clear capability detection and graceful UI fallback when actions are not allowed.
+- **Expanded guest configuration management**: Manage more guest settings directly in TUI, including common hardware and network options.
+- **Guest creation workflows**: Guided creation for VMs/LXCs with safe defaults and validation.
+- **Storage management basics**: Visibility and common actions for storage targets (capacity, content, and routine operations).
+
+Under evaluation (higher complexity):
+
+- **SDN management**: Valuable but broad in scope; likely to start with read-only visibility before write operations.
+- **Advanced cluster/network workflows**: Additional orchestration features that may require phased rollout to keep UX predictable in TUI.
+
+If a roadmap item is critical for your environment, open an issue with your use case and required Proxmox version.
 
 ## 🤝 Contributing
 

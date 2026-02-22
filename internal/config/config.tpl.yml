@@ -29,13 +29,16 @@ key_bindings:
   nodes_page: "Alt+1"
   guests_page: "Alt+2"
   tasks_page: "Alt+3"
+  tasks_toggle_queue: t
+  task_stop_cancel: x
   menu: m
-  global_menu: g
+  global_menu: "Ctrl+g"
   shell: s
   vnc: v
   refresh: "Ctrl+r"
   auto_refresh: a
   search: "/"
+  advanced_guest_filter: "Ctrl+f"
   help: "?"
   quit: q
 # Reserved keys (h, j, k, l, arrows, Tab, Enter, Esc, Backspace) cannot be reassigned.

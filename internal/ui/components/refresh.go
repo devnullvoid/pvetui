@@ -82,7 +82,7 @@ func (a *App) manualRefresh() {
 
 				// Apply VM filter if active
 				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
-				if vmSearchState != nil && vmSearchState.Filter != "" {
+				if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 					models.FilterVMs(vmSearchState.Filter)
 				} else {
 					models.GlobalState.FilteredVMs = make([]*api.VM, len(vms))
@@ -144,7 +144,7 @@ func (a *App) applyInitialClusterUpdate(cluster *api.Cluster) {
 		copy(models.GlobalState.OriginalVMs, vms)
 
 		// Apply VM filter if active
-		if vmState := models.GlobalState.GetSearchState(api.PageGuests); vmState != nil && vmState.Filter != "" {
+		if vmState := models.GlobalState.GetSearchState(api.PageGuests); vmState != nil && vmState.HasActiveVMFilter() {
 			models.FilterVMs(vmState.Filter)
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 		} else {
@@ -224,7 +224,7 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 
 			// Apply VM filter if active
 			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
-			if vmSearchState != nil && vmSearchState.Filter != "" {
+			if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 				models.FilterVMs(vmSearchState.Filter)
 				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 			} else {

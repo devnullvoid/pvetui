@@ -1,6 +1,7 @@
 package onboarding
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,4 +55,25 @@ func TestResolveOnboardingTarget(t *testing.T) {
 			t.Fatalf("expected target path %q, got %q", path, target.path)
 		}
 	})
+}
+
+func TestIsKeyBindingValidationError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "keybinding validation error", err: errors.New("key binding global_menu uses reserved key Escape"), want: true},
+		{name: "other validation error", err: errors.New("address is required"), want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isKeyBindingValidationError(tc.err)
+			if got != tc.want {
+				t.Fatalf("isKeyBindingValidationError() = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }

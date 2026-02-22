@@ -103,7 +103,7 @@ func (a *App) refreshVMData(vm *api.VM) {
 			}
 
 			// Reapply filter if one is active
-			if vmSearchState != nil && vmSearchState.Filter != "" {
+			if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 				models.FilterVMs(vmSearchState.Filter)
 			}
 
@@ -217,7 +217,7 @@ func (a *App) refreshVMDataAndTasks(vm *api.VM) {
 			}
 
 			// Reapply filter if one is active
-			if vmSearchState != nil && vmSearchState.Filter != "" {
+			if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 				models.FilterVMs(vmSearchState.Filter)
 			}
 

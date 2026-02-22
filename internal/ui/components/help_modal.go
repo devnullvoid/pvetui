@@ -56,6 +56,11 @@ func NewHelpModal(keys config.KeyBindings) *HelpModal {
 
 // buildHelpText constructs the formatted and aligned help text.
 func buildHelpText(keys config.KeyBindings) string {
+	globalMenuBinding := "Esc"
+	if strings.TrimSpace(keys.GlobalMenu) != "" {
+		globalMenuBinding = fmt.Sprintf("Esc / %s", keys.GlobalMenu)
+	}
+
 	// Define all help items in sections for clarity
 	items := []struct {
 		Cat, Key, Desc string
@@ -66,24 +71,31 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.NodesPage, Desc: "Switch to Nodes tab"},
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
-		{Key: "Tab / Shift+Tab", Desc: "Switch focus between Tasks page panels"},
+		{Key: "gg / G", Desc: "Jump to top/bottom in focused list"},
+		{Key: "Tab / Shift+Tab", Desc: "Switch focus between fields and panels"},
 		{Cat: ""}, // Spacer
 		{Cat: "[warning]Actions[-]"},
 		{Key: keys.Search, Desc: "Search/Filter current list"},
-		{Key: keys.Shell, Desc: "Open SSH shell (node/guest)"},
-		{Key: keys.VNC, Desc: "Open VNC console (node/guest)"},
 		{Key: keys.Menu, Desc: "Open context menu"},
-		{Key: keys.GlobalMenu, Desc: "Open global menu"},
+		{Key: globalMenuBinding, Desc: "Open global menu"},
 		{Key: keys.Refresh, Desc: "Manual refresh"},
 		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},
-		{Key: "v (Tasks page)", Desc: "Toggle active queue panel visibility"},
 		{Key: keys.Quit, Desc: "Quit application"},
+		{Cat: ""},
+		{Cat: "[warning]Nodes/Guests Page[-]"},
+		{Key: keys.Shell, Desc: "Open SSH shell (when on Nodes/Guests page)"},
+		{Key: keys.VNC, Desc: "Open VNC shell/console (when on Nodes/Guests page)"},
+		{Key: keys.AdvancedGuestFilter, Desc: "Advanced guest filter modal (Guests page)"},
+		{Cat: ""},
+		{Cat: "[warning]Tasks Page[-]"},
+		{Key: keys.TasksToggleQueue, Desc: "Toggle active queue panel visibility"},
+		{Key: fmt.Sprintf("%s (Active queue)", keys.TaskStopCancel), Desc: "Cancel queued task / stop running task"},
 		{Cat: ""},
 		{Cat: "[warning]Tips & Usage[-]"},
 		{Desc: fmt.Sprintf("• Use search ([primary]%s[-]) to quickly find nodes or guests.", keys.Search)},
 		{Desc: fmt.Sprintf("• The context menu ([primary]%s[-]) provides quick access to actions.", keys.Menu)},
 		{Desc: "• Press [primary]Esc[-] to open the global menu for app-wide actions."},
-		{Desc: "• The 'g' key is still available for global menu if configured in key_bindings."},
+		{Desc: "• When focused in Nodes/Guests/Tasks lists, use [primary]gg[-]/[primary]G[-] for top/bottom navigation."},
 		{Desc: "• VNC opens in your default web browser."},
 		{Desc: "• SSH sessions suspend the UI until the session is closed."},
 	}
@@ -104,12 +116,12 @@ func buildHelpText(keys config.KeyBindings) string {
 
 	for _, item := range items {
 		if item.Cat != "" {
-			builder.WriteString(fmt.Sprintf("%s\n", item.Cat))
+			fmt.Fprintf(&builder, "%s\n", item.Cat)
 		} else if item.Key != "" {
 			padding := maxKeyWidth - tview.TaggedStringWidth(item.Key)
-			builder.WriteString(fmt.Sprintf("  [primary]%-s%s[-]  %s\n", item.Key, strings.Repeat(" ", padding), item.Desc))
+			fmt.Fprintf(&builder, "  [primary]%-s%s[-]  %s\n", item.Key, strings.Repeat(" ", padding), item.Desc)
 		} else if item.Desc != "" {
-			builder.WriteString(fmt.Sprintf("  %s\n", item.Desc))
+			fmt.Fprintf(&builder, "  %s\n", item.Desc)
 		} else {
 			builder.WriteString("\n")
 		}
@@ -117,7 +129,7 @@ func buildHelpText(keys config.KeyBindings) string {
 
 	// Add the final footer text
 	builder.WriteString("\n")
-	builder.WriteString(fmt.Sprintf("[info]Press [primary]%s[-][info] again, [primary]Escape[-][info], or [primary]%s[-][info] to exit this help[-]", strings.ToLower(keys.Help), strings.ToLower(keys.Quit)))
+	fmt.Fprintf(&builder, "[info]Press [primary]%s[-][info] again, [primary]Escape[-][info], or [primary]%s[-][info] to exit this help[-]", strings.ToLower(keys.Help), strings.ToLower(keys.Quit))
 
 	return theme.ReplaceSemanticTags(builder.String())
 }

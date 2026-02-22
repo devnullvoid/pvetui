@@ -51,7 +51,27 @@ func (vl *VMList) SetApp(app *App) {
 	vl.app = app
 
 	// Set up input capture for arrow keys and VI-like navigation (hjkl)
-	vl.SetInputCapture(createNavigationInputCapture(vl.app, nil, vl.app.vmDetails))
+	navigationCapture := createNavigationInputCapture(vl.app, nil, vl.app.vmDetails)
+	var pendingG bool
+	vl.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if handleVimTopBottomRune(event, &pendingG, func() {
+			jumpListTop(vl.List)
+		}, func() {
+			jumpListBottom(vl.List)
+		}) {
+			return nil
+		}
+		if event.Key() == tcell.KeyRune && event.Rune() == ' ' {
+			if vm := vl.GetSelectedVM(); vm != nil && vl.app != nil {
+				vl.app.toggleGuestSelection(vm)
+				vl.SetVMs(vl.vms)
+			}
+
+			return nil
+		}
+
+		return navigationCapture(event)
+	})
 }
 
 // SetVMs updates the list with the provided VMs.
@@ -91,6 +111,9 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 
 	// Update the internal vms slice to match the sorted order
 	vl.vms = sortedVMs
+	if vl.app != nil {
+		vl.app.reconcileGuestSelection(sortedVMs)
+	}
 
 	for _, vm := range sortedVMs {
 		if vm != nil {
@@ -115,6 +138,11 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 
 			// Format the VM name with ID
 			vmText := fmt.Sprintf("%d - %s", vm.ID, vm.Name)
+			if vl.app != nil && vl.app.isGuestSelected(vm) {
+				vmText = "◉ " + vmText
+			} else {
+				vmText = "○ " + vmText
+			}
 
 			// Apply color formatting and pending state
 			var mainText string
@@ -159,6 +187,11 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 	}
 	if restoreIdx >= 0 {
 		vl.List.SetCurrentItem(restoreIdx)
+	}
+	if vl.app != nil && vl.app.guestSelectionCount() > 0 {
+		vl.SetTitle(fmt.Sprintf(" Guests (%d selected) ", vl.app.guestSelectionCount()))
+	} else {
+		vl.SetTitle(" Guests ")
 	}
 	vl.suppressCallbacks = false
 }

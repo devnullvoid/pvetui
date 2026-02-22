@@ -66,6 +66,8 @@ type App struct {
 	pluginCatalog  []PluginInfo
 
 	hotkeyOverride func(*tcell.EventKey) *tcell.EventKey
+
+	guestSelections map[string]struct{}
 }
 
 // removePageIfPresent removes a page by name if it exists, ignoring errors.
@@ -106,6 +108,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		plugins:            make(map[string]Plugin),
 		pluginRegistry:     newPluginRegistry(),
 		poller:             poller,
+		guestSelections:    make(map[string]struct{}),
 	}
 
 	uiLogger.Debug("Initializing UI components")
@@ -219,7 +222,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 
 				// Check if there's an active search filter and apply it
 				vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
-				if vmSearchState != nil && vmSearchState.Filter != "" {
+				if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 					// Apply existing filter to the enriched data
 					models.FilterVMs(vmSearchState.Filter)
 					app.vmList.SetVMs(models.GlobalState.FilteredVMs)

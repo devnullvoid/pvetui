@@ -542,12 +542,12 @@ func formatProfileAndGroupList(cfg *config.Config, selectedProfile string) strin
 				realm = "-"
 			}
 
-			out.WriteString(fmt.Sprintf("%s %s\n", marker, name))
-			out.WriteString(fmt.Sprintf("    addr: %s\n", valueOrDash(p.Addr)))
-			out.WriteString(fmt.Sprintf("    user: %s\n", valueOrDash(p.User)))
-			out.WriteString(fmt.Sprintf("    realm: %s\n", realm))
-			out.WriteString(fmt.Sprintf("    auth: %s\n", auth))
-			out.WriteString(fmt.Sprintf("    groups: %s\n", groups))
+			fmt.Fprintf(&out, "%s %s\n", marker, name)
+			fmt.Fprintf(&out, "    addr: %s\n", valueOrDash(p.Addr))
+			fmt.Fprintf(&out, "    user: %s\n", valueOrDash(p.User))
+			fmt.Fprintf(&out, "    realm: %s\n", realm)
+			fmt.Fprintf(&out, "    auth: %s\n", auth)
+			fmt.Fprintf(&out, "    groups: %s\n", groups)
 		}
 	}
 
@@ -569,8 +569,8 @@ func formatProfileAndGroupList(cfg *config.Config, selectedProfile string) strin
 			}
 
 			members := groups[groupName]
-			out.WriteString(fmt.Sprintf("%s %s (%d profiles)\n", marker, groupName, len(members)))
-			out.WriteString(fmt.Sprintf("    members: %s\n", strings.Join(members, ", ")))
+			fmt.Fprintf(&out, "%s %s (%d profiles)\n", marker, groupName, len(members))
+			fmt.Fprintf(&out, "    members: %s\n", strings.Join(members, ", "))
 		}
 	}
 

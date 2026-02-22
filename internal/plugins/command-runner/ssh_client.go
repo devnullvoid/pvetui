@@ -16,12 +16,12 @@ import (
 
 // SSHClientImpl implements SSH command execution using Go's crypto/ssh library
 type SSHClientImpl struct {
-	username string
-	password string
-	keyPath  string
-	timeout  time.Duration
-	port     int
-	jumpHost JumpHostConfig
+	username  string
+	authValue string
+	keyPath   string
+	timeout   time.Duration
+	port      int
+	jumpHost  JumpHostConfig
 }
 
 func crSSHLogger() interfaces.Logger {
@@ -30,12 +30,12 @@ func crSSHLogger() interfaces.Logger {
 
 // SSHClientConfig holds configuration for SSH connections
 type SSHClientConfig struct {
-	Username string
-	Password string
-	KeyPath  string
-	Timeout  time.Duration
-	Port     int
-	JumpHost JumpHostConfig
+	Username  string
+	AuthValue string
+	KeyPath   string
+	Timeout   time.Duration
+	Port      int
+	JumpHost  JumpHostConfig
 }
 
 // JumpHostConfig holds SSH jump host configuration.
@@ -56,12 +56,12 @@ func NewSSHClient(config SSHClientConfig) *SSHClientImpl {
 	}
 
 	return &SSHClientImpl{
-		username: config.Username,
-		password: config.Password,
-		keyPath:  config.KeyPath,
-		timeout:  config.Timeout,
-		port:     config.Port,
-		jumpHost: config.JumpHost,
+		username:  config.Username,
+		authValue: config.AuthValue,
+		keyPath:   config.KeyPath,
+		timeout:   config.Timeout,
+		port:      config.Port,
+		jumpHost:  config.JumpHost,
 	}
 }
 
@@ -119,7 +119,7 @@ func (c *SSHClientImpl) ExecuteCommand(ctx context.Context, host, command string
 	return stdout.String(), nil
 }
 
-func (c *SSHClientImpl) buildClientConfig(user, password, keyPath string) (*ssh.ClientConfig, error) {
+func (c *SSHClientImpl) buildClientConfig(user, authValue, keyPath string) (*ssh.ClientConfig, error) {
 	config := &ssh.ClientConfig{
 		User: user,
 		// nolint:gosec // G106: InsecureIgnoreHostKey is acceptable for initial implementation
@@ -132,8 +132,8 @@ func (c *SSHClientImpl) buildClientConfig(user, password, keyPath string) (*ssh.
 		config.Auth = append(config.Auth, ssh.PublicKeys(signers...))
 	}
 
-	if password != "" {
-		config.Auth = append(config.Auth, ssh.Password(password))
+	if authValue != "" {
+		config.Auth = append(config.Auth, ssh.Password(authValue))
 	}
 
 	if len(config.Auth) == 0 {
@@ -144,7 +144,7 @@ func (c *SSHClientImpl) buildClientConfig(user, password, keyPath string) (*ssh.
 }
 
 func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
-	targetConfig, err := c.buildClientConfig(c.username, c.password, c.keyPath)
+	targetConfig, err := c.buildClientConfig(c.username, c.authValue, c.keyPath)
 	if err != nil {
 		return nil, nil, err
 	}

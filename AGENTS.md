@@ -282,7 +282,12 @@ Key architectural decisions and rationale:
 - **TaskManager/UI notify path**: If a background manager notifies UI code that uses `QueueUpdateDraw`, dispatch the notifier asynchronously (e.g. `go notify()`) to avoid blocking UI event handlers.
 - **Pre-PR deadlock scan**: Before merging UI changes, scan for risky call sites with `rg -n "QueueUpdateDraw|SetDoneFunc|SetInputCapture" internal/ui/components internal/taskmanager` and verify no nested `QueueUpdateDraw` chains were introduced.
 - **Pending state and refreshes**: Always clear pending state BEFORE calling refresh functions (`manualRefresh`, `refreshVMData`), as these functions check for pending operations and will block if any exist
+- **Guest advanced filter persistence**: When checking whether Guests filters are active, use `SearchState.HasActiveVMFilter()` (not only `SearchState.Filter != ""`) so structured filters (status/type/node/tag) persist across manual refresh, auto-refresh, and VM refresh paths.
 - **Header loading animation**: Multiple overlapping `ShowLoading` calls can spawn concurrent animations and make the spinner appear too fast; ensure loading state is serialized (single animation, cancelable ticker).
+- **Context menu anchoring**: Anchor node/guest context menus to their source list primitives (`nodeList`/`vmList`), not the currently focused pane; focus can be in details and produce inconsistent placement.
+- **Context menu geometry**: Compute/clamp modal placement against the `pages` container rect (not `mainLayout`) to avoid low/clipped menus on smaller terminals.
+- **Keybind unsetting semantics**: Treat empty string keybinds (for example `global_menu: ""`) as explicit unbinds; do not silently reapply default keys.
+- **Back navigation consistency**: For non-input views, support both `Esc` and `Backspace` for back navigation; avoid adding `Backspace` handlers on input-focused views where it must remain text editing.
 
 ## Troubleshooting
 
@@ -320,6 +325,28 @@ Key architectural decisions and rationale:
 2. Ensure UI callbacks do not perform blocking work; move long-running work into goroutines.
 3. If a manager/background worker triggers UI refreshes, call notifier callbacks asynchronously (`go notify()`), then use `QueueUpdateDraw` inside the notifier.
 4. Re-run `make test-quick` after the fix and manually verify the action flow that froze.
+
+### Context Menu Positioned Incorrectly
+
+**Symptoms:** Context menu appears too low/clipped, or appears on the right when opened while details pane has focus
+
+**Root cause:** Menu placement anchored to current focus instead of source list, or placement math using the wrong container rect
+
+**Fix:**
+1. Ensure node menus pass `a.nodeList` and guest menus pass `a.vmList` as explicit anchors.
+2. Keep global menu centered; only context menus should use anchored placement.
+3. Calculate and clamp coordinates using the `pages` rect, then verify on smaller terminal sizes.
+
+### Keybinding Validation and Back Navigation Confusion
+
+**Symptoms:** Startup keybinding error suggests interactive editor for keybind issues, or back keys behave inconsistently across screens
+
+**Root cause:** Messaging assumes editor can fix keybinds; navigation handlers diverge across non-input views
+
+**Fix:**
+1. For keybinding validation errors, direct users to manual config edits (interactive editor does not edit keybinds).
+2. Keep `Esc` as the reserved global fallback.
+3. Standardize non-input "back" handling to accept both `Esc` and `Backspace`.
 
 ### Test Timeouts
 

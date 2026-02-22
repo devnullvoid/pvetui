@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
@@ -64,7 +65,6 @@ const (
 func NewTasksList() *TasksList {
 	activeTable := tview.NewTable()
 	activeTable.SetBorders(false)
-	activeTable.SetTitle(" Active Operations [v:toggle] ")
 	activeTable.SetBorder(true)
 	activeTable.SetSelectable(true, false)
 	activeTable.SetFixed(1, 0)
@@ -88,6 +88,7 @@ func NewTasksList() *TasksList {
 		tasks:        make([]*api.ClusterTask, 0),
 	}
 
+	tl.updateActiveTableTitle()
 	tl.setupKeyHandlers()
 	tl.syncLayout()
 
@@ -97,6 +98,7 @@ func NewTasksList() *TasksList {
 // SetApp sets the application reference.
 func (tl *TasksList) SetApp(app *App) {
 	tl.app = app
+	tl.updateActiveTableTitle()
 }
 
 // SetTasks updates the tasks list with new data.
@@ -232,7 +234,6 @@ func (tl *TasksList) Refresh() {
 			SetExpansion(1))
 	}
 
-	tl.syncLayout()
 }
 
 // updateHistoryTable refreshes the history table content.
@@ -344,7 +345,18 @@ func (tl *TasksList) updateHistoryTable() {
 
 // setupKeyHandlers configures vi-style navigation.
 func (tl *TasksList) setupKeyHandlers() {
+	var historyPendingG bool
+	var activePendingG bool
+
 	handler := func(event *tcell.EventKey) *tcell.EventKey {
+		if handleVimTopBottomRune(event, &historyPendingG, func() {
+			jumpTableTop(tl.historyTable)
+		}, func() {
+			jumpTableBottom(tl.historyTable)
+		}) {
+			return nil
+		}
+
 		switch event.Key() {
 		case tcell.KeyTab:
 			if tl.showActive {
@@ -362,10 +374,11 @@ func (tl *TasksList) setupKeyHandlers() {
 				return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
 			case 'k':
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-			case 'v':
-				tl.toggleActiveQueueVisibility()
-				return nil
 			}
+		}
+		if keyMatch(event, tl.tasksToggleQueueKeySpec()) {
+			tl.toggleActiveQueueVisibility()
+			return nil
 		}
 		return event
 	}
@@ -373,44 +386,80 @@ func (tl *TasksList) setupKeyHandlers() {
 	tl.historyTable.SetInputCapture(handler)
 
 	tl.activeTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyRune {
-			switch event.Rune() {
-			case 'v':
-				tl.toggleActiveQueueVisibility()
-				return nil
-			case 'x', 's':
-				// Stop task
-				row, _ := tl.activeTable.GetSelection()
-				if row > 0 {
-					cell := tl.activeTable.GetCell(row, 0)
-					if ref := cell.GetReference(); ref != nil {
-						if task, ok := ref.(*taskmanager.Task); ok {
-							if tl.app != nil {
-								tl.app.showConfirmationDialog(
-									fmt.Sprintf("Stop/Cancel task '%s'?", task.Description),
-									func() {
-										go func() {
-											if err := tl.app.TaskManager().CancelTask(task.ID); err != nil {
-												tl.app.QueueUpdateDraw(func() {
-													tl.app.header.ShowError(fmt.Sprintf("Failed to stop task: %v", err))
-												})
-											} else {
-												tl.app.QueueUpdateDraw(func() {
-													tl.app.header.ShowSuccess("Task stop requested")
-												})
-											}
-										}()
-									},
-								)
+		if handleVimTopBottomRune(event, &activePendingG, func() {
+			jumpTableTop(tl.activeTable)
+		}, func() {
+			jumpTableBottom(tl.activeTable)
+		}) {
+			return nil
+		}
+
+		if keyMatch(event, tl.tasksToggleQueueKeySpec()) {
+			tl.toggleActiveQueueVisibility()
+			return nil
+		}
+		if keyMatch(event, tl.taskStopCancelKeySpec()) {
+			// Stop task
+			row, _ := tl.activeTable.GetSelection()
+			if row > 0 {
+				cell := tl.activeTable.GetCell(row, 0)
+				if ref := cell.GetReference(); ref != nil {
+					if task, ok := ref.(*taskmanager.Task); ok {
+						if tl.app != nil {
+							actionLabel := "Stop"
+							successMessage := "Task stop requested"
+							if task.Status == taskmanager.StatusQueued {
+								actionLabel = "Cancel"
+								successMessage = "Queued task cancelled"
 							}
+							tl.app.showConfirmationDialog(
+								fmt.Sprintf("%s task '%s'?", actionLabel, task.Description),
+								func() {
+									go func() {
+										if err := tl.app.TaskManager().CancelTask(task.ID); err != nil {
+											tl.app.QueueUpdateDraw(func() {
+												tl.app.header.ShowError(fmt.Sprintf("Failed to stop task: %v", err))
+											})
+										} else {
+											tl.app.QueueUpdateDraw(func() {
+												tl.app.header.ShowSuccess(successMessage)
+											})
+										}
+									}()
+								},
+							)
 						}
 					}
 				}
-				return nil
 			}
+			return nil
 		}
 		return handler(event)
 	})
+}
+
+func (tl *TasksList) tasksToggleQueueKeySpec() string {
+	if tl.app != nil && tl.app.config.KeyBindings.TasksToggleQueue != "" {
+		return tl.app.config.KeyBindings.TasksToggleQueue
+	}
+
+	return config.DefaultKeyBindings().TasksToggleQueue
+}
+
+func (tl *TasksList) taskStopCancelKeySpec() string {
+	if tl.app != nil && tl.app.config.KeyBindings.TaskStopCancel != "" {
+		return tl.app.config.KeyBindings.TaskStopCancel
+	}
+
+	return config.DefaultKeyBindings().TaskStopCancel
+}
+
+func (tl *TasksList) updateActiveTableTitle() {
+	tl.activeTable.SetTitle(fmt.Sprintf(
+		" Active Operations [%s:toggle] [%s:stop-cancel] ",
+		tl.tasksToggleQueueKeySpec(),
+		tl.taskStopCancelKeySpec(),
+	))
 }
 
 func (tl *TasksList) toggleActiveQueueVisibility() {
@@ -436,10 +485,12 @@ func (tl *TasksList) focusOtherPane() {
 		return
 	}
 
-	if tl.app.GetFocus() == tl.activeTable {
+	current := tl.app.GetFocus()
+	if current == tl.activeTable {
 		tl.app.SetFocus(tl.historyTable)
 		return
 	}
-
-	tl.app.SetFocus(tl.activeTable)
+	if current == tl.historyTable {
+		tl.app.SetFocus(tl.activeTable)
+	}
 }

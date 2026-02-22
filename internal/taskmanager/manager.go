@@ -2,6 +2,7 @@ package taskmanager
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -54,9 +55,12 @@ type TaskManager struct {
 	activeTasks    map[string]*Task   // Key: node/vmid
 	clientResolver ClientResolver
 	updateNotify   func()
+	maxRunning     int
 
 	stopChan chan struct{}
 }
+
+const defaultMaxRunningTasks = 3
 
 func cloneTask(task *Task) *Task {
 	if task == nil {
@@ -68,11 +72,20 @@ func cloneTask(task *Task) *Task {
 }
 
 func NewTaskManager(clientResolver ClientResolver, updateNotify func()) *TaskManager {
+	return NewTaskManagerWithMaxRunning(clientResolver, updateNotify, defaultMaxRunningTasks)
+}
+
+func NewTaskManagerWithMaxRunning(clientResolver ClientResolver, updateNotify func(), maxRunning int) *TaskManager {
+	if maxRunning < 1 {
+		maxRunning = defaultMaxRunningTasks
+	}
+
 	return &TaskManager{
 		queue:          make(map[string][]*Task),
 		activeTasks:    make(map[string]*Task),
 		clientResolver: clientResolver,
 		updateNotify:   updateNotify,
+		maxRunning:     maxRunning,
 		stopChan:       make(chan struct{}),
 	}
 }
@@ -86,9 +99,9 @@ func (tm *TaskManager) Enqueue(task *Task) {
 		return
 	}
 
-	tm.mu.Lock()
-	defer tm.mu.Unlock()
+	var startTask *Task
 
+	tm.mu.Lock()
 	if task.ID == "" {
 		task.ID = uuid.New().String()
 	}
@@ -102,13 +115,18 @@ func (tm *TaskManager) Enqueue(task *Task) {
 	key := taskKey(internalTask.TargetNode, internalTask.TargetVMID)
 
 	// Check if there is an active task for this VM on this node
-	if _, active := tm.activeTasks[key]; !active {
+	if _, active := tm.activeTasks[key]; !active && len(tm.activeTasks) < tm.maxRunning {
 		// No active task, start immediately
 		tm.activeTasks[key] = internalTask
-		go tm.runTask(internalTask)
+		startTask = internalTask
 	} else {
 		// Active task exists, append to queue
 		tm.queue[key] = append(tm.queue[key], internalTask)
+	}
+	tm.mu.Unlock()
+
+	if startTask != nil {
+		go tm.runTask(startTask)
 	}
 
 	if tm.updateNotify != nil {
@@ -198,18 +216,8 @@ func (tm *TaskManager) completeTask(task *Task, status TaskStatus, err error) {
 	// Remove from active
 	delete(tm.activeTasks, key)
 
-	// Check queue for next task
-	var nextTask *Task
-	if queue, ok := tm.queue[key]; ok && len(queue) > 0 {
-		nextTask = queue[0]
-		tm.queue[key] = queue[1:]
-		if len(tm.queue[key]) == 0 {
-			delete(tm.queue, key)
-		}
-
-		// Set as active
-		tm.activeTasks[key] = nextTask
-	}
+	// Check queue for next task, respecting max running task cap.
+	nextTask := tm.dequeueNextStartableLocked(key)
 	tm.mu.Unlock()
 
 	if task.OnComplete != nil {
@@ -223,6 +231,53 @@ func (tm *TaskManager) completeTask(task *Task, status TaskStatus, err error) {
 	if nextTask != nil {
 		go tm.runTask(nextTask)
 	}
+}
+
+func (tm *TaskManager) dequeueNextStartableLocked(preferredKey string) *Task {
+	if len(tm.activeTasks) >= tm.maxRunning {
+		return nil
+	}
+
+	tryStartForKey := func(key string) *Task {
+		if _, active := tm.activeTasks[key]; active {
+			return nil
+		}
+		queue := tm.queue[key]
+		if len(queue) == 0 {
+			return nil
+		}
+
+		next := queue[0]
+		tm.queue[key] = queue[1:]
+		if len(tm.queue[key]) == 0 {
+			delete(tm.queue, key)
+		}
+		tm.activeTasks[key] = next
+		return next
+	}
+
+	if preferredKey != "" {
+		if next := tryStartForKey(preferredKey); next != nil {
+			return next
+		}
+	}
+
+	keys := make([]string, 0, len(tm.queue))
+	for key := range tm.queue {
+		if key == preferredKey {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		if next := tryStartForKey(key); next != nil {
+			return next
+		}
+	}
+
+	return nil
 }
 
 func (tm *TaskManager) CancelTask(taskID string) error {

@@ -74,7 +74,8 @@ func main() {
 
 	// Generic Fallback
 	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		log.Printf("%s %s", req.Method, req.URL.Path)
+		// #nosec G706 -- mock API logging only; values are quoted to avoid control-character injection in logs.
+		log.Printf("%q %q", req.Method, req.URL.Path)
 
 		route, _, err := router.FindRoute(req)
 		if err != nil {

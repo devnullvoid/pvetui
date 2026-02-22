@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -35,6 +37,11 @@ const (
 	ScriptListCacheKey   = "github_script_list"
 	ScriptCacheKeyPrefix = "github_script_"
 )
+
+var allowedGitHubHosts = map[string]struct{}{
+	"api.github.com":            {},
+	"raw.githubusercontent.com": {},
+}
 
 // ScriptCategory represents a category of Proxmox scripts.
 type ScriptCategory struct {
@@ -96,6 +103,32 @@ func getPluginCache() cache.Cache {
 	return pluginCache
 }
 
+func validateGitHubURL(rawURL string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+
+	if parsed.Scheme != "https" {
+		return "", fmt.Errorf("unsupported URL scheme %q", parsed.Scheme)
+	}
+
+	host := parsed.Hostname()
+	if host == "" {
+		return "", fmt.Errorf("missing URL host")
+	}
+
+	if _, ok := allowedGitHubHosts[strings.ToLower(host)]; !ok {
+		return "", fmt.Errorf("unsupported GitHub host %q", host)
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		return "", fmt.Errorf("IP hosts are not allowed")
+	}
+
+	return parsed.String(), nil
+}
+
 // GetScriptCategories returns the available script categories.
 func GetScriptCategories() []ScriptCategory {
 	return []ScriptCategory{
@@ -144,10 +177,14 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 	}
 
 	// The GitHub API URL for the JSON metadata directory
-	url := GitHubAPIRepo + "/contents/frontend/public/json"
+	endpoint := GitHubAPIRepo + "/contents/frontend/public/json"
+	endpoint, err = validateGitHubURL(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("invalid metadata list endpoint: %w", err)
+	}
 
 	// Create a new request with GitHub API headers
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -157,7 +194,7 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 
 	// Execute the request
 	client := &http.Client{}
-
+	// #nosec G704 -- request URL is validated by validateGitHubURL and restricted to trusted GitHub hosts.
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch script metadata list: %w", err)
@@ -234,6 +271,11 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 		return &cachedScript, nil
 	}
 
+	metadataURL, err = validateGitHubURL(metadataURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid metadata URL: %w", err)
+	}
+
 	// Create a new request with GitHub API headers
 	req, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {
@@ -245,7 +287,7 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 
 	// Execute the request
 	client := &http.Client{}
-
+	// #nosec G704 -- request URL is validated by validateGitHubURL and restricted to trusted GitHub hosts.
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch script metadata: %w", err)
@@ -425,6 +467,14 @@ func validateScriptPath(scriptPath string) error {
 	return nil
 }
 
+func shellSingleQuote(s string) string {
+	return strings.ReplaceAll(s, "'", `'"'"'`)
+}
+
+func wrapRemoteCommandWithBash(cmd string) string {
+	return fmt.Sprintf("/bin/bash -lc '%s'", shellSingleQuote(cmd))
+}
+
 // InstallScript installs a script on a Proxmox node.
 // Returns the remote exit code (0 on success) and any error encountered.
 // When skipWait is true, it will not prompt/await Enter after completion.
@@ -444,6 +494,7 @@ func InstallScript(user, nodeIP, scriptPath string, skipWait bool) (int, error) 
 	if !strings.EqualFold(user, "root") {
 		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c '%s'; else su - root -c '%s'; fi", installCmd, installCmd)
 	}
+	remoteCmd = wrapRemoteCommandWithBash(remoteCmd)
 	getScriptsLogger().Debug("community-script install via SSH: user=%s host=%s cmd=%s", user, nodeIP, remoteCmd)
 
 	// Use SSH to run the script installation command interactively with proper terminal environment
@@ -500,6 +551,7 @@ func InstallScriptInLXC(user, nodeIP string, vmid int, scriptPath string, skipWa
 	if !strings.EqualFold(user, "root") {
 		pctCmd = "sudo " + pctCmd
 	}
+	pctCmd = wrapRemoteCommandWithBash(pctCmd)
 
 	// #nosec G204 -- command arguments are constructed from validated paths and vmid.
 	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), pctCmd)
