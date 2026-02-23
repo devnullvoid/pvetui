@@ -2,7 +2,9 @@ package components
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,11 +36,19 @@ type editableNetworkConfig struct {
 	Bridge      string
 	VLAN        string
 	Rate        string
+	IPMode      string
+	IPModeSet   bool
 	IP          string
 	Gateway     string
 	Firewall    bool
+	FirewallSet bool
 	ExtraRawCSV string
 }
+
+const (
+	ipModeDHCP   = "dhcp"
+	ipModeStatic = "static"
+)
 
 // NewVMConfigPage creates a new config editor for the given VM.
 func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*api.VMConfig) error) *VMConfigPage {
@@ -201,7 +211,8 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 
 			app.QueueUpdateDraw(func() {
 				if err != nil {
-					app.header.ShowError(fmt.Sprintf("Failed to save config: %v", err))
+					models.GetUILogger().Error("Config save failed for %s %d: %v", vm.Type, vm.ID, err)
+					app.header.ShowError(summarizeConfigSaveError(err))
 				} else {
 					app.header.ShowSuccess("Configuration updated successfully.")
 
@@ -342,6 +353,51 @@ func normalizeTags(raw string) string {
 	return strings.Join(cleaned, ";")
 }
 
+func summarizeConfigSaveError(err error) string {
+	if err == nil {
+		return "Failed to save config"
+	}
+
+	msg := err.Error()
+	lowerMsg := strings.ToLower(msg)
+	if strings.Contains(lowerMsg, "parameter verification failed") {
+		detail := extractProxmoxErrorDetail(msg)
+		if detail != "" {
+			return fmt.Sprintf("Failed to save config: %s", detail)
+		}
+	}
+
+	return fmt.Sprintf("Failed to save config: %s", msg)
+}
+
+func extractProxmoxErrorDetail(raw string) string {
+	jsonStart := strings.Index(raw, "{")
+	if jsonStart >= 0 {
+		var body struct {
+			Message string      `json:"message"`
+			Errors  interface{} `json:"errors"`
+			Data    interface{} `json:"data"`
+		}
+		if err := json.Unmarshal([]byte(raw[jsonStart:]), &body); err == nil {
+			if strings.TrimSpace(body.Message) != "" {
+				return strings.TrimSpace(body.Message)
+			}
+			if body.Errors != nil {
+				return fmt.Sprintf("parameter verification failed: %v", body.Errors)
+			}
+			if body.Data != nil {
+				return fmt.Sprintf("parameter verification failed: %v", body.Data)
+			}
+		}
+	}
+
+	if idx := strings.Index(strings.ToLower(raw), "parameter verification failed"); idx >= 0 {
+		return strings.TrimSpace(raw[idx:])
+	}
+
+	return ""
+}
+
 func parseEditableNetworkConfig(vmType, raw string) editableNetworkConfig {
 	cfg := editableNetworkConfig{}
 	parts := strings.Split(raw, ",")
@@ -370,10 +426,18 @@ func parseEditableNetworkConfig(vmType, raw string) editableNetworkConfig {
 		case "rate":
 			cfg.Rate = value
 		case "ip":
-			cfg.IP = value
+			cfg.IPModeSet = true
+			if strings.EqualFold(value, ipModeDHCP) {
+				cfg.IPMode = ipModeDHCP
+				cfg.IP = ""
+			} else {
+				cfg.IPMode = ipModeStatic
+				cfg.IP = value
+			}
 		case "gw":
 			cfg.Gateway = value
 		case "firewall":
+			cfg.FirewallSet = true
 			cfg.Firewall = value == "1" || strings.EqualFold(value, "true")
 		case "name":
 			cfg.Name = value
@@ -391,6 +455,9 @@ func parseEditableNetworkConfig(vmType, raw string) editableNetworkConfig {
 	}
 
 	cfg.ExtraRawCSV = strings.Join(extras, ",")
+	if cfg.IPMode == "" && vmType == api.VMTypeLXC {
+		cfg.IPMode = ipModeDHCP
+	}
 
 	return cfg
 }
@@ -420,17 +487,28 @@ func buildEditableNetworkRaw(vmType string, cfg editableNetworkConfig) string {
 	if cfg.Rate != "" {
 		parts = append(parts, fmt.Sprintf("rate=%s", cfg.Rate))
 	}
-	if cfg.IP != "" {
+	if vmType == api.VMTypeLXC {
+		if strings.EqualFold(cfg.IPMode, ipModeStatic) {
+			if cfg.IP != "" {
+				parts = append(parts, fmt.Sprintf("ip=%s", cfg.IP))
+			}
+		} else if cfg.IPModeSet {
+			parts = append(parts, "ip=dhcp")
+		}
+	} else if cfg.IP != "" {
 		parts = append(parts, fmt.Sprintf("ip=%s", cfg.IP))
 	}
-	if cfg.Gateway != "" {
+
+	if cfg.Gateway != "" && !strings.EqualFold(cfg.IPMode, ipModeDHCP) {
 		parts = append(parts, fmt.Sprintf("gw=%s", cfg.Gateway))
 	}
 
-	if cfg.Firewall {
-		parts = append(parts, "firewall=1")
-	} else {
-		parts = append(parts, "firewall=0")
+	if cfg.FirewallSet {
+		if cfg.Firewall {
+			parts = append(parts, "firewall=1")
+		} else {
+			parts = append(parts, "firewall=0")
+		}
 	}
 
 	if trimmedExtra := strings.TrimSpace(cfg.ExtraRawCSV); trimmedExtra != "" {
@@ -473,6 +551,10 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 	for k, v := range config.NetworkInterfaces {
 		working[k] = v
 	}
+	originalWorking := make(map[string]string, len(config.NetworkInterfaces))
+	for k, v := range config.NetworkInterfaces {
+		originalWorking[k] = v
+	}
 
 	form := newStandardForm()
 	form.SetBorder(true)
@@ -495,7 +577,10 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 	form.AddInputField("Rate", "", 10, nil, nil)
 	if vm.Type == api.VMTypeLXC {
 		form.AddInputField("IP", "", 32, nil, nil)
+		form.AddDropDown("IP Assignment", []string{"DHCP", "Static"}, 0, nil)
 		form.AddInputField("Gateway", "", 32, nil, nil)
+		form.AddInputField("Nameserver", strings.TrimSpace(config.Nameserver), 48, nil, nil)
+		form.AddInputField("Search Domain", strings.TrimSpace(config.SearchDomain), 48, nil, nil)
 	}
 	form.AddCheckbox("Firewall", false, nil)
 	form.AddInputField("Extra (comma-separated)", "", 60, nil, nil)
@@ -544,6 +629,11 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 		mustInput("VLAN Tag").SetText(current.VLAN)
 		mustInput("Rate").SetText(current.Rate)
 		if vm.Type == api.VMTypeLXC {
+			if strings.EqualFold(current.IPMode, "static") {
+				mustDropdown("IP Assignment").SetCurrentOption(1)
+			} else {
+				mustDropdown("IP Assignment").SetCurrentOption(0)
+			}
 			mustInput("IP").SetText(current.IP)
 			mustInput("Gateway").SetText(current.Gateway)
 		}
@@ -599,6 +689,17 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 		current.Rate = strings.TrimSpace(text)
 	})
 	if vm.Type == api.VMTypeLXC {
+		mustDropdown("IP Assignment").SetSelectedFunc(func(option string, _ int) {
+			if suppress {
+				return
+			}
+			current.IPModeSet = true
+			if strings.EqualFold(option, "Static") {
+				current.IPMode = ipModeStatic
+			} else {
+				current.IPMode = ipModeDHCP
+			}
+		})
 		mustInput("IP").SetChangedFunc(func(text string) {
 			if suppress {
 				return
@@ -611,11 +712,24 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 			}
 			current.Gateway = strings.TrimSpace(text)
 		})
+		mustInput("Nameserver").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			config.Nameserver = strings.TrimSpace(text)
+		})
+		mustInput("Search Domain").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			config.SearchDomain = strings.TrimSpace(text)
+		})
 	}
 	mustCheckbox("Firewall").SetChangedFunc(func(checked bool) {
 		if suppress {
 			return
 		}
+		current.FirewallSet = true
 		current.Firewall = checked
 	})
 	mustInput("Extra (comma-separated)").SetChangedFunc(func(text string) {
@@ -626,7 +740,19 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 	})
 
 	form.AddButton("Apply", func() {
+		if vm.Type == api.VMTypeLXC && strings.EqualFold(current.IPMode, ipModeStatic) {
+			ipValue := strings.TrimSpace(current.IP)
+			if ipValue == "" {
+				app.showMessageSafe("IP/CIDR is required when IP Assignment is Static")
+				return
+			}
+			if !isValidLXCIPv4Config(ipValue) {
+				app.showMessageSafe("Invalid IP format. Use IPv4/CIDR (example: 192.168.99.24/24)")
+				return
+			}
+		}
 		saveCurrent()
+		config.NetworkInterfacesExplicit = !networkConfigMapsEqual(originalWorking, working)
 		config.NetworkInterfaces = working
 		app.removePageIfPresent("editNetworkConfig")
 		app.header.ShowSuccess("Updated network interface settings")
@@ -647,6 +773,33 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 	loadCurrent(currentKey)
 	app.pages.AddPage("editNetworkConfig", form, true, true)
 	app.SetFocus(form)
+}
+
+func networkConfigMapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidLXCIPv4Config(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+	if strings.EqualFold(trimmed, "manual") {
+		return true
+	}
+	prefix, err := netip.ParsePrefix(trimmed)
+	if err != nil {
+		return false
+	}
+	return prefix.Addr().Is4()
 }
 
 // showResizeStorageModal displays a modal for resizing a storage volume.
