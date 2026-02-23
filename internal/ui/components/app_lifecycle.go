@@ -15,6 +15,10 @@ func (a *App) Run() error {
 
 	defer func() {
 		a.stopAutoRefresh()
+		// Stop cluster health checks on exit
+		if a.clusterClient != nil {
+			a.clusterClient.Close()
+		}
 		a.cancel()
 	}()
 
@@ -37,12 +41,15 @@ func (a *App) Run() error {
 
 // updateHeaderWithActiveProfile updates the header to show the current active profile or group.
 func (a *App) updateHeaderWithActiveProfile() {
-	if a.isGroupMode {
-		// In group mode, show "Group: <name>"
+	if a.isClusterMode && a.clusterClient != nil {
+		// In cluster mode, show "Cluster: <name> (via <activeProfile>)"
+		activeProfile := a.clusterClient.GetActiveProfileName()
+		a.header.ShowActiveProfile(fmt.Sprintf("Cluster: %s (via %s)", a.groupName, activeProfile))
+	} else if a.isGroupMode {
+		// In aggregate group mode, show "Group: <name>"
 		a.header.ShowActiveProfile(fmt.Sprintf("Group: %s", a.groupName))
 	} else {
 		profileName := a.config.GetActiveProfile()
-
 		if profileName == "" {
 			a.header.ShowActiveProfile("")
 		} else {

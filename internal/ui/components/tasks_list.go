@@ -173,7 +173,6 @@ func (tl *TasksList) Refresh() {
 		tc := tview.NewTableCell(column.title).
 			SetTextColor(theme.Colors.HeaderText).
 			SetAlign(tview.AlignLeft).
-			SetSelectable(false).
 			SetExpansion(column.expansion)
 		tl.activeTable.SetCell(0, i, tc)
 	}
@@ -230,7 +229,6 @@ func (tl *TasksList) Refresh() {
 		tl.activeTable.SetCell(1, 0, tview.NewTableCell("No active operations").
 			SetTextColor(theme.Colors.Secondary).
 			SetAlign(tview.AlignCenter).
-			SetSelectable(false).
 			SetExpansion(1))
 	}
 
@@ -257,7 +255,6 @@ func (tl *TasksList) updateHistoryTable() {
 		tc := tview.NewTableCell(column.title).
 			SetTextColor(theme.Colors.HeaderText).
 			SetAlign(tview.AlignLeft).
-			SetSelectable(false).
 			SetExpansion(column.expansion)
 		tl.historyTable.SetCell(0, i, tc)
 	}
