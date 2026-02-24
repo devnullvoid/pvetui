@@ -14,6 +14,36 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
+func (a *App) deactivateGroupModes(uiLogger interface {
+	Debug(format string, args ...interface{})
+}) {
+	if a.isGroupMode {
+		uiLogger.Debug("Disabling group mode")
+		if a.groupManager != nil {
+			a.groupManager.Close()
+		}
+		a.groupManager = nil
+		a.isGroupMode = false
+	}
+
+	if a.isClusterMode {
+		uiLogger.Debug("Disabling cluster mode")
+		if a.clusterClient != nil {
+			a.clusterClient.Close()
+		}
+		a.clusterClient = nil
+		a.isClusterMode = false
+	}
+
+	if a.groupName != "" {
+		a.groupName = ""
+	}
+
+	if a.tasksList != nil {
+		a.tasksList.Clear()
+	}
+}
+
 // applyConnectionProfile applies the selected connection profile.
 func (a *App) applyConnectionProfile(profileName string) {
 	// Show loading indicator
@@ -59,18 +89,8 @@ func (a *App) applyConnectionProfile(profileName string) {
 			a.vncService.UpdateClient(client)
 		}
 
-		// Clear group mode state
-		if a.isGroupMode {
-			uiLogger.Debug("Disabling group mode")
-			if a.groupManager != nil {
-				a.groupManager.Close()
-			}
-			a.groupManager = nil
-			a.isGroupMode = false
-			a.groupName = ""
-			// Clear tasks list to remove group tasks
-			a.tasksList.Clear()
-		}
+		// Leaving either group mode must tear down mode-specific background state.
+		a.deactivateGroupModes(uiLogger)
 
 		a.QueueUpdateDraw(func() {
 			// Update the header to show the new active profile
@@ -89,15 +109,22 @@ func (a *App) applyConnectionProfile(profileName string) {
 	}()
 }
 
-// switchToGroup switches to a group cluster view.
+// switchToGroup switches to a group view (aggregate or cluster mode).
 func (a *App) switchToGroup(groupName string) {
-	// Show loading indicator
+	// Check if this is a cluster (HA failover) group
+	if a.config.IsClusterGroup(groupName) {
+		a.switchToClusterGroup(groupName)
+		return
+	}
+
+	// Show loading indicator (aggregate mode)
 	a.header.ShowLoading(fmt.Sprintf("Connecting to group '%s'...", groupName))
 
 	// Run group initialization in goroutine to avoid blocking UI
 	go func() {
 		uiLogger := models.GetUILogger()
 		uiLogger.Debug("Starting group switch to: %s", groupName)
+		a.deactivateGroupModes(uiLogger)
 
 		// Get profile names for this group
 		profileNames := a.config.GetProfileNamesInGroup(groupName)
@@ -264,6 +291,138 @@ func (a *App) switchToGroup(groupName string) {
 			uiLogger.Debug("Loading group tasks")
 			a.loadTasksData()
 		})
+	}()
+}
+
+// switchToClusterGroup switches to a cluster (HA failover) group.
+// Unlike aggregate mode which connects to ALL profiles, cluster mode connects
+// to ONE profile at a time and fails over to the next candidate if the active
+// node becomes unreachable. The app behaves as a normal single-profile connection.
+func (a *App) switchToClusterGroup(groupName string) {
+	// Show loading indicator
+	a.header.ShowLoading(fmt.Sprintf("Connecting to cluster '%s'...", groupName))
+
+	// Run cluster initialization in goroutine to avoid blocking UI
+	go func() {
+		uiLogger := models.GetUILogger()
+		uiLogger.Debug("Starting cluster group switch to: %s", groupName)
+		a.deactivateGroupModes(uiLogger)
+
+		// Get profile names for this group
+		profileNames := a.config.GetProfileNamesInGroup(groupName)
+		if len(profileNames) == 0 {
+			uiLogger.Error("No profiles found for cluster group %s", groupName)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("No profiles found for cluster group '%s'", groupName))
+			})
+			return
+		}
+
+		uiLogger.Debug("Found %d profiles in cluster group %s: %v", len(profileNames), groupName, profileNames)
+
+		// Create cluster client
+		cc := api.NewClusterClient(
+			groupName,
+			models.GetUILogger(),
+			a.client.GetCache(), // Use existing cache
+		)
+
+		// Build profile entries
+		var profiles []api.ProfileEntry
+		for _, name := range profileNames {
+			profile, exists := a.config.Profiles[name]
+			if !exists {
+				uiLogger.Debug("Profile %s not found in config, skipping", name)
+				continue
+			}
+
+			// Create a config object from the profile for the adapter
+			profileConfig := &config.Config{
+				Addr:        profile.Addr,
+				User:        profile.User,
+				Password:    profile.Password,
+				TokenID:     profile.TokenID,
+				TokenSecret: profile.TokenSecret,
+				Realm:       profile.Realm,
+				ApiPath:     profile.ApiPath,
+				Insecure:    profile.Insecure,
+				SSHUser:     profile.SSHUser,
+				VMSSHUser:   profile.VMSSHUser,
+				CacheDir:    a.config.CacheDir,
+				Debug:       a.config.Debug,
+			}
+
+			profiles = append(profiles, api.ProfileEntry{
+				Name:   name,
+				Config: adapters.NewConfigAdapter(profileConfig),
+			})
+		}
+
+		if len(profiles) == 0 {
+			uiLogger.Error("No valid profiles to initialize for cluster group %s", groupName)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError("No valid profiles found")
+			})
+			return
+		}
+
+		// Initialize cluster client (connects to first available candidate)
+		ctx := context.Background()
+		uiLogger.Debug("Initializing cluster client with %d candidates", len(profiles))
+
+		if err := cc.Initialize(ctx, profiles); err != nil {
+			uiLogger.Error("Failed to initialize cluster group %s: %v", groupName, err)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Failed to connect to any candidate: %v", err))
+			})
+			return
+		}
+
+		uiLogger.Debug("Cluster group initialized, active profile: %s", cc.GetActiveProfileName())
+
+		// Register failover callback — updates the app when failover occurs
+		cc.SetOnFailover(func(oldProfile, newProfile string) {
+			a.QueueUpdateDraw(func() {
+				if !a.isClusterMode || a.clusterClient != cc {
+					uiLogger.Debug("[CLUSTER] Ignoring stale failover callback for inactive cluster client (%s -> %s)", oldProfile, newProfile)
+					return
+				}
+				uiLogger.Info("[CLUSTER] Failover callback: %s -> %s", oldProfile, newProfile)
+				a.client = cc.GetActiveClient()
+				if a.client == nil {
+					uiLogger.Error("[CLUSTER] Failover callback has nil active client for %s", newProfile)
+					return
+				}
+				if a.vncService != nil {
+					a.vncService.UpdateClient(a.client)
+				}
+				a.updateHeaderWithActiveProfile()
+				a.header.ShowWarning(fmt.Sprintf("Failover: %s \u2192 %s", oldProfile, newProfile))
+				go a.manualRefresh()
+			})
+		})
+
+		// Start health checks
+		cc.StartHealthCheck()
+
+		// Update app state on UI thread
+		a.QueueUpdateDraw(func() {
+			// Set cluster mode state
+			a.clusterClient = cc
+			a.isClusterMode = true
+			a.groupName = groupName
+			a.client = cc.GetActiveClient()
+			if a.vncService != nil {
+				a.vncService.UpdateClient(a.client)
+			}
+
+			// Update header to show cluster mode
+			a.updateHeaderWithActiveProfile()
+			a.header.ShowSuccess(fmt.Sprintf("Connected to cluster '%s' via %s", groupName, cc.GetActiveProfileName()))
+		})
+
+		// Trigger refresh to load data through normal single-profile flow
+		a.manualRefresh()
 	}()
 }
 

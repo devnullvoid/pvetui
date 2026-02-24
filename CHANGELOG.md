@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Cluster Group Mode (HA Failover)**: Added per-group `group_settings` with `mode: cluster` so a group can connect through one active profile and automatically fail over to the next healthy candidate.
+- **Group Mode Controls in Profiles UI**: Added a mode selector to the Edit Group dialog and a cluster mode marker in the Connection Profiles list.
+
+### Fixed
+
+- **Tasks Panel Focus Freeze**: Fixed an immediate freeze when tabbing from Task History to Active Operations by keeping task table cells selectable and avoiding a tview table selection loop.
+- **Cluster Failover Refresh Re-entrancy**: Triggered failover refresh asynchronously to avoid nested `QueueUpdateDraw` callback paths.
+
 ## [1.0.19] - 2026-02-21
 
 ### Added
