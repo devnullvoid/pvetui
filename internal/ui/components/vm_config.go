@@ -2,7 +2,10 @@ package components
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/netip"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +29,27 @@ type VMConfigPage struct {
 	saveFn func(*api.VMConfig) error
 }
 
+type editableNetworkConfig struct {
+	Model       string
+	Name        string
+	MACAddr     string
+	Bridge      string
+	VLAN        string
+	Rate        string
+	IPMode      string
+	IPModeSet   bool
+	IP          string
+	Gateway     string
+	Firewall    bool
+	FirewallSet bool
+	ExtraRawCSV string
+}
+
+const (
+	ipModeDHCP   = "dhcp"
+	ipModeStatic = "static"
+)
+
 // NewVMConfigPage creates a new config editor for the given VM.
 func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*api.VMConfig) error) *VMConfigPage {
 	form := newStandardForm().SetHorizontal(false)
@@ -47,6 +71,15 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		showResizeStorageModal(app, vm)
 	}).SetAlignment(AlignLeft)
 	form.AddFormItem(resizeBtn)
+
+	networkBtn := NewFormButton("Edit Network Interfaces", func() {
+		if isPending, pendingOperation := models.GlobalState.IsVMPending(vm); isPending {
+			app.showMessageSafe(fmt.Sprintf("Cannot edit network config while '%s' is in progress", pendingOperation))
+			return
+		}
+		showEditNetworkInterfacesModal(app, vm, page.config)
+	}).SetAlignment(AlignLeft)
+	form.AddFormItem(networkBtn)
 
 	// Add Name/Hostname field
 	if vm.Type == api.VMTypeQemu {
@@ -178,7 +211,8 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 
 			app.QueueUpdateDraw(func() {
 				if err != nil {
-					app.header.ShowError(fmt.Sprintf("Failed to save config: %v", err))
+					models.GetUILogger().Error("Config save failed for %s %d: %v", vm.Type, vm.ID, err)
+					app.header.ShowError(summarizeConfigSaveError(err))
 				} else {
 					app.header.ShowSuccess("Configuration updated successfully.")
 
@@ -317,6 +351,455 @@ func normalizeTags(raw string) string {
 		cleaned = append(cleaned, trimmed)
 	}
 	return strings.Join(cleaned, ";")
+}
+
+func summarizeConfigSaveError(err error) string {
+	if err == nil {
+		return "Failed to save config"
+	}
+
+	msg := err.Error()
+	lowerMsg := strings.ToLower(msg)
+	if strings.Contains(lowerMsg, "parameter verification failed") {
+		detail := extractProxmoxErrorDetail(msg)
+		if detail != "" {
+			return fmt.Sprintf("Failed to save config: %s", detail)
+		}
+	}
+
+	return fmt.Sprintf("Failed to save config: %s", msg)
+}
+
+func extractProxmoxErrorDetail(raw string) string {
+	jsonStart := strings.Index(raw, "{")
+	if jsonStart >= 0 {
+		var body struct {
+			Message string      `json:"message"`
+			Errors  interface{} `json:"errors"`
+			Data    interface{} `json:"data"`
+		}
+		if err := json.Unmarshal([]byte(raw[jsonStart:]), &body); err == nil {
+			if strings.TrimSpace(body.Message) != "" {
+				return strings.TrimSpace(body.Message)
+			}
+			if body.Errors != nil {
+				return fmt.Sprintf("parameter verification failed: %v", body.Errors)
+			}
+			if body.Data != nil {
+				return fmt.Sprintf("parameter verification failed: %v", body.Data)
+			}
+		}
+	}
+
+	if idx := strings.Index(strings.ToLower(raw), "parameter verification failed"); idx >= 0 {
+		return strings.TrimSpace(raw[idx:])
+	}
+
+	return ""
+}
+
+func parseEditableNetworkConfig(vmType, raw string) editableNetworkConfig {
+	cfg := editableNetworkConfig{}
+	parts := strings.Split(raw, ",")
+	extras := make([]string, 0)
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 {
+			extras = append(extras, part)
+			continue
+		}
+
+		key := strings.TrimSpace(kv[0])
+		value := strings.TrimSpace(kv[1])
+
+		switch key {
+		case "bridge":
+			cfg.Bridge = value
+		case "tag":
+			cfg.VLAN = value
+		case "rate":
+			cfg.Rate = value
+		case "ip":
+			cfg.IPModeSet = true
+			if strings.EqualFold(value, ipModeDHCP) {
+				cfg.IPMode = ipModeDHCP
+				cfg.IP = ""
+			} else {
+				cfg.IPMode = ipModeStatic
+				cfg.IP = value
+			}
+		case "gw":
+			cfg.Gateway = value
+		case "firewall":
+			cfg.FirewallSet = true
+			cfg.Firewall = value == "1" || strings.EqualFold(value, "true")
+		case "name":
+			cfg.Name = value
+		case "hwaddr":
+			cfg.MACAddr = value
+		default:
+			// For QEMU, model=MAC is encoded as "<model>=<mac>"
+			if vmType == api.VMTypeQemu && cfg.Model == "" && strings.Count(value, ":") == 5 {
+				cfg.Model = key
+				cfg.MACAddr = value
+				continue
+			}
+			extras = append(extras, part)
+		}
+	}
+
+	cfg.ExtraRawCSV = strings.Join(extras, ",")
+	if cfg.IPMode == "" && vmType == api.VMTypeLXC {
+		cfg.IPMode = ipModeDHCP
+	}
+
+	return cfg
+}
+
+func buildEditableNetworkRaw(vmType string, cfg editableNetworkConfig) string {
+	parts := make([]string, 0, 10)
+
+	if vmType == api.VMTypeQemu {
+		if cfg.Model != "" && cfg.MACAddr != "" {
+			parts = append(parts, fmt.Sprintf("%s=%s", cfg.Model, cfg.MACAddr))
+		}
+	} else if vmType == api.VMTypeLXC {
+		if cfg.Name != "" {
+			parts = append(parts, fmt.Sprintf("name=%s", cfg.Name))
+		}
+		if cfg.MACAddr != "" {
+			parts = append(parts, fmt.Sprintf("hwaddr=%s", cfg.MACAddr))
+		}
+	}
+
+	if cfg.Bridge != "" {
+		parts = append(parts, fmt.Sprintf("bridge=%s", cfg.Bridge))
+	}
+	if cfg.VLAN != "" {
+		parts = append(parts, fmt.Sprintf("tag=%s", cfg.VLAN))
+	}
+	if cfg.Rate != "" {
+		parts = append(parts, fmt.Sprintf("rate=%s", cfg.Rate))
+	}
+	if vmType == api.VMTypeLXC {
+		if strings.EqualFold(cfg.IPMode, ipModeStatic) {
+			if cfg.IP != "" {
+				parts = append(parts, fmt.Sprintf("ip=%s", cfg.IP))
+			}
+		} else if cfg.IPModeSet {
+			parts = append(parts, "ip=dhcp")
+		}
+	} else if cfg.IP != "" {
+		parts = append(parts, fmt.Sprintf("ip=%s", cfg.IP))
+	}
+
+	if cfg.Gateway != "" && !strings.EqualFold(cfg.IPMode, ipModeDHCP) {
+		parts = append(parts, fmt.Sprintf("gw=%s", cfg.Gateway))
+	}
+
+	if cfg.FirewallSet {
+		if cfg.Firewall {
+			parts = append(parts, "firewall=1")
+		} else {
+			parts = append(parts, "firewall=0")
+		}
+	}
+
+	if trimmedExtra := strings.TrimSpace(cfg.ExtraRawCSV); trimmedExtra != "" {
+		for _, extra := range strings.Split(trimmedExtra, ",") {
+			token := strings.TrimSpace(extra)
+			if token == "" {
+				continue
+			}
+			parts = append(parts, token)
+		}
+	}
+
+	return strings.Join(parts, ",")
+}
+
+func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) {
+	if config == nil {
+		app.showMessageSafe("No configuration loaded")
+		return
+	}
+
+	if len(config.NetworkInterfaces) == 0 {
+		app.showMessageSafe("No network interfaces found for this guest")
+		return
+	}
+
+	networkKeys := make([]string, 0, len(config.NetworkInterfaces))
+	for key := range config.NetworkInterfaces {
+		if strings.HasPrefix(key, "net") {
+			networkKeys = append(networkKeys, key)
+		}
+	}
+	sort.Strings(networkKeys)
+	if len(networkKeys) == 0 {
+		app.showMessageSafe("No editable netX interfaces found")
+		return
+	}
+
+	working := make(map[string]string, len(config.NetworkInterfaces))
+	for k, v := range config.NetworkInterfaces {
+		working[k] = v
+	}
+	originalWorking := make(map[string]string, len(config.NetworkInterfaces))
+	for k, v := range config.NetworkInterfaces {
+		originalWorking[k] = v
+	}
+
+	form := newStandardForm()
+	form.SetBorder(true)
+	form.SetTitle(fmt.Sprintf(" Network Interfaces - %s (%d) ", vm.Name, vm.ID))
+
+	currentKey := networkKeys[0]
+	current := parseEditableNetworkConfig(vm.Type, working[currentKey])
+	suppress := false
+
+	form.AddDropDown("Interface", networkKeys, 0, nil)
+	if vm.Type == api.VMTypeQemu {
+		form.AddInputField("Model", "", 20, nil, nil)
+	}
+	if vm.Type == api.VMTypeLXC {
+		form.AddInputField("Name", "", 20, nil, nil)
+	}
+	form.AddInputField("MAC Address", "", 24, nil, nil)
+	form.AddInputField("Bridge", "", 20, nil, nil)
+	form.AddInputField("VLAN Tag", "", 8, nil, nil)
+	form.AddInputField("Rate", "", 10, nil, nil)
+	if vm.Type == api.VMTypeLXC {
+		form.AddInputField("IP", "", 32, nil, nil)
+		form.AddDropDown("IP Assignment", []string{"DHCP", "Static"}, 0, nil)
+		form.AddInputField("Gateway", "", 32, nil, nil)
+		form.AddInputField("Nameserver", strings.TrimSpace(config.Nameserver), 48, nil, nil)
+		form.AddInputField("Search Domain", strings.TrimSpace(config.SearchDomain), 48, nil, nil)
+	}
+	form.AddCheckbox("Firewall", false, nil)
+	form.AddInputField("Extra (comma-separated)", "", 60, nil, nil)
+
+	mustInput := func(label string) *tview.InputField {
+		item := form.GetFormItemByLabel(label)
+		if item == nil {
+			return nil
+		}
+		field, _ := item.(*tview.InputField)
+		return field
+	}
+	mustCheckbox := func(label string) *tview.Checkbox {
+		item := form.GetFormItemByLabel(label)
+		if item == nil {
+			return nil
+		}
+		cb, _ := item.(*tview.Checkbox)
+		return cb
+	}
+	mustDropdown := func(label string) *tview.DropDown {
+		item := form.GetFormItemByLabel(label)
+		if item == nil {
+			return nil
+		}
+		dd, _ := item.(*tview.DropDown)
+		return dd
+	}
+
+	saveCurrent := func() {
+		working[currentKey] = buildEditableNetworkRaw(vm.Type, current)
+	}
+
+	loadCurrent := func(key string) {
+		currentKey = key
+		current = parseEditableNetworkConfig(vm.Type, working[currentKey])
+		suppress = true
+		if vm.Type == api.VMTypeQemu {
+			mustInput("Model").SetText(current.Model)
+		}
+		if vm.Type == api.VMTypeLXC {
+			mustInput("Name").SetText(current.Name)
+		}
+		mustInput("MAC Address").SetText(current.MACAddr)
+		mustInput("Bridge").SetText(current.Bridge)
+		mustInput("VLAN Tag").SetText(current.VLAN)
+		mustInput("Rate").SetText(current.Rate)
+		if vm.Type == api.VMTypeLXC {
+			if strings.EqualFold(current.IPMode, "static") {
+				mustDropdown("IP Assignment").SetCurrentOption(1)
+			} else {
+				mustDropdown("IP Assignment").SetCurrentOption(0)
+			}
+			mustInput("IP").SetText(current.IP)
+			mustInput("Gateway").SetText(current.Gateway)
+		}
+		mustCheckbox("Firewall").SetChecked(current.Firewall)
+		mustInput("Extra (comma-separated)").SetText(current.ExtraRawCSV)
+		suppress = false
+	}
+
+	dd := mustDropdown("Interface")
+	dd.SetSelectedFunc(func(option string, _ int) {
+		saveCurrent()
+		loadCurrent(option)
+	})
+
+	if vm.Type == api.VMTypeQemu {
+		mustInput("Model").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			current.Model = strings.TrimSpace(text)
+		})
+	}
+	if vm.Type == api.VMTypeLXC {
+		mustInput("Name").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			current.Name = strings.TrimSpace(text)
+		})
+	}
+	mustInput("MAC Address").SetChangedFunc(func(text string) {
+		if suppress {
+			return
+		}
+		current.MACAddr = strings.TrimSpace(text)
+	})
+	mustInput("Bridge").SetChangedFunc(func(text string) {
+		if suppress {
+			return
+		}
+		current.Bridge = strings.TrimSpace(text)
+	})
+	mustInput("VLAN Tag").SetChangedFunc(func(text string) {
+		if suppress {
+			return
+		}
+		current.VLAN = strings.TrimSpace(text)
+	})
+	mustInput("Rate").SetChangedFunc(func(text string) {
+		if suppress {
+			return
+		}
+		current.Rate = strings.TrimSpace(text)
+	})
+	if vm.Type == api.VMTypeLXC {
+		mustDropdown("IP Assignment").SetSelectedFunc(func(option string, _ int) {
+			if suppress {
+				return
+			}
+			current.IPModeSet = true
+			if strings.EqualFold(option, "Static") {
+				current.IPMode = ipModeStatic
+			} else {
+				current.IPMode = ipModeDHCP
+			}
+		})
+		mustInput("IP").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			current.IP = strings.TrimSpace(text)
+		})
+		mustInput("Gateway").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			current.Gateway = strings.TrimSpace(text)
+		})
+		mustInput("Nameserver").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			config.Nameserver = strings.TrimSpace(text)
+		})
+		mustInput("Search Domain").SetChangedFunc(func(text string) {
+			if suppress {
+				return
+			}
+			config.SearchDomain = strings.TrimSpace(text)
+		})
+	}
+	mustCheckbox("Firewall").SetChangedFunc(func(checked bool) {
+		if suppress {
+			return
+		}
+		current.FirewallSet = true
+		current.Firewall = checked
+	})
+	mustInput("Extra (comma-separated)").SetChangedFunc(func(text string) {
+		if suppress {
+			return
+		}
+		current.ExtraRawCSV = strings.TrimSpace(text)
+	})
+
+	form.AddButton("Apply", func() {
+		if vm.Type == api.VMTypeLXC && strings.EqualFold(current.IPMode, ipModeStatic) {
+			ipValue := strings.TrimSpace(current.IP)
+			if ipValue == "" {
+				app.showMessageSafe("IP/CIDR is required when IP Assignment is Static")
+				return
+			}
+			if !isValidLXCIPv4Config(ipValue) {
+				app.showMessageSafe("Invalid IP format. Use IPv4/CIDR (example: 192.168.99.24/24)")
+				return
+			}
+		}
+		saveCurrent()
+		config.NetworkInterfacesExplicit = !networkConfigMapsEqual(originalWorking, working)
+		config.NetworkInterfaces = working
+		app.removePageIfPresent("editNetworkConfig")
+		app.header.ShowSuccess("Updated network interface settings")
+	})
+	form.AddButton("Cancel", func() {
+		app.removePageIfPresent("editNetworkConfig")
+	})
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			app.removePageIfPresent("editNetworkConfig")
+			return nil
+		}
+
+		return event
+	})
+
+	loadCurrent(currentKey)
+	app.pages.AddPage("editNetworkConfig", form, true, true)
+	app.SetFocus(form)
+}
+
+func networkConfigMapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidLXCIPv4Config(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+	if strings.EqualFold(trimmed, "manual") {
+		return true
+	}
+	prefix, err := netip.ParsePrefix(trimmed)
+	if err != nil {
+		return false
+	}
+	return prefix.Addr().Is4()
 }
 
 // showResizeStorageModal displays a modal for resizing a storage volume.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Guest Network Config Editor (MVP)**: Added an “Edit Network Interfaces” action in guest configuration with a dedicated interface editor (bridge/VLAN/rate/firewall plus VM/CT-specific fields), including LXC DHCP/Static IP assignment toggle and LXC nameserver/searchdomain fields, writing back to Proxmox `netX` config entries on save.
+
 ## [1.0.19] - 2026-02-21
 
 ### Added

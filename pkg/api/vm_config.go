@@ -3,11 +3,14 @@ package api
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
 const stringYes = "yes"
+
+var networkConfigKeyPattern = regexp.MustCompile(`^net[0-9]+$`)
 
 // VMConfig represents editable configuration for both QEMU and LXC guests.
 type VMConfig struct {
@@ -32,11 +35,20 @@ type VMConfig struct {
 	// Add more QEMU fields as needed
 
 	// LXC-specific
-	Swap int64 `json:"swap,omitempty"`
+	Swap         int64  `json:"swap,omitempty"`
+	Nameserver   string `json:"nameserver,omitempty"`
+	SearchDomain string `json:"searchdomain,omitempty"`
 	// Add more LXC fields as needed
 
 	// Storage (for resizing, etc.)
 	Disks map[string]int64 `json:"disks,omitempty"` // disk name -> size in bytes
+
+	// NetworkInterfaces stores raw Proxmox network config entries keyed by netX (e.g., net0).
+	// Keeping raw values avoids dropping unknown interface options.
+	NetworkInterfaces map[string]string `json:"network_interfaces,omitempty"`
+	// NetworkInterfacesExplicit controls whether netX values should be included in update payloads.
+	// This prevents unrelated config saves from re-sending legacy/unchanged network strings.
+	NetworkInterfacesExplicit bool `json:"-"`
 }
 
 // GetVMConfig fetches the configuration for a VM or container.
@@ -64,9 +76,17 @@ func (c *Client) UpdateVMConfig(vm *VM, config *VMConfig) error {
 	data := buildConfigPayload(vm.Type, config)
 
 	if vm.Type == VMTypeLXC {
-		return c.httpClient.Put(context.Background(), endpoint, data, nil)
+		err := c.httpClient.Put(context.Background(), endpoint, data, nil)
+		if err != nil {
+			c.logger.Error("Failed to update LXC config for %s %d with payload %+v: %v", vm.Type, vm.ID, data, err)
+		}
+		return err
 	} else if vm.Type == VMTypeQemu {
-		return c.httpClient.Post(context.Background(), endpoint, data, nil)
+		err := c.httpClient.Post(context.Background(), endpoint, data, nil)
+		if err != nil {
+			c.logger.Error("Failed to update QEMU config for %s %d with payload %+v: %v", vm.Type, vm.ID, data, err)
+		}
+		return err
 	}
 
 	return fmt.Errorf("unsupported VM type: %s", vm.Type)
@@ -103,8 +123,10 @@ func (c *Client) UpdateVMResources(vm *VM, cores int, memory int64) error {
 // parseVMConfig parses the config API response into a VMConfig struct.
 func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 	cfg := &VMConfig{}
-	if v, ok := data["name"].(string); ok {
-		cfg.Name = v
+	if vmType == VMTypeQemu {
+		if v, ok := data["name"].(string); ok {
+			cfg.Name = v
+		}
 	}
 	if v, ok := data["hostname"].(string); ok {
 		cfg.Hostname = v
@@ -174,7 +196,28 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 		if v, ok := data["swap"].(float64); ok {
 			cfg.Swap = int64(v) * 1024 * 1024
 		}
+		if v, ok := data["nameserver"].(string); ok {
+			cfg.Nameserver = v
+		}
+		if v, ok := data["searchdomain"].(string); ok {
+			cfg.SearchDomain = v
+		}
 	}
+
+	for key, raw := range data {
+		if !networkConfigKeyPattern.MatchString(key) {
+			continue
+		}
+		rawValue, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		if cfg.NetworkInterfaces == nil {
+			cfg.NetworkInterfaces = make(map[string]string)
+		}
+		cfg.NetworkInterfaces[key] = rawValue
+	}
+
 	// Storage parsing can be added here
 	return cfg
 }
@@ -182,7 +225,7 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 // buildConfigPayload builds the payload for updating VM/LXC config.
 func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} {
 	data := map[string]interface{}{}
-	if config.Name != "" {
+	if vmType == VMTypeQemu && config.Name != "" {
 		data["name"] = config.Name
 	}
 	if config.Hostname != "" {
@@ -241,6 +284,25 @@ func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} 
 	if vmType == VMTypeLXC {
 		if config.Swap > 0 {
 			data["swap"] = config.Swap / 1024 / 1024 // MB
+		}
+		if strings.TrimSpace(config.Nameserver) != "" {
+			data["nameserver"] = strings.TrimSpace(config.Nameserver)
+		}
+		if strings.TrimSpace(config.SearchDomain) != "" {
+			data["searchdomain"] = strings.TrimSpace(config.SearchDomain)
+		}
+	}
+
+	if config.NetworkInterfacesExplicit {
+		for key, value := range config.NetworkInterfaces {
+			if !networkConfigKeyPattern.MatchString(key) {
+				continue
+			}
+			trimmedValue := strings.TrimSpace(value)
+			if trimmedValue == "" {
+				continue
+			}
+			data[key] = trimmedValue
 		}
 	}
 

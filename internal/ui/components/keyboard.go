@@ -122,6 +122,7 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("migration") ||
 			a.pages.HasPage("help") ||
 			a.pages.HasPage("vmConfig") ||
+			a.pages.HasPage("editNetworkConfig") ||
 			a.pages.HasPage("resizeStorage") ||
 			a.pages.HasPage("profileWizard") ||
 			a.pages.HasPage("profileName") ||
