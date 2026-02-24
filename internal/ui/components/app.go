@@ -27,6 +27,8 @@ type App struct {
 	groupManager  *api.GroupClientManager
 	isGroupMode   bool
 	groupName     string
+	clusterClient *api.ClusterClient
+	isClusterMode bool
 	config        config.Config
 	configPath    string
 	vncService    *vnc.Service
@@ -475,6 +477,16 @@ func (a *App) IsGroupMode() bool {
 // GroupManager returns the group client manager if in group mode, nil otherwise.
 func (a *App) GroupManager() *api.GroupClientManager {
 	return a.groupManager
+}
+
+// IsClusterMode returns whether the app is running in cluster (HA failover) mode.
+func (a *App) IsClusterMode() bool {
+	return a.isClusterMode
+}
+
+// ClusterClient returns the cluster client if in cluster mode, nil otherwise.
+func (a *App) ClusterClient() *api.ClusterClient {
+	return a.clusterClient
 }
 
 // Header returns the header component instance.

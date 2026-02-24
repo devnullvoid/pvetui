@@ -119,6 +119,7 @@ type Config struct {
 	Theme       ThemeConfig  `yaml:"theme"`
 	Plugins     PluginConfig `yaml:"plugins"`
 	ShowIcons   bool         `yaml:"show_icons"`
+	GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings,omitempty"`
 	// Deprecated: legacy single-profile fields for migration
 	Addr        string      `yaml:"addr"`
 	User        string      `yaml:"user"`
@@ -405,6 +406,7 @@ func (c *Config) MergeWithFile(path string) error {
 			Enabled []string `yaml:"enabled"`
 		} `yaml:"plugins"`
 		ShowIcons *bool `yaml:"show_icons"`
+		GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings"`
 		// Legacy fields for migration
 		Addr        string      `yaml:"addr"`
 		User        string      `yaml:"user"`
@@ -667,6 +669,14 @@ func (c *Config) MergeWithFile(path string) error {
 		c.Theme.Colors[k] = v
 	}
 
+
+	// Merge group_settings configuration if provided
+	if fileConfig.GroupSettings != nil {
+		c.GroupSettings = make(map[string]GroupSettingsConfig, len(fileConfig.GroupSettings))
+		for k, v := range fileConfig.GroupSettings {
+			c.GroupSettings[k] = v
+		}
+	}
 	// Decrypt sensitive fields if not using SOPS
 	// SOPS handles encryption/decryption itself, so we only decrypt age-encrypted fields
 	if !IsSOPSEncrypted(path, data) {

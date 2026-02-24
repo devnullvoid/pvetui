@@ -38,6 +38,27 @@ type ProfileConfig struct {
 	Groups []string `yaml:"groups,omitempty"`
 }
 
+
+// GroupMode constants define the operational mode for a group.
+const (
+	// GroupModeAggregate is the default mode: all profiles connect simultaneously
+	// and their data is merged into a unified view (multi-cluster).
+	GroupModeAggregate = "aggregate"
+
+	// GroupModeCluster connects to a single profile at a time with automatic
+	// failover to the next profile when the active one becomes unreachable.
+	// This is intended for multiple nodes of the same Proxmox cluster.
+	GroupModeCluster = "cluster"
+)
+
+// GroupSettingsConfig holds per-group configuration options.
+type GroupSettingsConfig struct {
+	// Mode determines the operational mode for the group.
+	// "aggregate" (default): connect to all profiles, merge data.
+	// "cluster": connect to one profile at a time with HA failover.
+	Mode string `yaml:"mode"`
+}
+
 // ApplyProfile applies the settings from a named profile to the main config.
 func (c *Config) ApplyProfile(profileName string) error {
 	if c.Profiles == nil {
@@ -259,9 +280,9 @@ func (c *Config) HasGroups() bool {
 }
 
 // ValidateGroups checks that group configurations are valid.
+// This validates naming conflicts and group_settings entries.
 func (c *Config) ValidateGroups() error {
 	groups := c.GetGroups()
-
 	for groupName := range groups {
 		// Check for naming conflicts between profiles and groups
 		if _, exists := c.Profiles[groupName]; exists {
@@ -269,6 +290,23 @@ func (c *Config) ValidateGroups() error {
 		}
 	}
 
+	// Validate group_settings entries
+	for name, settings := range c.GroupSettings {
+		// Group settings must reference an actual group
+		if _, exists := groups[name]; !exists {
+			return fmt.Errorf("group_settings '%s' does not match any group", name)
+		}
+
+		// Validate mode value
+		switch settings.Mode {
+		case GroupModeAggregate, GroupModeCluster, "":
+			// valid
+		default:
+			return fmt.Errorf("group_settings '%s' has invalid mode '%s' (must be '%s' or '%s')",
+				name, settings.Mode, GroupModeAggregate, GroupModeCluster)
+		}
+
+	}
 	return nil
 }
 
@@ -285,4 +323,34 @@ func (c *Config) FindGroupProfileNameConflicts() []string {
 
 	sort.Strings(conflicts)
 	return conflicts
+}
+
+// GetGroupMode returns the operational mode for a group.
+// Returns GroupModeCluster if configured, otherwise GroupModeAggregate (default).
+func (c *Config) GetGroupMode(groupName string) string {
+	if settings, exists := c.GroupSettings[groupName]; exists {
+		if settings.Mode == GroupModeCluster {
+			return GroupModeCluster
+		}
+	}
+	return GroupModeAggregate
+}
+
+// IsClusterGroup returns true if the named group is configured in cluster (HA failover) mode.
+func (c *Config) IsClusterGroup(groupName string) bool {
+	return c.GetGroupMode(groupName) == GroupModeCluster
+}
+
+// SetGroupMode sets the operational mode for a group.
+// Creates the GroupSettings map if needed.
+func (c *Config) SetGroupMode(groupName string, mode string) {
+	if c.GroupSettings == nil {
+		c.GroupSettings = make(map[string]GroupSettingsConfig)
+	}
+	if mode == GroupModeAggregate || mode == "" {
+		// Aggregate is the default — remove the entry to keep config clean
+		delete(c.GroupSettings, groupName)
+		return
+	}
+	c.GroupSettings[groupName] = GroupSettingsConfig{Mode: mode}
 }
