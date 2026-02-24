@@ -576,6 +576,14 @@ func (a *App) showDeleteGroupDialog(groupName string) {
 			hasChanges = true
 		}
 
+		// Remove per-group settings to avoid stale group_settings entries.
+		if a.config.GroupSettings != nil {
+			if _, exists := a.config.GroupSettings[groupName]; exists {
+				delete(a.config.GroupSettings, groupName)
+				hasChanges = true
+			}
+		}
+
 		if hasChanges {
 
 			// Save the config
@@ -981,7 +989,6 @@ func (a *App) showEditGroupDialog(groupName string) {
 
 	form.SetBorderColor(theme.Colors.Border)
 
-
 	// Mode selector (aggregate vs cluster)
 	modeOptions := []string{config.GroupModeAggregate, config.GroupModeCluster}
 	currentMode := a.config.GetGroupMode(groupName)
@@ -1050,7 +1057,6 @@ func (a *App) showEditGroupDialog(groupName string) {
 		// Update profiles
 
 		hasChanges := false
-
 
 		// Persist mode selection
 		_, selectedMode := form.GetFormItemByLabel("Mode").(*tview.DropDown).GetCurrentOption()

@@ -14,6 +14,36 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
+func (a *App) deactivateGroupModes(uiLogger interface {
+	Debug(format string, args ...interface{})
+}) {
+	if a.isGroupMode {
+		uiLogger.Debug("Disabling group mode")
+		if a.groupManager != nil {
+			a.groupManager.Close()
+		}
+		a.groupManager = nil
+		a.isGroupMode = false
+	}
+
+	if a.isClusterMode {
+		uiLogger.Debug("Disabling cluster mode")
+		if a.clusterClient != nil {
+			a.clusterClient.Close()
+		}
+		a.clusterClient = nil
+		a.isClusterMode = false
+	}
+
+	if a.groupName != "" {
+		a.groupName = ""
+	}
+
+	if a.tasksList != nil {
+		a.tasksList.Clear()
+	}
+}
+
 // applyConnectionProfile applies the selected connection profile.
 func (a *App) applyConnectionProfile(profileName string) {
 	// Show loading indicator
@@ -59,30 +89,8 @@ func (a *App) applyConnectionProfile(profileName string) {
 			a.vncService.UpdateClient(client)
 		}
 
-		// Clear group mode state
-		if a.isGroupMode {
-			uiLogger.Debug("Disabling group mode")
-			if a.groupManager != nil {
-				a.groupManager.Close()
-			}
-			a.groupManager = nil
-			a.isGroupMode = false
-			a.groupName = ""
-			// Clear tasks list to remove group tasks
-			a.tasksList.Clear()
-		}
-
-		// Clear cluster mode state
-		if a.isClusterMode {
-			uiLogger.Debug("Disabling cluster mode")
-			if a.clusterClient != nil {
-				a.clusterClient.Close()
-			}
-			a.clusterClient = nil
-			a.isClusterMode = false
-			a.groupName = ""
-			a.tasksList.Clear()
-		}
+		// Leaving either group mode must tear down mode-specific background state.
+		a.deactivateGroupModes(uiLogger)
 
 		a.QueueUpdateDraw(func() {
 			// Update the header to show the new active profile
@@ -116,6 +124,7 @@ func (a *App) switchToGroup(groupName string) {
 	go func() {
 		uiLogger := models.GetUILogger()
 		uiLogger.Debug("Starting group switch to: %s", groupName)
+		a.deactivateGroupModes(uiLogger)
 
 		// Get profile names for this group
 		profileNames := a.config.GetProfileNamesInGroup(groupName)
@@ -297,6 +306,7 @@ func (a *App) switchToClusterGroup(groupName string) {
 	go func() {
 		uiLogger := models.GetUILogger()
 		uiLogger.Debug("Starting cluster group switch to: %s", groupName)
+		a.deactivateGroupModes(uiLogger)
 
 		// Get profile names for this group
 		profileNames := a.config.GetProfileNamesInGroup(groupName)
@@ -373,8 +383,16 @@ func (a *App) switchToClusterGroup(groupName string) {
 		// Register failover callback — updates the app when failover occurs
 		cc.SetOnFailover(func(oldProfile, newProfile string) {
 			a.QueueUpdateDraw(func() {
+				if !a.isClusterMode || a.clusterClient != cc {
+					uiLogger.Debug("[CLUSTER] Ignoring stale failover callback for inactive cluster client (%s -> %s)", oldProfile, newProfile)
+					return
+				}
 				uiLogger.Info("[CLUSTER] Failover callback: %s -> %s", oldProfile, newProfile)
-				a.client = a.clusterClient.GetActiveClient()
+				a.client = cc.GetActiveClient()
+				if a.client == nil {
+					uiLogger.Error("[CLUSTER] Failover callback has nil active client for %s", newProfile)
+					return
+				}
 				if a.vncService != nil {
 					a.vncService.UpdateClient(a.client)
 				}
@@ -389,13 +407,6 @@ func (a *App) switchToClusterGroup(groupName string) {
 
 		// Update app state on UI thread
 		a.QueueUpdateDraw(func() {
-			// Clean up any previous group mode state
-			if a.isGroupMode && a.groupManager != nil {
-				a.groupManager.Close()
-			}
-			a.groupManager = nil
-			a.isGroupMode = false
-
 			// Set cluster mode state
 			a.clusterClient = cc
 			a.isClusterMode = true
