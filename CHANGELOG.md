@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Tasks Panel Focus Freeze**: Fixed an immediate freeze when tabbing from Task History to Active Operations by keeping task table cells selectable and avoiding a tview table selection loop.
 - **Cluster Failover Refresh Re-entrancy**: Triggered failover refresh asynchronously to avoid nested `QueueUpdateDraw` callback paths.
+- **Single Guest Refresh IP Staleness**: Fixed per-guest refresh so running guests (including LXC containers after network/VLAN changes) update IP information without requiring a full cluster refresh.
 
 ## [1.0.19] - 2026-02-21
 
