@@ -55,6 +55,11 @@ profiles:
       - all-servers
 
 default_profile: "all-servers" # Can be a profile name or a group name
+group_settings:
+  all-servers:
+    mode: aggregate # default
+  prod-ha:
+    mode: cluster   # active/passive failover
 debug: false
 show_icons: true               # Optional: toggle icons/emojis in the UI
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
@@ -109,6 +114,23 @@ The built-in profile manager allows you to:
 - **Set default profile or group** for automatic startup
 
 Access the profile manager through the global menu (`Esc`) or context menus.
+
+## Group Settings
+
+Use `group_settings` to control how each group behaves:
+
+- `aggregate`: merge resources from all group members (default when unset).
+- `cluster`: connect through one healthy member profile at a time with automatic failover.
+
+Example:
+
+```yaml
+group_settings:
+  all-servers:
+    mode: aggregate
+  prod-ha:
+    mode: cluster
+```
 
 ## Authentication Methods
 

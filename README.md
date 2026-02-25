@@ -171,6 +171,12 @@ profiles:
       - all-servers
 
 default_profile: "all-servers" # Can be a profile name or a group name
+# Optional per-group behavior:
+group_settings:
+  all-servers:
+    mode: aggregate  # default: combine all member profiles
+  prod-ha:
+    mode: cluster    # connect to one healthy profile with automatic failover
 debug: false
 show_icons: true
 ```
@@ -241,6 +247,23 @@ Notes:
 - Group names must not conflict with profile names (validation enforced).
 - Refreshes fetch fresh data from all member profiles; pending states are tracked per source profile.
 - Migrations stay within the VM’s original cluster; groups of standalone nodes will show “No other online nodes available.”
+
+#### Group Modes
+
+Groups support two operating modes via `group_settings`:
+
+- `aggregate` (default): combines resources from all profiles in the group.
+- `cluster`: active/passive behavior for HA-style setups. pvetui connects through one healthy profile at a time and fails over automatically.
+
+Example:
+
+```yaml
+group_settings:
+  all-servers:
+    mode: aggregate
+  prod-ha:
+    mode: cluster
+```
 
 ### API Token Setup (Recommended)
 
