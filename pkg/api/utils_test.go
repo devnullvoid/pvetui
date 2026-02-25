@@ -1,6 +1,7 @@
 package api
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -270,12 +271,73 @@ func TestSafeFloatValue(t *testing.T) {
 			input:    true,
 			expected: 0.0,
 		},
+		{
+			name:     "nan string",
+			input:    "NaN",
+			expected: 0.0,
+		},
+		{
+			name:     "infinity string",
+			input:    "+Inf",
+			expected: 0.0,
+		},
+		{
+			name:     "nan float",
+			input:    math.NaN(),
+			expected: 0.0,
+		},
+		{
+			name:     "infinity float",
+			input:    math.Inf(1),
+			expected: 0.0,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SafeFloatValue(tt.input)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetFloatFiltersNonFiniteValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected float64
+	}{
+		{
+			name:     "finite float64",
+			input:    42.5,
+			expected: 42.5,
+		},
+		{
+			name:     "nan float64",
+			input:    math.NaN(),
+			expected: 0.0,
+		},
+		{
+			name:     "infinity float64",
+			input:    math.Inf(1),
+			expected: 0.0,
+		},
+		{
+			name:     "nan string",
+			input:    "NaN",
+			expected: 0.0,
+		},
+		{
+			name:     "infinity string",
+			input:    "Inf",
+			expected: 0.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := map[string]interface{}{"cpu": tt.input}
+			assert.Equal(t, tt.expected, getFloat(data, "cpu"))
 		})
 	}
 }
