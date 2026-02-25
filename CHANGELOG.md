@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Guest Selection Snap-Back After Config Save Refresh**: Preserved any user-initiated list selection changes made during in-flight refreshes so completion no longer forces selection back to the pre-refresh guest/node.
+
 - **Transient CPU N/A After Guest Restart**: Sanitized non-finite numeric values from API responses during single-guest refreshes so running guests no longer briefly show CPU as `N/A` when metrics momentarily return `NaN/Inf` after restart.
 
 - **Tasks Panel Focus Freeze**: Fixed an immediate freeze when tabbing from Task History to Active Operations by keeping task table cells selectable and avoiding a tview table selection loop.
