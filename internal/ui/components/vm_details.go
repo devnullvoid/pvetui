@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -77,16 +78,19 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	row++
 
-	// Show description if available
-	if vm.Description != "" {
-		cleanDesc := sanitizeDescription(vm.Description)
-		if cleanDesc != "" {
-			vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Description", "📝", showIcons)).SetTextColor(theme.Colors.HeaderText))
-			vd.SetCell(row, 1, tview.NewTableCell(cleanDesc).SetTextColor(theme.Colors.Info))
-
-			row++
+	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Description", "📝", showIcons)).SetTextColor(theme.Colors.HeaderText))
+	cleanDesc := sanitizeDescription(vm.Description)
+	if cleanDesc != "" {
+		vd.SetCell(row, 1, tview.NewTableCell(cleanDesc).SetTextColor(theme.Colors.Info))
+	} else {
+		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Secondary))
+		// Cluster resources often omit description for stopped guests.
+		// Hydrate from config for the currently selected guest only.
+		if vd.app != nil && !strings.EqualFold(vm.Status, api.VMStatusRunning) {
+			vd.hydrateDescriptionForStoppedGuest(vm)
 		}
 	}
+	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Node", "📍", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	vd.SetCell(row, 1, tview.NewTableCell(vm.Node).SetTextColor(theme.Colors.Primary))
@@ -149,13 +153,21 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	cpuValue := api.StringNA
 	cpuUsageColor := theme.Colors.Primary
+	cpuMetric := vm.CPU
+	if math.IsNaN(cpuMetric) || math.IsInf(cpuMetric, 0) || cpuMetric < 0 {
+		if strings.EqualFold(vm.Status, api.VMStatusRunning) {
+			cpuMetric = 0
+		} else {
+			cpuMetric = -1
+		}
+	}
 
-	if vm.CPU >= 0 && vm.CPUCores > 0 {
-		cpuPercent := vm.CPU * 100
+	if cpuMetric >= 0 && vm.CPUCores > 0 {
+		cpuPercent := cpuMetric * 100
 		cpuValue = fmt.Sprintf("%.1f%% of %d cores", cpuPercent, vm.CPUCores)
 		cpuUsageColor = theme.GetUsageColor(cpuPercent)
-	} else if vm.CPU >= 0 {
-		cpuPercent := vm.CPU * 100
+	} else if cpuMetric >= 0 {
+		cpuPercent := cpuMetric * 100
 		cpuValue = fmt.Sprintf("%.1f%%", cpuPercent)
 		cpuUsageColor = theme.GetUsageColor(cpuPercent)
 	}
@@ -522,4 +534,40 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	vd.SetCell(row, 1, tview.NewTableCell(autoStartText).SetTextColor(autoStartColor))
 
 	vd.ScrollToBeginning()
+}
+
+func (vd *VMDetails) hydrateDescriptionForStoppedGuest(vm *api.VM) {
+	if vm == nil || vd.app == nil {
+		return
+	}
+
+	vmID := vm.ID
+	vmNode := vm.Node
+
+	go func() {
+		client, err := vd.app.getClientForVM(vm)
+		if err != nil {
+			return
+		}
+
+		cfg, err := client.GetVMConfig(vm)
+		if err != nil || cfg == nil {
+			return
+		}
+
+		desc := sanitizeDescription(cfg.Description)
+		if desc == "" {
+			return
+		}
+
+		vd.app.QueueUpdateDraw(func() {
+			selected := vd.app.vmList.GetSelectedVM()
+			if selected == nil || selected.ID != vmID || selected.Node != vmNode {
+				return
+			}
+
+			selected.Description = cfg.Description
+			vd.Update(selected)
+		})
+	}()
 }

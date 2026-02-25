@@ -28,7 +28,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 
 	// Enrich VM with additional metrics
 	if cpuVal, ok := data["cpu"]; ok {
-		if cpuFloat, ok := cpuVal.(float64); ok {
+		if cpuFloat, ok := cpuVal.(float64); ok && isFiniteFloat(cpuFloat) {
 			vm.CPU = cpuFloat
 		}
 	}
@@ -327,7 +327,7 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 		vm.Status = status
 	}
 
-	if cpu, okCPU := statusData["cpu"].(float64); okCPU {
+	if cpu, okCPU := statusData["cpu"].(float64); okCPU && isFiniteFloat(cpu) {
 		vm.CPU = cpu
 	}
 
