@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/netip"
 	"sort"
 	"strconv"
@@ -740,18 +741,24 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 	})
 
 	form.AddButton("Apply", func() {
-		if vm.Type == api.VMTypeLXC && strings.EqualFold(current.IPMode, ipModeStatic) {
-			ipValue := strings.TrimSpace(current.IP)
-			if ipValue == "" {
-				app.showMessageSafe("IP/CIDR is required when IP Assignment is Static")
-				return
-			}
-			if !isValidLXCIPv4Config(ipValue) {
-				app.showMessageSafe("Invalid IP format. Use IPv4/CIDR (example: 192.168.99.24/24)")
+		saveCurrent()
+		for _, key := range networkKeys {
+			cfg := parseEditableNetworkConfig(vm.Type, working[key])
+			if err := validateEditableNetworkConfig(vm.Type, key, cfg); err != nil {
+				app.showMessageSafe(err.Error())
 				return
 			}
 		}
-		saveCurrent()
+		if vm.Type == api.VMTypeLXC {
+			if err := validateNameserver(config.Nameserver); err != nil {
+				app.showMessageSafe(fmt.Sprintf("Invalid nameserver value: %v", err))
+				return
+			}
+			if err := validateSearchDomain(config.SearchDomain); err != nil {
+				app.showMessageSafe(fmt.Sprintf("Invalid search domain value: %v", err))
+				return
+			}
+		}
 		config.NetworkInterfacesExplicit = !networkConfigMapsEqual(originalWorking, working)
 		config.NetworkInterfaces = working
 		app.removePageIfPresent("editNetworkConfig")
@@ -800,6 +807,193 @@ func isValidLXCIPv4Config(value string) bool {
 		return false
 	}
 	return prefix.Addr().Is4()
+}
+
+func validateEditableNetworkConfig(vmType, interfaceKey string, cfg editableNetworkConfig) error {
+	if strings.TrimSpace(cfg.Bridge) == "" {
+		return fmt.Errorf("%s: bridge is required", interfaceKey)
+	}
+	if !isValidBridgeName(cfg.Bridge) {
+		return fmt.Errorf("%s: bridge contains invalid characters", interfaceKey)
+	}
+	if cfg.MACAddr != "" && !isValidMACAddress(cfg.MACAddr) {
+		return fmt.Errorf("%s: invalid MAC address format", interfaceKey)
+	}
+	if cfg.VLAN != "" {
+		if err := validateVLANTag(cfg.VLAN); err != nil {
+			return fmt.Errorf("%s: %v", interfaceKey, err)
+		}
+	}
+	if cfg.Rate != "" {
+		if err := validateRateLimit(cfg.Rate); err != nil {
+			return fmt.Errorf("%s: %v", interfaceKey, err)
+		}
+	}
+	if cfg.ExtraRawCSV != "" {
+		if err := validateExtraNetworkTokens(cfg.ExtraRawCSV); err != nil {
+			return fmt.Errorf("%s: invalid extra field: %v", interfaceKey, err)
+		}
+	}
+
+	if vmType != api.VMTypeLXC {
+		return nil
+	}
+	if strings.TrimSpace(cfg.Name) == "" {
+		return fmt.Errorf("%s: interface name is required", interfaceKey)
+	}
+	if strings.EqualFold(cfg.IPMode, ipModeStatic) {
+		ipValue := strings.TrimSpace(cfg.IP)
+		if ipValue == "" {
+			return fmt.Errorf("%s: IP/CIDR is required when IP Assignment is Static", interfaceKey)
+		}
+		if !isValidLXCIPv4Config(ipValue) {
+			return fmt.Errorf("%s: invalid IP format, use IPv4/CIDR (example: 192.168.99.24/24)", interfaceKey)
+		}
+	}
+	if cfg.Gateway != "" {
+		if err := validateGateway(cfg.Gateway, cfg.IP); err != nil {
+			return fmt.Errorf("%s: %v", interfaceKey, err)
+		}
+	}
+	return nil
+}
+
+func isValidMACAddress(value string) bool {
+	_, err := net.ParseMAC(strings.TrimSpace(value))
+	return err == nil
+}
+
+func isValidBridgeName(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+	for _, ch := range trimmed {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
+			continue
+		}
+		switch ch {
+		case '-', '_', '.', ':':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func validateVLANTag(value string) error {
+	vlan, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return fmt.Errorf("VLAN tag must be a number between 1 and 4094")
+	}
+	if vlan < 1 || vlan > 4094 {
+		return fmt.Errorf("VLAN tag must be between 1 and 4094")
+	}
+	return nil
+}
+
+func validateRateLimit(value string) error {
+	rate, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		return fmt.Errorf("rate must be a numeric value")
+	}
+	if rate < 0 {
+		return fmt.Errorf("rate must be zero or greater")
+	}
+	return nil
+}
+
+func validateGateway(gateway, ipCIDR string) error {
+	addr, err := netip.ParseAddr(strings.TrimSpace(gateway))
+	if err != nil || !addr.Is4() {
+		return fmt.Errorf("gateway must be a valid IPv4 address")
+	}
+	ipTrimmed := strings.TrimSpace(ipCIDR)
+	if ipTrimmed == "" || strings.EqualFold(ipTrimmed, "manual") {
+		return nil
+	}
+	prefix, err := netip.ParsePrefix(ipTrimmed)
+	if err != nil || !prefix.Addr().Is4() {
+		return nil
+	}
+	if !prefix.Contains(addr) {
+		return fmt.Errorf("gateway must be in the same subnet as the static IP")
+	}
+	return nil
+}
+
+func validateNameserver(value string) error {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	tokens := strings.FieldsFunc(trimmed, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t'
+	})
+	for _, token := range tokens {
+		addr, err := netip.ParseAddr(token)
+		if err != nil {
+			return fmt.Errorf("invalid address %q", token)
+		}
+		if !addr.Is4() && !addr.Is6() {
+			return fmt.Errorf("unsupported address %q", token)
+		}
+	}
+	return nil
+}
+
+func validateSearchDomain(value string) error {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	for _, domain := range strings.Fields(trimmed) {
+		if !isValidDomainName(domain) {
+			return fmt.Errorf("invalid domain %q", domain)
+		}
+	}
+	return nil
+}
+
+func isValidDomainName(domain string) bool {
+	if domain == "" || len(domain) > 253 {
+		return false
+	}
+	labels := strings.Split(domain, ".")
+	for _, label := range labels {
+		if label == "" || len(label) > 63 {
+			return false
+		}
+		if label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, ch := range label {
+			if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-' {
+				continue
+			}
+			return false
+		}
+	}
+	return true
+}
+
+func validateExtraNetworkTokens(value string) error {
+	tokens := strings.Split(value, ",")
+	for _, token := range tokens {
+		part := strings.TrimSpace(token)
+		if part == "" {
+			continue
+		}
+		if strings.ContainsAny(part, " \t\r\n") {
+			return fmt.Errorf("token %q cannot contain spaces", part)
+		}
+		parts := strings.SplitN(part, "=", 2)
+		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+			return fmt.Errorf("token %q must be key=value", part)
+		}
+	}
+	return nil
 }
 
 // showResizeStorageModal displays a modal for resizing a storage volume.

@@ -89,3 +89,54 @@ func TestNetworkConfigMapsEqual(t *testing.T) {
 	require.True(t, networkConfigMapsEqual(a, b))
 	require.False(t, networkConfigMapsEqual(a, c))
 }
+
+func TestValidateEditableNetworkConfig(t *testing.T) {
+	valid := editableNetworkConfig{
+		Name:        "eth0",
+		Bridge:      "vmbr0",
+		MACAddr:     "BC:24:11:AA:BB:CC",
+		VLAN:        "99",
+		Rate:        "10.5",
+		IPMode:      ipModeStatic,
+		IP:          "192.168.99.24/24",
+		Gateway:     "192.168.99.1",
+		ExtraRawCSV: "mtu=9000,trunks=10;20",
+	}
+	require.NoError(t, validateEditableNetworkConfig(api.VMTypeLXC, "net0", valid))
+
+	invalidMAC := valid
+	invalidMAC.MACAddr = "bad-mac"
+	require.ErrorContains(t, validateEditableNetworkConfig(api.VMTypeLXC, "net0", invalidMAC), "invalid MAC")
+
+	invalidVLAN := valid
+	invalidVLAN.VLAN = "5000"
+	require.ErrorContains(t, validateEditableNetworkConfig(api.VMTypeLXC, "net0", invalidVLAN), "VLAN")
+
+	invalidGW := valid
+	invalidGW.Gateway = "10.0.0.1"
+	require.ErrorContains(t, validateEditableNetworkConfig(api.VMTypeLXC, "net0", invalidGW), "same subnet")
+}
+
+func TestValidateNameserver(t *testing.T) {
+	require.NoError(t, validateNameserver(""))
+	require.NoError(t, validateNameserver("1.1.1.1"))
+	require.NoError(t, validateNameserver("1.1.1.1,8.8.8.8"))
+	require.NoError(t, validateNameserver("2001:4860:4860::8888"))
+	require.Error(t, validateNameserver("not-an-ip"))
+}
+
+func TestValidateSearchDomain(t *testing.T) {
+	require.NoError(t, validateSearchDomain(""))
+	require.NoError(t, validateSearchDomain("example.com"))
+	require.NoError(t, validateSearchDomain("example.com corp.local"))
+	require.Error(t, validateSearchDomain("bad_domain"))
+	require.Error(t, validateSearchDomain("-example.com"))
+}
+
+func TestValidateExtraNetworkTokens(t *testing.T) {
+	require.NoError(t, validateExtraNetworkTokens(""))
+	require.NoError(t, validateExtraNetworkTokens("mtu=9000,trunks=10;20"))
+	require.Error(t, validateExtraNetworkTokens("mtu"))
+	require.Error(t, validateExtraNetworkTokens("mtu =9000"))
+	require.Error(t, validateExtraNetworkTokens("=value"))
+}
