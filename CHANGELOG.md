@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Guest Network Config Editor (MVP)**: Added an “Edit Network Interfaces” action in guest configuration with a dedicated interface editor (bridge/VLAN/rate/firewall plus VM/CT-specific fields), including LXC DHCP/Static IP assignment toggle and LXC nameserver/searchdomain fields, writing back to Proxmox `netX` config entries on save.
+- **Guest Network Config Editor**: Added an “Edit Network Interfaces” action in guest configuration with a dedicated interface editor (bridge/VLAN/rate/firewall plus VM/CT-specific fields), including LXC DHCP/Static IP assignment toggle and LXC nameserver/searchdomain fields, writing back to Proxmox `netX` config entries on save.
 - **Cluster Group Mode (HA Failover)**: Added per-group `group_settings` with `mode: cluster` so a group can connect through one active profile and automatically fail over to the next healthy candidate.
 - **Group Mode Controls in Profiles UI**: Added a mode selector to the Edit Group dialog and a cluster mode marker in the Connection Profiles list.
 
