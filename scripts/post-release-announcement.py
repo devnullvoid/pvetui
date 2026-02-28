@@ -128,11 +128,74 @@ def tag_from_git() -> str:
         return ""
 
 
+def extract_changelog_highlights(changelog_path: str, tag: str, max_items: int = 3) -> list[str]:
+    version = tag[1:] if tag.startswith("v") else tag
+    if not version:
+        return []
+
+    try:
+        with open(changelog_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return []
+
+    section_pattern = re.compile(
+        rf"(?ms)^##\s+\[{re.escape(version)}\][^\n]*\n(.*?)(?=^##\s+\[|\Z)"
+    )
+    match = section_pattern.search(content)
+    if not match:
+        return []
+
+    body = match.group(1)
+    highlights: list[str] = []
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if not line.startswith("- "):
+            continue
+        text = line[2:].strip()
+        if not text:
+            continue
+        text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+        text = re.sub(r"`([^`]+)`", r"\1", text)
+        text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if text:
+            highlights.append(text)
+        if len(highlights) >= max_items:
+            break
+
+    return highlights
+
+
+def build_announcement_message(project: str, tag: str, release_url: str, highlights: list[str], max_len: int = 300) -> str:
+    base = f"{project} {tag} is out!"
+    tail = f"Full notes: {release_url} #proxmox #linux #homelab"
+
+    if highlights:
+        for count in range(len(highlights), 0, -1):
+            bullet_lines = "\n".join(f"• {h}" for h in highlights[:count])
+            candidate = f"{base}\nHighlights:\n{bullet_lines}\n{tail}"
+            if len(candidate) <= max_len:
+                return candidate
+
+    candidate = f"{base} {tail}"
+    if len(candidate) <= max_len:
+        return candidate
+
+    # Keep URL and hashtags; truncate the project prefix as needed.
+    overflow = len(candidate) - max_len
+    shortened_base = base
+    if overflow > 0 and len(shortened_base) > overflow+3:
+        shortened_base = shortened_base[: len(shortened_base)-overflow-3].rstrip() + "..."
+    return f"{shortened_base} {tail}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Post release announcements to Mastodon/Bluesky.")
     parser.add_argument("--tag", dest="tag", help="Release tag (e.g. v1.0.17)")
     parser.add_argument("--release-url", dest="release_url", help="Full release URL")
     parser.add_argument("--project", dest="project", default=os.environ.get("PROJECT_NAME", "pvetui"))
+    parser.add_argument("--changelog", dest="changelog", default="CHANGELOG.md", help="Path to changelog file")
     parser.add_argument("--mastodon-only", action="store_true", help="Post only to Mastodon")
     parser.add_argument("--bluesky-only", action="store_true", help="Post only to Bluesky")
     args = parser.parse_args()
@@ -156,7 +219,8 @@ def main() -> int:
         print("Release URL is required (use --release-url or RELEASE_URL)", file=sys.stderr)
         return 1
 
-    message = f"{args.project} {tag} is out! Check it out at {release_url} #proxmox #linux #homelab"
+    highlights = extract_changelog_highlights(args.changelog, tag)
+    message = build_announcement_message(args.project, tag, release_url, highlights)
 
     posted = []
     if not args.bluesky_only:
