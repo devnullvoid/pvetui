@@ -106,11 +106,27 @@ func (a *App) manualRefresh() {
 				return
 			}
 
+			// Cluster resources often omit node version fields. Keep the last known
+			// version during the initial refresh update to avoid brief UI flicker.
+			a.preserveClusterVersionIfMissing(cluster)
+
 			// Initial UI update and enrichment
 			a.applyInitialClusterUpdate(cluster)
 			a.enrichNodesSequentially(cluster, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
 		}
 	}()
+}
+
+func (a *App) preserveClusterVersionIfMissing(cluster *api.Cluster) {
+	if cluster == nil || cluster.Version != "" {
+		return
+	}
+	for _, existingNode := range models.GlobalState.OriginalNodes {
+		if existingNode != nil && existingNode.Version != "" {
+			cluster.Version = fmt.Sprintf("Proxmox VE %s", existingNode.Version)
+			return
+		}
+	}
 }
 
 // applyInitialClusterUpdate updates global state and UI with basic cluster data and rebuilt VM list
