@@ -70,6 +70,19 @@ func TestBuildInventory_DeduplicatesAliases(t *testing.T) {
 	require.True(t, strings.HasPrefix(result.Hosts[1].Alias, "guest_"))
 }
 
+func TestBuildInventory_ExcludesTemplates(t *testing.T) {
+	guests := []*api.VM{
+		{ID: 100, Name: "base-template", IP: "10.0.10.10", Node: "pve-a", Type: api.VMTypeQemu, Status: api.VMStatusStopped, Template: true},
+		{ID: 101, Name: "real-vm", IP: "10.0.10.11", Node: "pve-a", Type: api.VMTypeQemu, Status: api.VMStatusRunning},
+	}
+
+	result := BuildInventory(nil, guests, InventoryDefaults{NodeSSHUser: "root", VMSSHUser: "ubuntu"})
+
+	require.Len(t, result.Hosts, 1)
+	require.Equal(t, "guest_101_real_vm", result.Hosts[0].Alias)
+	require.NotContains(t, result.Text, "base_template")
+}
+
 func TestSanitizeIdentifier(t *testing.T) {
 	require.Equal(t, "web_01", sanitizeIdentifier("Web-01"))
 	require.Equal(t, "db_server_eu", sanitizeIdentifier("db server@eu"))

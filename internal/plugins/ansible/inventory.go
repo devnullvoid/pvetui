@@ -107,6 +107,9 @@ func BuildInventoryWithFormat(nodes []*api.Node, guests []*api.VM, defaults Inve
 		if guest == nil {
 			continue
 		}
+		if guest.Template {
+			continue
+		}
 
 		target := chooseHostTarget(guest.IP, guest.Name)
 		if target == "" {
