@@ -30,7 +30,7 @@ Restart pvetui after editing the configuration to apply the change. If an unknow
 
 ## Ansible Toolkit Plugin
 
-The `ansible` plugin adds an **Ansible Toolkit** action (shortcut: `A`) to node and guest context menus.
+The `ansible` plugin adds an **Ansible Toolkit** entry to the global actions menu when enabled.
 
 ### Features
 
@@ -38,6 +38,7 @@ The `ansible` plugin adds an **Ansible Toolkit** action (shortcut: `A`) to node 
 - **Inventory export**: Preview and save generated inventory to a user-selected path.
 - **Ad-hoc connectivity tests**: Run `ansible -m ping` with optional limit, extra arguments, and timeout.
 - **Playbook execution**: Run `ansible-playbook` against generated inventory with optional `--limit`, `--check`, custom args, and timeout.
+- **Smart default limit**: The Run Ping/Run Playbook forms prefill `Limit` from your current node/guest selection.
 - **SSH setup assistant**: Shows practical `ssh-copy-id` and validation commands for all discovered targets.
 - **Safe defaults**: Commands run without shell interpolation and temporary inventory files are created with `0600` permissions.
 

@@ -56,32 +56,14 @@ func (p *Plugin) Name() string {
 
 // Description summarises the plugin's behaviour.
 func (p *Plugin) Description() string {
-	return "Generate inventory from nodes/guests, run Ansible commands, and guide SSH access setup."
+	return "Generate inventory from nodes/guests, run Ansible commands, and guide SSH access setup from the global menu."
 }
 
-// Initialize registers node/guest actions.
+// Initialize wires plugin dependencies.
 func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar components.PluginRegistrar) error {
 	p.app = app
-
-	registrar.RegisterNodeAction(components.NodeAction{
-		ID:       "ansible.open.node",
-		Label:    "Ansible Toolkit",
-		Shortcut: 'A',
-		IsAvailable: func(node *api.Node) bool {
-			return node != nil
-		},
-		Handler: p.handleNodeAction,
-	})
-
-	registrar.RegisterGuestAction(components.GuestAction{
-		ID:       "ansible.open.guest",
-		Label:    "Ansible Toolkit",
-		Shortcut: 'A',
-		IsAvailable: func(node *api.Node, guest *api.VM) bool {
-			return node != nil && guest != nil
-		},
-		Handler: p.handleGuestAction,
-	})
+	_ = ctx
+	_ = registrar
 
 	return nil
 }
@@ -106,31 +88,17 @@ func (p *Plugin) ModalPageNames() []string {
 	}
 }
 
-func (p *Plugin) handleNodeAction(ctx context.Context, app *components.App, node *api.Node) error {
+// OpenGlobal opens the toolkit from the global menu context.
+func (p *Plugin) OpenGlobal(ctx context.Context, app *components.App) error {
 	if app == nil {
 		return fmt.Errorf("application context unavailable")
 	}
-	if node == nil {
-		return fmt.Errorf("no node selected")
-	}
 
-	p.showMainMenu(node, nil)
+	p.showMainMenu()
 	return nil
 }
 
-func (p *Plugin) handleGuestAction(ctx context.Context, app *components.App, node *api.Node, guest *api.VM) error {
-	if app == nil {
-		return fmt.Errorf("application context unavailable")
-	}
-	if node == nil || guest == nil {
-		return fmt.Errorf("node/guest not selected")
-	}
-
-	p.showMainMenu(node, guest)
-	return nil
-}
-
-func (p *Plugin) showMainMenu(selectedNode *api.Node, selectedGuest *api.VM) {
+func (p *Plugin) showMainMenu() {
 	pages := p.app.Pages()
 	previousFocus := p.app.GetFocus()
 
@@ -150,23 +118,24 @@ func (p *Plugin) showMainMenu(selectedNode *api.Node, selectedGuest *api.VM) {
 	list.SetSecondaryTextColor(theme.Colors.Secondary)
 
 	inventory := p.currentInventory()
+	selectedNode, selectedGuest := p.currentSelectionForLimit()
 
 	list.AddItem("Preview Inventory", "Render inventory from current nodes and guests", 0, func() {
-		p.showOutput("Generated Inventory", inventory.Text, func() { p.showMainMenu(selectedNode, selectedGuest) })
+		p.showOutput("Generated Inventory", inventory.Text, p.showMainMenu)
 	})
 	list.AddItem("Save Inventory", "Write generated inventory to a file", 0, func() {
-		p.showSaveInventoryForm(inventory.Text, func() { p.showMainMenu(selectedNode, selectedGuest) })
+		p.showSaveInventoryForm(inventory.Text, p.showMainMenu)
 	})
 	list.AddItem("Run Ping", "Run ansible ping module against this inventory", 0, func() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
-		p.showAdhocForm(defaultLimit, inventory.Text, func() { p.showMainMenu(selectedNode, selectedGuest) })
+		p.showAdhocForm(defaultLimit, inventory.Text, p.showMainMenu)
 	})
 	list.AddItem("Run Playbook", "Execute ansible-playbook on generated inventory", 0, func() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
-		p.showPlaybookForm(defaultLimit, inventory.Text, func() { p.showMainMenu(selectedNode, selectedGuest) })
+		p.showPlaybookForm(defaultLimit, inventory.Text, p.showMainMenu)
 	})
 	list.AddItem("SSH Setup Assistant", "Show commands to prepare key-based SSH access", 0, func() {
-		p.showSetupAssistant(inventory, func() { p.showMainMenu(selectedNode, selectedGuest) })
+		p.showSetupAssistant(inventory, p.showMainMenu)
 	})
 	list.AddItem("Close", "Return", 'q', closeMenu)
 
@@ -524,6 +493,30 @@ func (p *Plugin) currentInventory() coreansible.InventoryResult {
 	}
 
 	return coreansible.BuildInventory(nodes, guests, defaults)
+}
+
+func (p *Plugin) currentSelectionForLimit() (*api.Node, *api.VM) {
+	currentPage, _ := p.app.Pages().GetFrontPage()
+	switch currentPage {
+	case api.PageGuests:
+		if vm := p.app.VMList().GetSelectedVM(); vm != nil {
+			return nil, vm
+		}
+	case api.PageNodes:
+		if node := p.app.NodeList().GetSelectedNode(); node != nil {
+			return node, nil
+		}
+	}
+
+	// Fallback for modal-driven paths where front page may be plugin-owned.
+	if vm := p.app.VMList().GetSelectedVM(); vm != nil {
+		return nil, vm
+	}
+	if node := p.app.NodeList().GetSelectedNode(); node != nil {
+		return node, nil
+	}
+
+	return nil, nil
 }
 
 func (p *Plugin) resolveNodeUser() string {

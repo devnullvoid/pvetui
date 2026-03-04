@@ -12,19 +12,33 @@ func (a *App) ShowGlobalContextMenu() {
 	// Store last focused primitive
 	a.lastFocus = a.GetFocus()
 
+	ansibleEnabled := false
+	if plugin, ok := a.plugins["ansible"]; ok && plugin != nil {
+		_, ansibleEnabled = plugin.(GlobalActionPlugin)
+	}
+
 	// Create menu items for global actions
 	menuItems := []string{
 		"Connection Profiles",
 		"Manage Plugins",
+	}
+	shortcuts := []rune{'p', 'm'}
+
+	if ansibleEnabled {
+		menuItems = append(menuItems, "Ansible Toolkit")
+		shortcuts = append(shortcuts, 'A')
+	}
+
+	menuItems = append(menuItems,
 		"Refresh All Data",
 		"Toggle Auto-Refresh",
 		"Help",
 		"About",
 		"Quit",
-	}
+	)
 
 	// Define custom shortcuts for global menu
-	shortcuts := []rune{'p', 'm', 'r', 'a', '?', 'i', 'q'}
+	shortcuts = append(shortcuts, 'r', 'a', '?', 'i', 'q')
 
 	menu := NewContextMenuWithShortcuts(" Global Actions ", menuItems, shortcuts, func(index int, action string) {
 		a.CloseContextMenu()
@@ -34,6 +48,20 @@ func (a *App) ShowGlobalContextMenu() {
 			a.showConnectionProfilesDialog()
 		case "Manage Plugins":
 			a.showManagePluginsDialog()
+		case "Ansible Toolkit":
+			plugin, ok := a.plugins["ansible"]
+			if !ok || plugin == nil {
+				a.showMessageSafe("Ansible plugin is not enabled.")
+				return
+			}
+			globalAction, ok := plugin.(GlobalActionPlugin)
+			if !ok {
+				a.showMessageSafe("Ansible plugin does not support global actions.")
+				return
+			}
+			if err := globalAction.OpenGlobal(a.ctx, a); err != nil {
+				a.showMessageSafe("Ansible Toolkit failed: " + err.Error())
+			}
 		case "Refresh All Data":
 			// * Check if there are any pending operations
 			if models.GlobalState.HasPendingOperations() {

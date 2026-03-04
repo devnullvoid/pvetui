@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Ansible Toolkit Plugin**: Added a new opt-in `ansible` plugin that generates Ansible inventory from loaded Proxmox nodes/guests, supports inventory preview/export, runs `ansible -m ping`, executes `ansible-playbook` with limit/check/extra-args options, and includes an SSH setup assistant.
 
+### Changed
+
+- **Global Menu Integration (Ansible)**: When the `ansible` plugin is enabled, the Global Actions menu now includes an **Ansible Toolkit** entry so inventory/playbook workflows are accessible without opening node/guest context menus.
+
 ### Fixed
 
 - **Ansible Plugin Command Cancellation**: Cancelling a running Ansible command from the plugin now cancels the underlying process context instead of only closing the progress modal.

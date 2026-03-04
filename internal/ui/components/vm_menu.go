@@ -115,14 +115,11 @@ func (a *App) ShowVMContextMenu() {
 		// Check if this is a plugin action
 		for _, pluginAction := range pluginActions {
 			if action == pluginAction.Label {
-				// Execute plugin action handler
-				go func() {
-					if err := pluginAction.Handler(a.ctx, a, node, vm); err != nil {
-						a.QueueUpdateDraw(func() {
-							a.showMessageSafe(fmt.Sprintf("Plugin action failed: %v", err))
-						})
-					}
-				}()
+				// Execute plugin action handler on the UI thread. Plugin handlers may
+				// immediately add pages/focus primitives and must not run in a background goroutine.
+				if err := pluginAction.Handler(a.ctx, a, node, vm); err != nil {
+					a.showMessageSafe(fmt.Sprintf("Plugin action failed: %v", err))
+				}
 				return
 			}
 		}
