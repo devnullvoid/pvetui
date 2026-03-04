@@ -30,6 +30,7 @@ const (
 	adhocPageName    = "plugin.ansible.adhoc"
 	setupPageName    = "plugin.ansible.setup"
 	runningPageName  = "plugin.ansible.running"
+	settingsPageName = "plugin.ansible.settings"
 )
 
 // Plugin provides Ansible integration for inventory generation and playbook execution.
@@ -86,6 +87,7 @@ func (p *Plugin) ModalPageNames() []string {
 		adhocPageName,
 		setupPageName,
 		runningPageName,
+		settingsPageName,
 	}
 }
 
@@ -139,6 +141,9 @@ func (p *Plugin) showMainMenu() {
 	list.AddItem("SSH Setup Assistant", "Show commands to prepare key-based SSH access", 0, func() {
 		p.showSetupAssistant(inventory, p.showMainMenu)
 	})
+	list.AddItem("Settings", "Configure ansible plugin defaults", 0, func() {
+		p.showSettingsForm(p.showMainMenu)
+	})
 	list.AddItem("Close", "Return", 'q', closeMenu)
 
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -169,6 +174,106 @@ func (p *Plugin) showMainMenu() {
 
 	pages.AddPage(menuPageName, p.centerModal(list, 70, 18), true, true)
 	p.app.SetFocus(list)
+}
+
+func (p *Plugin) showSettingsForm(onDone func()) {
+	pages := p.app.Pages()
+	pages.RemovePage(menuPageName)
+
+	cfg := p.app.Config()
+	if cfg == nil {
+		p.app.ShowMessageSafe("Configuration unavailable.")
+		if onDone != nil {
+			onDone()
+		}
+		return
+	}
+
+	ansibleCfg := cfg.Plugins.Ansible
+	form := components.NewStandardForm()
+	form.SetBorder(true)
+	form.SetBorderColor(theme.Colors.Border)
+	form.SetTitle(" Ansible Settings ")
+	form.SetTitleColor(theme.Colors.Primary)
+
+	defaultUser := strings.TrimSpace(ansibleCfg.DefaultUser)
+	defaultPassword := strings.TrimSpace(ansibleCfg.DefaultPassword)
+	sshPrivateKeyFile := strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile)
+	extraArgs := strings.Join(ansibleCfg.ExtraArgs, " ")
+	inventoryFormat := coreansible.NormalizeInventoryFormat(ansibleCfg.InventoryFormat)
+	defaultLimitMode := strings.TrimSpace(ansibleCfg.DefaultLimitMode)
+	if defaultLimitMode == "" {
+		defaultLimitMode = "selection"
+	}
+	askPass := ansibleCfg.AskPass
+	askBecomePass := ansibleCfg.AskBecomePass
+
+	form.AddDropDown(
+		"Inventory Format",
+		[]string{coreansible.InventoryFormatYAML, coreansible.InventoryFormatINI},
+		map[string]int{coreansible.InventoryFormatYAML: 0, coreansible.InventoryFormatINI: 1}[inventoryFormat],
+		func(option string, _ int) {
+			inventoryFormat = option
+		},
+	)
+	form.AddDropDown(
+		"Default Limit Mode",
+		[]string{"selection", "all", "none"},
+		map[string]int{"selection": 0, "all": 1, "none": 2}[defaultLimitMode],
+		func(option string, _ int) {
+			defaultLimitMode = option
+		},
+	)
+	form.AddInputField("Default User", defaultUser, 40, nil, func(text string) { defaultUser = strings.TrimSpace(text) })
+	form.AddPasswordField("Default Password", defaultPassword, 64, '*', func(text string) {
+		defaultPassword = strings.TrimSpace(text)
+	})
+	form.AddInputField("SSH Private Key", sshPrivateKeyFile, 80, nil, func(text string) {
+		sshPrivateKeyFile = strings.TrimSpace(text)
+	})
+	form.AddCheckbox("Ask Pass", askPass, func(checked bool) { askPass = checked })
+	form.AddCheckbox("Ask Become Pass", askBecomePass, func(checked bool) { askBecomePass = checked })
+	form.AddInputField("Extra Args", extraArgs, 80, nil, func(text string) {
+		extraArgs = strings.TrimSpace(text)
+	})
+
+	closeForm := func() {
+		pages.RemovePage(settingsPageName)
+		if onDone != nil {
+			onDone()
+		}
+	}
+
+	form.AddButton("Save", func() {
+		cfg.Plugins.Ansible.InventoryFormat = coreansible.NormalizeInventoryFormat(inventoryFormat)
+		cfg.Plugins.Ansible.DefaultLimitMode = strings.TrimSpace(defaultLimitMode)
+		cfg.Plugins.Ansible.DefaultUser = strings.TrimSpace(defaultUser)
+		cfg.Plugins.Ansible.DefaultPassword = strings.TrimSpace(defaultPassword)
+		cfg.Plugins.Ansible.SSHPrivateKeyFile = cfgpkg.ExpandHomePath(strings.TrimSpace(sshPrivateKeyFile))
+		cfg.Plugins.Ansible.AskPass = askPass
+		cfg.Plugins.Ansible.AskBecomePass = askBecomePass
+		cfg.Plugins.Ansible.ExtraArgs = strings.Fields(extraArgs)
+
+		if err := p.app.SaveConfigPreservingSOPS(); err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Failed to save settings: %v", err))
+			return
+		}
+
+		closeForm()
+		p.app.ShowMessageSafe("Ansible settings saved.")
+	})
+	form.AddButton("Cancel", closeForm)
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event != nil && event.Key() == tcell.KeyEsc {
+			closeForm()
+			return nil
+		}
+		return event
+	})
+
+	pages.AddPage(settingsPageName, p.centerModal(form, 100, 20), true, true)
+	p.app.SetFocus(form)
 }
 
 func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.InventoryResult, onDone func()) {

@@ -10,3 +10,9 @@ import (
 func newStandardForm() *tview.Form {
 	return tview.NewForm().SetLabelColor(theme.Colors.HeaderText)
 }
+
+// NewStandardForm creates a tview form with the project's standard label color.
+// This exported variant is intended for plugin UIs outside the components package.
+func NewStandardForm() *tview.Form {
+	return newStandardForm()
+}
