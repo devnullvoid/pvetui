@@ -308,7 +308,7 @@ func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, ex
 			if result.Err != nil {
 				title = "Ping Failed"
 			}
-			p.showOutput(title, body, nil)
+			p.showOutput(title, body, p.showMainMenu)
 		})
 	}()
 }
@@ -336,7 +336,7 @@ func (p *Plugin) runPlaybook(inventory coreansible.InventoryResult, opts coreans
 			if result.Err != nil {
 				title = "Playbook Failed"
 			}
-			p.showOutput(title, body, nil)
+			p.showOutput(title, body, p.showMainMenu)
 		})
 	}()
 }
