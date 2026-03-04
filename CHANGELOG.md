@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Ansible Plugin Command Cancellation**: Cancelling a running Ansible command from the plugin now cancels the underlying process context instead of only closing the progress modal.
+- **Ansible Playbook Rerun UX**: Back/close from the Playbook results view now returns to the Run Playbook form with the last submitted values pre-filled for quick adjustments and reruns.
 
 ## [1.0.20] - 2026-02-28
 

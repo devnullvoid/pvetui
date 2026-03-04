@@ -37,10 +37,19 @@ const (
 
 // Plugin provides Ansible integration for inventory generation and playbook execution.
 type Plugin struct {
-	app       *components.App
-	runner    *coreansible.Runner
-	runMu     sync.Mutex
-	runCancel context.CancelFunc
+	app                   *components.App
+	runner                *coreansible.Runner
+	runMu                 sync.Mutex
+	runCancel             context.CancelFunc
+	lastPlaybookFormState *playbookFormState
+}
+
+type playbookFormState struct {
+	PlaybookPath string
+	Limit        string
+	ExtraArgsRaw string
+	CheckMode    bool
+	TimeoutRaw   string
 }
 
 // New creates a fresh plugin instance.
@@ -347,6 +356,15 @@ func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.Invent
 }
 
 func (p *Plugin) showPlaybookForm(defaultLimit string, inventory coreansible.InventoryResult, onDone func()) {
+	p.showPlaybookFormWithState(defaultLimit, inventory, onDone, p.lastPlaybookFormState)
+}
+
+func (p *Plugin) showPlaybookFormWithState(
+	defaultLimit string,
+	inventory coreansible.InventoryResult,
+	onDone func(),
+	state *playbookFormState,
+) {
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
@@ -361,11 +379,20 @@ func (p *Plugin) showPlaybookForm(defaultLimit string, inventory coreansible.Inv
 	extra := ""
 	checkMode := false
 	timeout := "20m"
+	if state != nil {
+		playbookPath = state.PlaybookPath
+		limit = state.Limit
+		extra = state.ExtraArgsRaw
+		checkMode = state.CheckMode
+		if strings.TrimSpace(state.TimeoutRaw) != "" {
+			timeout = state.TimeoutRaw
+		}
+	}
 
-	form.AddInputField("Playbook", "", 60, nil, func(text string) { playbookPath = text })
-	form.AddInputField("Limit", defaultLimit, 40, nil, func(text string) { limit = text })
-	form.AddInputField("Extra Args", "", 60, nil, func(text string) { extra = text })
-	form.AddCheckbox("Check Mode", false, func(checked bool) { checkMode = checked })
+	form.AddInputField("Playbook", playbookPath, 60, nil, func(text string) { playbookPath = text })
+	form.AddInputField("Limit", limit, 40, nil, func(text string) { limit = text })
+	form.AddInputField("Extra Args", extra, 60, nil, func(text string) { extra = text })
+	form.AddCheckbox("Check Mode", checkMode, func(checked bool) { checkMode = checked })
 	form.AddInputField("Timeout", timeout, 10, nil, func(text string) { timeout = text })
 
 	closeForm := func() {
@@ -391,13 +418,24 @@ func (p *Plugin) showPlaybookForm(defaultLimit string, inventory coreansible.Inv
 			return
 		}
 
-		closeForm()
-		p.runPlaybook(inventory, coreansible.PlaybookOptions{
+		submitted := &playbookFormState{
 			PlaybookPath: strings.TrimSpace(playbookPath),
 			Limit:        strings.TrimSpace(limit),
-			ExtraArgs:    strings.Fields(extra),
+			ExtraArgsRaw: strings.TrimSpace(extra),
 			CheckMode:    checkMode,
-		}, timeoutDuration)
+			TimeoutRaw:   strings.TrimSpace(timeout),
+		}
+		p.lastPlaybookFormState = submitted
+
+		closeForm()
+		p.runPlaybook(inventory, coreansible.PlaybookOptions{
+			PlaybookPath: submitted.PlaybookPath,
+			Limit:        submitted.Limit,
+			ExtraArgs:    strings.Fields(submitted.ExtraArgsRaw),
+			CheckMode:    submitted.CheckMode,
+		}, timeoutDuration, func() {
+			p.showPlaybookFormWithState(defaultLimit, inventory, p.showMainMenu, submitted)
+		})
 	})
 	form.AddButton("Cancel", closeForm)
 
@@ -440,7 +478,12 @@ func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, ex
 	}()
 }
 
-func (p *Plugin) runPlaybook(inventory coreansible.InventoryResult, opts coreansible.PlaybookOptions, timeout time.Duration) {
+func (p *Plugin) runPlaybook(
+	inventory coreansible.InventoryResult,
+	opts coreansible.PlaybookOptions,
+	timeout time.Duration,
+	onResultBack func(),
+) {
 	if err := p.runner.CheckAvailability(); err != nil {
 		p.app.ShowMessageSafe(fmt.Sprintf("Ansible is not available: %v", err))
 		return
@@ -463,7 +506,11 @@ func (p *Plugin) runPlaybook(inventory coreansible.InventoryResult, opts coreans
 			if result.Err != nil {
 				title = "Playbook Failed"
 			}
-			p.showOutput(title, body, p.showMainMenu)
+			back := p.showMainMenu
+			if onResultBack != nil {
+				back = onResultBack
+			}
+			p.showOutput(title, body, back)
 		})
 	}()
 }
