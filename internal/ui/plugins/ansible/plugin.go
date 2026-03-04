@@ -311,7 +311,7 @@ func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.Invent
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
-	form := tview.NewForm()
+	form := components.NewStandardForm()
 	form.SetBorder(true)
 	form.SetBorderColor(theme.Colors.Border)
 	form.SetTitle(" Run Ping ")
@@ -368,7 +368,7 @@ func (p *Plugin) showPlaybookFormWithState(
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
-	form := tview.NewForm()
+	form := components.NewStandardForm()
 	form.SetBorder(true)
 	form.SetBorderColor(theme.Colors.Border)
 	form.SetTitle(" Run Playbook ")
@@ -519,7 +519,7 @@ func (p *Plugin) showSaveInventoryForm(inventory coreansible.InventoryResult, on
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
-	form := tview.NewForm()
+	form := components.NewStandardForm()
 	form.SetBorder(true)
 	form.SetBorderColor(theme.Colors.Border)
 	form.SetTitle(" Save Inventory ")
