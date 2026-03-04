@@ -185,6 +185,7 @@ type PluginConfig struct {
 // AnsiblePluginConfig holds configuration for the ansible plugin.
 type AnsiblePluginConfig struct {
 	InventoryFormat   string   `yaml:"inventory_format,omitempty"`
+	InventoryStyle    string   `yaml:"inventory_style,omitempty"`
 	DefaultUser       string   `yaml:"default_user,omitempty"`
 	DefaultPassword   string   `yaml:"default_password,omitempty"`
 	SSHPrivateKeyFile string   `yaml:"ssh_private_key_file,omitempty"`
@@ -419,6 +420,7 @@ func (c *Config) MergeWithFile(path string) error {
 			Enabled []string `yaml:"enabled"`
 			Ansible struct {
 				InventoryFormat   string   `yaml:"inventory_format"`
+				InventoryStyle    string   `yaml:"inventory_style"`
 				DefaultUser       string   `yaml:"default_user"`
 				DefaultPassword   string   `yaml:"default_password"`
 				SSHPrivateKeyFile string   `yaml:"ssh_private_key_file"`
@@ -680,6 +682,9 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.Plugins.Ansible.InventoryFormat != "" {
 		c.Plugins.Ansible.InventoryFormat = fileConfig.Plugins.Ansible.InventoryFormat
+	}
+	if fileConfig.Plugins.Ansible.InventoryStyle != "" {
+		c.Plugins.Ansible.InventoryStyle = fileConfig.Plugins.Ansible.InventoryStyle
 	}
 	if fileConfig.Plugins.Ansible.DefaultUser != "" {
 		c.Plugins.Ansible.DefaultUser = fileConfig.Plugins.Ansible.DefaultUser
@@ -1096,6 +1101,9 @@ func (c *Config) SetDefaults() {
 	}
 	if c.Plugins.Ansible.InventoryFormat == "" {
 		c.Plugins.Ansible.InventoryFormat = "yaml"
+	}
+	if c.Plugins.Ansible.InventoryStyle == "" {
+		c.Plugins.Ansible.InventoryStyle = "compact"
 	}
 	if c.Plugins.Ansible.DefaultLimitMode == "" {
 		c.Plugins.Ansible.DefaultLimitMode = "selection"

@@ -81,3 +81,52 @@ func TestNormalizeInventoryFormat(t *testing.T) {
 	require.Equal(t, InventoryFormatINI, NormalizeInventoryFormat("INI"))
 	require.Equal(t, InventoryFormatYAML, NormalizeInventoryFormat("unknown"))
 }
+
+func TestNormalizeInventoryStyle(t *testing.T) {
+	require.Equal(t, InventoryStyleCompact, NormalizeInventoryStyle("compact"))
+	require.Equal(t, InventoryStyleExpanded, NormalizeInventoryStyle("EXPANDED"))
+	require.Equal(t, InventoryStyleCompact, NormalizeInventoryStyle("unknown"))
+}
+
+func TestBuildInventoryWithFormat_CompactYAMLMovesSharedVarsToAllVars(t *testing.T) {
+	nodes := []*api.Node{
+		{Name: "pve-a", IP: "10.0.0.10", Online: true},
+		{Name: "pve-b", IP: "10.0.0.11", Online: true},
+	}
+
+	result := BuildInventoryWithFormat(nodes, nil, InventoryDefaults{
+		NodeSSHUser:       "ansible",
+		VMSSHUser:         "ansible",
+		SSHPrivateKeyFile: "~/.ssh/id_ed25519",
+		DefaultPassword:   "secret",
+		Style:             InventoryStyleCompact,
+	}, InventoryFormatYAML)
+
+	require.Contains(t, result.Text, "all:")
+	require.Contains(t, result.Text, "ansible_user: ansible")
+	require.Contains(t, result.Text, "ansible_ssh_private_key_file: ~/.ssh/id_ed25519")
+	require.Contains(t, result.Text, "ansible_password: secret")
+	require.NotContains(t, result.Text, "node_pve_a:\n      ansible_user:")
+	require.NotContains(t, result.Text, "node_pve_b:\n      ansible_user:")
+}
+
+func TestBuildInventoryWithFormat_ExpandedINIDoesNotLiftSharedVars(t *testing.T) {
+	nodes := []*api.Node{
+		{Name: "pve-a", IP: "10.0.0.10", Online: true},
+		{Name: "pve-b", IP: "10.0.0.11", Online: true},
+	}
+
+	result := BuildInventoryWithFormat(nodes, nil, InventoryDefaults{
+		NodeSSHUser:       "ansible",
+		VMSSHUser:         "ansible",
+		SSHPrivateKeyFile: "~/.ssh/id_ed25519",
+		DefaultPassword:   "secret",
+		Style:             InventoryStyleExpanded,
+	}, InventoryFormatINI)
+
+	require.Contains(t, result.Text, "[all:vars]")
+	require.NotContains(t, result.Text, "\nansible_user=ansible\n")
+	require.Contains(t, result.Text, "node_pve_a ansible_host=10.0.0.10 ansible_password=secret")
+	require.Contains(t, result.Text, "ansible_ssh_private_key_file=~/.ssh/id_ed25519")
+	require.Contains(t, result.Text, "ansible_user=ansible")
+}

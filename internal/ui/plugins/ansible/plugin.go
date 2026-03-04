@@ -201,6 +201,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	sshPrivateKeyFile := strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile)
 	extraArgs := strings.Join(ansibleCfg.ExtraArgs, " ")
 	inventoryFormat := coreansible.NormalizeInventoryFormat(ansibleCfg.InventoryFormat)
+	inventoryStyle := coreansible.NormalizeInventoryStyle(ansibleCfg.InventoryStyle)
 	defaultLimitMode := strings.TrimSpace(ansibleCfg.DefaultLimitMode)
 	if defaultLimitMode == "" {
 		defaultLimitMode = "selection"
@@ -214,6 +215,14 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 		map[string]int{coreansible.InventoryFormatYAML: 0, coreansible.InventoryFormatINI: 1}[inventoryFormat],
 		func(option string, _ int) {
 			inventoryFormat = option
+		},
+	)
+	form.AddDropDown(
+		"Inventory Style",
+		[]string{coreansible.InventoryStyleCompact, coreansible.InventoryStyleExpanded},
+		map[string]int{coreansible.InventoryStyleCompact: 0, coreansible.InventoryStyleExpanded: 1}[inventoryStyle],
+		func(option string, _ int) {
+			inventoryStyle = option
 		},
 	)
 	form.AddDropDown(
@@ -246,6 +255,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 
 	form.AddButton("Save", func() {
 		cfg.Plugins.Ansible.InventoryFormat = coreansible.NormalizeInventoryFormat(inventoryFormat)
+		cfg.Plugins.Ansible.InventoryStyle = coreansible.NormalizeInventoryStyle(inventoryStyle)
 		cfg.Plugins.Ansible.DefaultLimitMode = strings.TrimSpace(defaultLimitMode)
 		cfg.Plugins.Ansible.DefaultUser = strings.TrimSpace(defaultUser)
 		cfg.Plugins.Ansible.DefaultPassword = strings.TrimSpace(defaultPassword)
@@ -272,7 +282,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 		return event
 	})
 
-	pages.AddPage(settingsPageName, p.centerModal(form, 100, 20), true, true)
+	pages.AddPage(settingsPageName, p.centerModal(form, 100, 22), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -601,6 +611,7 @@ func (p *Plugin) currentInventory() coreansible.InventoryResult {
 		VMSSHUser:         p.resolveVMUser(),
 		SSHPrivateKeyFile: strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile),
 		DefaultPassword:   strings.TrimSpace(ansibleCfg.DefaultPassword),
+		Style:             coreansible.NormalizeInventoryStyle(ansibleCfg.InventoryStyle),
 	}
 	if user := strings.TrimSpace(ansibleCfg.DefaultUser); user != "" {
 		defaults.NodeSSHUser = user
@@ -729,6 +740,7 @@ func (p *Plugin) ansiblePluginConfig() cfgpkg.AnsiblePluginConfig {
 	if cfg == nil {
 		return cfgpkg.AnsiblePluginConfig{
 			InventoryFormat:  coreansible.InventoryFormatYAML,
+			InventoryStyle:   coreansible.InventoryStyleCompact,
 			DefaultLimitMode: "selection",
 		}
 	}
