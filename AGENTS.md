@@ -249,6 +249,7 @@ When developing new plugins:
 10. **Modal Pages**: Implement `ModalPageNames() []string` to declare plugin modal pages for proper keyboard event handling
 11. **UI Display**: Use color tags for keyboard shortcuts in UI text: `[primary]ESC[-]` not `[[ESC]]`
 12. **Input Handling**: Set `SetInputCapture()` on the focused element (not container) to properly consume events
+13. **Global Actions**: For plugin entries in the Global Menu, implement `components.GlobalActionPlugin` and keep core menu code plugin-agnostic.
 
 ### Architectural Decision Log
 

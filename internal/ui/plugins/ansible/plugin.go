@@ -12,6 +12,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	cfgpkg "github.com/devnullvoid/pvetui/internal/config"
 	coreansible "github.com/devnullvoid/pvetui/internal/plugins/ansible"
 	"github.com/devnullvoid/pvetui/internal/ui/components"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
@@ -121,7 +122,8 @@ func (p *Plugin) showMainMenu() {
 	selectedNode, selectedGuest := p.currentSelectionForLimit()
 
 	list.AddItem("Preview Inventory", "Render inventory from current nodes and guests", 0, func() {
-		p.showOutput("Generated Inventory", inventory.Text, p.showMainMenu)
+		title := fmt.Sprintf("Generated Inventory (%s)", strings.ToUpper(inventory.Format))
+		p.showOutput(title, inventory.Text, p.showMainMenu)
 	})
 	list.AddItem("Save Inventory", "Write generated inventory to a file", 0, func() {
 		p.showSaveInventoryForm(inventory.Text, p.showMainMenu)
@@ -298,7 +300,7 @@ func (p *Plugin) runPing(inventory, limit string, extraArgs []string, timeout ti
 		defer cancel()
 		defer p.clearRunningCancel()
 
-		result := p.runner.RunPing(ctx, inventory, limit, extraArgs)
+		result := p.runner.RunPing(ctx, inventory, limit, p.mergeConfiguredAnsibleArgs(extraArgs))
 		p.app.QueueUpdateDraw(func() {
 			p.app.Pages().RemovePage(runningPageName)
 			title := "Ping Result"
@@ -325,6 +327,7 @@ func (p *Plugin) runPlaybook(inventory string, opts coreansible.PlaybookOptions,
 		defer cancel()
 		defer p.clearRunningCancel()
 
+		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
 		result := p.runner.RunPlaybook(ctx, inventory, opts)
 		p.app.QueueUpdateDraw(func() {
 			p.app.Pages().RemovePage(runningPageName)
@@ -348,7 +351,7 @@ func (p *Plugin) showSaveInventoryForm(inventory string, onDone func()) {
 	form.SetTitle(" Save Inventory ")
 	form.SetTitleColor(theme.Colors.Primary)
 
-	defaultPath := filepath.Join(defaultHomeDir(), "ansible", "pvetui-inventory.ini")
+	defaultPath := filepath.Join(defaultHomeDir(), "ansible", defaultInventoryFilename(inventory))
 	targetPath := defaultPath
 
 	form.AddInputField("Path", defaultPath, 80, nil, func(text string) {
@@ -486,13 +489,20 @@ func (p *Plugin) showOutput(title, content string, onDone func()) {
 func (p *Plugin) currentInventory() coreansible.InventoryResult {
 	nodes := p.app.NodeList().GetNodes()
 	guests := p.app.VMList().GetVMs()
+	ansibleCfg := p.ansiblePluginConfig()
 
 	defaults := coreansible.InventoryDefaults{
-		NodeSSHUser: p.resolveNodeUser(),
-		VMSSHUser:   p.resolveVMUser(),
+		NodeSSHUser:       p.resolveNodeUser(),
+		VMSSHUser:         p.resolveVMUser(),
+		SSHPrivateKeyFile: strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile),
+		DefaultPassword:   strings.TrimSpace(ansibleCfg.DefaultPassword),
+	}
+	if user := strings.TrimSpace(ansibleCfg.DefaultUser); user != "" {
+		defaults.NodeSSHUser = user
+		defaults.VMSSHUser = user
 	}
 
-	return coreansible.BuildInventory(nodes, guests, defaults)
+	return coreansible.BuildInventoryWithFormat(nodes, guests, defaults, ansibleCfg.InventoryFormat)
 }
 
 func (p *Plugin) currentSelectionForLimit() (*api.Node, *api.VM) {
@@ -565,6 +575,13 @@ func (p *Plugin) resolveVMUser() string {
 }
 
 func (p *Plugin) defaultLimitForSelection(node *api.Node, guest *api.VM, inventory coreansible.InventoryResult) string {
+	switch strings.ToLower(strings.TrimSpace(p.ansiblePluginConfig().DefaultLimitMode)) {
+	case "none":
+		return ""
+	case "all":
+		return "all"
+	}
+
 	if guest != nil {
 		for _, host := range inventory.Hosts {
 			if host.Vars["pvetui_kind"] != "guest" {
@@ -585,6 +602,41 @@ func (p *Plugin) defaultLimitForSelection(node *api.Node, guest *api.VM, invento
 	}
 
 	return ""
+}
+
+func (p *Plugin) mergeConfiguredAnsibleArgs(userArgs []string) []string {
+	cfg := p.ansiblePluginConfig()
+	merged := make([]string, 0, len(cfg.ExtraArgs)+len(userArgs)+2)
+	merged = append(merged, cfg.ExtraArgs...)
+	if cfg.AskPass {
+		merged = append(merged, "--ask-pass")
+	}
+	if cfg.AskBecomePass {
+		merged = append(merged, "--ask-become-pass")
+	}
+	merged = append(merged, userArgs...)
+
+	return merged
+}
+
+func (p *Plugin) ansiblePluginConfig() cfgpkg.AnsiblePluginConfig {
+	cfg := p.app.Config()
+	if cfg == nil {
+		return cfgpkg.AnsiblePluginConfig{
+			InventoryFormat:  coreansible.InventoryFormatYAML,
+			DefaultLimitMode: "selection",
+		}
+	}
+
+	return cfg.Plugins.Ansible
+}
+
+func defaultInventoryFilename(inventory string) string {
+	if strings.Contains(inventory, "all:") {
+		return "pvetui-inventory.yml"
+	}
+
+	return "pvetui-inventory.ini"
 }
 
 func parseDuration(value string, fallback time.Duration) (time.Duration, error) {

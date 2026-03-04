@@ -34,7 +34,7 @@ The `ansible` plugin adds an **Ansible Toolkit** entry to the global actions men
 
 ### Features
 
-- **Inventory generation**: Builds INI inventory from currently loaded Proxmox nodes and guests.
+- **Inventory generation**: Builds inventory from currently loaded Proxmox nodes and guests in YAML (default) or INI format.
 - **Inventory export**: Preview and save generated inventory to a user-selected path.
 - **Ad-hoc connectivity tests**: Run `ansible -m ping` with optional limit, extra arguments, and timeout.
 - **Playbook execution**: Run `ansible-playbook` against generated inventory with optional `--limit`, `--check`, custom args, and timeout.
@@ -46,6 +46,29 @@ The `ansible` plugin adds an **Ansible Toolkit** entry to the global actions men
 
 - `ansible` and `ansible-playbook` must be available in your `PATH`.
 - SSH access must be configured for targets (`ssh_user` and optional `vm_ssh_user` in pvetui config are used as default inventory users).
+
+### Configuration
+
+The plugin reads optional settings from `plugins.ansible`:
+
+```yaml
+plugins:
+  enabled:
+    - "ansible"
+  ansible:
+    inventory_format: "yaml"            # yaml|ini
+    default_user: "ubuntu"              # optional ansible_user override
+    # default_password: "secret"        # optional sensitive field
+    ssh_private_key_file: "~/.ssh/id_ed25519"
+    default_limit_mode: "selection"     # selection|all|none
+    ask_pass: false
+    ask_become_pass: false
+    extra_args: []
+```
+
+Notes:
+- `default_password` is treated as sensitive data and follows the same encryption/decryption handling as other secrets.
+- `default_limit_mode: selection` preserves the selected node/guest behavior for prefilled limits in forms.
 
 ### Notes
 

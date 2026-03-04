@@ -36,6 +36,26 @@ func TestBuildInventory_GeneratesNodeAndGuestGroups(t *testing.T) {
 	require.Contains(t, result.Text, "ansible_user=root")
 }
 
+func TestBuildInventoryWithFormat_YAML(t *testing.T) {
+	nodes := []*api.Node{{Name: "pve-a", IP: "10.0.0.10", Online: true}}
+	guests := []*api.VM{{ID: 100, Name: "web-1", IP: "10.0.10.20", Node: "pve-a", Type: api.VMTypeQemu, Status: api.VMStatusRunning}}
+
+	result := BuildInventoryWithFormat(nodes, guests, InventoryDefaults{
+		NodeSSHUser:       "root",
+		VMSSHUser:         "ubuntu",
+		SSHPrivateKeyFile: "~/.ssh/id_ed25519",
+		DefaultPassword:   "secret",
+	}, InventoryFormatYAML)
+
+	require.Equal(t, InventoryFormatYAML, result.Format)
+	require.Contains(t, result.Text, "all:")
+	require.Contains(t, result.Text, "children:")
+	require.Contains(t, result.Text, "proxmox_nodes:")
+	require.Contains(t, result.Text, "proxmox_guests:")
+	require.Contains(t, result.Text, "ansible_ssh_private_key_file")
+	require.Contains(t, result.Text, "ansible_password")
+}
+
 func TestBuildInventory_DeduplicatesAliases(t *testing.T) {
 	guests := []*api.VM{
 		{ID: 101, Name: "same-name", IP: "192.168.1.10", Node: "node-1", Type: api.VMTypeQemu, Status: api.VMStatusRunning},
@@ -54,4 +74,10 @@ func TestSanitizeIdentifier(t *testing.T) {
 	require.Equal(t, "web_01", sanitizeIdentifier("Web-01"))
 	require.Equal(t, "db_server_eu", sanitizeIdentifier("db server@eu"))
 	require.Equal(t, "unknown", sanitizeIdentifier("***"))
+}
+
+func TestNormalizeInventoryFormat(t *testing.T) {
+	require.Equal(t, InventoryFormatYAML, NormalizeInventoryFormat("yaml"))
+	require.Equal(t, InventoryFormatINI, NormalizeInventoryFormat("INI"))
+	require.Equal(t, InventoryFormatYAML, NormalizeInventoryFormat("unknown"))
 }

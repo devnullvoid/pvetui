@@ -6,12 +6,20 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/pvetui/pkg/api"
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	InventoryFormatINI  = "ini"
+	InventoryFormatYAML = "yaml"
 )
 
 // InventoryDefaults defines default SSH users for inventory generation.
 type InventoryDefaults struct {
-	NodeSSHUser string
-	VMSSHUser   string
+	NodeSSHUser       string
+	VMSSHUser         string
+	SSHPrivateKeyFile string
+	DefaultPassword   string
 }
 
 // InventoryHost captures one generated host entry.
@@ -24,12 +32,20 @@ type InventoryHost struct {
 
 // InventoryResult contains the final inventory text and generated host metadata.
 type InventoryResult struct {
-	Text  string
-	Hosts []InventoryHost
+	Format string
+	Text   string
+	Hosts  []InventoryHost
 }
 
 // BuildInventory renders an INI-style Ansible inventory from Proxmox nodes and guests.
 func BuildInventory(nodes []*api.Node, guests []*api.VM, defaults InventoryDefaults) InventoryResult {
+	return BuildInventoryWithFormat(nodes, guests, defaults, InventoryFormatINI)
+}
+
+// BuildInventoryWithFormat renders an inventory in the requested format.
+func BuildInventoryWithFormat(nodes []*api.Node, guests []*api.VM, defaults InventoryDefaults, format string) InventoryResult {
+	format = NormalizeInventoryFormat(format)
+
 	hosts := make([]InventoryHost, 0, len(nodes)+len(guests))
 	groups := make(map[string][]InventoryHost)
 
@@ -60,6 +76,12 @@ func BuildInventory(nodes []*api.Node, guests []*api.VM, defaults InventoryDefau
 		}
 		if node.SourceProfile != "" {
 			vars["pvetui_source_profile"] = node.SourceProfile
+		}
+		if strings.TrimSpace(defaults.SSHPrivateKeyFile) != "" {
+			vars["ansible_ssh_private_key_file"] = strings.TrimSpace(defaults.SSHPrivateKeyFile)
+		}
+		if strings.TrimSpace(defaults.DefaultPassword) != "" {
+			vars["ansible_password"] = strings.TrimSpace(defaults.DefaultPassword)
 		}
 
 		groupNames := []string{"proxmox_nodes"}
@@ -105,6 +127,12 @@ func BuildInventory(nodes []*api.Node, guests []*api.VM, defaults InventoryDefau
 		if strings.TrimSpace(guest.Tags) != "" {
 			vars["pvetui_tags"] = guest.Tags
 		}
+		if strings.TrimSpace(defaults.SSHPrivateKeyFile) != "" {
+			vars["ansible_ssh_private_key_file"] = strings.TrimSpace(defaults.SSHPrivateKeyFile)
+		}
+		if strings.TrimSpace(defaults.DefaultPassword) != "" {
+			vars["ansible_password"] = strings.TrimSpace(defaults.DefaultPassword)
+		}
 
 		groupNames := []string{"proxmox_guests", "by_node_" + sanitizeIdentifier(guest.Node)}
 		switch guest.Type {
@@ -127,13 +155,27 @@ func BuildInventory(nodes []*api.Node, guests []*api.VM, defaults InventoryDefau
 		})
 	}
 
-	return InventoryResult{
-		Text:  renderInventory(groups),
-		Hosts: hosts,
+	rendered := renderINIInventory(groups)
+	if format == InventoryFormatYAML {
+		rendered = renderYAMLInventory(groups)
+	}
+
+	return InventoryResult{Format: format, Text: rendered, Hosts: hosts}
+}
+
+// NormalizeInventoryFormat validates and canonicalizes inventory format.
+func NormalizeInventoryFormat(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case InventoryFormatINI:
+		return InventoryFormatINI
+	case InventoryFormatYAML:
+		return InventoryFormatYAML
+	default:
+		return InventoryFormatYAML
 	}
 }
 
-func renderInventory(groups map[string][]InventoryHost) string {
+func renderINIInventory(groups map[string][]InventoryHost) string {
 	orderedGroups := make([]string, 0, len(groups))
 	for group := range groups {
 		orderedGroups = append(orderedGroups, group)
@@ -166,6 +208,63 @@ func renderInventory(groups map[string][]InventoryHost) string {
 	}
 
 	return builder.String()
+}
+
+func renderYAMLInventory(groups map[string][]InventoryHost) string {
+	type yamlGroup struct {
+		Hosts map[string]map[string]string `yaml:"hosts,omitempty"`
+	}
+	type yamlAll struct {
+		Vars     map[string]any       `yaml:"vars,omitempty"`
+		Children map[string]yamlGroup `yaml:"children,omitempty"`
+	}
+	type yamlInventory struct {
+		All yamlAll `yaml:"all"`
+	}
+
+	orderedGroups := make([]string, 0, len(groups))
+	for group := range groups {
+		orderedGroups = append(orderedGroups, group)
+	}
+	sort.Strings(orderedGroups)
+
+	children := make(map[string]yamlGroup, len(orderedGroups))
+	for _, group := range orderedGroups {
+		groupHosts := groups[group]
+		sort.Slice(groupHosts, func(i, j int) bool {
+			return groupHosts[i].Alias < groupHosts[j].Alias
+		})
+
+		hosts := make(map[string]map[string]string, len(groupHosts))
+		for _, host := range groupHosts {
+			vars := make(map[string]string, len(host.Vars))
+			for k, v := range host.Vars {
+				if strings.TrimSpace(v) == "" {
+					continue
+				}
+				vars[k] = v
+			}
+			hosts[host.Alias] = vars
+		}
+
+		children[group] = yamlGroup{Hosts: hosts}
+	}
+
+	doc := yamlInventory{
+		All: yamlAll{
+			Vars: map[string]any{
+				"pvetui_generated": true,
+			},
+			Children: children,
+		},
+	}
+
+	data, err := yaml.Marshal(doc)
+	if err != nil {
+		return fmt.Sprintf("# Failed to render YAML inventory: %v\n", err)
+	}
+
+	return "# Generated by pvetui Ansible plugin\n" + string(data)
 }
 
 func renderHostVars(vars map[string]string) string {

@@ -316,6 +316,15 @@ plugins:
     - "community-scripts"  # Opt-in to the community script installer plugin
     - "command-runner"     # SSH command execution on hosts/guests
     - "guest-insights"     # Optional Guest Insights plugin (legacy alias: demo-guest-list)
+  ansible:
+    inventory_format: "yaml"            # "yaml" (default) or "ini"
+    default_user: "ubuntu"              # Optional ansible_user override for all hosts
+    # default_password: "secret"        # Optional sensitive field; prefer encrypted configs
+    ssh_private_key_file: "~/.ssh/id_ed25519"
+    default_limit_mode: "selection"     # "selection" (default), "all", or "none"
+    ask_pass: false                     # Add --ask-pass by default
+    ask_become_pass: false              # Add --ask-become-pass by default
+    extra_args: []                      # Appended to ansible and ansible-playbook commands
 ```
 
 ## Advanced Options

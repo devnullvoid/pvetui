@@ -517,6 +517,47 @@ plugins:
 	assert.Empty(t, cfg.Plugins.Enabled)
 }
 
+func TestConfig_MergeWithFile_PluginsAnsible(t *testing.T) {
+	tempFile, err := os.CreateTemp(t.TempDir(), "config-ansible-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	content := `
+plugins:
+  enabled:
+    - ansible
+  ansible:
+    inventory_format: ini
+    default_user: automation
+    default_password: secret123
+    ssh_private_key_file: ~/.ssh/id_ed25519
+    default_limit_mode: all
+    ask_pass: true
+    ask_become_pass: true
+    extra_args:
+      - --forks
+      - "20"
+`
+
+	_, err = tempFile.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tempFile.Close())
+
+	cfg := &Config{}
+	require.NoError(t, cfg.MergeWithFile(tempFile.Name()))
+	cfg.SetDefaults()
+
+	assert.Equal(t, []string{"ansible"}, cfg.Plugins.Enabled)
+	assert.Equal(t, "ini", cfg.Plugins.Ansible.InventoryFormat)
+	assert.Equal(t, "automation", cfg.Plugins.Ansible.DefaultUser)
+	assert.Equal(t, "secret123", cfg.Plugins.Ansible.DefaultPassword)
+	assert.Contains(t, cfg.Plugins.Ansible.SSHPrivateKeyFile, ".ssh")
+	assert.Equal(t, "all", cfg.Plugins.Ansible.DefaultLimitMode)
+	assert.True(t, cfg.Plugins.Ansible.AskPass)
+	assert.True(t, cfg.Plugins.Ansible.AskBecomePass)
+	assert.Equal(t, []string{"--forks", "20"}, cfg.Plugins.Ansible.ExtraArgs)
+}
+
 func TestConfig_MergeWithEncryptedFile(t *testing.T) {
 	if _, err := exec.LookPath("sops"); err != nil {
 		t.Skip("sops binary not available")
@@ -563,6 +604,8 @@ func TestConfig_SetDefaults(t *testing.T) {
 	assert.NotEmpty(t, config.CacheDir)
 	assert.Contains(t, config.CacheDir, "pvetui")
 	assert.Empty(t, config.Plugins.Enabled)
+	assert.Equal(t, "yaml", config.Plugins.Ansible.InventoryFormat)
+	assert.Equal(t, "selection", config.Plugins.Ansible.DefaultLimitMode)
 	assert.Equal(t, "Ctrl+f", config.KeyBindings.AdvancedGuestFilter)
 }
 

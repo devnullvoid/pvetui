@@ -268,6 +268,14 @@ func EncryptConfigSensitiveFields(cfg *Config) error {
 		}
 	}
 
+	if cfg.Plugins.Ansible.DefaultPassword != "" && !isEncrypted(cfg.Plugins.Ansible.DefaultPassword) {
+		var err error
+		cfg.Plugins.Ansible.DefaultPassword, err = EncryptField(cfg.Plugins.Ansible.DefaultPassword)
+		if err != nil {
+			return fmt.Errorf("encrypt ansible default_password: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -296,6 +304,14 @@ func DecryptConfigSensitiveFields(cfg *Config) error {
 		cfg.TokenSecret, err = DecryptField(cfg.TokenSecret)
 		if err != nil {
 			return fmt.Errorf("decrypt legacy token_secret: %w", err)
+		}
+	}
+
+	if cfg.Plugins.Ansible.DefaultPassword != "" {
+		var err error
+		cfg.Plugins.Ansible.DefaultPassword, err = DecryptField(cfg.Plugins.Ansible.DefaultPassword)
+		if err != nil {
+			return fmt.Errorf("decrypt ansible default_password: %w", err)
 		}
 	}
 
