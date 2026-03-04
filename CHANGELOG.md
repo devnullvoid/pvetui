@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Ansible Toolkit Plugin**: Added a new opt-in `ansible` plugin that generates Ansible inventory from loaded Proxmox nodes/guests, supports inventory preview/export, runs `ansible -m ping`, executes `ansible-playbook` with limit/check/extra-args options, and includes an SSH setup assistant.
+
+### Fixed
+
+- **Ansible Plugin Command Cancellation**: Cancelling a running Ansible command from the plugin now cancels the underlying process context instead of only closing the progress modal.
+
 ## [1.0.20] - 2026-02-28
 
 ### Added

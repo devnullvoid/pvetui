@@ -15,16 +15,41 @@ The repository currently ships with the following built-in plugins:
 - `community-scripts`: exposes the community script installer from the node context menu
 - `guest-insights` (legacy alias: `demo-guest-list`): adds Guest Insights actions for the selected node
 - `command-runner`: execute whitelisted commands on Proxmox hosts via SSH
+- `ansible`: generate inventory from current nodes/guests and run Ansible workflows
 
 ```yaml
 plugins:
   enabled:
+    - "ansible"
     - "community-scripts"
     - "guest-insights"   # Legacy alias: demo-guest-list
     - "command-runner"
 ```
 
 Restart pvetui after editing the configuration to apply the change. If an unknown plugin ID is listed, the application prints a warning similar to `⚠️ Unknown plugins requested: my-plugin` during startup.
+
+## Ansible Toolkit Plugin
+
+The `ansible` plugin adds an **Ansible Toolkit** action (shortcut: `A`) to node and guest context menus.
+
+### Features
+
+- **Inventory generation**: Builds INI inventory from currently loaded Proxmox nodes and guests.
+- **Inventory export**: Preview and save generated inventory to a user-selected path.
+- **Ad-hoc connectivity tests**: Run `ansible -m ping` with optional limit, extra arguments, and timeout.
+- **Playbook execution**: Run `ansible-playbook` against generated inventory with optional `--limit`, `--check`, custom args, and timeout.
+- **SSH setup assistant**: Shows practical `ssh-copy-id` and validation commands for all discovered targets.
+- **Safe defaults**: Commands run without shell interpolation and temporary inventory files are created with `0600` permissions.
+
+### Requirements
+
+- `ansible` and `ansible-playbook` must be available in your `PATH`.
+- SSH access must be configured for targets (`ssh_user` and optional `vm_ssh_user` in pvetui config are used as default inventory users).
+
+### Notes
+
+- The plugin uses nodes/guests currently loaded in the UI to build inventory.
+- Cancelling a running command from the plugin now cancels the underlying Ansible process context.
 
 ## Command Runner Plugin
 

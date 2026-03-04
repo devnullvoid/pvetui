@@ -1,0 +1,57 @@
+package ansible
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/devnullvoid/pvetui/pkg/api"
+)
+
+func TestBuildInventory_GeneratesNodeAndGuestGroups(t *testing.T) {
+	nodes := []*api.Node{
+		{Name: "pve-a", IP: "10.0.0.10", Online: true},
+		{Name: "pve-b", IP: "10.0.0.11", Online: false},
+	}
+
+	guests := []*api.VM{
+		{ID: 100, Name: "web-1", IP: "10.0.10.20", Node: "pve-a", Type: api.VMTypeQemu, Status: api.VMStatusRunning, Tags: "prod;web"},
+		{ID: 200, Name: "db 1", IP: "10.0.10.30", Node: "pve-b", Type: api.VMTypeLXC, Status: api.VMStatusStopped},
+	}
+
+	result := BuildInventory(nodes, guests, InventoryDefaults{NodeSSHUser: "root", VMSSHUser: "ubuntu"})
+
+	require.NotEmpty(t, result.Text)
+	require.Len(t, result.Hosts, 4)
+
+	require.Contains(t, result.Text, "[proxmox_nodes]")
+	require.Contains(t, result.Text, "[proxmox_guests]")
+	require.Contains(t, result.Text, "[qemu]")
+	require.Contains(t, result.Text, "[lxc]")
+	require.Contains(t, result.Text, "[running]")
+	require.Contains(t, result.Text, "[stopped]")
+	require.Contains(t, result.Text, "pvetui_tags=\"prod;web\"")
+	require.Contains(t, result.Text, "ansible_user=ubuntu")
+	require.Contains(t, result.Text, "ansible_user=root")
+}
+
+func TestBuildInventory_DeduplicatesAliases(t *testing.T) {
+	guests := []*api.VM{
+		{ID: 101, Name: "same-name", IP: "192.168.1.10", Node: "node-1", Type: api.VMTypeQemu, Status: api.VMStatusRunning},
+		{ID: 102, Name: "same-name", IP: "192.168.1.11", Node: "node-1", Type: api.VMTypeQemu, Status: api.VMStatusRunning},
+	}
+
+	result := BuildInventory(nil, guests, InventoryDefaults{NodeSSHUser: "root", VMSSHUser: "ubuntu"})
+
+	require.Len(t, result.Hosts, 2)
+	require.NotEqual(t, result.Hosts[0].Alias, result.Hosts[1].Alias)
+	require.True(t, strings.HasPrefix(result.Hosts[0].Alias, "guest_"))
+	require.True(t, strings.HasPrefix(result.Hosts[1].Alias, "guest_"))
+}
+
+func TestSanitizeIdentifier(t *testing.T) {
+	require.Equal(t, "web_01", sanitizeIdentifier("Web-01"))
+	require.Equal(t, "db_server_eu", sanitizeIdentifier("db server@eu"))
+	require.Equal(t, "unknown", sanitizeIdentifier("***"))
+}

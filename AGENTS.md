@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** February 2026 | **For:** pvetui - Proxmox TUI
+**Last Updated:** March 2026 | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -230,6 +230,7 @@ Comprehensive code review resulted in these fixes (Oct 2025):
 - Recently added pluggable architecture for UI extensions
 - Plugins disabled by default, opt-in via `plugins.enabled` config
 - Community Scripts extracted to plugin
+- Ansible Toolkit plugin (`ansible`) provides inventory generation + playbook execution flows from node/guest context menus
 - Namespaced cache support for plugin isolation
 
 ### Plugin Development Guidelines
@@ -280,6 +281,7 @@ Key architectural decisions and rationale:
 - **tview QueueUpdateDraw deadlocks**: Never call functions that use `QueueUpdateDraw` from within another `QueueUpdateDraw` callback - this creates nested calls that deadlock tview. Always separate UI updates into sequential, non-nested calls.
 - **UI callback re-entrancy**: Treat modal/button callbacks, `SetDoneFunc`, and input handlers as UI-thread contexts. Prefer `go func() { ... }` for background work and keep callback bodies non-blocking.
 - **TaskManager/UI notify path**: If a background manager notifies UI code that uses `QueueUpdateDraw`, dispatch the notifier asynchronously (e.g. `go notify()`) to avoid blocking UI event handlers.
+- **Long-running plugin commands**: If a plugin starts external processes (e.g., ansible), wire modal cancel actions to `context.CancelFunc`; hiding the modal alone does not stop the process.
 - **Pre-PR deadlock scan**: Before merging UI changes, scan for risky call sites with `rg -n "QueueUpdateDraw|SetDoneFunc|SetInputCapture" internal/ui/components internal/taskmanager` and verify no nested `QueueUpdateDraw` chains were introduced.
 - **Pending state and refreshes**: Always clear pending state BEFORE calling refresh functions (`manualRefresh`, `refreshVMData`), as these functions check for pending operations and will block if any exist
 - **Guest advanced filter persistence**: When checking whether Guests filters are active, use `SearchState.HasActiveVMFilter()` (not only `SearchState.Filter != ""`) so structured filters (status/type/node/tag) persist across manual refresh, auto-refresh, and VM refresh paths.

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/ui/plugins/ansible"
 	"github.com/devnullvoid/pvetui/internal/ui/plugins/communityscripts"
 	"github.com/devnullvoid/pvetui/internal/ui/plugins/guestlist"
 )
@@ -48,16 +49,17 @@ func TestEnabledFromConfig_LegacyAlias(t *testing.T) {
 
 func TestAvailableIDs(t *testing.T) {
 	ids := AvailableIDs()
+	require.Contains(t, ids, ansible.PluginID)
 	require.Contains(t, ids, communityscripts.PluginID)
 	require.Contains(t, ids, guestlist.PluginID)
 }
 
 func TestAvailableMetadata(t *testing.T) {
 	infos := AvailableMetadata()
-	require.GreaterOrEqual(t, len(infos), 2)
+	require.GreaterOrEqual(t, len(infos), 3)
 
 	var prevName string
-	var foundCommunity, foundGuest bool
+	var foundAnsible, foundCommunity, foundGuest bool
 
 	for _, info := range infos {
 		require.NotEmpty(t, info.ID)
@@ -68,6 +70,9 @@ func TestAvailableMetadata(t *testing.T) {
 			require.LessOrEqual(t, prevName, info.Name)
 		}
 
+		if info.ID == ansible.PluginID {
+			foundAnsible = true
+		}
 		if info.ID == communityscripts.PluginID {
 			foundCommunity = true
 		}
@@ -78,6 +83,7 @@ func TestAvailableMetadata(t *testing.T) {
 		prevName = info.Name
 	}
 
+	require.True(t, foundAnsible)
 	require.True(t, foundCommunity)
 	require.True(t, foundGuest)
 }
