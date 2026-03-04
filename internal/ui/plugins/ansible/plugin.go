@@ -167,7 +167,7 @@ func (p *Plugin) showMainMenu() {
 		return event
 	})
 
-	pages.AddPage(menuPageName, centerModal(list, 70, 18), true, true)
+	pages.AddPage(menuPageName, p.centerModal(list, 70, 18), true, true)
 	p.app.SetFocus(list)
 }
 
@@ -215,7 +215,7 @@ func (p *Plugin) showAdhocForm(defaultLimit, inventory string, onDone func()) {
 		return event
 	})
 
-	pages.AddPage(adhocPageName, centerModal(form, 86, 12), true, true)
+	pages.AddPage(adhocPageName, p.centerModal(form, 86, 12), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -282,7 +282,7 @@ func (p *Plugin) showPlaybookForm(defaultLimit, inventory string, onDone func())
 		return event
 	})
 
-	pages.AddPage(playbookPageName, centerModal(form, 92, 16), true, true)
+	pages.AddPage(playbookPageName, p.centerModal(form, 92, 16), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -389,7 +389,7 @@ func (p *Plugin) showSaveInventoryForm(inventory string, onDone func()) {
 		return event
 	})
 
-	pages.AddPage(savePathPageName, centerModal(form, 96, 9), true, true)
+	pages.AddPage(savePathPageName, p.centerModal(form, 96, 9), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -423,7 +423,7 @@ func (p *Plugin) showSetupAssistant(inventory coreansible.InventoryResult, onDon
 		return event
 	})
 
-	pages.AddPage(setupPageName, centerModal(text, 110, 28), true, true)
+	pages.AddPage(setupPageName, p.centerModal(text, 110, 28), true, true)
 	p.app.SetFocus(text)
 }
 
@@ -444,7 +444,7 @@ func (p *Plugin) showRunningModal(message string) {
 		p.app.Pages().RemovePage(runningPageName)
 	})
 
-	p.app.Pages().AddPage(runningPageName, centerModal(modal, 50, 7), true, true)
+	p.app.Pages().AddPage(runningPageName, p.centerModal(modal, 50, 7), true, true)
 	p.app.SetFocus(modal)
 }
 
@@ -482,7 +482,7 @@ func (p *Plugin) showOutput(title, content string, onDone func()) {
 		return event
 	})
 
-	pages.AddPage(outputPageName, centerModal(output, 110, 30), true, true)
+	pages.AddPage(outputPageName, p.centerModal(output, 110, 30), true, true)
 	p.app.SetFocus(output)
 }
 
@@ -712,19 +712,49 @@ func formatCommandResult(result coreansible.CommandResult) string {
 	return b.String()
 }
 
-func centerModal(p tview.Primitive, width, height int) tview.Primitive {
+func (p *Plugin) centerModal(content tview.Primitive, width, height int) tview.Primitive {
+	screenW, screenH := 120, 40
+	if p != nil && p.app != nil && p.app.Pages() != nil {
+		_, _, w, h := p.app.Pages().GetRect()
+		if w > 0 && h > 0 {
+			screenW, screenH = w, h
+		}
+	}
+
+	maxWidth := maxInt(24, screenW-2)
+	maxHeight := maxInt(6, screenH-2)
+	width = clampInt(width, 24, maxWidth)
+	height = clampInt(height, 6, maxHeight)
+
 	return tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(
 			tview.NewFlex().SetDirection(tview.FlexRow).
 				AddItem(nil, 0, 1, false).
-				AddItem(p, height, 0, true).
+				AddItem(content, height, 0, true).
 				AddItem(nil, 0, 1, false),
 			width,
 			0,
 			true,
 		).
 		AddItem(nil, 0, 1, false)
+}
+
+func clampInt(val, minVal, maxVal int) int {
+	if val < minVal {
+		return minVal
+	}
+	if val > maxVal {
+		return maxVal
+	}
+	return val
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func isBackKey(event *tcell.EventKey) bool {
