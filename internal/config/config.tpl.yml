@@ -82,6 +82,8 @@ plugins:
   # ansible:
   #   inventory_format: "yaml"        # "yaml" (default) or "ini"
   #   inventory_style: "compact"      # "compact" (default) or "expanded"
+  #   inventory_vars:                 # Optional vars injected into all.vars / [all:vars]
+  #     ansible_python_interpreter: /usr/bin/python3
   #   default_user: "ubuntu"          # Optional: overrides ansible_user host var
   #   # default_password: "secret"    # Optional sensitive field (prefer SOPS/age encryption)
   #   ssh_private_key_file: "~/.ssh/id_ed25519"  # Optional default key path

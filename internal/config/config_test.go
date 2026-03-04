@@ -529,6 +529,9 @@ plugins:
   ansible:
     inventory_format: ini
     inventory_style: expanded
+    inventory_vars:
+      ansible_python_interpreter: /usr/bin/python3
+      ansible_become: "true"
     default_user: automation
     default_password: secret123
     ssh_private_key_file: ~/.ssh/id_ed25519
@@ -551,6 +554,8 @@ plugins:
 	assert.Equal(t, []string{"ansible"}, cfg.Plugins.Enabled)
 	assert.Equal(t, "ini", cfg.Plugins.Ansible.InventoryFormat)
 	assert.Equal(t, "expanded", cfg.Plugins.Ansible.InventoryStyle)
+	assert.Equal(t, "/usr/bin/python3", cfg.Plugins.Ansible.InventoryVars["ansible_python_interpreter"])
+	assert.Equal(t, "true", cfg.Plugins.Ansible.InventoryVars["ansible_become"])
 	assert.Equal(t, "automation", cfg.Plugins.Ansible.DefaultUser)
 	assert.Equal(t, "secret123", cfg.Plugins.Ansible.DefaultPassword)
 	assert.Contains(t, cfg.Plugins.Ansible.SSHPrivateKeyFile, ".ssh")

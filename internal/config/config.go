@@ -184,15 +184,16 @@ type PluginConfig struct {
 
 // AnsiblePluginConfig holds configuration for the ansible plugin.
 type AnsiblePluginConfig struct {
-	InventoryFormat   string   `yaml:"inventory_format,omitempty"`
-	InventoryStyle    string   `yaml:"inventory_style,omitempty"`
-	DefaultUser       string   `yaml:"default_user,omitempty"`
-	DefaultPassword   string   `yaml:"default_password,omitempty"`
-	SSHPrivateKeyFile string   `yaml:"ssh_private_key_file,omitempty"`
-	DefaultLimitMode  string   `yaml:"default_limit_mode,omitempty"`
-	AskPass           bool     `yaml:"ask_pass,omitempty"`
-	AskBecomePass     bool     `yaml:"ask_become_pass,omitempty"`
-	ExtraArgs         []string `yaml:"extra_args,omitempty"`
+	InventoryFormat   string            `yaml:"inventory_format,omitempty"`
+	InventoryStyle    string            `yaml:"inventory_style,omitempty"`
+	InventoryVars     map[string]string `yaml:"inventory_vars,omitempty"`
+	DefaultUser       string            `yaml:"default_user,omitempty"`
+	DefaultPassword   string            `yaml:"default_password,omitempty"`
+	SSHPrivateKeyFile string            `yaml:"ssh_private_key_file,omitempty"`
+	DefaultLimitMode  string            `yaml:"default_limit_mode,omitempty"`
+	AskPass           bool              `yaml:"ask_pass,omitempty"`
+	AskBecomePass     bool              `yaml:"ask_become_pass,omitempty"`
+	ExtraArgs         []string          `yaml:"extra_args,omitempty"`
 }
 
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
@@ -419,15 +420,16 @@ func (c *Config) MergeWithFile(path string) error {
 		Plugins struct {
 			Enabled []string `yaml:"enabled"`
 			Ansible struct {
-				InventoryFormat   string   `yaml:"inventory_format"`
-				InventoryStyle    string   `yaml:"inventory_style"`
-				DefaultUser       string   `yaml:"default_user"`
-				DefaultPassword   string   `yaml:"default_password"`
-				SSHPrivateKeyFile string   `yaml:"ssh_private_key_file"`
-				DefaultLimitMode  string   `yaml:"default_limit_mode"`
-				AskPass           *bool    `yaml:"ask_pass"`
-				AskBecomePass     *bool    `yaml:"ask_become_pass"`
-				ExtraArgs         []string `yaml:"extra_args"`
+				InventoryFormat   string            `yaml:"inventory_format"`
+				InventoryStyle    string            `yaml:"inventory_style"`
+				InventoryVars     map[string]string `yaml:"inventory_vars"`
+				DefaultUser       string            `yaml:"default_user"`
+				DefaultPassword   string            `yaml:"default_password"`
+				SSHPrivateKeyFile string            `yaml:"ssh_private_key_file"`
+				DefaultLimitMode  string            `yaml:"default_limit_mode"`
+				AskPass           *bool             `yaml:"ask_pass"`
+				AskBecomePass     *bool             `yaml:"ask_become_pass"`
+				ExtraArgs         []string          `yaml:"extra_args"`
 			} `yaml:"ansible"`
 		} `yaml:"plugins"`
 		ShowIcons     *bool                          `yaml:"show_icons"`
@@ -685,6 +687,12 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.Plugins.Ansible.InventoryStyle != "" {
 		c.Plugins.Ansible.InventoryStyle = fileConfig.Plugins.Ansible.InventoryStyle
+	}
+	if fileConfig.Plugins.Ansible.InventoryVars != nil {
+		c.Plugins.Ansible.InventoryVars = make(map[string]string, len(fileConfig.Plugins.Ansible.InventoryVars))
+		for k, v := range fileConfig.Plugins.Ansible.InventoryVars {
+			c.Plugins.Ansible.InventoryVars[k] = v
+		}
 	}
 	if fileConfig.Plugins.Ansible.DefaultUser != "" {
 		c.Plugins.Ansible.DefaultUser = fileConfig.Plugins.Ansible.DefaultUser

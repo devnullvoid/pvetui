@@ -143,3 +143,39 @@ func TestBuildInventoryWithFormat_ExpandedINIDoesNotLiftSharedVars(t *testing.T)
 	require.Contains(t, result.Text, "ansible_ssh_private_key_file=~/.ssh/id_ed25519")
 	require.Contains(t, result.Text, "ansible_user=ansible")
 }
+
+func TestBuildInventoryWithFormat_CompactAppliesInventoryVarsInAllVars(t *testing.T) {
+	nodes := []*api.Node{{Name: "pve-a", IP: "10.0.0.10", Online: true}}
+
+	result := BuildInventoryWithFormat(nodes, nil, InventoryDefaults{
+		NodeSSHUser: "ansible",
+		VMSSHUser:   "ansible",
+		Style:       InventoryStyleCompact,
+		InventoryVars: map[string]string{
+			"ansible_python_interpreter": "/usr/bin/python3",
+		},
+	}, InventoryFormatYAML)
+
+	require.Contains(t, result.Text, "ansible_python_interpreter: /usr/bin/python3")
+	require.NotContains(t, result.Text, "node_pve_a:\n      ansible_python_interpreter:")
+}
+
+func TestBuildInventoryWithFormat_ExpandedRepeatsInventoryVarsPerHost(t *testing.T) {
+	nodes := []*api.Node{
+		{Name: "pve-a", IP: "10.0.0.10", Online: true},
+		{Name: "pve-b", IP: "10.0.0.11", Online: true},
+	}
+
+	result := BuildInventoryWithFormat(nodes, nil, InventoryDefaults{
+		NodeSSHUser: "ansible",
+		VMSSHUser:   "ansible",
+		Style:       InventoryStyleExpanded,
+		InventoryVars: map[string]string{
+			"ansible_python_interpreter": "/usr/bin/python3",
+		},
+	}, InventoryFormatINI)
+
+	require.NotContains(t, result.Text, "\nansible_python_interpreter=/usr/bin/python3\n")
+	require.Contains(t, result.Text, "node_pve_a ansible_host=10.0.0.10 ansible_python_interpreter=/usr/bin/python3")
+	require.Contains(t, result.Text, "node_pve_b ansible_host=10.0.0.11 ansible_python_interpreter=/usr/bin/python3")
+}

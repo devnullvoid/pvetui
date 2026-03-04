@@ -22,6 +22,7 @@ type InventoryDefaults struct {
 	VMSSHUser         string
 	SSHPrivateKeyFile string
 	DefaultPassword   string
+	InventoryVars     map[string]string
 	Style             string
 }
 
@@ -87,6 +88,7 @@ func BuildInventoryWithFormat(nodes []*api.Node, guests []*api.VM, defaults Inve
 		if strings.TrimSpace(defaults.DefaultPassword) != "" {
 			vars["ansible_password"] = strings.TrimSpace(defaults.DefaultPassword)
 		}
+		mergeInventoryVars(vars, defaults.InventoryVars)
 
 		groupNames := []string{"proxmox_nodes"}
 		if node.Online {
@@ -140,6 +142,7 @@ func BuildInventoryWithFormat(nodes []*api.Node, guests []*api.VM, defaults Inve
 		if strings.TrimSpace(defaults.DefaultPassword) != "" {
 			vars["ansible_password"] = strings.TrimSpace(defaults.DefaultPassword)
 		}
+		mergeInventoryVars(vars, defaults.InventoryVars)
 
 		groupNames := []string{"proxmox_guests", "by_node_" + sanitizeIdentifier(guest.Node)}
 		switch guest.Type {
@@ -372,6 +375,16 @@ func sortedMapKeys(m map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func mergeInventoryVars(dest map[string]string, extra map[string]string) {
+	for k, v := range extra {
+		key := strings.TrimSpace(k)
+		if key == "" {
+			continue
+		}
+		dest[key] = strings.TrimSpace(v)
+	}
 }
 
 func quoteIfNeeded(value string) string {

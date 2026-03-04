@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/ui/components"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/devnullvoid/pvetui/pkg/api"
+	"gopkg.in/yaml.v3"
 )
 
 // PluginID identifies the ansible plugin for configuration toggles.
@@ -200,6 +202,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	defaultPassword := strings.TrimSpace(ansibleCfg.DefaultPassword)
 	sshPrivateKeyFile := strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile)
 	extraArgs := strings.Join(ansibleCfg.ExtraArgs, " ")
+	inventoryVarsYAML := formatInventoryVarsYAML(ansibleCfg.InventoryVars)
 	inventoryFormat := coreansible.NormalizeInventoryFormat(ansibleCfg.InventoryFormat)
 	inventoryStyle := coreansible.NormalizeInventoryStyle(ansibleCfg.InventoryStyle)
 	defaultLimitMode := strings.TrimSpace(ansibleCfg.DefaultLimitMode)
@@ -240,6 +243,9 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	form.AddInputField("SSH Private Key", sshPrivateKeyFile, 80, nil, func(text string) {
 		sshPrivateKeyFile = strings.TrimSpace(text)
 	})
+	form.AddTextArea("Inventory Vars (YAML)", inventoryVarsYAML, 0, 5, 0, func(text string) {
+		inventoryVarsYAML = text
+	})
 	form.AddCheckbox("Ask Pass", askPass, func(checked bool) { askPass = checked })
 	form.AddCheckbox("Ask Become Pass", askBecomePass, func(checked bool) { askBecomePass = checked })
 	form.AddInputField("Extra Args", extraArgs, 80, nil, func(text string) {
@@ -260,6 +266,12 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 		cfg.Plugins.Ansible.DefaultUser = strings.TrimSpace(defaultUser)
 		cfg.Plugins.Ansible.DefaultPassword = strings.TrimSpace(defaultPassword)
 		cfg.Plugins.Ansible.SSHPrivateKeyFile = cfgpkg.ExpandHomePath(strings.TrimSpace(sshPrivateKeyFile))
+		inventoryVars, err := parseInventoryVarsYAML(inventoryVarsYAML)
+		if err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Invalid inventory vars: %v", err))
+			return
+		}
+		cfg.Plugins.Ansible.InventoryVars = inventoryVars
 		cfg.Plugins.Ansible.AskPass = askPass
 		cfg.Plugins.Ansible.AskBecomePass = askBecomePass
 		cfg.Plugins.Ansible.ExtraArgs = strings.Fields(extraArgs)
@@ -282,7 +294,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 		return event
 	})
 
-	pages.AddPage(settingsPageName, p.centerModal(form, 100, 22), true, true)
+	pages.AddPage(settingsPageName, p.centerModal(form, 100, 28), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -611,6 +623,7 @@ func (p *Plugin) currentInventory() coreansible.InventoryResult {
 		VMSSHUser:         p.resolveVMUser(),
 		SSHPrivateKeyFile: strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile),
 		DefaultPassword:   strings.TrimSpace(ansibleCfg.DefaultPassword),
+		InventoryVars:     cloneStringMap(ansibleCfg.InventoryVars),
 		Style:             coreansible.NormalizeInventoryStyle(ansibleCfg.InventoryStyle),
 	}
 	if user := strings.TrimSpace(ansibleCfg.DefaultUser); user != "" {
@@ -754,6 +767,64 @@ func defaultInventoryFilename(format string) string {
 	}
 
 	return "pvetui-inventory.ini"
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func formatInventoryVarsYAML(vars map[string]string) string {
+	if len(vars) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(vars))
+	for k := range vars {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	ordered := make(map[string]string, len(vars))
+	for _, k := range keys {
+		ordered[k] = vars[k]
+	}
+
+	data, err := yaml.Marshal(ordered)
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(data))
+}
+
+func parseInventoryVarsYAML(raw string) (map[string]string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, nil
+	}
+
+	parsed := map[string]string{}
+	if err := yaml.Unmarshal([]byte(trimmed), &parsed); err != nil {
+		return nil, fmt.Errorf("must be valid YAML key/value map: %w", err)
+	}
+
+	clean := make(map[string]string, len(parsed))
+	for key, value := range parsed {
+		k := strings.TrimSpace(key)
+		if k == "" {
+			return nil, fmt.Errorf("empty key is not allowed")
+		}
+		clean[k] = strings.TrimSpace(value)
+	}
+
+	return clean, nil
 }
 
 func parseDuration(value string, fallback time.Duration) (time.Duration, error) {
