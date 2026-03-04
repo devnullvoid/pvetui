@@ -138,7 +138,7 @@ func (p *Plugin) showMainMenu() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
 		p.showPlaybookForm(defaultLimit, inventory, p.showMainMenu)
 	})
-	list.AddItem("SSH Setup Assistant", "Show commands to prepare key-based SSH access", 0, func() {
+	list.AddItem("SSH Setup Guide", "Show commands to prepare key-based SSH access", 0, func() {
 		p.showSetupAssistant(inventory, p.showMainMenu)
 	})
 	list.AddItem("Settings", "Configure ansible plugin defaults", 0, func() {
@@ -505,7 +505,7 @@ func (p *Plugin) showSetupAssistant(inventory coreansible.InventoryResult, onDon
 	text := tview.NewTextView()
 	text.SetBorder(true)
 	text.SetBorderColor(theme.Colors.Border)
-	text.SetTitle(" SSH Setup Assistant ")
+	text.SetTitle(" SSH Setup Guide ")
 	text.SetTitleColor(theme.Colors.Primary)
 	text.SetDynamicColors(true)
 	text.SetWrap(true)
@@ -765,23 +765,24 @@ func buildSetupGuide(inventory coreansible.InventoryResult) string {
 	var b strings.Builder
 	inventoryFile := defaultInventoryFilename(inventory.Format)
 
-	b.WriteString("[primary]Ansible SSH Access Setup[-]\n\n")
+	b.WriteString("[primary]Ansible SSH Setup Guide[-]\n\n")
 	b.WriteString("1) Generate a dedicated SSH key (optional):\n")
 	b.WriteString("   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_pvetui -C \"pvetui-ansible\"\n\n")
 
-	b.WriteString("2) Copy your key to each target host:\n")
-	if len(inventory.Hosts) == 0 {
-		b.WriteString("   No hosts currently visible in the inventory.\n")
-	} else {
-		for _, host := range inventory.Hosts {
-			user := host.Vars["ansible_user"]
-			target := host.Vars["ansible_host"]
-			if strings.TrimSpace(user) == "" || strings.TrimSpace(target) == "" {
-				continue
-			}
-			_, _ = fmt.Fprintf(&b, "   ssh-copy-id %s@%s\n", user, target)
+	b.WriteString("2) Copy your key to a target host (example):\n")
+	exampleUser := "ansible"
+	exampleHost := "host.example.local"
+	for _, host := range inventory.Hosts {
+		user := strings.TrimSpace(host.Vars["ansible_user"])
+		target := strings.TrimSpace(host.Vars["ansible_host"])
+		if user == "" || target == "" {
+			continue
 		}
+		exampleUser = user
+		exampleHost = target
+		break
 	}
+	_, _ = fmt.Fprintf(&b, "   ssh-copy-id %s@%s\n", exampleUser, exampleHost)
 	b.WriteString("\n")
 
 	b.WriteString("3) Optional ansible.cfg defaults:\n")
