@@ -42,8 +42,8 @@ func (r *Runner) CheckAvailability() error {
 }
 
 // RunPing executes `ansible -m ping` using the generated inventory.
-func (r *Runner) RunPing(ctx context.Context, inventoryText, limit string, extraArgs []string) CommandResult {
-	inventoryPath, cleanup, err := writeTempInventory(inventoryText)
+func (r *Runner) RunPing(ctx context.Context, inventoryText, inventoryFormat, limit string, extraArgs []string) CommandResult {
+	inventoryPath, cleanup, err := writeTempInventory(inventoryText, inventoryFormat)
 	if err != nil {
 		return CommandResult{Err: fmt.Errorf("create temp inventory: %w", err)}
 	}
@@ -67,13 +67,13 @@ type PlaybookOptions struct {
 }
 
 // RunPlaybook executes ansible-playbook with a generated temporary inventory.
-func (r *Runner) RunPlaybook(ctx context.Context, inventoryText string, opts PlaybookOptions) CommandResult {
+func (r *Runner) RunPlaybook(ctx context.Context, inventoryText, inventoryFormat string, opts PlaybookOptions) CommandResult {
 	playbookPath := strings.TrimSpace(opts.PlaybookPath)
 	if playbookPath == "" {
 		return CommandResult{Err: fmt.Errorf("playbook path is required")}
 	}
 
-	inventoryPath, cleanup, err := writeTempInventory(inventoryText)
+	inventoryPath, cleanup, err := writeTempInventory(inventoryText, inventoryFormat)
 	if err != nil {
 		return CommandResult{Err: fmt.Errorf("create temp inventory: %w", err)}
 	}
@@ -131,8 +131,13 @@ func runAnsiblePlaybookCommand(ctx context.Context, args []string) CommandResult
 	return result
 }
 
-func writeTempInventory(inventoryText string) (path string, cleanup func(), err error) {
-	tmpFile, err := os.CreateTemp("", "pvetui-ansible-inventory-*.ini")
+func writeTempInventory(inventoryText, inventoryFormat string) (path string, cleanup func(), err error) {
+	ext := ".ini"
+	if NormalizeInventoryFormat(inventoryFormat) == InventoryFormatYAML {
+		ext = ".yml"
+	}
+
+	tmpFile, err := os.CreateTemp("", "pvetui-ansible-inventory-*"+ext)
 	if err != nil {
 		return "", nil, err
 	}

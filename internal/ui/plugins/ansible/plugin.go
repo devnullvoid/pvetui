@@ -126,15 +126,15 @@ func (p *Plugin) showMainMenu() {
 		p.showOutput(title, inventory.Text, p.showMainMenu)
 	})
 	list.AddItem("Save Inventory", "Write generated inventory to a file", 0, func() {
-		p.showSaveInventoryForm(inventory.Text, p.showMainMenu)
+		p.showSaveInventoryForm(inventory, p.showMainMenu)
 	})
 	list.AddItem("Run Ping", "Run ansible ping module against this inventory", 0, func() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
-		p.showAdhocForm(defaultLimit, inventory.Text, p.showMainMenu)
+		p.showAdhocForm(defaultLimit, inventory, p.showMainMenu)
 	})
 	list.AddItem("Run Playbook", "Execute ansible-playbook on generated inventory", 0, func() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
-		p.showPlaybookForm(defaultLimit, inventory.Text, p.showMainMenu)
+		p.showPlaybookForm(defaultLimit, inventory, p.showMainMenu)
 	})
 	list.AddItem("SSH Setup Assistant", "Show commands to prepare key-based SSH access", 0, func() {
 		p.showSetupAssistant(inventory, p.showMainMenu)
@@ -171,7 +171,7 @@ func (p *Plugin) showMainMenu() {
 	p.app.SetFocus(list)
 }
 
-func (p *Plugin) showAdhocForm(defaultLimit, inventory string, onDone func()) {
+func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.InventoryResult, onDone func()) {
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
@@ -208,7 +208,7 @@ func (p *Plugin) showAdhocForm(defaultLimit, inventory string, onDone func()) {
 	form.AddButton("Cancel", closeForm)
 
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if isBackKey(event) {
+		if event != nil && event.Key() == tcell.KeyEsc {
 			closeForm()
 			return nil
 		}
@@ -219,7 +219,7 @@ func (p *Plugin) showAdhocForm(defaultLimit, inventory string, onDone func()) {
 	p.app.SetFocus(form)
 }
 
-func (p *Plugin) showPlaybookForm(defaultLimit, inventory string, onDone func()) {
+func (p *Plugin) showPlaybookForm(defaultLimit string, inventory coreansible.InventoryResult, onDone func()) {
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
@@ -275,7 +275,7 @@ func (p *Plugin) showPlaybookForm(defaultLimit, inventory string, onDone func())
 	form.AddButton("Cancel", closeForm)
 
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if isBackKey(event) {
+		if event != nil && event.Key() == tcell.KeyEsc {
 			closeForm()
 			return nil
 		}
@@ -286,7 +286,7 @@ func (p *Plugin) showPlaybookForm(defaultLimit, inventory string, onDone func())
 	p.app.SetFocus(form)
 }
 
-func (p *Plugin) runPing(inventory, limit string, extraArgs []string, timeout time.Duration) {
+func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, extraArgs []string, timeout time.Duration) {
 	if err := p.runner.CheckAvailability(); err != nil {
 		p.app.ShowMessageSafe(fmt.Sprintf("Ansible is not available: %v", err))
 		return
@@ -300,7 +300,7 @@ func (p *Plugin) runPing(inventory, limit string, extraArgs []string, timeout ti
 		defer cancel()
 		defer p.clearRunningCancel()
 
-		result := p.runner.RunPing(ctx, inventory, limit, p.mergeConfiguredAnsibleArgs(extraArgs))
+		result := p.runner.RunPing(ctx, inventory.Text, inventory.Format, limit, p.mergeConfiguredAnsibleArgs(extraArgs))
 		p.app.QueueUpdateDraw(func() {
 			p.app.Pages().RemovePage(runningPageName)
 			title := "Ping Result"
@@ -313,7 +313,7 @@ func (p *Plugin) runPing(inventory, limit string, extraArgs []string, timeout ti
 	}()
 }
 
-func (p *Plugin) runPlaybook(inventory string, opts coreansible.PlaybookOptions, timeout time.Duration) {
+func (p *Plugin) runPlaybook(inventory coreansible.InventoryResult, opts coreansible.PlaybookOptions, timeout time.Duration) {
 	if err := p.runner.CheckAvailability(); err != nil {
 		p.app.ShowMessageSafe(fmt.Sprintf("Ansible is not available: %v", err))
 		return
@@ -328,7 +328,7 @@ func (p *Plugin) runPlaybook(inventory string, opts coreansible.PlaybookOptions,
 		defer p.clearRunningCancel()
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
-		result := p.runner.RunPlaybook(ctx, inventory, opts)
+		result := p.runner.RunPlaybook(ctx, inventory.Text, inventory.Format, opts)
 		p.app.QueueUpdateDraw(func() {
 			p.app.Pages().RemovePage(runningPageName)
 			title := "Playbook Result"
@@ -341,7 +341,7 @@ func (p *Plugin) runPlaybook(inventory string, opts coreansible.PlaybookOptions,
 	}()
 }
 
-func (p *Plugin) showSaveInventoryForm(inventory string, onDone func()) {
+func (p *Plugin) showSaveInventoryForm(inventory coreansible.InventoryResult, onDone func()) {
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
@@ -351,7 +351,7 @@ func (p *Plugin) showSaveInventoryForm(inventory string, onDone func()) {
 	form.SetTitle(" Save Inventory ")
 	form.SetTitleColor(theme.Colors.Primary)
 
-	defaultPath := filepath.Join(defaultHomeDir(), "ansible", defaultInventoryFilename(inventory))
+	defaultPath := filepath.Join(defaultHomeDir(), "ansible", defaultInventoryFilename(inventory.Format))
 	targetPath := defaultPath
 
 	form.AddInputField("Path", defaultPath, 80, nil, func(text string) {
@@ -371,7 +371,7 @@ func (p *Plugin) showSaveInventoryForm(inventory string, onDone func()) {
 			return
 		}
 
-		if err := coreansible.SaveInventory(targetPath, inventory); err != nil {
+		if err := coreansible.SaveInventory(targetPath, inventory.Text); err != nil {
 			p.app.ShowMessageSafe(fmt.Sprintf("Failed to save inventory: %v", err))
 			return
 		}
@@ -382,7 +382,7 @@ func (p *Plugin) showSaveInventoryForm(inventory string, onDone func()) {
 	form.AddButton("Cancel", closeForm)
 
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if isBackKey(event) {
+		if event != nil && event.Key() == tcell.KeyEsc {
 			closeForm()
 			return nil
 		}
@@ -631,8 +631,8 @@ func (p *Plugin) ansiblePluginConfig() cfgpkg.AnsiblePluginConfig {
 	return cfg.Plugins.Ansible
 }
 
-func defaultInventoryFilename(inventory string) string {
-	if strings.Contains(inventory, "all:") {
+func defaultInventoryFilename(format string) string {
+	if coreansible.NormalizeInventoryFormat(format) == coreansible.InventoryFormatYAML {
 		return "pvetui-inventory.yml"
 	}
 
@@ -658,6 +658,7 @@ func parseDuration(value string, fallback time.Duration) (time.Duration, error) 
 
 func buildSetupGuide(inventory coreansible.InventoryResult) string {
 	var b strings.Builder
+	inventoryFile := defaultInventoryFilename(inventory.Format)
 
 	b.WriteString("[primary]Ansible SSH Access Setup[-]\n\n")
 	b.WriteString("1) Generate a dedicated SSH key (optional):\n")
@@ -685,10 +686,10 @@ func buildSetupGuide(inventory coreansible.InventoryResult) string {
 	b.WriteString("\n")
 
 	b.WriteString("4) Validate connectivity:\n")
-	b.WriteString("   ansible -i ./pvetui-inventory.ini all -m ping\n\n")
+	_, _ = fmt.Fprintf(&b, "   ansible -i ./%s all -m ping\n\n", inventoryFile)
 
 	b.WriteString("5) Example run:\n")
-	b.WriteString("   ansible-playbook -i ./pvetui-inventory.ini site.yml\n\n")
+	_, _ = fmt.Fprintf(&b, "   ansible-playbook -i ./%s site.yml\n\n", inventoryFile)
 
 	b.WriteString("[secondary]Press esc/backspace/q to close[-]")
 
