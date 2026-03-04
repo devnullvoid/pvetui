@@ -9,21 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Ansible Toolkit Plugin**: Added a new opt-in `ansible` plugin that generates Ansible inventory from loaded Proxmox nodes/guests, supports inventory preview/export, runs `ansible -m ping`, executes `ansible-playbook` with limit/check/extra-args options, and includes an SSH setup assistant.
-- **Ansible Plugin Settings**: Added `plugins.ansible` configuration for inventory format (`yaml`/`ini`), default user/password, SSH private key path, default limit mode (`selection|all|none`), ask-pass flags, and default extra args.
-- **Ansible Inventory Style**: Added `plugins.ansible.inventory_style` (`compact` default, `expanded`) and a Toolkit Settings control to toggle shared-variable compaction behavior.
-- **Ansible Inventory Vars**: Added `plugins.ansible.inventory_vars` with Toolkit Settings editor support to inject additional inventory variables (for example `ansible_python_interpreter`) into generated inventory.
-
-### Changed
-
-- **Global Menu Integration (Ansible)**: When the `ansible` plugin is enabled, the Global Actions menu now includes an **Ansible Toolkit** entry so inventory/playbook workflows are accessible without opening node/guest context menus.
-- **Ansible Inventory Default Format**: Inventory generation now defaults to YAML format while still supporting INI via plugin settings.
-- **Ansible SSH Setup Wording**: Renamed the Toolkit entry/dialog to **SSH Setup Guide** and simplified key-copy instructions to a single example command.
-
-### Fixed
-
-- **Ansible Plugin Command Cancellation**: Cancelling a running Ansible command from the plugin now cancels the underlying process context instead of only closing the progress modal.
-- **Ansible Playbook Rerun UX**: Back/close from the Playbook results view now returns to the Run Playbook form with the last submitted values pre-filled for quick adjustments and reruns.
+- **Ansible Toolkit Plugin**: Added a new opt-in `ansible` plugin with integrated toolkit workflows for generating inventory from loaded Proxmox nodes/guests (YAML or INI, compact/expanded styles, optional custom `inventory_vars`), previewing/saving inventory, running `ansible -m ping`, executing `ansible-playbook` with reusable form state, and providing an SSH setup guide. Includes plugin settings for default user/password/key path, limit behavior, and default Ansible extra arguments.
 
 ## [1.0.20] - 2026-02-28
 
