@@ -306,14 +306,25 @@ pvetui loads optional features through a plugin system. Plugins contribute UI ac
 - The `plugins.enabled` list controls which plugins are activated at startup.
 - When omitted or left empty, no plugins are loaded. Enable functionality explicitly to opt in.
 - Set `plugins.enabled: []` to keep all optional features disabled (e.g., in hardened environments).
-- Built-in plugin identifiers: `community-scripts`, `guest-insights` (legacy alias: `demo-guest-list`).
+- Built-in plugin identifiers: `ansible`, `community-scripts`, `command-runner`, `guest-insights` (legacy alias: `demo-guest-list`).
 - See [PLUGINS.md](PLUGINS.md) for implementation details and authoring guidance.
 
 ```yaml
 plugins:
   enabled:
+    - "ansible"            # Ansible toolkit (inventory + playbooks)
     - "community-scripts"  # Opt-in to the community script installer plugin
+    - "command-runner"     # SSH command execution on hosts/guests
     - "guest-insights"     # Optional Guest Insights plugin (legacy alias: demo-guest-list)
+  ansible:
+    inventory_format: "yaml"            # "yaml" (default) or "ini"
+    default_user: "ubuntu"              # Optional ansible_user override for all hosts
+    # default_password: "secret"        # Optional sensitive field; prefer encrypted configs
+    ssh_private_key_file: "~/.ssh/id_ed25519"
+    default_limit_mode: "selection"     # "selection" (default), "all", or "none"
+    ask_pass: false                     # Add --ask-pass by default
+    ask_become_pass: false              # Add --ask-become-pass by default
+    extra_args: []                      # Appended to ansible and ansible-playbook commands
 ```
 
 ## Advanced Options

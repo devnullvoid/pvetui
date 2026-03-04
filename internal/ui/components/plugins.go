@@ -72,6 +72,13 @@ type Plugin interface {
 	ModalPageNames() []string
 }
 
+// GlobalActionPlugin is an optional plugin extension for exposing a global
+// menu entry. Plugins that implement this interface can be launched from the
+// application's global actions menu.
+type GlobalActionPlugin interface {
+	OpenGlobal(ctx context.Context, app *App) error
+}
+
 // pluginRegistry stores plugin contributions and ensures thread-safe access.
 type pluginRegistry struct {
 	mu             sync.RWMutex

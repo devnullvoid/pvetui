@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Ansible Toolkit Plugin**: Added a new opt-in `ansible` plugin with integrated toolkit workflows for generating inventory from loaded Proxmox nodes/guests (YAML or INI, compact/expanded styles, optional custom `inventory_vars`), previewing/saving inventory, running `ansible -m ping`, executing `ansible-playbook` with reusable form state, and providing an SSH setup guide. Includes plugin settings for default user/password/key path, limit behavior, and default Ansible extra arguments.
+
 ## [1.0.20] - 2026-02-28
 
 ### Added

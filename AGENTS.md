@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** February 2026 | **For:** pvetui - Proxmox TUI
+**Last Updated:** March 2026 | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -230,6 +230,7 @@ Comprehensive code review resulted in these fixes (Oct 2025):
 - Recently added pluggable architecture for UI extensions
 - Plugins disabled by default, opt-in via `plugins.enabled` config
 - Community Scripts extracted to plugin
+- Ansible Toolkit plugin (`ansible`) provides inventory generation + playbook execution flows from node/guest context menus
 - Namespaced cache support for plugin isolation
 
 ### Plugin Development Guidelines
@@ -248,6 +249,7 @@ When developing new plugins:
 10. **Modal Pages**: Implement `ModalPageNames() []string` to declare plugin modal pages for proper keyboard event handling
 11. **UI Display**: Use color tags for keyboard shortcuts in UI text: `[primary]ESC[-]` not `[[ESC]]`
 12. **Input Handling**: Set `SetInputCapture()` on the focused element (not container) to properly consume events
+13. **Global Actions**: For plugin entries in the Global Menu, implement `components.GlobalActionPlugin` and keep core menu code plugin-agnostic.
 
 ### Architectural Decision Log
 
@@ -276,10 +278,11 @@ Key architectural decisions and rationale:
 - **Plugin modals**: Always implement `ModalPageNames()` in plugins to prevent global keybindings from firing in plugin modals
 - **Keyboard events**: Use `SetInputCapture()` on focused elements (e.g., input fields, text views) not flex containers to properly consume events
 - **UI text**: Use tview color tags `[primary]text[-]` for colored text; brackets need escaping as `[[` or use color tags instead
-- **Form label readability**: Use `newStandardForm()` (in `internal/ui/components/form_helpers.go`) instead of raw `tview.NewForm()` so form labels consistently use `theme.Colors.HeaderText`; avoid relying on default secondary text for labels.
+- **Form label readability**: Use `newStandardForm()` (in `internal/ui/components/form_helpers.go`) instead of raw `tview.NewForm()` so form labels consistently use `theme.Colors.HeaderText`; avoid relying on default secondary text for labels. For plugin code outside `internal/ui/components`, use `components.NewStandardForm()` (exported wrapper).
 - **tview QueueUpdateDraw deadlocks**: Never call functions that use `QueueUpdateDraw` from within another `QueueUpdateDraw` callback - this creates nested calls that deadlock tview. Always separate UI updates into sequential, non-nested calls.
 - **UI callback re-entrancy**: Treat modal/button callbacks, `SetDoneFunc`, and input handlers as UI-thread contexts. Prefer `go func() { ... }` for background work and keep callback bodies non-blocking.
 - **TaskManager/UI notify path**: If a background manager notifies UI code that uses `QueueUpdateDraw`, dispatch the notifier asynchronously (e.g. `go notify()`) to avoid blocking UI event handlers.
+- **Long-running plugin commands**: If a plugin starts external processes (e.g., ansible), wire modal cancel actions to `context.CancelFunc`; hiding the modal alone does not stop the process.
 - **Pre-PR deadlock scan**: Before merging UI changes, scan for risky call sites with `rg -n "QueueUpdateDraw|SetDoneFunc|SetInputCapture" internal/ui/components internal/taskmanager` and verify no nested `QueueUpdateDraw` chains were introduced.
 - **Pending state and refreshes**: Always clear pending state BEFORE calling refresh functions (`manualRefresh`, `refreshVMData`), as these functions check for pending operations and will block if any exist
 - **Guest advanced filter persistence**: When checking whether Guests filters are active, use `SearchState.HasActiveVMFilter()` (not only `SearchState.Filter != ""`) so structured filters (status/type/node/tag) persist across manual refresh, auto-refresh, and VM refresh paths.

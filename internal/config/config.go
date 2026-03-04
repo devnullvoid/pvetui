@@ -114,11 +114,11 @@ type Config struct {
 	Debug    bool   `yaml:"debug"`
 	CacheDir string `yaml:"cache_dir"`
 	// AgeDir overrides the directory used to store age identity and recipient files.
-	AgeDir      string       `yaml:"age_dir,omitempty"`
-	KeyBindings KeyBindings  `yaml:"key_bindings"`
-	Theme       ThemeConfig  `yaml:"theme"`
-	Plugins     PluginConfig `yaml:"plugins"`
-	ShowIcons   bool         `yaml:"show_icons"`
+	AgeDir        string                         `yaml:"age_dir,omitempty"`
+	KeyBindings   KeyBindings                    `yaml:"key_bindings"`
+	Theme         ThemeConfig                    `yaml:"theme"`
+	Plugins       PluginConfig                   `yaml:"plugins"`
+	ShowIcons     bool                           `yaml:"show_icons"`
 	GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings,omitempty"`
 	// Deprecated: legacy single-profile fields for migration
 	Addr        string      `yaml:"addr"`
@@ -178,7 +178,22 @@ type ThemeConfig struct {
 // PluginConfig holds plugin related configuration options.
 type PluginConfig struct {
 	// Enabled lists plugin identifiers that should be activated.
-	Enabled []string `yaml:"enabled"`
+	Enabled []string            `yaml:"enabled"`
+	Ansible AnsiblePluginConfig `yaml:"ansible,omitempty"`
+}
+
+// AnsiblePluginConfig holds configuration for the ansible plugin.
+type AnsiblePluginConfig struct {
+	InventoryFormat   string            `yaml:"inventory_format,omitempty"`
+	InventoryStyle    string            `yaml:"inventory_style,omitempty"`
+	InventoryVars     map[string]string `yaml:"inventory_vars,omitempty"`
+	DefaultUser       string            `yaml:"default_user,omitempty"`
+	DefaultPassword   string            `yaml:"default_password,omitempty"`
+	SSHPrivateKeyFile string            `yaml:"ssh_private_key_file,omitempty"`
+	DefaultLimitMode  string            `yaml:"default_limit_mode,omitempty"`
+	AskPass           bool              `yaml:"ask_pass,omitempty"`
+	AskBecomePass     bool              `yaml:"ask_become_pass,omitempty"`
+	ExtraArgs         []string          `yaml:"extra_args,omitempty"`
 }
 
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
@@ -404,8 +419,20 @@ func (c *Config) MergeWithFile(path string) error {
 		} `yaml:"theme"`
 		Plugins struct {
 			Enabled []string `yaml:"enabled"`
+			Ansible struct {
+				InventoryFormat   string            `yaml:"inventory_format"`
+				InventoryStyle    string            `yaml:"inventory_style"`
+				InventoryVars     map[string]string `yaml:"inventory_vars"`
+				DefaultUser       string            `yaml:"default_user"`
+				DefaultPassword   string            `yaml:"default_password"`
+				SSHPrivateKeyFile string            `yaml:"ssh_private_key_file"`
+				DefaultLimitMode  string            `yaml:"default_limit_mode"`
+				AskPass           *bool             `yaml:"ask_pass"`
+				AskBecomePass     *bool             `yaml:"ask_become_pass"`
+				ExtraArgs         []string          `yaml:"extra_args"`
+			} `yaml:"ansible"`
 		} `yaml:"plugins"`
-		ShowIcons *bool `yaml:"show_icons"`
+		ShowIcons     *bool                          `yaml:"show_icons"`
 		GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings"`
 		// Legacy fields for migration
 		Addr        string      `yaml:"addr"`
@@ -436,7 +463,7 @@ func (c *Config) MergeWithFile(path string) error {
 		_, hasGlobalMenuKey = fileConfigRaw.KeyBindings["global_menu"]
 	}
 
-	if !isSOPSEncrypted && detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret) {
+	if !isSOPSEncrypted && detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret, fileConfig.Plugins.Ansible.DefaultPassword) {
 		c.hasCleartextSensitive = true
 	}
 
@@ -655,6 +682,39 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.Plugins.Enabled != nil {
 		c.Plugins.Enabled = append([]string{}, fileConfig.Plugins.Enabled...)
 	}
+	if fileConfig.Plugins.Ansible.InventoryFormat != "" {
+		c.Plugins.Ansible.InventoryFormat = fileConfig.Plugins.Ansible.InventoryFormat
+	}
+	if fileConfig.Plugins.Ansible.InventoryStyle != "" {
+		c.Plugins.Ansible.InventoryStyle = fileConfig.Plugins.Ansible.InventoryStyle
+	}
+	if fileConfig.Plugins.Ansible.InventoryVars != nil {
+		c.Plugins.Ansible.InventoryVars = make(map[string]string, len(fileConfig.Plugins.Ansible.InventoryVars))
+		for k, v := range fileConfig.Plugins.Ansible.InventoryVars {
+			c.Plugins.Ansible.InventoryVars[k] = v
+		}
+	}
+	if fileConfig.Plugins.Ansible.DefaultUser != "" {
+		c.Plugins.Ansible.DefaultUser = fileConfig.Plugins.Ansible.DefaultUser
+	}
+	if fileConfig.Plugins.Ansible.DefaultPassword != "" {
+		c.Plugins.Ansible.DefaultPassword = fileConfig.Plugins.Ansible.DefaultPassword
+	}
+	if fileConfig.Plugins.Ansible.SSHPrivateKeyFile != "" {
+		c.Plugins.Ansible.SSHPrivateKeyFile = ExpandHomePath(fileConfig.Plugins.Ansible.SSHPrivateKeyFile)
+	}
+	if fileConfig.Plugins.Ansible.DefaultLimitMode != "" {
+		c.Plugins.Ansible.DefaultLimitMode = fileConfig.Plugins.Ansible.DefaultLimitMode
+	}
+	if fileConfig.Plugins.Ansible.AskPass != nil {
+		c.Plugins.Ansible.AskPass = *fileConfig.Plugins.Ansible.AskPass
+	}
+	if fileConfig.Plugins.Ansible.AskBecomePass != nil {
+		c.Plugins.Ansible.AskBecomePass = *fileConfig.Plugins.Ansible.AskBecomePass
+	}
+	if fileConfig.Plugins.Ansible.ExtraArgs != nil {
+		c.Plugins.Ansible.ExtraArgs = append([]string{}, fileConfig.Plugins.Ansible.ExtraArgs...)
+	}
 
 	// Merge show_icons configuration if provided
 	if fileConfig.ShowIcons != nil {
@@ -668,7 +728,6 @@ func (c *Config) MergeWithFile(path string) error {
 	for k, v := range fileConfig.Theme.Colors {
 		c.Theme.Colors[k] = v
 	}
-
 
 	// Merge group_settings configuration if provided
 	if fileConfig.GroupSettings != nil {
@@ -691,11 +750,13 @@ func (c *Config) MergeWithFile(path string) error {
 	return nil
 }
 
-func detectCleartextSensitive(profiles map[string]ProfileConfig, legacyPassword, legacyTokenSecret string) bool {
+func detectCleartextSensitive(profiles map[string]ProfileConfig, legacyPassword, legacyTokenSecret, ansibleDefaultPassword string) bool {
 	if hasCleartextSensitiveProfiles(profiles) {
 		return true
 	}
-	return hasCleartextSensitiveValue(legacyPassword) || hasCleartextSensitiveValue(legacyTokenSecret)
+	return hasCleartextSensitiveValue(legacyPassword) ||
+		hasCleartextSensitiveValue(legacyTokenSecret) ||
+		hasCleartextSensitiveValue(ansibleDefaultPassword)
 }
 
 func hasCleartextSensitiveProfiles(profiles map[string]ProfileConfig) bool {
@@ -1045,6 +1106,18 @@ func (c *Config) SetDefaults() {
 
 	if c.Plugins.Enabled == nil {
 		c.Plugins.Enabled = []string{}
+	}
+	if c.Plugins.Ansible.InventoryFormat == "" {
+		c.Plugins.Ansible.InventoryFormat = "yaml"
+	}
+	if c.Plugins.Ansible.InventoryStyle == "" {
+		c.Plugins.Ansible.InventoryStyle = "compact"
+	}
+	if c.Plugins.Ansible.DefaultLimitMode == "" {
+		c.Plugins.Ansible.DefaultLimitMode = "selection"
+	}
+	if c.Plugins.Ansible.SSHPrivateKeyFile != "" {
+		c.Plugins.Ansible.SSHPrivateKeyFile = ExpandHomePath(c.Plugins.Ansible.SSHPrivateKeyFile)
 	}
 
 	// ShowIcons defaults to true (icons enabled)
