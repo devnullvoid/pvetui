@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -40,6 +41,12 @@ const (
 	bootstrapScopeAll         = "all"
 	bootstrapScopeNodes       = "nodes"
 	bootstrapScopeGuests      = "guests"
+	bootstrapMethodDirect     = "direct"
+	bootstrapMethodAnsible    = "ansible"
+	statusOK                  = "ok"
+	statusChanged             = "changed"
+	statusFailed              = "failed"
+	statusSkipped             = "skipped"
 )
 
 // Plugin provides Ansible integration for inventory generation and playbook execution.
@@ -452,12 +459,17 @@ func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onD
 	form.SetTitleColor(theme.Colors.Primary)
 
 	scopeOptions := []string{bootstrapScopeAll, bootstrapScopeNodes, bootstrapScopeGuests}
+	methodOptions := []string{bootstrapMethodDirect, bootstrapMethodAnsible}
+	method := bootstrapMethodDirect
 	scope := bootstrapScopeAll
 	limit := ""
 	dryRun := bootstrap.DryRunDefault
 	timeoutRaw := bootstrap.Timeout
 	extraArgsRaw := ""
 
+	form.AddDropDown("Method", methodOptions, 0, func(option string, _ int) {
+		method = option
+	})
 	form.AddDropDown("Scope", scopeOptions, 0, func(option string, _ int) {
 		scope = option
 	})
@@ -496,7 +508,11 @@ func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onD
 
 		run := func() {
 			closeForm()
-			p.runBootstrapAccess(inventory, resolvedLimit, dryRun, strings.Fields(extraArgsRaw), timeout)
+			if method == bootstrapMethodAnsible {
+				p.runBootstrapAccess(inventory, resolvedLimit, dryRun, strings.Fields(extraArgsRaw), timeout)
+				return
+			}
+			p.runBootstrapDirect(inventory, resolvedLimit, dryRun, timeout)
 		}
 		if !dryRun && (bootstrap.SetPassword || bootstrap.GrantSudoNOPASSWD) {
 			pages.AddPage(bootstrapConfirmPageName,
@@ -531,7 +547,7 @@ func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onD
 		return event
 	})
 
-	pages.AddPage(bootstrapRunPageName, p.centerModal(form, 98, 14), true, true)
+	pages.AddPage(bootstrapRunPageName, p.centerModal(form, 98, 16), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -803,6 +819,355 @@ func (p *Plugin) runBootstrapAccess(
 			p.showOutput(title, formatCommandResult(result), p.showMainMenu)
 		})
 	}()
+}
+
+type directBootstrapResult struct {
+	Alias     string
+	Target    string
+	Status    string
+	Changed   bool
+	Message   string
+	Output    string
+	Transport string
+}
+
+func (p *Plugin) runBootstrapDirect(
+	inventory coreansible.InventoryResult,
+	limit string,
+	dryRun bool,
+	timeout time.Duration,
+) {
+	bootstrap := p.ansiblePluginConfig().Bootstrap
+	targets := selectDirectBootstrapTargets(inventory.Hosts, limit)
+	if len(targets) == 0 {
+		p.app.ShowMessageSafe("No matching bootstrap targets for the selected scope/limit.")
+		return
+	}
+
+	var keyContent string
+	if bootstrap.InstallAuthorizedKey {
+		keyPath := strings.TrimSpace(bootstrap.SSHPublicKeyFile)
+		if keyPath == "" {
+			p.app.ShowMessageSafe("Bootstrap ssh_public_key_file is required when install_authorized_key is enabled.")
+			return
+		}
+		// #nosec G304 -- path is a local, user-configured key file for bootstrap.
+		data, err := os.ReadFile(keyPath)
+		if err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Failed to read SSH public key file: %v", err))
+			return
+		}
+		keyContent = strings.TrimSpace(string(data))
+		if keyContent == "" {
+			p.app.ShowMessageSafe("SSH public key file is empty.")
+			return
+		}
+	}
+
+	p.showRunningModal("Running direct bootstrap workflow...")
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	p.setRunningCancel(cancel)
+
+	go func() {
+		defer cancel()
+		defer p.clearRunningCancel()
+
+		results := make([]directBootstrapResult, len(targets))
+		parallelism := bootstrap.Parallelism
+		if parallelism <= 0 {
+			parallelism = 1
+		}
+		sem := make(chan struct{}, parallelism)
+		var wg sync.WaitGroup
+
+		for idx, host := range targets {
+			idx, host := idx, host
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				select {
+				case sem <- struct{}{}:
+					defer func() { <-sem }()
+				case <-ctx.Done():
+					results[idx] = directBootstrapResult{
+						Alias:   host.Alias,
+						Target:  host.Vars["ansible_host"],
+						Status:  statusSkipped,
+						Message: "cancelled before execution",
+					}
+					return
+				}
+
+				results[idx] = p.runDirectBootstrapForHost(ctx, host, bootstrap, keyContent, dryRun)
+			}()
+		}
+
+		wg.Wait()
+		p.app.QueueUpdateDraw(func() {
+			p.app.Pages().RemovePage(runningPageName)
+			title := "Bootstrap Result (Direct)"
+			if dryRun {
+				title = "Bootstrap Dry-Run Result (Direct)"
+			}
+			p.showOutput(title, formatDirectBootstrapReport(results, dryRun), p.showMainMenu)
+		})
+	}()
+}
+
+func (p *Plugin) runDirectBootstrapForHost(
+	ctx context.Context,
+	host coreansible.InventoryHost,
+	cfg cfgpkg.AnsibleBootstrapConfig,
+	keyContent string,
+	dryRun bool,
+) directBootstrapResult {
+	target := strings.TrimSpace(host.Vars["ansible_host"])
+	user := strings.TrimSpace(host.Vars["ansible_user"])
+	password := strings.TrimSpace(host.Vars["ansible_password"])
+	keyPath := strings.TrimSpace(host.Vars["ansible_ssh_private_key_file"])
+
+	result := directBootstrapResult{
+		Alias:  host.Alias,
+		Target: target,
+		Status: statusOK,
+	}
+
+	if target == "" || user == "" {
+		result.Status = statusFailed
+		result.Message = "missing ansible_host or ansible_user"
+		return result
+	}
+
+	script := buildDirectBootstrapScript(cfg, keyContent, dryRun)
+	output, err := executeRemoteBootstrapScript(ctx, user, target, password, keyPath, script)
+	result.Output = output
+	result.Transport = "ssh"
+	if err != nil {
+		result.Status = statusFailed
+		result.Message = err.Error()
+		return result
+	}
+
+	if strings.Contains(output, "changed=1") {
+		result.Status = statusChanged
+		result.Changed = true
+		result.Message = "changes applied"
+		return result
+	}
+	if dryRun {
+		result.Message = "dry-run completed"
+	} else {
+		result.Message = "already in desired state"
+	}
+
+	return result
+}
+
+func executeRemoteBootstrapScript(
+	ctx context.Context,
+	user, target, password, keyPath, script string,
+) (string, error) {
+	sshArgs := []string{
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-o", "ConnectTimeout=10",
+	}
+	if strings.TrimSpace(keyPath) != "" {
+		sshArgs = append(sshArgs, "-i", strings.TrimSpace(keyPath))
+	}
+	sshArgs = append(sshArgs, fmt.Sprintf("%s@%s", user, target))
+
+	remoteCmd := "sh -s"
+	if !strings.EqualFold(strings.TrimSpace(user), "root") {
+		remoteCmd = "sudo -n sh -s"
+	}
+	sshArgs = append(sshArgs, remoteCmd)
+
+	var cmd *exec.Cmd
+	if strings.TrimSpace(password) != "" {
+		if _, err := exec.LookPath("sshpass"); err != nil {
+			return "", fmt.Errorf("sshpass not found but ansible_password is set for %s", target)
+		}
+		args := append([]string{"-p", password, "ssh"}, sshArgs...)
+		// #nosec G204 -- command and args are constructed from validated settings.
+		cmd = exec.CommandContext(ctx, "sshpass", args...)
+	} else {
+		// #nosec G204 -- command and args are constructed from validated settings.
+		cmd = exec.CommandContext(ctx, "ssh", sshArgs...)
+	}
+	cmd.Stdin = strings.NewReader(script)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return strings.TrimSpace(string(output)), fmt.Errorf("remote bootstrap failed: %w", err)
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+func buildDirectBootstrapScript(cfg cfgpkg.AnsibleBootstrapConfig, keyContent string, dryRun bool) string {
+	userQuoted := shellSingleQuote(strings.TrimSpace(cfg.Username))
+	shellQuoted := shellSingleQuote(strings.TrimSpace(cfg.Shell))
+	passQuoted := shellSingleQuote(strings.TrimSpace(cfg.Password))
+	keyQuoted := shellSingleQuote(strings.TrimSpace(keyContent))
+	modeQuoted := shellSingleQuote(strings.TrimSpace(cfg.SudoersFileMode))
+
+	return fmt.Sprintf(`#!/bin/sh
+set -eu
+
+BOOTSTRAP_USER=%s
+BOOTSTRAP_SHELL=%s
+BOOTSTRAP_PASS=%s
+BOOTSTRAP_KEY=%s
+SUDOERS_MODE=%s
+DRY_RUN=%t
+CREATE_HOME=%t
+INSTALL_KEY=%t
+SET_PASSWORD=%t
+GRANT_SUDO=%t
+
+changed=0
+
+if [ "$DRY_RUN" = "true" ]; then
+  if ! id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then echo "would_create_user=1"; fi
+  if [ "$INSTALL_KEY" = "true" ]; then echo "would_install_authorized_key=1"; fi
+  if [ "$SET_PASSWORD" = "true" ]; then echo "would_set_password=1"; fi
+  if [ "$GRANT_SUDO" = "true" ]; then
+    if [ ! -f "/etc/sudoers.d/$BOOTSTRAP_USER" ]; then echo "would_create_sudoers=1"; fi
+  fi
+  echo "changed=0"
+  exit 0
+fi
+
+if ! id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then
+  if [ "$CREATE_HOME" = "true" ]; then
+    useradd -m -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+  else
+    useradd -M -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+  fi
+  changed=1
+fi
+
+usermod -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+HOME_DIR="$(getent passwd "$BOOTSTRAP_USER" | cut -d: -f6)"
+
+if [ "$INSTALL_KEY" = "true" ] && [ -n "$BOOTSTRAP_KEY" ]; then
+  mkdir -p "$HOME_DIR/.ssh"
+  chmod 700 "$HOME_DIR/.ssh"
+  AUTH_KEYS="$HOME_DIR/.ssh/authorized_keys"
+  touch "$AUTH_KEYS"
+  chmod 600 "$AUTH_KEYS"
+  if ! grep -qxF "$BOOTSTRAP_KEY" "$AUTH_KEYS"; then
+    printf "%%s\n" "$BOOTSTRAP_KEY" >> "$AUTH_KEYS"
+    changed=1
+  fi
+  chown -R "$BOOTSTRAP_USER:$BOOTSTRAP_USER" "$HOME_DIR/.ssh"
+fi
+
+if [ "$SET_PASSWORD" = "true" ] && [ -n "$BOOTSTRAP_PASS" ]; then
+  printf "%%s:%%s\n" "$BOOTSTRAP_USER" "$BOOTSTRAP_PASS" | chpasswd
+  changed=1
+fi
+
+if [ "$GRANT_SUDO" = "true" ]; then
+  SUDOERS_FILE="/etc/sudoers.d/$BOOTSTRAP_USER"
+  if [ ! -f "$SUDOERS_FILE" ]; then
+    printf "%%s ALL=(ALL) NOPASSWD:ALL\n" "$BOOTSTRAP_USER" > "$SUDOERS_FILE"
+    chmod "$SUDOERS_MODE" "$SUDOERS_FILE"
+    if command -v visudo >/dev/null 2>&1; then
+      visudo -cf "$SUDOERS_FILE"
+    fi
+    changed=1
+  fi
+fi
+
+echo "changed=$changed"
+`, userQuoted, shellQuoted, passQuoted, keyQuoted, modeQuoted, dryRun, cfg.CreateHome, cfg.InstallAuthorizedKey, cfg.SetPassword, cfg.GrantSudoNOPASSWD)
+}
+
+func selectDirectBootstrapTargets(hosts []coreansible.InventoryHost, limit string) []coreansible.InventoryHost {
+	out := make([]coreansible.InventoryHost, 0, len(hosts))
+	for _, host := range hosts {
+		if matchesBootstrapLimit(host, limit) {
+			out = append(out, host)
+		}
+	}
+	return out
+}
+
+func matchesBootstrapLimit(host coreansible.InventoryHost, rawLimit string) bool {
+	limit := strings.TrimSpace(rawLimit)
+	if limit == "" || strings.EqualFold(limit, bootstrapScopeAll) {
+		return true
+	}
+
+	parts := strings.Split(limit, ",")
+	for _, part := range parts {
+		token := strings.TrimSpace(part)
+		if token == "" {
+			continue
+		}
+		if token == host.Alias {
+			return true
+		}
+		for _, group := range host.GroupNames {
+			if token == group {
+				return true
+			}
+		}
+		if strings.ContainsAny(token, "*?[]") {
+			if ok, _ := filepath.Match(token, host.Alias); ok {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func formatDirectBootstrapReport(results []directBootstrapResult, dryRun bool) string {
+	var b strings.Builder
+	title := "Direct bootstrap summary"
+	if dryRun {
+		title = "Direct bootstrap dry-run summary"
+	}
+	b.WriteString(title + "\n\n")
+
+	totalChanged := 0
+	totalOK := 0
+	totalFailed := 0
+	totalSkipped := 0
+
+	for _, r := range results {
+		switch r.Status {
+		case statusChanged:
+			totalChanged++
+		case statusFailed:
+			totalFailed++
+		case statusSkipped:
+			totalSkipped++
+		default:
+			totalOK++
+		}
+		_, _ = fmt.Fprintf(&b, "- %s (%s) [%s]: %s\n", r.Alias, r.Target, r.Status, r.Message)
+		if strings.TrimSpace(r.Output) != "" {
+			_, _ = fmt.Fprintf(&b, "  output: %s\n", firstLine(r.Output))
+		}
+	}
+
+	_, _ = fmt.Fprintf(&b, "\nTotals: ok=%d changed=%d failed=%d skipped=%d\n", totalOK, totalChanged, totalFailed, totalSkipped)
+	return b.String()
+}
+
+func firstLine(s string) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	if len(lines) == 0 {
+		return ""
+	}
+	return lines[0]
+}
+
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
 }
 
 func (p *Plugin) buildBootstrapPlaybook(cfg cfgpkg.AnsibleBootstrapConfig) (string, error) {
