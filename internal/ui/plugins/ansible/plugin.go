@@ -1,8 +1,11 @@
 package ansible
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +19,7 @@ import (
 	"github.com/rivo/tview"
 
 	cfgpkg "github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/logger"
 	coreansible "github.com/devnullvoid/pvetui/internal/plugins/ansible"
 	"github.com/devnullvoid/pvetui/internal/ui/components"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
@@ -47,6 +51,7 @@ const (
 	statusChanged             = "changed"
 	statusFailed              = "failed"
 	statusSkipped             = "skipped"
+	liveOutputPageName        = "plugin.ansible.live-output"
 )
 
 // Plugin provides Ansible integration for inventory generation and playbook execution.
@@ -116,6 +121,7 @@ func (p *Plugin) ModalPageNames() []string {
 		bootstrapSettingsPageName,
 		bootstrapRunPageName,
 		bootstrapConfirmPageName,
+		liveOutputPageName,
 	}
 }
 
@@ -701,7 +707,7 @@ func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, ex
 		return
 	}
 
-	p.showRunningModal("Running ansible ping...")
+	appendLiveLine, closeLive := p.showLiveOutputModal("Running ansible ping...")
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	p.setRunningCancel(cancel)
 
@@ -709,9 +715,19 @@ func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, ex
 		defer cancel()
 		defer p.clearRunningCancel()
 
-		result := p.runner.RunPing(ctx, inventory.Text, inventory.Format, limit, p.mergeConfiguredAnsibleArgs(extraArgs))
+		result := p.runner.RunPingStream(
+			ctx,
+			inventory.Text,
+			inventory.Format,
+			limit,
+			p.mergeConfiguredAnsibleArgs(extraArgs),
+			func(line string) {
+				appendLiveLine(line)
+				ansibleLogger().Debug("ansible ping stream: %s", line)
+			},
+		)
 		p.app.QueueUpdateDraw(func() {
-			p.app.Pages().RemovePage(runningPageName)
+			closeLive()
 			title := "Ping Result"
 			body := formatCommandResult(result)
 			if result.Err != nil {
@@ -733,7 +749,7 @@ func (p *Plugin) runPlaybook(
 		return
 	}
 
-	p.showRunningModal("Running ansible-playbook...")
+	appendLiveLine, closeLive := p.showLiveOutputModal("Running ansible-playbook...")
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	p.setRunningCancel(cancel)
 
@@ -742,9 +758,18 @@ func (p *Plugin) runPlaybook(
 		defer p.clearRunningCancel()
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
-		result := p.runner.RunPlaybook(ctx, inventory.Text, inventory.Format, opts)
+		result := p.runner.RunPlaybookStream(
+			ctx,
+			inventory.Text,
+			inventory.Format,
+			opts,
+			func(line string) {
+				appendLiveLine(line)
+				ansibleLogger().Debug("ansible playbook stream: %s", line)
+			},
+		)
 		p.app.QueueUpdateDraw(func() {
-			p.app.Pages().RemovePage(runningPageName)
+			closeLive()
 			title := "Playbook Result"
 			body := formatCommandResult(result)
 			if result.Err != nil {
@@ -784,7 +809,7 @@ func (p *Plugin) runBootstrapAccess(
 		return
 	}
 
-	p.showRunningModal("Running bootstrap access workflow...")
+	appendLiveLine, closeLive := p.showLiveOutputModal("Running bootstrap access workflow...")
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	p.setRunningCancel(cancel)
 
@@ -805,10 +830,19 @@ func (p *Plugin) runBootstrapAccess(
 		}
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
-		result := p.runner.RunPlaybook(ctx, inventory.Text, inventory.Format, opts)
+		result := p.runner.RunPlaybookStream(
+			ctx,
+			inventory.Text,
+			inventory.Format,
+			opts,
+			func(line string) {
+				appendLiveLine(line)
+				ansibleLogger().Debug("ansible bootstrap stream: %s", line)
+			},
+		)
 
 		p.app.QueueUpdateDraw(func() {
-			p.app.Pages().RemovePage(runningPageName)
+			closeLive()
 			title := "Bootstrap Result"
 			if dryRun {
 				title = "Bootstrap Dry-Run Result"
@@ -864,7 +898,7 @@ func (p *Plugin) runBootstrapDirect(
 		}
 	}
 
-	p.showRunningModal("Running direct bootstrap workflow...")
+	appendLiveLine, closeLive := p.showLiveOutputModal("Running direct bootstrap workflow...")
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	p.setRunningCancel(cancel)
 
@@ -898,13 +932,16 @@ func (p *Plugin) runBootstrapDirect(
 					return
 				}
 
-				results[idx] = p.runDirectBootstrapForHost(ctx, host, bootstrap, keyContent, dryRun)
+				results[idx] = p.runDirectBootstrapForHost(ctx, host, bootstrap, keyContent, dryRun, func(line string) {
+					appendLiveLine(fmt.Sprintf("[%s] %s", host.Alias, line))
+					ansibleLogger().Debug("direct bootstrap stream %s: %s", host.Alias, line)
+				})
 			}()
 		}
 
 		wg.Wait()
 		p.app.QueueUpdateDraw(func() {
-			p.app.Pages().RemovePage(runningPageName)
+			closeLive()
 			title := "Bootstrap Result (Direct)"
 			if dryRun {
 				title = "Bootstrap Dry-Run Result (Direct)"
@@ -920,6 +957,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 	cfg cfgpkg.AnsibleBootstrapConfig,
 	keyContent string,
 	dryRun bool,
+	stream func(string),
 ) directBootstrapResult {
 	target := strings.TrimSpace(host.Vars["ansible_host"])
 	user := strings.TrimSpace(host.Vars["ansible_user"])
@@ -939,7 +977,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 	}
 
 	script := buildDirectBootstrapScript(cfg, keyContent, dryRun)
-	output, err := executeRemoteBootstrapScript(ctx, user, target, password, keyPath, script)
+	output, err := executeRemoteBootstrapScript(ctx, user, target, password, keyPath, script, stream)
 	result.Output = output
 	result.Transport = "ssh"
 	if err != nil {
@@ -966,11 +1004,13 @@ func (p *Plugin) runDirectBootstrapForHost(
 func executeRemoteBootstrapScript(
 	ctx context.Context,
 	user, target, password, keyPath, script string,
+	stream func(string),
 ) (string, error) {
 	sshArgs := []string{
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "UserKnownHostsFile=/dev/null",
 		"-o", "ConnectTimeout=10",
+		"-o", "LogLevel=ERROR",
 	}
 	if strings.TrimSpace(keyPath) != "" {
 		sshArgs = append(sshArgs, "-i", strings.TrimSpace(keyPath))
@@ -996,12 +1036,12 @@ func executeRemoteBootstrapScript(
 		cmd = exec.CommandContext(ctx, "ssh", sshArgs...)
 	}
 	cmd.Stdin = strings.NewReader(script)
-	output, err := cmd.CombinedOutput()
+	output, err := runCommandWithStreaming(cmd, stream)
 	if err != nil {
-		return strings.TrimSpace(string(output)), fmt.Errorf("remote bootstrap failed: %w", err)
+		return strings.TrimSpace(output), fmt.Errorf("remote bootstrap failed: %w", err)
 	}
 
-	return strings.TrimSpace(string(output)), nil
+	return strings.TrimSpace(output), nil
 }
 
 func buildDirectBootstrapScript(cfg cfgpkg.AnsibleBootstrapConfig, keyContent string, dryRun bool) string {
@@ -1363,27 +1403,6 @@ func (p *Plugin) showSetupAssistant(inventory coreansible.InventoryResult, onDon
 
 	pages.AddPage(setupPageName, p.centerModal(text, 110, 28), true, true)
 	p.app.SetFocus(text)
-}
-
-func (p *Plugin) showRunningModal(message string) {
-	modal := tview.NewModal().
-		SetText(message).
-		AddButtons([]string{"Cancel"})
-	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if isBackKey(event) {
-			p.cancelRunningCommand()
-			p.app.Pages().RemovePage(runningPageName)
-			return nil
-		}
-		return event
-	})
-	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-		p.cancelRunningCommand()
-		p.app.Pages().RemovePage(runningPageName)
-	})
-
-	p.app.Pages().AddPage(runningPageName, p.centerModal(modal, 50, 7), true, true)
-	p.app.SetFocus(modal)
 }
 
 func (p *Plugin) showOutput(title, content string, onDone func()) {
@@ -1816,6 +1835,108 @@ func writeTempPlaybook(content string) (path string, cleanup func(), err error) 
 	}
 
 	return tmpFile.Name(), cleanup, nil
+}
+
+func (p *Plugin) showLiveOutputModal(title string) (appendLine func(string), closeModalFn func()) {
+	pages := p.app.Pages()
+	pages.RemovePage(liveOutputPageName)
+
+	text := tview.NewTextView()
+	text.SetBorder(true)
+	text.SetBorderColor(theme.Colors.Border)
+	text.SetTitle(" " + title + " ")
+	text.SetTitleColor(theme.Colors.Primary)
+	text.SetDynamicColors(false)
+	text.SetWrap(true)
+	text.SetWordWrap(true)
+	text.SetScrollable(true)
+	text.SetText("(streaming output...)\n")
+
+	closeModal := func() {
+		pages.RemovePage(liveOutputPageName)
+	}
+
+	text.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if isBackKey(event) || (event.Key() == tcell.KeyRune && (event.Rune() == 'q' || event.Rune() == 'Q')) {
+			p.cancelRunningCommand()
+			closeModal()
+			return nil
+		}
+		return event
+	})
+
+	pages.AddPage(liveOutputPageName, p.centerModal(text, 120, 30), true, true)
+	p.app.SetFocus(text)
+
+	appendFn := func(line string) {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			return
+		}
+		p.app.QueueUpdateDraw(func() {
+			_, _ = fmt.Fprintln(text, trimmed)
+			text.ScrollToEnd()
+		})
+	}
+
+	return appendFn, closeModal
+}
+
+func runCommandWithStreaming(cmd *exec.Cmd, stream func(string)) (string, error) {
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("stdout pipe: %w", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return "", fmt.Errorf("stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+		b  bytes.Buffer
+	)
+	appendLine := func(line string) {
+		mu.Lock()
+		defer mu.Unlock()
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(line)
+		if stream != nil {
+			stream(line)
+		}
+	}
+	readPipe := func(r io.Reader) {
+		defer wg.Done()
+		scanner := bufio.NewScanner(r)
+		const maxScanToken = 1024 * 1024
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, maxScanToken)
+		for scanner.Scan() {
+			appendLine(scanner.Text())
+		}
+	}
+
+	wg.Add(2)
+	go readPipe(stdoutPipe)
+	go readPipe(stderrPipe)
+
+	waitErr := cmd.Wait()
+	wg.Wait()
+
+	return b.String(), waitErr
+}
+
+func ansibleLogger() interface {
+	Debug(format string, args ...interface{})
+} {
+	return logger.GetGlobalLogger()
 }
 
 func (p *Plugin) setRunningCancel(cancel context.CancelFunc) {

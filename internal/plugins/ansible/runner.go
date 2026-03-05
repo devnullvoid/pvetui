@@ -1,12 +1,16 @@
 package ansible
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +21,9 @@ type CommandResult struct {
 	Duration time.Duration
 	Err      error
 }
+
+// OutputLineHandler receives a single line of command output.
+type OutputLineHandler func(line string)
 
 // Runner executes local ansible commands.
 type Runner struct{}
@@ -43,6 +50,18 @@ func (r *Runner) CheckAvailability() error {
 
 // RunPing executes `ansible -m ping` using the generated inventory.
 func (r *Runner) RunPing(ctx context.Context, inventoryText, inventoryFormat, limit string, extraArgs []string) CommandResult {
+	return r.RunPingStream(ctx, inventoryText, inventoryFormat, limit, extraArgs, nil)
+}
+
+// RunPingStream executes `ansible -m ping` and streams output lines when handler is provided.
+func (r *Runner) RunPingStream(
+	ctx context.Context,
+	inventoryText,
+	inventoryFormat,
+	limit string,
+	extraArgs []string,
+	handler OutputLineHandler,
+) CommandResult {
 	inventoryPath, cleanup, err := writeTempInventory(inventoryText, inventoryFormat)
 	if err != nil {
 		return CommandResult{Err: fmt.Errorf("create temp inventory: %w", err)}
@@ -55,7 +74,7 @@ func (r *Runner) RunPing(ctx context.Context, inventoryText, inventoryFormat, li
 	}
 	args = append(args, extraArgs...)
 
-	return runAnsibleCommand(ctx, args)
+	return runAnsibleCommand(ctx, args, handler)
 }
 
 // PlaybookOptions describes ansible-playbook invocation options.
@@ -68,6 +87,17 @@ type PlaybookOptions struct {
 
 // RunPlaybook executes ansible-playbook with a generated temporary inventory.
 func (r *Runner) RunPlaybook(ctx context.Context, inventoryText, inventoryFormat string, opts PlaybookOptions) CommandResult {
+	return r.RunPlaybookStream(ctx, inventoryText, inventoryFormat, opts, nil)
+}
+
+// RunPlaybookStream executes ansible-playbook and streams output lines when handler is provided.
+func (r *Runner) RunPlaybookStream(
+	ctx context.Context,
+	inventoryText,
+	inventoryFormat string,
+	opts PlaybookOptions,
+	handler OutputLineHandler,
+) CommandResult {
 	playbookPath := strings.TrimSpace(opts.PlaybookPath)
 	if playbookPath == "" {
 		return CommandResult{Err: fmt.Errorf("playbook path is required")}
@@ -88,41 +118,79 @@ func (r *Runner) RunPlaybook(ctx context.Context, inventoryText, inventoryFormat
 	}
 	args = append(args, opts.ExtraArgs...)
 
-	return runAnsiblePlaybookCommand(ctx, args)
+	return runAnsiblePlaybookCommand(ctx, args, handler)
 }
 
-func runAnsibleCommand(ctx context.Context, args []string) CommandResult {
+func runAnsibleCommand(ctx context.Context, args []string, handler OutputLineHandler) CommandResult {
 	started := time.Now()
 	// #nosec G204 -- binary path is fixed to ansible; args are passed without shell interpolation.
 	cmd := exec.CommandContext(ctx, "ansible", args...)
-	output, err := cmd.CombinedOutput()
-	duration := time.Since(started)
-
-	result := CommandResult{
-		Command:  strings.TrimSpace("ansible " + strings.Join(args, " ")),
-		Output:   strings.TrimSpace(string(output)),
-		Duration: duration,
-		Err:      err,
-	}
-	if result.Output == "" {
-		result.Output = "(no output)"
-	}
-
-	return result
+	return runCommandStreaming(cmd, "ansible "+strings.Join(args, " "), started, handler)
 }
 
-func runAnsiblePlaybookCommand(ctx context.Context, args []string) CommandResult {
+func runAnsiblePlaybookCommand(ctx context.Context, args []string, handler OutputLineHandler) CommandResult {
 	started := time.Now()
 	// #nosec G204 -- binary path is fixed to ansible-playbook; args are passed without shell interpolation.
 	cmd := exec.CommandContext(ctx, "ansible-playbook", args...)
-	output, err := cmd.CombinedOutput()
+	return runCommandStreaming(cmd, "ansible-playbook "+strings.Join(args, " "), started, handler)
+}
+
+func runCommandStreaming(cmd *exec.Cmd, command string, started time.Time, handler OutputLineHandler) CommandResult {
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return CommandResult{Command: strings.TrimSpace(command), Err: fmt.Errorf("stdout pipe: %w", err)}
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return CommandResult{Command: strings.TrimSpace(command), Err: fmt.Errorf("stderr pipe: %w", err)}
+	}
+
+	if err := cmd.Start(); err != nil {
+		return CommandResult{Command: strings.TrimSpace(command), Err: err}
+	}
+
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+		b  bytes.Buffer
+	)
+	appendLine := func(line string) {
+		mu.Lock()
+		defer mu.Unlock()
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(line)
+	}
+	streamReader := func(r io.Reader) {
+		defer wg.Done()
+		scanner := bufio.NewScanner(r)
+		const maxScanToken = 1024 * 1024
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, maxScanToken)
+		for scanner.Scan() {
+			line := scanner.Text()
+			appendLine(line)
+			if handler != nil {
+				handler(line)
+			}
+		}
+	}
+
+	wg.Add(2)
+	go streamReader(stdoutPipe)
+	go streamReader(stderrPipe)
+
+	waitErr := cmd.Wait()
+	wg.Wait()
 	duration := time.Since(started)
 
+	output := strings.TrimSpace(b.String())
 	result := CommandResult{
-		Command:  strings.TrimSpace("ansible-playbook " + strings.Join(args, " ")),
-		Output:   strings.TrimSpace(string(output)),
+		Command:  strings.TrimSpace(command),
+		Output:   output,
 		Duration: duration,
-		Err:      err,
+		Err:      waitErr,
 	}
 	if result.Output == "" {
 		result.Output = "(no output)"
