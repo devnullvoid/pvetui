@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,14 +26,20 @@ import (
 const PluginID = "ansible"
 
 const (
-	menuPageName     = "plugin.ansible.menu"
-	outputPageName   = "plugin.ansible.output"
-	savePathPageName = "plugin.ansible.save"
-	playbookPageName = "plugin.ansible.playbook"
-	adhocPageName    = "plugin.ansible.adhoc"
-	setupPageName    = "plugin.ansible.setup"
-	runningPageName  = "plugin.ansible.running"
-	settingsPageName = "plugin.ansible.settings"
+	menuPageName              = "plugin.ansible.menu"
+	outputPageName            = "plugin.ansible.output"
+	savePathPageName          = "plugin.ansible.save"
+	playbookPageName          = "plugin.ansible.playbook"
+	adhocPageName             = "plugin.ansible.adhoc"
+	setupPageName             = "plugin.ansible.setup"
+	runningPageName           = "plugin.ansible.running"
+	settingsPageName          = "plugin.ansible.settings"
+	bootstrapSettingsPageName = "plugin.ansible.bootstrap.settings"
+	bootstrapRunPageName      = "plugin.ansible.bootstrap.run"
+	bootstrapConfirmPageName  = "plugin.ansible.bootstrap.confirm"
+	bootstrapScopeAll         = "all"
+	bootstrapScopeNodes       = "nodes"
+	bootstrapScopeGuests      = "guests"
 )
 
 // Plugin provides Ansible integration for inventory generation and playbook execution.
@@ -99,6 +106,9 @@ func (p *Plugin) ModalPageNames() []string {
 		setupPageName,
 		runningPageName,
 		settingsPageName,
+		bootstrapSettingsPageName,
+		bootstrapRunPageName,
+		bootstrapConfirmPageName,
 	}
 }
 
@@ -149,11 +159,17 @@ func (p *Plugin) showMainMenu() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
 		p.showPlaybookForm(defaultLimit, inventory, p.showMainMenu)
 	})
+	list.AddItem("Bootstrap Access", "Bulk-prepare hosts for Ansible access", 0, func() {
+		p.showBootstrapRunForm(inventory, p.showMainMenu)
+	})
 	list.AddItem("SSH Setup Guide", "Show commands to prepare key-based SSH access", 0, func() {
 		p.showSetupAssistant(inventory, p.showMainMenu)
 	})
-	list.AddItem("Settings", "Configure ansible plugin defaults", 0, func() {
+	list.AddItem("General Settings", "Configure inventory/run defaults", 0, func() {
 		p.showSettingsForm(p.showMainMenu)
+	})
+	list.AddItem("Bootstrap Settings", "Configure bootstrap access defaults", 0, func() {
+		p.showBootstrapSettingsForm(p.showMainMenu)
 	})
 	list.AddItem("Close", "Return", 'q', closeMenu)
 
@@ -304,6 +320,218 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	})
 
 	pages.AddPage(settingsPageName, p.centerModal(form, 100, 28), true, true)
+	p.app.SetFocus(form)
+}
+
+func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
+	pages := p.app.Pages()
+	pages.RemovePage(menuPageName)
+
+	cfg := p.app.Config()
+	if cfg == nil {
+		p.app.ShowMessageSafe("Configuration unavailable.")
+		if onDone != nil {
+			onDone()
+		}
+		return
+	}
+
+	bootstrap := cfg.Plugins.Ansible.Bootstrap
+	form := components.NewStandardForm()
+	form.SetBorder(true)
+	form.SetBorderColor(theme.Colors.Border)
+	form.SetTitle(" Bootstrap Settings ")
+	form.SetTitleColor(theme.Colors.Primary)
+
+	enabled := bootstrap.Enabled
+	username := strings.TrimSpace(bootstrap.Username)
+	shell := strings.TrimSpace(bootstrap.Shell)
+	createHome := bootstrap.CreateHome
+	sshPublicKeyFile := strings.TrimSpace(bootstrap.SSHPublicKeyFile)
+	installAuthorizedKey := bootstrap.InstallAuthorizedKey
+	setPassword := bootstrap.SetPassword
+	password := strings.TrimSpace(bootstrap.Password)
+	grantSudo := bootstrap.GrantSudoNOPASSWD
+	sudoersMode := strings.TrimSpace(bootstrap.SudoersFileMode)
+	dryRunDefault := bootstrap.DryRunDefault
+	parallelismRaw := strconv.Itoa(bootstrap.Parallelism)
+	timeoutRaw := strings.TrimSpace(bootstrap.Timeout)
+	failFast := bootstrap.FailFast
+
+	form.AddCheckbox("Enabled", enabled, func(checked bool) { enabled = checked })
+	form.AddInputField("Username", username, 32, nil, func(text string) { username = strings.TrimSpace(text) })
+	form.AddInputField("Shell", shell, 32, nil, func(text string) { shell = strings.TrimSpace(text) })
+	form.AddCheckbox("Create Home", createHome, func(checked bool) { createHome = checked })
+	form.AddInputField("SSH Public Key File", sshPublicKeyFile, 80, nil, func(text string) {
+		sshPublicKeyFile = strings.TrimSpace(text)
+	})
+	form.AddCheckbox("Install Authorized Key", installAuthorizedKey, func(checked bool) { installAuthorizedKey = checked })
+	form.AddCheckbox("Set Password", setPassword, func(checked bool) { setPassword = checked })
+	form.AddPasswordField("Password", password, 64, '*', func(text string) { password = strings.TrimSpace(text) })
+	form.AddCheckbox("Grant Sudo NOPASSWD", grantSudo, func(checked bool) { grantSudo = checked })
+	form.AddInputField("Sudoers File Mode", sudoersMode, 16, nil, func(text string) { sudoersMode = strings.TrimSpace(text) })
+	form.AddCheckbox("Dry Run Default", dryRunDefault, func(checked bool) { dryRunDefault = checked })
+	form.AddInputField("Parallelism", parallelismRaw, 8, nil, func(text string) { parallelismRaw = strings.TrimSpace(text) })
+	form.AddInputField("Timeout", timeoutRaw, 16, nil, func(text string) { timeoutRaw = strings.TrimSpace(text) })
+	form.AddCheckbox("Fail Fast", failFast, func(checked bool) { failFast = checked })
+
+	closeForm := func() {
+		pages.RemovePage(bootstrapSettingsPageName)
+		if onDone != nil {
+			onDone()
+		}
+	}
+
+	form.AddButton("Save", func() {
+		if username == "" {
+			p.app.ShowMessageSafe("Bootstrap username is required.")
+			return
+		}
+		parallelism, err := strconv.Atoi(strings.TrimSpace(parallelismRaw))
+		if err != nil || parallelism <= 0 {
+			p.app.ShowMessageSafe("Parallelism must be a positive integer.")
+			return
+		}
+		if _, err := parseDuration(timeoutRaw, 2*time.Minute); err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Invalid timeout: %v", err))
+			return
+		}
+		if setPassword && strings.TrimSpace(password) == "" {
+			p.app.ShowMessageSafe("Password is required when Set Password is enabled.")
+			return
+		}
+
+		cfg.Plugins.Ansible.Bootstrap.Enabled = enabled
+		cfg.Plugins.Ansible.Bootstrap.Username = username
+		cfg.Plugins.Ansible.Bootstrap.Shell = shell
+		cfg.Plugins.Ansible.Bootstrap.CreateHome = createHome
+		cfg.Plugins.Ansible.Bootstrap.SSHPublicKeyFile = cfgpkg.ExpandHomePath(sshPublicKeyFile)
+		cfg.Plugins.Ansible.Bootstrap.InstallAuthorizedKey = installAuthorizedKey
+		cfg.Plugins.Ansible.Bootstrap.SetPassword = setPassword
+		cfg.Plugins.Ansible.Bootstrap.Password = password
+		cfg.Plugins.Ansible.Bootstrap.GrantSudoNOPASSWD = grantSudo
+		cfg.Plugins.Ansible.Bootstrap.SudoersFileMode = sudoersMode
+		cfg.Plugins.Ansible.Bootstrap.DryRunDefault = dryRunDefault
+		cfg.Plugins.Ansible.Bootstrap.Parallelism = parallelism
+		cfg.Plugins.Ansible.Bootstrap.Timeout = timeoutRaw
+		cfg.Plugins.Ansible.Bootstrap.FailFast = failFast
+
+		if err := p.app.SaveConfigPreservingSOPS(); err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Failed to save bootstrap settings: %v", err))
+			return
+		}
+
+		closeForm()
+		p.app.ShowMessageSafe("Bootstrap settings saved.")
+	})
+	form.AddButton("Cancel", closeForm)
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event != nil && event.Key() == tcell.KeyEsc {
+			closeForm()
+			return nil
+		}
+		return event
+	})
+
+	pages.AddPage(bootstrapSettingsPageName, p.centerModal(form, 104, 31), true, true)
+	p.app.SetFocus(form)
+}
+
+func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onDone func()) {
+	pages := p.app.Pages()
+	pages.RemovePage(menuPageName)
+
+	cfg := p.ansiblePluginConfig()
+	bootstrap := cfg.Bootstrap
+
+	form := components.NewStandardForm()
+	form.SetBorder(true)
+	form.SetBorderColor(theme.Colors.Border)
+	form.SetTitle(" Bootstrap Access ")
+	form.SetTitleColor(theme.Colors.Primary)
+
+	scopeOptions := []string{bootstrapScopeAll, bootstrapScopeNodes, bootstrapScopeGuests}
+	scope := bootstrapScopeAll
+	limit := ""
+	dryRun := bootstrap.DryRunDefault
+	timeoutRaw := bootstrap.Timeout
+	extraArgsRaw := ""
+
+	form.AddDropDown("Scope", scopeOptions, 0, func(option string, _ int) {
+		scope = option
+	})
+	form.AddInputField("Limit", limit, 50, nil, func(text string) { limit = strings.TrimSpace(text) })
+	form.AddCheckbox("Dry Run (--check)", dryRun, func(checked bool) { dryRun = checked })
+	form.AddInputField("Timeout", timeoutRaw, 16, nil, func(text string) { timeoutRaw = strings.TrimSpace(text) })
+	form.AddInputField("Extra Args", extraArgsRaw, 80, nil, func(text string) { extraArgsRaw = strings.TrimSpace(text) })
+
+	closeForm := func() {
+		pages.RemovePage(bootstrapRunPageName)
+		if onDone != nil {
+			onDone()
+		}
+	}
+
+	form.AddButton("Run", func() {
+		if !bootstrap.Enabled {
+			p.app.ShowMessageSafe("Bootstrap is disabled in Bootstrap Settings.")
+			return
+		}
+		timeout, err := parseDuration(timeoutRaw, 2*time.Minute)
+		if err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Invalid timeout: %v", err))
+			return
+		}
+
+		resolvedLimit := strings.TrimSpace(limit)
+		if resolvedLimit == "" {
+			switch scope {
+			case bootstrapScopeNodes:
+				resolvedLimit = "proxmox_nodes"
+			case bootstrapScopeGuests:
+				resolvedLimit = "proxmox_guests"
+			}
+		}
+
+		run := func() {
+			closeForm()
+			p.runBootstrapAccess(inventory, resolvedLimit, dryRun, strings.Fields(extraArgsRaw), timeout)
+		}
+		if !dryRun && (bootstrap.SetPassword || bootstrap.GrantSudoNOPASSWD) {
+			pages.AddPage(bootstrapConfirmPageName,
+				p.centerModal(
+					tview.NewModal().
+						SetText("This will apply privileged bootstrap changes (password and/or NOPASSWD sudo). Continue?").
+						AddButtons([]string{"Continue", "Cancel"}).
+						SetDoneFunc(func(_ int, label string) {
+							pages.RemovePage(bootstrapConfirmPageName)
+							if label == "Continue" {
+								run()
+							}
+						}),
+					72,
+					9,
+				),
+				true,
+				true,
+			)
+			return
+		}
+
+		run()
+	})
+	form.AddButton("Cancel", closeForm)
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event != nil && event.Key() == tcell.KeyEsc {
+			closeForm()
+			return nil
+		}
+		return event
+	})
+
+	pages.AddPage(bootstrapRunPageName, p.centerModal(form, 98, 14), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -513,6 +741,177 @@ func (p *Plugin) runPlaybook(
 			p.showOutput(title, body, back)
 		})
 	}()
+}
+
+func (p *Plugin) runBootstrapAccess(
+	inventory coreansible.InventoryResult,
+	limit string,
+	dryRun bool,
+	extraArgs []string,
+	timeout time.Duration,
+) {
+	if err := p.runner.CheckAvailability(); err != nil {
+		p.app.ShowMessageSafe(fmt.Sprintf("Ansible is not available: %v", err))
+		return
+	}
+
+	bootstrap := p.ansiblePluginConfig().Bootstrap
+	playbookContent, err := p.buildBootstrapPlaybook(bootstrap)
+	if err != nil {
+		p.app.ShowMessageSafe(fmt.Sprintf("Bootstrap setup error: %v", err))
+		return
+	}
+
+	playbookPath, cleanup, err := writeTempPlaybook(playbookContent)
+	if err != nil {
+		p.app.ShowMessageSafe(fmt.Sprintf("Failed to create bootstrap playbook: %v", err))
+		return
+	}
+
+	p.showRunningModal("Running bootstrap access workflow...")
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	p.setRunningCancel(cancel)
+
+	go func() {
+		defer cancel()
+		defer p.clearRunningCancel()
+		defer cleanup()
+
+		opts := coreansible.PlaybookOptions{
+			PlaybookPath: playbookPath,
+			Limit:        strings.TrimSpace(limit),
+			CheckMode:    dryRun,
+			ExtraArgs:    append([]string{}, extraArgs...),
+		}
+
+		if bootstrap.Parallelism > 0 {
+			opts.ExtraArgs = append(opts.ExtraArgs, "--forks", strconv.Itoa(bootstrap.Parallelism))
+		}
+
+		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
+		result := p.runner.RunPlaybook(ctx, inventory.Text, inventory.Format, opts)
+
+		p.app.QueueUpdateDraw(func() {
+			p.app.Pages().RemovePage(runningPageName)
+			title := "Bootstrap Result"
+			if dryRun {
+				title = "Bootstrap Dry-Run Result"
+			}
+			if result.Err != nil {
+				title = "Bootstrap Failed"
+			}
+			p.showOutput(title, formatCommandResult(result), p.showMainMenu)
+		})
+	}()
+}
+
+func (p *Plugin) buildBootstrapPlaybook(cfg cfgpkg.AnsibleBootstrapConfig) (string, error) {
+	username := strings.TrimSpace(cfg.Username)
+	if username == "" {
+		return "", fmt.Errorf("bootstrap username is required")
+	}
+
+	var keyContent string
+	if cfg.InstallAuthorizedKey {
+		keyPath := strings.TrimSpace(cfg.SSHPublicKeyFile)
+		if keyPath == "" {
+			return "", fmt.Errorf("ssh public key file is required when install_authorized_key is enabled")
+		}
+		// #nosec G304 -- path is a local, user-configured key file for bootstrap.
+		data, err := os.ReadFile(keyPath)
+		if err != nil {
+			return "", fmt.Errorf("read ssh public key file: %w", err)
+		}
+		keyContent = strings.TrimSpace(string(data))
+		if keyContent == "" {
+			return "", fmt.Errorf("ssh public key file is empty")
+		}
+	}
+
+	if cfg.SetPassword && strings.TrimSpace(cfg.Password) == "" {
+		return "", fmt.Errorf("password is required when set_password is enabled")
+	}
+
+	quotedKey := strconv.Quote(keyContent)
+	quotedPassword := strconv.Quote(strings.TrimSpace(cfg.Password))
+	quotedUsername := strconv.Quote(username)
+	quotedShell := strconv.Quote(strings.TrimSpace(cfg.Shell))
+	quotedMode := strconv.Quote(strings.TrimSpace(cfg.SudoersFileMode))
+
+	playbook := fmt.Sprintf(`---
+- name: pvetui bootstrap ansible access
+  hosts: all
+  gather_facts: false
+  become: true
+  any_errors_fatal: %t
+  vars:
+    bootstrap_username: %s
+    bootstrap_shell: %s
+    bootstrap_create_home: %t
+    bootstrap_install_authorized_key: %t
+    bootstrap_authorized_key: %s
+    bootstrap_set_password: %t
+    bootstrap_password: %s
+    bootstrap_grant_sudo_nopasswd: %t
+    bootstrap_sudoers_file_mode: %s
+    bootstrap_sudoers_path: "/etc/sudoers.d/{{ bootstrap_username }}"
+
+  tasks:
+    - name: Ensure bootstrap user exists
+      ansible.builtin.user:
+        name: "{{ bootstrap_username }}"
+        shell: "{{ bootstrap_shell }}"
+        create_home: "{{ bootstrap_create_home }}"
+        state: present
+
+    - name: Ensure ~/.ssh exists for bootstrap user
+      ansible.builtin.file:
+        path: "/home/{{ bootstrap_username }}/.ssh"
+        state: directory
+        owner: "{{ bootstrap_username }}"
+        group: "{{ bootstrap_username }}"
+        mode: "0700"
+      when: bootstrap_install_authorized_key
+
+    - name: Install authorized key for bootstrap user
+      ansible.posix.authorized_key:
+        user: "{{ bootstrap_username }}"
+        key: "{{ bootstrap_authorized_key }}"
+        state: present
+      when:
+        - bootstrap_install_authorized_key
+        - bootstrap_authorized_key | length > 0
+
+    - name: Set bootstrap user password
+      ansible.builtin.user:
+        name: "{{ bootstrap_username }}"
+        password: "{{ bootstrap_password | password_hash('sha512', bootstrap_username) }}"
+        update_password: always
+      when:
+        - bootstrap_set_password
+        - bootstrap_password | length > 0
+
+    - name: Check if bootstrap sudoers file exists
+      ansible.builtin.stat:
+        path: "{{ bootstrap_sudoers_path }}"
+      register: bootstrap_sudoers_stat
+      when: bootstrap_grant_sudo_nopasswd
+
+    - name: Create bootstrap sudoers file if absent
+      ansible.builtin.copy:
+        dest: "{{ bootstrap_sudoers_path }}"
+        content: "{{ bootstrap_username }} ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: "{{ bootstrap_sudoers_file_mode }}"
+        validate: "/usr/sbin/visudo -cf %%s"
+        force: false
+      when:
+        - bootstrap_grant_sudo_nopasswd
+        - not bootstrap_sudoers_stat.stat.exists
+`, cfg.FailFast, quotedUsername, quotedShell, cfg.CreateHome, cfg.InstallAuthorizedKey, quotedKey, cfg.SetPassword, quotedPassword, cfg.GrantSudoNOPASSWD, quotedMode)
+
+	return playbook, nil
 }
 
 func (p *Plugin) showSaveInventoryForm(inventory coreansible.InventoryResult, onDone func()) {
@@ -802,6 +1201,16 @@ func (p *Plugin) ansiblePluginConfig() cfgpkg.AnsiblePluginConfig {
 			InventoryFormat:  coreansible.InventoryFormatYAML,
 			InventoryStyle:   coreansible.InventoryStyleCompact,
 			DefaultLimitMode: "selection",
+			Bootstrap: cfgpkg.AnsibleBootstrapConfig{
+				Username:             "ansible",
+				Shell:                "/bin/bash",
+				CreateHome:           true,
+				InstallAuthorizedKey: true,
+				SudoersFileMode:      "0440",
+				DryRunDefault:        true,
+				Parallelism:          10,
+				Timeout:              "2m",
+			},
 		}
 	}
 
@@ -1009,6 +1418,39 @@ func defaultHomeDir() string {
 	}
 
 	return home
+}
+
+func writeTempPlaybook(content string) (path string, cleanup func(), err error) {
+	tmpFile, err := os.CreateTemp("", "pvetui-ansible-bootstrap-*.yml")
+	if err != nil {
+		return "", nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tmpFile.Close()
+			// #nosec G703 -- temp path is created by os.CreateTemp.
+			_ = os.Remove(tmpFile.Name())
+		}
+	}()
+
+	if _, err = tmpFile.WriteString(content); err != nil {
+		return "", nil, err
+	}
+	if err = tmpFile.Close(); err != nil {
+		return "", nil, err
+	}
+	// #nosec G703 -- temp path is created by os.CreateTemp.
+	if err = os.Chmod(tmpFile.Name(), 0o600); err != nil {
+		return "", nil, err
+	}
+
+	cleanup = func() {
+		// #nosec G703 -- temp path is created by os.CreateTemp.
+		_ = os.Remove(tmpFile.Name())
+	}
+
+	return tmpFile.Name(), cleanup, nil
 }
 
 func (p *Plugin) setRunningCancel(cancel context.CancelFunc) {

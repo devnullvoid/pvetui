@@ -275,6 +275,13 @@ func EncryptConfigSensitiveFields(cfg *Config) error {
 			return fmt.Errorf("encrypt ansible default_password: %w", err)
 		}
 	}
+	if cfg.Plugins.Ansible.Bootstrap.Password != "" && !isEncrypted(cfg.Plugins.Ansible.Bootstrap.Password) {
+		var err error
+		cfg.Plugins.Ansible.Bootstrap.Password, err = EncryptField(cfg.Plugins.Ansible.Bootstrap.Password)
+		if err != nil {
+			return fmt.Errorf("encrypt ansible bootstrap password: %w", err)
+		}
+	}
 
 	return nil
 }
@@ -312,6 +319,13 @@ func DecryptConfigSensitiveFields(cfg *Config) error {
 		cfg.Plugins.Ansible.DefaultPassword, err = DecryptField(cfg.Plugins.Ansible.DefaultPassword)
 		if err != nil {
 			return fmt.Errorf("decrypt ansible default_password: %w", err)
+		}
+	}
+	if cfg.Plugins.Ansible.Bootstrap.Password != "" {
+		var err error
+		cfg.Plugins.Ansible.Bootstrap.Password, err = DecryptField(cfg.Plugins.Ansible.Bootstrap.Password)
+		if err != nil {
+			return fmt.Errorf("decrypt ansible bootstrap password: %w", err)
 		}
 	}
 

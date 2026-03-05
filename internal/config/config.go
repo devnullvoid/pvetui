@@ -184,16 +184,35 @@ type PluginConfig struct {
 
 // AnsiblePluginConfig holds configuration for the ansible plugin.
 type AnsiblePluginConfig struct {
-	InventoryFormat   string            `yaml:"inventory_format,omitempty"`
-	InventoryStyle    string            `yaml:"inventory_style,omitempty"`
-	InventoryVars     map[string]string `yaml:"inventory_vars,omitempty"`
-	DefaultUser       string            `yaml:"default_user,omitempty"`
-	DefaultPassword   string            `yaml:"default_password,omitempty"`
-	SSHPrivateKeyFile string            `yaml:"ssh_private_key_file,omitempty"`
-	DefaultLimitMode  string            `yaml:"default_limit_mode,omitempty"`
-	AskPass           bool              `yaml:"ask_pass,omitempty"`
-	AskBecomePass     bool              `yaml:"ask_become_pass,omitempty"`
-	ExtraArgs         []string          `yaml:"extra_args,omitempty"`
+	InventoryFormat   string                 `yaml:"inventory_format,omitempty"`
+	InventoryStyle    string                 `yaml:"inventory_style,omitempty"`
+	InventoryVars     map[string]string      `yaml:"inventory_vars,omitempty"`
+	DefaultUser       string                 `yaml:"default_user,omitempty"`
+	DefaultPassword   string                 `yaml:"default_password,omitempty"`
+	SSHPrivateKeyFile string                 `yaml:"ssh_private_key_file,omitempty"`
+	DefaultLimitMode  string                 `yaml:"default_limit_mode,omitempty"`
+	AskPass           bool                   `yaml:"ask_pass,omitempty"`
+	AskBecomePass     bool                   `yaml:"ask_become_pass,omitempty"`
+	ExtraArgs         []string               `yaml:"extra_args,omitempty"`
+	Bootstrap         AnsibleBootstrapConfig `yaml:"bootstrap,omitempty"`
+}
+
+// AnsibleBootstrapConfig holds bootstrap access workflow settings for ansible.
+type AnsibleBootstrapConfig struct {
+	Enabled              bool   `yaml:"enabled,omitempty"`
+	Username             string `yaml:"username,omitempty"`
+	Shell                string `yaml:"shell,omitempty"`
+	CreateHome           bool   `yaml:"create_home,omitempty"`
+	SSHPublicKeyFile     string `yaml:"ssh_public_key_file,omitempty"`
+	InstallAuthorizedKey bool   `yaml:"install_authorized_key,omitempty"`
+	SetPassword          bool   `yaml:"set_password,omitempty"`
+	Password             string `yaml:"password,omitempty"`
+	GrantSudoNOPASSWD    bool   `yaml:"grant_sudo_nopasswd,omitempty"`
+	SudoersFileMode      string `yaml:"sudoers_file_mode,omitempty"`
+	DryRunDefault        bool   `yaml:"dry_run_default,omitempty"`
+	Parallelism          int    `yaml:"parallelism,omitempty"`
+	Timeout              string `yaml:"timeout,omitempty"`
+	FailFast             bool   `yaml:"fail_fast,omitempty"`
 }
 
 // DefaultKeyBindings returns a KeyBindings struct with the default key mappings.
@@ -332,7 +351,16 @@ func NewConfig() *Config {
 		Debug:       strings.ToLower(os.Getenv("PVETUI_DEBUG")) == trueString,
 		CacheDir:    ExpandHomePath(os.Getenv("PVETUI_CACHE_DIR")),
 		KeyBindings: DefaultKeyBindings(),
-		ShowIcons:   strings.ToLower(os.Getenv("PVETUI_SHOW_ICONS")) != "false",
+		Plugins: PluginConfig{
+			Ansible: AnsiblePluginConfig{
+				Bootstrap: AnsibleBootstrapConfig{
+					CreateHome:           true,
+					InstallAuthorizedKey: true,
+					DryRunDefault:        true,
+				},
+			},
+		},
+		ShowIcons: strings.ToLower(os.Getenv("PVETUI_SHOW_ICONS")) != "false",
 	}
 	// Set default values for Realm and ApiPath only
 	if config.Realm == "" {
@@ -430,6 +458,22 @@ func (c *Config) MergeWithFile(path string) error {
 				AskPass           *bool             `yaml:"ask_pass"`
 				AskBecomePass     *bool             `yaml:"ask_become_pass"`
 				ExtraArgs         []string          `yaml:"extra_args"`
+				Bootstrap         struct {
+					Enabled              *bool  `yaml:"enabled"`
+					Username             string `yaml:"username"`
+					Shell                string `yaml:"shell"`
+					CreateHome           *bool  `yaml:"create_home"`
+					SSHPublicKeyFile     string `yaml:"ssh_public_key_file"`
+					InstallAuthorizedKey *bool  `yaml:"install_authorized_key"`
+					SetPassword          *bool  `yaml:"set_password"`
+					Password             string `yaml:"password"`
+					GrantSudoNOPASSWD    *bool  `yaml:"grant_sudo_nopasswd"`
+					SudoersFileMode      string `yaml:"sudoers_file_mode"`
+					DryRunDefault        *bool  `yaml:"dry_run_default"`
+					Parallelism          *int   `yaml:"parallelism"`
+					Timeout              string `yaml:"timeout"`
+					FailFast             *bool  `yaml:"fail_fast"`
+				} `yaml:"bootstrap"`
 			} `yaml:"ansible"`
 		} `yaml:"plugins"`
 		ShowIcons     *bool                          `yaml:"show_icons"`
@@ -463,7 +507,13 @@ func (c *Config) MergeWithFile(path string) error {
 		_, hasGlobalMenuKey = fileConfigRaw.KeyBindings["global_menu"]
 	}
 
-	if !isSOPSEncrypted && detectCleartextSensitive(fileConfig.Profiles, fileConfig.Password, fileConfig.TokenSecret, fileConfig.Plugins.Ansible.DefaultPassword) {
+	if !isSOPSEncrypted && detectCleartextSensitive(
+		fileConfig.Profiles,
+		fileConfig.Password,
+		fileConfig.TokenSecret,
+		fileConfig.Plugins.Ansible.DefaultPassword,
+		fileConfig.Plugins.Ansible.Bootstrap.Password,
+	) {
 		c.hasCleartextSensitive = true
 	}
 
@@ -715,6 +765,48 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.Plugins.Ansible.ExtraArgs != nil {
 		c.Plugins.Ansible.ExtraArgs = append([]string{}, fileConfig.Plugins.Ansible.ExtraArgs...)
 	}
+	if fileConfig.Plugins.Ansible.Bootstrap.Enabled != nil {
+		c.Plugins.Ansible.Bootstrap.Enabled = *fileConfig.Plugins.Ansible.Bootstrap.Enabled
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.Username != "" {
+		c.Plugins.Ansible.Bootstrap.Username = fileConfig.Plugins.Ansible.Bootstrap.Username
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.Shell != "" {
+		c.Plugins.Ansible.Bootstrap.Shell = fileConfig.Plugins.Ansible.Bootstrap.Shell
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.CreateHome != nil {
+		c.Plugins.Ansible.Bootstrap.CreateHome = *fileConfig.Plugins.Ansible.Bootstrap.CreateHome
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.SSHPublicKeyFile != "" {
+		c.Plugins.Ansible.Bootstrap.SSHPublicKeyFile = ExpandHomePath(fileConfig.Plugins.Ansible.Bootstrap.SSHPublicKeyFile)
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.InstallAuthorizedKey != nil {
+		c.Plugins.Ansible.Bootstrap.InstallAuthorizedKey = *fileConfig.Plugins.Ansible.Bootstrap.InstallAuthorizedKey
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.SetPassword != nil {
+		c.Plugins.Ansible.Bootstrap.SetPassword = *fileConfig.Plugins.Ansible.Bootstrap.SetPassword
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.Password != "" {
+		c.Plugins.Ansible.Bootstrap.Password = fileConfig.Plugins.Ansible.Bootstrap.Password
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.GrantSudoNOPASSWD != nil {
+		c.Plugins.Ansible.Bootstrap.GrantSudoNOPASSWD = *fileConfig.Plugins.Ansible.Bootstrap.GrantSudoNOPASSWD
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.SudoersFileMode != "" {
+		c.Plugins.Ansible.Bootstrap.SudoersFileMode = fileConfig.Plugins.Ansible.Bootstrap.SudoersFileMode
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.DryRunDefault != nil {
+		c.Plugins.Ansible.Bootstrap.DryRunDefault = *fileConfig.Plugins.Ansible.Bootstrap.DryRunDefault
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.Parallelism != nil && *fileConfig.Plugins.Ansible.Bootstrap.Parallelism > 0 {
+		c.Plugins.Ansible.Bootstrap.Parallelism = *fileConfig.Plugins.Ansible.Bootstrap.Parallelism
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.Timeout != "" {
+		c.Plugins.Ansible.Bootstrap.Timeout = fileConfig.Plugins.Ansible.Bootstrap.Timeout
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.FailFast != nil {
+		c.Plugins.Ansible.Bootstrap.FailFast = *fileConfig.Plugins.Ansible.Bootstrap.FailFast
+	}
 
 	// Merge show_icons configuration if provided
 	if fileConfig.ShowIcons != nil {
@@ -750,13 +842,20 @@ func (c *Config) MergeWithFile(path string) error {
 	return nil
 }
 
-func detectCleartextSensitive(profiles map[string]ProfileConfig, legacyPassword, legacyTokenSecret, ansibleDefaultPassword string) bool {
+func detectCleartextSensitive(
+	profiles map[string]ProfileConfig,
+	legacyPassword,
+	legacyTokenSecret,
+	ansibleDefaultPassword,
+	ansibleBootstrapPassword string,
+) bool {
 	if hasCleartextSensitiveProfiles(profiles) {
 		return true
 	}
 	return hasCleartextSensitiveValue(legacyPassword) ||
 		hasCleartextSensitiveValue(legacyTokenSecret) ||
-		hasCleartextSensitiveValue(ansibleDefaultPassword)
+		hasCleartextSensitiveValue(ansibleDefaultPassword) ||
+		hasCleartextSensitiveValue(ansibleBootstrapPassword)
 }
 
 func hasCleartextSensitiveProfiles(profiles map[string]ProfileConfig) bool {
@@ -1118,6 +1217,24 @@ func (c *Config) SetDefaults() {
 	}
 	if c.Plugins.Ansible.SSHPrivateKeyFile != "" {
 		c.Plugins.Ansible.SSHPrivateKeyFile = ExpandHomePath(c.Plugins.Ansible.SSHPrivateKeyFile)
+	}
+	if c.Plugins.Ansible.Bootstrap.Username == "" {
+		c.Plugins.Ansible.Bootstrap.Username = "ansible"
+	}
+	if c.Plugins.Ansible.Bootstrap.Shell == "" {
+		c.Plugins.Ansible.Bootstrap.Shell = "/bin/bash"
+	}
+	if c.Plugins.Ansible.Bootstrap.SudoersFileMode == "" {
+		c.Plugins.Ansible.Bootstrap.SudoersFileMode = "0440"
+	}
+	if c.Plugins.Ansible.Bootstrap.Timeout == "" {
+		c.Plugins.Ansible.Bootstrap.Timeout = "2m"
+	}
+	if c.Plugins.Ansible.Bootstrap.Parallelism <= 0 {
+		c.Plugins.Ansible.Bootstrap.Parallelism = 10
+	}
+	if c.Plugins.Ansible.Bootstrap.SSHPublicKeyFile != "" {
+		c.Plugins.Ansible.Bootstrap.SSHPublicKeyFile = ExpandHomePath(c.Plugins.Ansible.Bootstrap.SSHPublicKeyFile)
 	}
 
 	// ShowIcons defaults to true (icons enabled)
