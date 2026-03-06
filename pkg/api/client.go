@@ -456,12 +456,6 @@ func (c *Client) RefreshVMData(vm *VM, onEnrichmentComplete func(*VM)) (*VM, err
 		return nil, fmt.Errorf("failed to get VM details: %w", err)
 	}
 
-	// If GetDetailedVmInfo didn't find a valid IP (e.g., config has "dhcp")
-	// but we had a valid IP before, preserve the original IP
-	if freshVM.IP == "" && originalIP != "" {
-		freshVM.IP = originalIP
-	}
-
 	// Now enrich the VM with guest agent data just like the full refresh does
 	// This is what was missing - we need to call GetVmStatus to get the enriched data
 	if freshVM.Status == VMStatusRunning {
@@ -485,12 +479,26 @@ func (c *Client) RefreshVMData(vm *VM, onEnrichmentComplete func(*VM)) (*VM, err
 		}
 	}
 
+	// Apply fallback only after enrichment had a chance to provide up-to-date runtime IPs.
+	// This prevents preserving stale IPs during single-VM refreshes (notably for running LXC guests).
+	applyIPFallback(freshVM, originalIP)
+
 	// Call the callback after VM data has been enriched with guest agent information
 	if onEnrichmentComplete != nil {
 		onEnrichmentComplete(freshVM)
 	}
 
 	return freshVM, nil
+}
+
+func applyIPFallback(vm *VM, originalIP string) {
+	if vm == nil {
+		return
+	}
+
+	if vm.IP == "" && originalIP != "" {
+		vm.IP = originalIP
+	}
 }
 
 // NewClient creates a new Proxmox API client with dependency injection.

@@ -10,6 +10,7 @@ type marshaledConfig struct {
 	KeyBindings    KeyBindings              `yaml:"key_bindings,omitempty"`
 	Theme          ThemeConfig              `yaml:"theme,omitempty"`
 	Plugins        PluginConfig             `yaml:"plugins"`
+	GroupSettings  map[string]GroupSettingsConfig `yaml:"group_settings,omitempty"`
 	Addr           string                   `yaml:"addr,omitempty"`
 	User           string                   `yaml:"user,omitempty"`
 	Password       string                   `yaml:"password,omitempty"`
@@ -39,6 +40,7 @@ func (cfg *Config) MarshalYAML() (any, error) {
 		KeyBindings:    cfg.KeyBindings,
 		Theme:          cfg.Theme,
 		Plugins:        cfg.Plugins,
+		GroupSettings:  cfg.GroupSettings,
 	}
 
 	if len(cfg.Profiles) == 0 {

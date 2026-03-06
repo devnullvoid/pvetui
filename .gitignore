@@ -35,6 +35,10 @@ Thumbs.db
 *.swo
 *~
 
+# Python cache
+__pycache__/
+*.pyc
+
 # VHS demo output
 # /docs/*.gif
 # /docs/*.png

@@ -5,7 +5,79 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 )
+
+func deduplicateGroupNodes(nodes []*Node) []*Node {
+	seen := make(map[string]*Node, len(nodes))
+	order := make([]string, 0, len(nodes))
+
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+
+		// Keep placeholders unique per source profile.
+		if strings.HasPrefix(node.ID, "offline-") {
+			key := "placeholder|" + node.ID
+			if _, exists := seen[key]; !exists {
+				seen[key] = node
+				order = append(order, key)
+			}
+			continue
+		}
+
+		key := fmt.Sprintf("node|%s|%s", node.Name, node.IP)
+		if key == "node||" {
+			key = fmt.Sprintf("node|%s|%s", node.ID, node.SourceProfile)
+		}
+
+		existing, exists := seen[key]
+		if !exists {
+			seen[key] = node
+			order = append(order, key)
+			continue
+		}
+
+		// Prefer richer online data when de-duplicating.
+		if !existing.Online && node.Online {
+			seen[key] = node
+		}
+	}
+
+	out := make([]*Node, 0, len(order))
+	for _, key := range order {
+		out = append(out, seen[key])
+	}
+	return out
+}
+
+func deduplicateGroupVMs(vms []*VM) []*VM {
+	seen := make(map[string]*VM, len(vms))
+	order := make([]string, 0, len(vms))
+
+	for _, vm := range vms {
+		if vm == nil {
+			continue
+		}
+
+		key := fmt.Sprintf("vm|%s|%d|%s", vm.Type, vm.ID, vm.Node)
+		if key == "vm||0|" {
+			key = fmt.Sprintf("vm|fallback|%s|%s|%s", vm.Name, vm.Node, vm.SourceProfile)
+		}
+
+		if _, exists := seen[key]; !exists {
+			seen[key] = vm
+			order = append(order, key)
+		}
+	}
+
+	out := make([]*VM, 0, len(order))
+	for _, key := range order {
+		out = append(out, seen[key])
+	}
+	return out
+}
 
 // GetGroupNodes retrieves nodes from all connected profiles in the group.
 // Each node's SourceProfile field is set to identify which profile it came from.
@@ -35,6 +107,7 @@ func (m *GroupClientManager) GetGroupNodes(ctx context.Context) ([]*Node, error)
 				allNodes = append(allNodes, nodes...)
 			}
 		}
+		allNodes = deduplicateGroupNodes(allNodes)
 
 		// Sort nodes by name for consistent ordering
 		sort.Slice(allNodes, func(i, j int) bool {
@@ -83,12 +156,16 @@ func (m *GroupClientManager) GetGroupNodes(ctx context.Context) ([]*Node, error)
 		if !representedProfiles[pc.ProfileName] {
 			status, lastErr := pc.GetStatus()
 
+			// Only add placeholders for disconnected/error profiles.
+			// In aggregate mode, de-duplication can intentionally collapse duplicate
+			// nodes from multiple connected profiles in the same cluster.
+			if status == ProfileStatusConnected {
+				continue
+			}
+
 			// Determine reason for missing data
 			var errorMsg string
-			if status == ProfileStatusConnected {
-				// Connected but returned no nodes?
-				errorMsg = "No Data"
-			} else if lastErr != nil {
+			if lastErr != nil {
 				// Use a short error message
 				errorMsg = "Connection Failed"
 			} else {
@@ -157,6 +234,7 @@ func (m *GroupClientManager) GetGroupVMs(ctx context.Context) ([]*VM, error) {
 				allVMs = append(allVMs, vms...)
 			}
 		}
+		allVMs = deduplicateGroupVMs(allVMs)
 
 		// Sort VMs by profile name, then by node, then by ID
 		sort.Slice(allVMs, func(i, j int) bool {

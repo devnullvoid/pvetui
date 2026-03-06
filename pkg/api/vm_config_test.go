@@ -28,6 +28,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				"boot":        "order=scsi0;net0",
 				"agent":       "enabled=1,fstrim_cloned_disks=1",
 				"tags":        "prod;db",
+				"net0":        "virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,tag=100",
 			},
 			expected: &VMConfig{
 				Name:         "test-vm",
@@ -42,26 +43,62 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 				Agent:        &[]bool{true}[0],
 				Tags:         "prod;db",
 				TagsExplicit: true,
+				NetworkInterfaces: map[string]string{
+					"net0": "virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,tag=100",
+				},
 			},
 		},
 		{
 			name:   "LXC container with hostname",
 			vmType: VMTypeLXC,
 			input: map[string]interface{}{
-				"hostname":    "test-container",
-				"cores":       2.0,
-				"memory":      4096.0,
-				"description": "Test Container",
-				"onboot":      0.0,
-				"swap":        1024.0,
+				"hostname":     "test-container",
+				"cores":        2.0,
+				"memory":       4096.0,
+				"description":  "Test Container",
+				"onboot":       0.0,
+				"swap":         1024.0,
+				"nameserver":   "1.1.1.1 8.8.8.8",
+				"searchdomain": "lab.local",
+				"net0":         "name=eth0,bridge=vmbr1,ip=dhcp,gw=10.0.0.1",
 			},
 			expected: &VMConfig{
-				Hostname:    "test-container",
-				Cores:       2,
-				Memory:      4 * 1024 * 1024 * 1024, // 4GB in bytes
-				Description: "Test Container",
-				OnBoot:      &[]bool{false}[0],
-				Swap:        1 * 1024 * 1024 * 1024, // 1GB in bytes
+				Hostname:     "test-container",
+				Cores:        2,
+				Memory:       4 * 1024 * 1024 * 1024, // 4GB in bytes
+				Description:  "Test Container",
+				OnBoot:       &[]bool{false}[0],
+				Swap:         1 * 1024 * 1024 * 1024, // 1GB in bytes
+				Nameserver:   "1.1.1.1 8.8.8.8",
+				SearchDomain: "lab.local",
+				NetworkInterfaces: map[string]string{
+					"net0": "name=eth0,bridge=vmbr1,ip=dhcp,gw=10.0.0.1",
+				},
+			},
+		},
+		{
+			name:   "LXC container ignores name field in config payload",
+			vmType: VMTypeLXC,
+			input: map[string]interface{}{
+				"name":         "should-not-be-used",
+				"hostname":     "actual-hostname",
+				"cores":        2.0,
+				"memory":       2048.0,
+				"description":  "Container with both name and hostname",
+				"onboot":       1.0,
+				"net0":         "name=eth0,bridge=vmbr0,ip=dhcp",
+				"searchdomain": "lab.local",
+			},
+			expected: &VMConfig{
+				Hostname:     "actual-hostname",
+				Cores:        2,
+				Memory:       2 * 1024 * 1024 * 1024, // 2GB in bytes
+				Description:  "Container with both name and hostname",
+				OnBoot:       &[]bool{true}[0],
+				SearchDomain: "lab.local",
+				NetworkInterfaces: map[string]string{
+					"net0": "name=eth0,bridge=vmbr0,ip=dhcp",
+				},
 			},
 		},
 		{
@@ -107,6 +144,7 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 			assert.Equal(t, tt.expected.OnBoot, result.OnBoot)
 			assert.Equal(t, tt.expected.Tags, result.Tags)
 			assert.Equal(t, tt.expected.TagsExplicit, result.TagsExplicit)
+			assert.Equal(t, tt.expected.NetworkInterfaces, result.NetworkInterfaces)
 
 			if tt.vmType == VMTypeQemu {
 				assert.Equal(t, tt.expected.CPUType, result.CPUType)
@@ -117,9 +155,12 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 
 			if tt.vmType == VMTypeLXC {
 				assert.Equal(t, tt.expected.Swap, result.Swap)
+				assert.Equal(t, tt.expected.Nameserver, result.Nameserver)
+				assert.Equal(t, tt.expected.SearchDomain, result.SearchDomain)
 			}
 
 			// Test building payload
+			result.NetworkInterfacesExplicit = true
 			payload := buildConfigPayload(tt.vmType, result)
 
 			if tt.expected.Name != "" {
@@ -150,6 +191,9 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 			if tt.expected.TagsExplicit {
 				assert.Equal(t, tt.expected.Tags, payload["tags"])
 			}
+			for key, expectedRaw := range tt.expected.NetworkInterfaces {
+				assert.Equal(t, expectedRaw, payload[key])
+			}
 
 			if tt.vmType == VMTypeQemu {
 				if tt.expected.CPUType != "" {
@@ -171,8 +215,15 @@ func TestVMConfig_ParseAndBuild(t *testing.T) {
 			}
 
 			if tt.vmType == VMTypeLXC {
+				assert.NotContains(t, payload, "name")
 				if tt.expected.Swap > 0 {
 					assert.Equal(t, tt.expected.Swap/1024/1024, payload["swap"])
+				}
+				if tt.expected.Nameserver != "" {
+					assert.Equal(t, tt.expected.Nameserver, payload["nameserver"])
+				}
+				if tt.expected.SearchDomain != "" {
+					assert.Equal(t, tt.expected.SearchDomain, payload["searchdomain"])
 				}
 			}
 		})
@@ -199,4 +250,18 @@ func TestParseQEMUAgentEnabled(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestBuildConfigPayloadSkipsNetworkWhenNotExplicit(t *testing.T) {
+	cfg := &VMConfig{
+		Hostname: "ct-test",
+		NetworkInterfaces: map[string]string{
+			"net0": "name=eth0,bridge=vmbr0,ip=192.168.99.24",
+		},
+		NetworkInterfacesExplicit: false,
+	}
+
+	payload := buildConfigPayload(VMTypeLXC, cfg)
+	_, hasNet0 := payload["net0"]
+	assert.False(t, hasNet0)
 }

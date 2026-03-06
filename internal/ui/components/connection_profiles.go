@@ -83,16 +83,18 @@ func (a *App) showConnectionProfilesDialog() {
 		for _, groupName := range groupNames {
 			profileNames := groups[groupName]
 
-			displayName := fmt.Sprintf("▸ %s (%d profiles)", groupName, len(profileNames))
-
-			// Check if currently connected to this group
-
-			if a.isGroupMode && a.groupName == groupName {
-
-				displayName = "⚡ " + displayName
-
+			// Determine group mode indicator
+			var modeTag string
+			if a.config.IsClusterGroup(groupName) {
+				modeTag = " [accent]cluster[-]"
 			}
 
+			displayName := fmt.Sprintf("▸ %s (%d profiles)%s", groupName, len(profileNames), modeTag)
+
+			// Check if currently connected to this group (aggregate or cluster mode)
+			if (a.isGroupMode || a.isClusterMode) && a.groupName == groupName {
+				displayName = "⚡ " + displayName
+			}
 			if groupName == a.config.DefaultProfile {
 				displayName = displayName + " ⭐"
 			}
@@ -574,6 +576,14 @@ func (a *App) showDeleteGroupDialog(groupName string) {
 			hasChanges = true
 		}
 
+		// Remove per-group settings to avoid stale group_settings entries.
+		if a.config.GroupSettings != nil {
+			if _, exists := a.config.GroupSettings[groupName]; exists {
+				delete(a.config.GroupSettings, groupName)
+				hasChanges = true
+			}
+		}
+
 		if hasChanges {
 
 			// Save the config
@@ -979,6 +989,15 @@ func (a *App) showEditGroupDialog(groupName string) {
 
 	form.SetBorderColor(theme.Colors.Border)
 
+	// Mode selector (aggregate vs cluster)
+	modeOptions := []string{config.GroupModeAggregate, config.GroupModeCluster}
+	currentMode := a.config.GetGroupMode(groupName)
+	currentModeIndex := 0
+	if currentMode == config.GroupModeCluster {
+		currentModeIndex = 1
+	}
+	form.AddDropDown("Mode", modeOptions, currentModeIndex, nil)
+
 	// Collect and sort profile names
 
 	profileNames := make([]string, 0)
@@ -1038,6 +1057,13 @@ func (a *App) showEditGroupDialog(groupName string) {
 		// Update profiles
 
 		hasChanges := false
+
+		// Persist mode selection
+		_, selectedMode := form.GetFormItemByLabel("Mode").(*tview.DropDown).GetCurrentOption()
+		if selectedMode != a.config.GetGroupMode(groupName) {
+			a.config.SetGroupMode(groupName, selectedMode)
+			hasChanges = true
+		}
 
 		for name, checked := range selections {
 

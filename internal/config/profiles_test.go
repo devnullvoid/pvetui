@@ -67,3 +67,33 @@ func TestGetProfilesInGroup(t *testing.T) {
 	pNames3 := cfg.GetProfileNamesInGroup("group3")
 	assert.Empty(t, pNames3)
 }
+
+func TestValidateGroupsRejectsStaleGroupSettings(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]ProfileConfig{
+			"p1": {Groups: []string{"group1"}},
+		},
+		GroupSettings: map[string]GroupSettingsConfig{
+			"deleted-group": {Mode: GroupModeCluster},
+		},
+	}
+
+	err := cfg.ValidateGroups()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "group_settings 'deleted-group' does not match any group")
+}
+
+func TestValidateGroupsAcceptsClusterModeSettingForExistingGroup(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]ProfileConfig{
+			"p1": {Groups: []string{"group1"}},
+		},
+		GroupSettings: map[string]GroupSettingsConfig{
+			"group1": {Mode: GroupModeCluster},
+		},
+	}
+
+	err := cfg.ValidateGroups()
+	assert.NoError(t, err)
+	assert.True(t, cfg.IsClusterGroup("group1"))
+}
