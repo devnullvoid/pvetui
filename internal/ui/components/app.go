@@ -3,6 +3,8 @@ package components
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -23,6 +25,11 @@ import (
 type App struct {
 	*tview.Application
 
+	// connMu protects the connection-state fields below from concurrent access.
+	// Background goroutines (doManualRefresh, doFastRefresh, autoRefreshData, loadTasksData)
+	// read these fields; profile-switch goroutines (applyConnectionProfile, switchToClusterGroup)
+	// write them. Always use snapConn() for reads and connMu.Lock() for writes.
+	connMu        sync.RWMutex
 	client        *api.Client
 	groupManager  *api.GroupClientManager
 	isGroupMode   bool
@@ -58,10 +65,17 @@ type App struct {
 
 	// Auto-refresh functionality
 	autoRefreshEnabled       bool
-	autoRefreshTicker        *time.Ticker
-	autoRefreshStop          chan bool
+	autoRefreshRunning       bool
 	autoRefreshCountdown     int
 	autoRefreshCountdownStop chan bool
+
+	// Refresh deduplication: prevents concurrent overlapping refreshes.
+	// refreshGen holds the current refresh generation token (0 = no refresh in progress,
+	// nonzero = a refresh is in progress with that token). Each refresh operation acquires
+	// a unique token via startRefresh or forceNewRefresh, and releases it via endRefresh.
+	// Old callbacks that call endRefresh with a stale token are no-ops, preventing the
+	// guard from being cleared by a refresh that was superseded by a profile switch.
+	refreshGen atomic.Uint64
 
 	plugins        map[string]Plugin
 	pluginRegistry *pluginRegistry
@@ -76,6 +90,61 @@ type App struct {
 func (a *App) removePageIfPresent(name string) {
 	if a.pages != nil && a.pages.HasPage(name) {
 		_ = a.pages.RemovePage(name)
+	}
+}
+
+// startRefresh attempts to acquire the refresh guard.
+// Returns (token, true) on success; (0, false) if another refresh is already in progress.
+// The caller must pass the returned token to endRefresh when the refresh completes.
+func (a *App) startRefresh() (uint64, bool) {
+	token := uint64(time.Now().UnixNano()) | 1 // ensure nonzero
+	if a.refreshGen.CompareAndSwap(0, token) {
+		return token, true
+	}
+	return 0, false
+}
+
+// forceNewRefresh unconditionally acquires the refresh guard with a new token,
+// discarding any in-flight refresh. Old callbacks whose endRefresh calls will be
+// no-ops because their token won't match the current value.
+// Used by profile switches where we need to guarantee a new refresh starts.
+// The caller must pass the returned token to endRefresh (or doFastRefresh/doManualRefresh).
+func (a *App) forceNewRefresh() uint64 {
+	token := uint64(time.Now().UnixNano()) | 1 // ensure nonzero
+	a.refreshGen.Store(token)
+	return token
+}
+
+// endRefresh releases the refresh guard only if the token matches the current value.
+// If the token doesn't match (stale callback from a superseded refresh), this is a no-op.
+func (a *App) endRefresh(token uint64) {
+	a.refreshGen.CompareAndSwap(token, 0)
+}
+
+// isRefreshActive returns true if a refresh is currently in progress.
+func (a *App) isRefreshActive() bool {
+	return a.refreshGen.Load() != 0
+}
+
+// connData is a snapshot of connection-state fields captured under connMu.
+type connData struct {
+	isGroupMode   bool
+	isClusterMode bool
+	client        *api.Client
+	groupManager  *api.GroupClientManager
+}
+
+// snapConn returns a consistent, lock-safe snapshot of connection state.
+// Callers must use the returned values for subsequent operations instead of
+// reading a.client / a.isGroupMode / etc. directly from background goroutines.
+func (a *App) snapConn() connData {
+	a.connMu.RLock()
+	defer a.connMu.RUnlock()
+	return connData{
+		isGroupMode:   a.isGroupMode,
+		isClusterMode: a.isClusterMode,
+		client:        a.client,
+		groupManager:  a.groupManager,
 	}
 }
 
@@ -549,12 +618,13 @@ func (a *App) ClearAPICache() {
 // In group mode, it returns the client for the VM's source profile.
 // In single-profile mode, it returns the main client.
 func (a *App) getClientForVM(vm *api.VM) (*api.Client, error) {
-	if a.isGroupMode {
+	conn := a.snapConn()
+	if conn.isGroupMode {
 		if vm.SourceProfile == "" {
 			return nil, fmt.Errorf("source profile not set for VM %s in group mode", vm.Name)
 		}
 
-		profileClient, exists := a.groupManager.GetClient(vm.SourceProfile)
+		profileClient, exists := conn.groupManager.GetClient(vm.SourceProfile)
 		if !exists {
 			return nil, fmt.Errorf("profile '%s' not found in group manager", vm.SourceProfile)
 		}
@@ -566,19 +636,20 @@ func (a *App) getClientForVM(vm *api.VM) (*api.Client, error) {
 
 		return profileClient.Client, nil
 	}
-	return a.client, nil
+	return conn.client, nil
 }
 
 // getClientForNode returns the appropriate API client for a Node.
 // In group mode, it returns the client for the Node's source profile.
 // In single-profile mode, it returns the main client.
 func (a *App) getClientForNode(node *api.Node) (*api.Client, error) {
-	if a.isGroupMode {
+	conn := a.snapConn()
+	if conn.isGroupMode {
 		if node.SourceProfile == "" {
 			return nil, fmt.Errorf("source profile not set for Node %s in group mode", node.Name)
 		}
 
-		profileClient, exists := a.groupManager.GetClient(node.SourceProfile)
+		profileClient, exists := conn.groupManager.GetClient(node.SourceProfile)
 		if !exists {
 			return nil, fmt.Errorf("profile '%s' not found in group manager", node.SourceProfile)
 		}
@@ -590,7 +661,7 @@ func (a *App) getClientForNode(node *api.Node) (*api.Client, error) {
 
 		return profileClient.Client, nil
 	}
-	return a.client, nil
+	return conn.client, nil
 }
 
 // createSyntheticGroup creates a synthetic cluster object from a list of nodes for group display.

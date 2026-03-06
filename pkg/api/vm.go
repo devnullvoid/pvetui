@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // GetVmStatus retrieves current status metrics for a VM or LXC.
@@ -303,12 +304,53 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 		Type: vmType,
 	}
 
-	// Get status information (cached)
-	var statusRes map[string]interface{}
+	// Fetch status and config concurrently -- they are independent API calls.
+	var (
+		statusRes map[string]interface{}
+		configRes map[string]interface{}
+		statusErr error
+		configErr error
+		wg        sync.WaitGroup
+	)
 
-	statusEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", node, vmType, vmid)
-	if err := c.GetWithCache(statusEndpoint, &statusRes, VMDataTTL); err != nil {
-		return nil, fmt.Errorf("failed to get VM status: %w", err)
+	wg.Add(2) //nolint:mnd // status + config
+
+	go func() {
+		defer wg.Done()
+
+		var res map[string]interface{}
+
+		statusEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/status/current", node, vmType, vmid)
+		if err := c.GetWithCache(statusEndpoint, &res, VMDataTTL); err != nil {
+			statusErr = fmt.Errorf("failed to get VM status: %w", err)
+			return
+		}
+
+		statusRes = res
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		var res map[string]interface{}
+
+		configEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", node, vmType, vmid)
+		if err := c.GetWithCache(configEndpoint, &res, VMDataTTL); err != nil {
+			configErr = fmt.Errorf("failed to get VM config: %w", err)
+			return
+		}
+
+		configRes = res
+	}()
+
+	wg.Wait()
+
+	if statusErr != nil {
+		return nil, statusErr
+	}
+
+	if configErr != nil {
+		return nil, configErr
 	}
 
 	statusDataRaw := statusRes["data"]
@@ -385,14 +427,6 @@ func (c *Client) GetDetailedVmInfo(node, vmType string, vmid int) (*VM, error) {
 
 	if pool, okPool := statusData["pool"].(string); okPool {
 		vm.Pool = pool
-	}
-
-	// Get config information (cached)
-	var configRes map[string]interface{}
-
-	configEndpoint := fmt.Sprintf("/nodes/%s/%s/%d/config", node, vmType, vmid)
-	if err := c.GetWithCache(configEndpoint, &configRes, VMDataTTL); err != nil {
-		return nil, fmt.Errorf("failed to get VM config: %w", err)
 	}
 
 	configData, ok := configRes["data"].(map[string]interface{})
