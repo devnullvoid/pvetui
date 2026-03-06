@@ -7,15 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.20] - 2026-02-28
+
 ### Added
 
+- **Guest Network Config Editor**: Added an “Edit Network Interfaces” action in guest configuration with a dedicated interface editor (bridge/VLAN/rate/firewall plus VM/CT-specific fields), including LXC DHCP/Static IP assignment toggle and LXC nameserver/searchdomain fields, writing back to Proxmox `netX` config entries on save.
 - **Cluster Group Mode (HA Failover)**: Added per-group `group_settings` with `mode: cluster` so a group can connect through one active profile and automatically fail over to the next healthy candidate.
 - **Group Mode Controls in Profiles UI**: Added a mode selector to the Edit Group dialog and a cluster mode marker in the Connection Profiles list.
 
 ### Fixed
 
+- **Guest Details Description Consistency**: The Description row now always appears in Guest Details and shows `N/A` when a guest description is empty; for stopped guests, details now hydrate description from config when available.
+- **Running Guest CPU Metric Stability**: Running guests now display `0.0%` CPU instead of transient `N/A` when APIs briefly return invalid non-finite CPU values after restart.
+
+- **Guest Selection Snap-Back After Config Save Refresh**: Preserved any user-initiated list selection changes made during in-flight refreshes so completion no longer forces selection back to the pre-refresh guest/node.
+
+- **Transient CPU N/A After Guest Restart**: Sanitized non-finite numeric values from API responses during single-guest refreshes so running guests no longer briefly show CPU as `N/A` when metrics momentarily return `NaN/Inf` after restart.
+
 - **Tasks Panel Focus Freeze**: Fixed an immediate freeze when tabbing from Task History to Active Operations by keeping task table cells selectable and avoiding a tview table selection loop.
 - **Cluster Failover Refresh Re-entrancy**: Triggered failover refresh asynchronously to avoid nested `QueueUpdateDraw` callback paths.
+- **Single Guest Refresh IP Staleness**: Fixed per-guest refresh so running guests (including LXC containers after network/VLAN changes) update IP information without requiring a full cluster refresh.
 
 ## [1.0.19] - 2026-02-21
 

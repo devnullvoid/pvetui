@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -45,7 +46,9 @@ func getFloat(data map[string]interface{}, key string) float64 {
 	if val, ok := data[key]; ok {
 		switch v := val.(type) {
 		case float64:
-			return v
+			if isFiniteFloat(v) {
+				return v
+			}
 		case int:
 			return float64(v)
 		case int64:
@@ -53,7 +56,7 @@ func getFloat(data map[string]interface{}, key string) float64 {
 		case string:
 			// Try to convert string to float
 			var f float64
-			if n, err := fmt.Sscanf(v, "%f", &f); err == nil && n > 0 {
+			if n, err := fmt.Sscanf(v, "%f", &f); err == nil && n > 0 && isFiniteFloat(f) {
 				return f
 			}
 		}
@@ -338,18 +341,24 @@ func SafeStringValue(value interface{}) string {
 func SafeFloatValue(value interface{}) float64 {
 	switch v := value.(type) {
 	case float64:
-		return v
+		if isFiniteFloat(v) {
+			return v
+		}
 	case int:
 		return float64(v)
 	case int64:
 		return float64(v)
 	case string:
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && isFiniteFloat(f) {
 			return f
 		}
 	}
 
 	return 0.0
+}
+
+func isFiniteFloat(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 // SafeBoolValue safely converts various types to boolean representation.

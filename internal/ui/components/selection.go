@@ -1,11 +1,23 @@
 package components
 
-import "github.com/devnullvoid/pvetui/internal/ui/models"
+import (
+	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/pkg/api"
+)
 
 // restoreSelection restores node and VM selections after a refresh.
 func (a *App) restoreSelection(hasVM bool, vmID int, vmNode string, vmState *models.SearchState,
 	hasNode bool, nodeName string, nodeState *models.SearchState,
 ) {
+	// If user changed VM selection while refresh was in-flight, preserve the
+	// user's newer selection instead of snapping back to stale pre-refresh state.
+	if !shouldRestoreVMSelection(hasVM, vmID, vmNode, a.vmList.GetSelectedVM()) {
+		hasVM = false
+		if vmState != nil {
+			vmState.SelectedIndex = a.vmList.GetCurrentItem()
+		}
+	}
+
 	if hasVM {
 		found := false
 		for i, vm := range a.vmList.GetVMs() {
@@ -47,6 +59,14 @@ func (a *App) restoreSelection(hasVM bool, vmID int, vmNode string, vmState *mod
 		}
 	}
 
+	// If user changed node selection while refresh was in-flight, preserve it.
+	if !shouldRestoreNodeSelection(hasNode, nodeName, a.nodeList.GetSelectedNode()) {
+		hasNode = false
+		if nodeState != nil {
+			nodeState.SelectedIndex = a.nodeList.GetCurrentItem()
+		}
+	}
+
 	if hasNode {
 		for i, node := range a.nodeList.GetNodes() {
 			if node != nil && node.Name == nodeName {
@@ -65,4 +85,26 @@ func (a *App) restoreSelection(hasVM bool, vmID int, vmNode string, vmState *mod
 			}
 		}
 	}
+}
+
+func shouldRestoreVMSelection(hasVM bool, vmID int, vmNode string, current *api.VM) bool {
+	if !hasVM {
+		return false
+	}
+	if current == nil {
+		return true
+	}
+
+	return current.ID == vmID && current.Node == vmNode
+}
+
+func shouldRestoreNodeSelection(hasNode bool, nodeName string, current *api.Node) bool {
+	if !hasNode {
+		return false
+	}
+	if current == nil {
+		return true
+	}
+
+	return current.Name == nodeName
 }
