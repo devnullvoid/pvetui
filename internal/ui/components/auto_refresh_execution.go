@@ -9,6 +9,67 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
+// preserveVMEnrichmentData carries forward guest agent and config data from the last
+// full refresh onto a freshly-fetched VM that only has basic metrics.
+// existingVMs is keyed by "ID|Node" (single-profile) or "ID|Node|SourceProfile" (group mode).
+func preserveVMEnrichmentData(fresh *api.VM, existingVMs map[string]*api.VM) {
+	if fresh == nil {
+		return
+	}
+	// Try group mode key first (includes SourceProfile), fall back to single-profile key.
+	key := fmt.Sprintf("%d|%s|%s", fresh.ID, fresh.Node, fresh.SourceProfile)
+	existing, ok := existingVMs[key]
+	if !ok {
+		key = fmt.Sprintf("%d|%s", fresh.ID, fresh.Node)
+		existing, ok = existingVMs[key]
+	}
+	if !ok {
+		return
+	}
+
+	// Preserve guest agent data (only available from full enrichment)
+	if fresh.IP == "" {
+		fresh.IP = existing.IP
+	}
+	fresh.AgentEnabled = existing.AgentEnabled
+	fresh.AgentRunning = existing.AgentRunning
+	if len(fresh.NetInterfaces) == 0 {
+		fresh.NetInterfaces = existing.NetInterfaces
+	}
+	if len(fresh.Filesystems) == 0 {
+		fresh.Filesystems = existing.Filesystems
+	}
+	fresh.ConfiguredMACs = existing.ConfiguredMACs
+
+	// Preserve config details (from config endpoint enrichment)
+	if len(fresh.ConfiguredNetworks) == 0 {
+		fresh.ConfiguredNetworks = existing.ConfiguredNetworks
+	}
+	if len(fresh.StorageDevices) == 0 {
+		fresh.StorageDevices = existing.StorageDevices
+	}
+	if fresh.BootOrder == "" {
+		fresh.BootOrder = existing.BootOrder
+	}
+	if fresh.CPUCores == 0 {
+		fresh.CPUCores = existing.CPUCores
+	}
+	if fresh.CPUSockets == 0 {
+		fresh.CPUSockets = existing.CPUSockets
+	}
+	if fresh.Architecture == "" {
+		fresh.Architecture = existing.Architecture
+	}
+	if fresh.OSType == "" {
+		fresh.OSType = existing.OSType
+	}
+	if fresh.Description == "" {
+		fresh.Description = existing.Description
+	}
+	fresh.OnBoot = existing.OnBoot
+	fresh.Enriched = existing.Enriched
+}
+
 // autoRefreshDataWithFooter sets loading state, captures UI selections on the UI goroutine,
 // and starts the data fetch in a new goroutine.
 // Selection state must be read here (on the UI goroutine) before the goroutine is spawned.
@@ -97,6 +158,20 @@ func (a *App) autoRefreshData(snap selSnap) {
 				}
 			}
 
+			// Preserve VM guest agent / config data from last full refresh.
+			existingVMMap := make(map[string]*api.VM, len(models.GlobalState.OriginalVMs))
+			for _, vm := range models.GlobalState.OriginalVMs {
+				if vm != nil {
+					key := fmt.Sprintf("%d|%s|%s", vm.ID, vm.Node, vm.SourceProfile)
+					existingVMMap[key] = vm
+				}
+			}
+			for _, vm := range vms {
+				if vm != nil {
+					preserveVMEnrichmentData(vm, existingVMMap)
+				}
+			}
+
 			// Update global state with fresh data
 			models.GlobalState.OriginalNodes = make([]*api.Node, len(nodes))
 			models.GlobalState.FilteredNodes = make([]*api.Node, len(nodes))
@@ -108,10 +183,35 @@ func (a *App) autoRefreshData(snap selSnap) {
 			copy(models.GlobalState.OriginalVMs, vms)
 			copy(models.GlobalState.FilteredVMs, vms)
 
+			// Apply filters and update UI lists immediately (no background enrichment).
+			if nodeSearchState != nil && nodeSearchState.Filter != "" {
+				models.FilterNodes(nodeSearchState.Filter)
+				a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			} else {
+				a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
+			}
+
+			if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
+				models.FilterVMs(vmSearchState.Filter)
+				a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+			} else {
+				a.vmList.SetVMs(models.GlobalState.OriginalVMs)
+			}
+
 			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
 				hasSelectedNode, selectedNodeName, nodeSearchState)
 
-			// Defer list/detail updates until enrichment completes to reduce flicker.
+			// Update cluster status with the fresh (metric-only) data
+			syntheticCluster := a.createSyntheticGroup(nodes)
+			a.clusterStatus.Update(syntheticCluster)
+
+			// Update details if items are selected
+			if node := a.nodeList.GetSelectedNode(); node != nil {
+				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
+			}
+			if vm := a.vmList.GetSelectedVM(); vm != nil {
+				a.vmDetails.Update(vm)
+			}
 
 			// Refresh tasks if on tasks page
 			currentPage, _ := a.pages.GetFrontPage()
@@ -138,13 +238,12 @@ func (a *App) autoRefreshData(snap selSnap) {
 
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 
-			// Start background enrichment for detailed node stats
-			// Pass false for isInitialLoad since this is auto-refresh.
-			// enrichGroupNodesParallel will call endRefresh(token) when done.
-			a.enrichGroupNodesParallel(token, nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive, false)
+			// Auto-refresh is lightweight — no background enrichment, release guard now.
+			a.header.ShowSuccess("Data refreshed successfully")
+			a.footer.SetLoading(false)
+			a.endRefresh(token)
 
 			a.autoRefreshCountdown = 10
-
 			a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 
 		})
@@ -212,6 +311,18 @@ func (a *App) autoRefreshData(snap selSnap) {
 			}
 		}
 
+		// Build lookup map for O(N) VM enrichment preservation instead of O(N*M).
+		// Light cluster status returns only basic metrics (CPU, memory, status);
+		// guest agent data (IPs, filesystems, configs) must be carried forward
+		// from the last full refresh to avoid "clearing" data on auto-refresh.
+		existingVMMap := make(map[string]*api.VM, len(models.GlobalState.OriginalVMs))
+		for _, vm := range models.GlobalState.OriginalVMs {
+			if vm != nil {
+				key := fmt.Sprintf("%d|%s", vm.ID, vm.Node)
+				existingVMMap[key] = vm
+			}
+		}
+
 		// Rebuild VM list from fresh cluster data
 		var vms []*api.VM
 
@@ -219,6 +330,7 @@ func (a *App) autoRefreshData(snap selSnap) {
 			if node != nil {
 				for _, vm := range node.VMs {
 					if vm != nil {
+						preserveVMEnrichmentData(vm, existingVMMap)
 						vms = append(vms, vm)
 					}
 				}
