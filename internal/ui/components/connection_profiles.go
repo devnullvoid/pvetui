@@ -383,12 +383,15 @@ func (a *App) showConnectionProfilesDialog() {
 
 			case 's', 'S':
 
-				// Set as default - works for profiles and groups
+				// Toggle default - works for profiles and groups
 				if selectionType == selectionTypeProfile || selectionType == selectionTypeGroup {
 
 					a.CloseConnectionProfilesMenu()
 
 					a.setDefaultProfile(selectionValue)
+
+					// Re-open the dialog so the updated ⭐ indicator is visible.
+					a.showConnectionProfilesDialog()
 
 					return nil
 
@@ -436,7 +439,7 @@ func (a *App) showConnectionProfilesDialog() {
 
 	helpText := tview.NewTextView()
 
-	helpText.SetText("e:edit d:delete s:default")
+	helpText.SetText("e:edit  d:delete  s:toggle default")
 
 	helpText.SetTextAlign(tview.AlignCenter)
 
