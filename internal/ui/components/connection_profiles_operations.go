@@ -521,7 +521,9 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 	a.SetFocus(confirm)
 }
 
-// setDefaultProfile sets the specified profile as the default profile.
+// setDefaultProfile toggles the default profile. If the specified profile/group
+// is already the default, it clears the default (so the user will be prompted on
+// next startup). Otherwise it sets the given name as the new default.
 func (a *App) setDefaultProfile(profileName string) {
 	// Check if the target exists (profile or group)
 	if a.config.Profiles == nil {
@@ -544,17 +546,23 @@ func (a *App) setDefaultProfile(profileName string) {
 		}
 	}
 
-	// Check if it's already the default
-	if a.config.DefaultProfile == profileName {
-		a.header.ShowError(fmt.Sprintf("'%s' is already the default startup selection.", profileName))
-		return
-	}
-
-	// Store the old default profile name for the message
+	// Store the old default for the success message.
 	oldDefault := a.config.DefaultProfile
 
-	// Set the new default profile
-	a.config.DefaultProfile = profileName
+	var successMsg string
+	if a.config.DefaultProfile == profileName {
+		// Toggle off: clear the default so the user is prompted on next startup.
+		a.config.DefaultProfile = ""
+		successMsg = fmt.Sprintf("Default startup selection cleared (was '%s'). You will be prompted on next startup.", profileName)
+	} else {
+		// Set the new default.
+		a.config.DefaultProfile = profileName
+		if oldDefault != "" {
+			successMsg = fmt.Sprintf("Default startup selection changed from '%s' to '%s'.", oldDefault, profileName)
+		} else {
+			successMsg = fmt.Sprintf("'%s' set as default startup selection.", profileName)
+		}
+	}
 
 	// Save the config
 	configPath, found := config.FindDefaultConfigPath()
@@ -581,8 +589,7 @@ func (a *App) setDefaultProfile(profileName string) {
 		}
 	}
 
-	// Show success message
-	a.header.ShowSuccess(fmt.Sprintf("Default startup selection changed from '%s' to '%s'.", oldDefault, profileName))
+	a.header.ShowSuccess(successMsg)
 }
 
 // reEncryptConfigIfNeeded re-encrypts the config file with SOPS.
