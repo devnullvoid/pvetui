@@ -17,26 +17,27 @@ import (
 func (a *App) deactivateGroupModes(uiLogger interface {
 	Debug(format string, args ...interface{})
 }) {
-	if a.isGroupMode {
+	// Capture old references and clear fields atomically under write lock.
+	// Resources are closed AFTER releasing the lock to avoid holding it
+	// during potentially slow network-level Close() operations.
+	a.connMu.Lock()
+	oldGroupManager := a.groupManager
+	oldClusterClient := a.clusterClient
+	a.groupManager = nil
+	a.isGroupMode = false
+	a.clusterClient = nil
+	a.isClusterMode = false
+	a.groupName = ""
+	a.connMu.Unlock()
+
+	if oldGroupManager != nil {
 		uiLogger.Debug("Disabling group mode")
-		if a.groupManager != nil {
-			a.groupManager.Close()
-		}
-		a.groupManager = nil
-		a.isGroupMode = false
+		oldGroupManager.Close()
 	}
 
-	if a.isClusterMode {
+	if oldClusterClient != nil {
 		uiLogger.Debug("Disabling cluster mode")
-		if a.clusterClient != nil {
-			a.clusterClient.Close()
-		}
-		a.clusterClient = nil
-		a.isClusterMode = false
-	}
-
-	if a.groupName != "" {
-		a.groupName = ""
+		oldClusterClient.Close()
 	}
 
 	if a.tasksList != nil {
@@ -82,9 +83,12 @@ func (a *App) applyConnectionProfile(profileName string) {
 
 		uiLogger.Debug("New API client created successfully for profile %s", profileName)
 
-		// Update app client and VNC service immediately to ensure subsequent calls use the new client
-		// This must happen before manualRefresh() is called
+		// Update app client under write lock. deactivateGroupModes also acquires
+		// the lock internally for its field writes.
+		a.connMu.Lock()
 		a.client = client
+		a.connMu.Unlock()
+
 		if a.vncService != nil {
 			a.vncService.UpdateClient(client)
 		}
@@ -103,9 +107,12 @@ func (a *App) applyConnectionProfile(profileName string) {
 			a.header.ShowSuccess("Switched to profile '" + profileName + "' successfully!")
 		})
 
-		// Then refresh data with new connection (this will update the UI)
-		uiLogger.Debug("Starting manual refresh with new client")
-		a.manualRefresh()
+		// Force a new refresh generation token, discarding any in-flight refresh from
+		// the previous profile. Old callbacks' endRefresh calls will be no-ops because
+		// their token won't match the new token.
+		token := a.forceNewRefresh()
+		uiLogger.Debug("Starting fast refresh with new client")
+		a.doFastRefresh(token)
 	}()
 }
 
@@ -203,13 +210,16 @@ func (a *App) switchToGroup(groupName string) {
 
 		// Update app state
 		a.QueueUpdateDraw(func() {
-			// Set group mode
+			// Set group mode fields under write lock so background goroutines that
+			// call snapConn() see a consistent view. The lock is brief (field assignments).
 			// Note: We keep a.client around even in group mode to avoid breaking callbacks
 			// that were set up during initialization. In group mode, we use a.groupManager
 			// for operations instead of a.client.
+			a.connMu.Lock()
 			a.groupManager = manager
 			a.isGroupMode = true
 			a.groupName = groupName
+			a.connMu.Unlock()
 
 			// Update header
 			a.updateHeaderWithActiveProfile()
@@ -260,8 +270,10 @@ func (a *App) switchToGroup(groupName string) {
 
 				// Start background enrichment for detailed node stats
 				// This ensures nodes get Version, Kernel, LoadAvg etc. populated
-				// Pass true for isInitialLoad to show "Guest agent data loaded" message
-				a.enrichGroupNodesSequentially(nodes, false, "", false, 0, "", false, true)
+				// Pass true for isInitialLoad to show "Guest agent data loaded" message.
+				// Force a new refresh token so the guard is acquired for this enrichment.
+				enrichToken := a.forceNewRefresh()
+				a.enrichGroupNodesParallel(enrichToken, nodes, false, "", false, 0, "", false, true)
 			}
 
 			// Update selection and details
@@ -388,41 +400,55 @@ func (a *App) switchToClusterGroup(groupName string) {
 					return
 				}
 				uiLogger.Info("[CLUSTER] Failover callback: %s -> %s", oldProfile, newProfile)
-				a.client = cc.GetActiveClient()
-				if a.client == nil {
+				newClient := cc.GetActiveClient()
+				if newClient == nil {
 					uiLogger.Error("[CLUSTER] Failover callback has nil active client for %s", newProfile)
 					return
 				}
+				a.connMu.Lock()
+				a.client = newClient
+				a.connMu.Unlock()
 				if a.vncService != nil {
-					a.vncService.UpdateClient(a.client)
+					a.vncService.UpdateClient(newClient)
 				}
 				a.updateHeaderWithActiveProfile()
 				a.header.ShowWarning(fmt.Sprintf("Failover: %s \u2192 %s", oldProfile, newProfile))
-				go a.manualRefresh()
+				// Force a new refresh token for failover — any in-flight refresh from
+				// the previous node is superseded.
+				failoverToken := a.forceNewRefresh()
+				go a.doFastRefresh(failoverToken)
 			})
 		})
 
 		// Start health checks
 		cc.StartHealthCheck()
 
-		// Update app state on UI thread
-		a.QueueUpdateDraw(func() {
-			// Set cluster mode state
-			a.clusterClient = cc
-			a.isClusterMode = true
-			a.groupName = groupName
-			a.client = cc.GetActiveClient()
-			if a.vncService != nil {
-				a.vncService.UpdateClient(a.client)
-			}
+		// Set app state under write lock. These fields are read by background goroutines
+		// (doFastRefresh, autoRefreshData, etc.) so they must be protected.
+		a.connMu.Lock()
+		a.clusterClient = cc
+		a.isClusterMode = true
+		a.groupName = groupName
+		a.client = cc.GetActiveClient()
+		activeClient := a.client // capture for vncService without holding lock
+		a.connMu.Unlock()
 
-			// Update header to show cluster mode
+		if a.vncService != nil {
+			a.vncService.UpdateClient(activeClient)
+		}
+
+		// Update header to show cluster mode (UI update)
+		a.QueueUpdateDraw(func() {
 			a.updateHeaderWithActiveProfile()
 			a.header.ShowSuccess(fmt.Sprintf("Connected to cluster '%s' via %s", groupName, cc.GetActiveProfileName()))
 		})
 
-		// Trigger refresh to load data through normal single-profile flow
-		a.manualRefresh()
+		// Force a new refresh generation token, discarding any in-flight refresh.
+		// Old callbacks' endRefresh calls will be no-ops.
+		clusterToken := a.forceNewRefresh()
+
+		// Load data fast — show basic node/VM names immediately, enrich in background
+		a.doFastRefresh(clusterToken)
 	}()
 }
 
@@ -521,7 +547,9 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 	a.SetFocus(confirm)
 }
 
-// setDefaultProfile sets the specified profile as the default profile.
+// setDefaultProfile toggles the default profile. If the specified profile/group
+// is already the default, it clears the default (so the user will be prompted on
+// next startup). Otherwise it sets the given name as the new default.
 func (a *App) setDefaultProfile(profileName string) {
 	// Check if the target exists (profile or group)
 	if a.config.Profiles == nil {
@@ -544,17 +572,23 @@ func (a *App) setDefaultProfile(profileName string) {
 		}
 	}
 
-	// Check if it's already the default
-	if a.config.DefaultProfile == profileName {
-		a.header.ShowError(fmt.Sprintf("'%s' is already the default startup selection.", profileName))
-		return
-	}
-
-	// Store the old default profile name for the message
+	// Store the old default for the success message.
 	oldDefault := a.config.DefaultProfile
 
-	// Set the new default profile
-	a.config.DefaultProfile = profileName
+	var successMsg string
+	if a.config.DefaultProfile == profileName {
+		// Toggle off: clear the default so the user is prompted on next startup.
+		a.config.DefaultProfile = ""
+		successMsg = fmt.Sprintf("Default startup selection cleared (was '%s'). You will be prompted on next startup.", profileName)
+	} else {
+		// Set the new default.
+		a.config.DefaultProfile = profileName
+		if oldDefault != "" {
+			successMsg = fmt.Sprintf("Default startup selection changed from '%s' to '%s'.", oldDefault, profileName)
+		} else {
+			successMsg = fmt.Sprintf("'%s' set as default startup selection.", profileName)
+		}
+	}
 
 	// Save the config
 	configPath, found := config.FindDefaultConfigPath()
@@ -581,8 +615,7 @@ func (a *App) setDefaultProfile(profileName string) {
 		}
 	}
 
-	// Show success message
-	a.header.ShowSuccess(fmt.Sprintf("Default startup selection changed from '%s' to '%s'.", oldDefault, profileName))
+	a.header.ShowSuccess(successMsg)
 }
 
 // reEncryptConfigIfNeeded re-encrypts the config file with SOPS.

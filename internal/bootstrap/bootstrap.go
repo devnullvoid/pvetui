@@ -6,10 +6,12 @@
 package bootstrap
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/app"
@@ -234,6 +236,37 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	selectedProfile, err := profile.ResolveProfile(opts.Profile, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("profile resolution failed: %w", err)
+	}
+
+	// If a profile/group name was resolved but no longer exists (e.g. stale
+	// default_profile after a rename or delete), warn and fall back to interactive
+	// selection rather than hard-erroring.
+	if selectedProfile != "" && len(cfg.Profiles) > 0 {
+		_, isProfile := cfg.Profiles[selectedProfile]
+		isGroup := cfg.IsGroup(selectedProfile)
+		if !isProfile && !isGroup {
+			fmt.Printf("⚠️  Profile/group '%s' not found — falling back to selection.\n", selectedProfile)
+			selectedProfile = ""
+		}
+	}
+
+	// When no profile is resolved but profiles are configured, either auto-select
+	// (single profile, no groups) or prompt interactively.
+	if selectedProfile == "" && len(cfg.Profiles) > 0 {
+		groups := cfg.GetGroups()
+		if len(cfg.Profiles) == 1 && len(groups) == 0 {
+			// Only one profile available — auto-select silently.
+			for name := range cfg.Profiles {
+				selectedProfile = name
+			}
+		} else {
+			chosen, err := promptProfileSelection(cfg)
+			if err != nil {
+				fmt.Println("🚪 Exiting.")
+				os.Exit(0)
+			}
+			selectedProfile = chosen
+		}
 	}
 
 	// Determine if selected profile is an aggregate group or a standard profile
@@ -588,4 +621,90 @@ func valueOrDash(value string) string {
 		return "-"
 	}
 	return value
+}
+
+// promptProfileSelection interactively asks the user which profile or group to
+// connect to when no default is configured.
+//
+// It returns the selected profile or group name, or an error if the user
+// cancels or no valid input is provided.
+func promptProfileSelection(cfg *config.Config) (string, error) {
+	// Collect groups (sorted)
+	groups := cfg.GetGroups()
+	groupNames := make([]string, 0, len(groups))
+	for name := range groups {
+		groupNames = append(groupNames, name)
+	}
+	sort.Strings(groupNames)
+
+	// Collect individual profile names (sorted)
+	profileNames := make([]string, 0, len(cfg.Profiles))
+	for name := range cfg.Profiles {
+		profileNames = append(profileNames, name)
+	}
+	sort.Strings(profileNames)
+
+	total := len(groupNames) + len(profileNames)
+
+	// Build an ordered list: groups first, then profiles
+	type entry struct {
+		name    string
+		isGroup bool
+	}
+	entries := make([]entry, 0, total)
+	for _, g := range groupNames {
+		entries = append(entries, entry{name: g, isGroup: true})
+	}
+	for _, p := range profileNames {
+		entries = append(entries, entry{name: p, isGroup: false})
+	}
+
+	fmt.Println()
+	fmt.Println("No default profile configured.")
+	fmt.Println()
+	fmt.Println("Available connections:")
+	fmt.Println()
+
+	idx := 1
+	if len(groupNames) > 0 {
+		fmt.Println("  Groups:")
+		for _, g := range groupNames {
+			modeTag := ""
+			if cfg.IsClusterGroup(g) {
+				modeTag = " [cluster]"
+			}
+			fmt.Printf("    %d. %s (%d profiles)%s\n", idx, g, len(groups[g]), modeTag)
+			idx++
+		}
+		fmt.Println()
+	}
+
+	if len(profileNames) > 0 {
+		fmt.Println("  Profiles:")
+		for _, p := range profileNames {
+			addr := cfg.Profiles[p].Addr
+			user := cfg.Profiles[p].User
+			fmt.Printf("    %d. %s - %s (%s)\n", idx, p, addr, user)
+			idx++
+		}
+		fmt.Println()
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Printf("Select connection [1-%d]: ", total)
+		if !scanner.Scan() {
+			// EOF or Ctrl+C
+			fmt.Println()
+			return "", fmt.Errorf("selection canceled")
+		}
+		line := strings.TrimSpace(scanner.Text())
+		n, err := strconv.Atoi(line)
+		if err != nil || n < 1 || n > total {
+			fmt.Printf("Invalid selection. Please enter a number between 1 and %d.\n", total)
+			continue
+		}
+		selected := entries[n-1]
+		return selected.name, nil
+	}
 }

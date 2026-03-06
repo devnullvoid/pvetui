@@ -10,10 +10,51 @@ import (
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
+// selSnap is a snapshot of the user's current selection state in the UI.
+// It must be captured on the tview UI goroutine (inside a QueueUpdateDraw callback
+// or before any goroutine is spawned when the caller is already on the UI goroutine).
+type selSnap struct {
+	hasSelectedNode  bool
+	selectedNodeName string
+	hasSelectedVM    bool
+	selectedVMID     int
+	selectedVMNode   string
+	searchWasActive  bool
+}
+
+// captureSelections captures the user's current UI selections.
+// MUST be called from the tview UI goroutine (inside QueueUpdateDraw or equivalent).
+func (a *App) captureSelections() selSnap {
+	var s selSnap
+	if node := a.nodeList.GetSelectedNode(); node != nil {
+		s.hasSelectedNode = true
+		s.selectedNodeName = node.Name
+	}
+	if vm := a.vmList.GetSelectedVM(); vm != nil {
+		s.hasSelectedVM = true
+		s.selectedVMID = vm.ID
+		s.selectedVMNode = vm.Node
+	}
+	s.searchWasActive = a.mainLayout.GetItemCount() > 4
+	return s
+}
+
 // manualRefresh refreshes all data manually.
+// Acquires the refresh guard and delegates to doManualRefresh.
 func (a *App) manualRefresh() {
-	// * Check if there are any pending operations
+	token, ok := a.startRefresh()
+	if !ok {
+		return
+	}
+	a.doManualRefresh(token)
+}
+
+// doManualRefresh is the internal implementation of a full refresh.
+// Caller must have already acquired the refresh guard (token != 0).
+func (a *App) doManualRefresh(token uint64) {
+	// Check if there are any pending operations
 	if models.GlobalState.HasPendingOperations() {
+		a.endRefresh(token)
 		a.showMessageSafe("Cannot refresh data while there are pending operations in progress")
 		return
 	}
@@ -22,40 +63,25 @@ func (a *App) manualRefresh() {
 	a.header.ShowLoading("Refreshing data...")
 	a.footer.SetLoading(true)
 
-	// Store current selections for restoration
-	var hasSelectedNode, hasSelectedVM bool
-
-	var selectedNodeName, selectedVMNode string
-
-	var selectedVMID int
-
-	if node := a.nodeList.GetSelectedNode(); node != nil {
-		hasSelectedNode = true
-		selectedNodeName = node.Name
-	}
-
-	if vm := a.vmList.GetSelectedVM(); vm != nil {
-		hasSelectedVM = true
-		selectedVMID = vm.ID
-		selectedVMNode = vm.Node
-	}
-
-	// Check if search is currently active
-	searchWasActive := a.mainLayout.GetItemCount() > 4
+	// NOTE: UI state reads (selections, search) are intentionally NOT captured here.
+	// For the group mode path, they are captured inside QueueUpdateDraw (on the UI
+	// goroutine) before calling enrichGroupNodesParallel. For the single-profile path,
+	// doEnrichNodes captures them inside its own QueueUpdateDraw callback. This ensures
+	// all tview reads happen on the UI goroutine and are race-free.
 
 	// Run data refresh in goroutine to avoid blocking UI
 	go func() {
-		// Wait a moment for API changes to propagate to cluster resources endpoint
-		// This ensures we get fresh data after configuration updates
-		time.Sleep(500 * time.Millisecond)
+		// Snapshot connection state under lock so reads are race-free.
+		conn := a.snapConn()
 
-		if a.isGroupMode {
+		if conn.isGroupMode {
 			// Group mode logic
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			nodes, vms, err := a.groupManager.GetGroupClusterResources(ctx, true)
+			nodes, vms, err := conn.groupManager.GetGroupClusterResources(ctx, true)
 			if err != nil {
+				a.endRefresh(token)
 				a.QueueUpdateDraw(func() {
 					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
 					a.footer.SetLoading(false)
@@ -64,9 +90,10 @@ func (a *App) manualRefresh() {
 				return
 			}
 
-			// Debug logging retained at Debug level for troubleshooting.
-
 			a.QueueUpdateDraw(func() {
+				// Capture selections on the UI goroutine before starting background enrichment.
+				snap := a.captureSelections()
+
 				// Update GlobalState nodes/VMs; UI lists will be updated after enrichment to reduce flicker.
 				models.GlobalState.OriginalNodes = nodes
 				models.GlobalState.OriginalVMs = vms
@@ -91,13 +118,17 @@ func (a *App) manualRefresh() {
 
 				// Start background enrichment for detailed node stats
 				// Pass false for isInitialLoad since this is a manual refresh
-				a.enrichGroupNodesSequentially(nodes, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive, false)
+				a.enrichGroupNodesParallel(token, nodes,
+					snap.hasSelectedNode, snap.selectedNodeName,
+					snap.hasSelectedVM, snap.selectedVMID, snap.selectedVMNode,
+					snap.searchWasActive, false)
 			})
 		} else {
 			// Single profile logic
 			// Fetch fresh data bypassing cache
-			cluster, err := a.client.GetFreshClusterStatus()
+			cluster, err := conn.client.GetFreshClusterStatus()
 			if err != nil {
+				a.endRefresh(token)
 				a.QueueUpdateDraw(func() {
 					a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
 					a.footer.SetLoading(false)
@@ -110,10 +141,150 @@ func (a *App) manualRefresh() {
 			// version during the initial refresh update to avoid brief UI flicker.
 			a.preserveClusterVersionIfMissing(cluster)
 
-			// Initial UI update and enrichment
+			// Initial UI update and enrichment. Selections are captured inside
+			// doEnrichNodes' QueueUpdateDraw callback on the UI goroutine.
 			a.applyInitialClusterUpdate(cluster)
-			a.enrichNodesSequentially(cluster, hasSelectedNode, selectedNodeName, hasSelectedVM, selectedVMID, selectedVMNode, searchWasActive)
+			// Manual refresh: show "Data refreshed successfully" after node enrichment completes
+			// (no VM enrichment callback follows in this path).
+			a.doEnrichNodes(cluster, conn.client, token, true)
 		}
+	}()
+}
+
+// fastRefresh loads basic node/VM names immediately and enriches details in the background.
+// This is the public entry point; it acquires the refresh guard and delegates to doFastRefresh.
+// Used for normal fast-refresh (failover callbacks, etc.) where a refresh may already be running.
+func (a *App) fastRefresh() {
+	token, ok := a.startRefresh()
+	if !ok {
+		return
+	}
+	a.doFastRefresh(token)
+}
+
+// doFastRefresh is the implementation of fast refresh.
+// Callers that already hold a generation token (e.g. profile switches via forceNewRefresh)
+// should call this directly instead of fastRefresh.
+// This is used for profile switching where perceived speed matters most —
+// the user sees node and guest lists right away, then details (CPU, filesystems, guest agent)
+// fill in progressively.
+func (a *App) doFastRefresh(token uint64) {
+	if models.GlobalState.HasPendingOperations() {
+		a.endRefresh(token)
+		a.showMessageSafe("Cannot refresh data while there are pending operations in progress")
+		return
+	}
+
+	a.header.ShowLoading("Loading data...")
+	a.footer.SetLoading(true)
+
+	go func() {
+		// Snapshot connection state under lock so reads are race-free.
+		conn := a.snapConn()
+
+		if conn.isGroupMode {
+			// Group mode: delegate to manual refresh internal logic (already shows data before enrichment).
+			// We already hold the refresh token, so pass it through directly.
+			a.doManualRefresh(token)
+			return
+		}
+
+		// Capture the client instance that is starting this refresh.
+		// Used for making API calls with the correct client during enrichment.
+		refreshClient := conn.client
+
+		// Single profile: get basic data fast (no VM enrichment), show it, then enrich in background
+		cluster, err := refreshClient.GetFastFreshClusterStatus(func(enrichErr error) {
+			// VM enrichment complete callback — update VM list with enriched data
+			a.QueueUpdateDraw(func() {
+				// Stale guard: abort only if a *newer* refresh has superseded this one.
+				// refreshGen == 0 means this refresh completed normally via endRefresh —
+				// we still need to run to clear the header loading indicator and update
+				// VM details (doEnrichNodes calls endRefresh before this callback fires).
+				if current := a.refreshGen.Load(); current != 0 && current != token {
+					return
+				}
+
+				if refreshClient.Cluster == nil {
+					return
+				}
+
+				// Rebuild VM list from enriched cluster data
+				var enrichedVMs []*api.VM
+				for _, node := range refreshClient.Cluster.Nodes {
+					if node != nil {
+						for _, vm := range node.VMs {
+							if vm != nil {
+								enrichedVMs = append(enrichedVMs, vm)
+							}
+						}
+					}
+				}
+
+				if len(enrichedVMs) > 0 {
+					// Preserve current VM selection
+					var selectedVMID int
+					var selectedVMNode string
+					var hasSelectedVM bool
+					if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+						selectedVMID = selectedVM.ID
+						selectedVMNode = selectedVM.Node
+						hasSelectedVM = true
+					}
+
+					models.GlobalState.OriginalVMs = make([]*api.VM, len(enrichedVMs))
+					copy(models.GlobalState.OriginalVMs, enrichedVMs)
+
+					vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
+					if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
+						models.FilterVMs(vmSearchState.Filter)
+						a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+					} else {
+						models.GlobalState.FilteredVMs = make([]*api.VM, len(enrichedVMs))
+						copy(models.GlobalState.FilteredVMs, enrichedVMs)
+						a.vmList.SetVMs(models.GlobalState.FilteredVMs)
+					}
+
+					// Restore VM selection
+					if hasSelectedVM {
+						vmList := a.vmList.GetVMs()
+						for i, vm := range vmList {
+							if vm != nil && vm.ID == selectedVMID && vm.Node == selectedVMNode {
+								a.vmList.SetCurrentItem(i)
+								break
+							}
+						}
+					}
+
+					if selectedVM := a.vmList.GetSelectedVM(); selectedVM != nil {
+						a.vmDetails.Update(selectedVM)
+					}
+				}
+
+				if enrichErr != nil {
+					a.header.ShowWarning("Guest agent enrichment partially failed")
+				} else {
+					a.header.ShowSuccess("Guest agent data loaded")
+				}
+			})
+		})
+		if err != nil {
+			a.endRefresh(token)
+			a.QueueUpdateDraw(func() {
+				a.header.ShowError(fmt.Sprintf("Refresh failed: %v", err))
+				a.footer.SetLoading(false)
+			})
+			return
+		}
+
+		// We have basic cluster data — show it immediately
+		a.preserveClusterVersionIfMissing(cluster)
+		a.applyInitialClusterUpdate(cluster)
+
+		// Start node enrichment in background (Version, disks, updates).
+		// Selections are captured inside doEnrichNodes' QueueUpdateDraw on the UI goroutine.
+		// Fast refresh path: VM enrichment callback will show the final message, not this.
+		a.doEnrichNodes(cluster, refreshClient, token, false)
 	}()
 }
 
@@ -174,12 +345,27 @@ func (a *App) applyInitialClusterUpdate(cluster *api.Cluster) {
 	})
 }
 
-// enrichNodesSequentially enriches node data in parallel and finalizes the refresh
-func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool) {
+// doEnrichNodes enriches node data in parallel and finalizes the refresh.
+// Selections are always captured inside the final QueueUpdateDraw callback (on the UI
+// goroutine), ensuring race-free reads from tview widgets.
+// The refreshClient parameter is the client used for API calls during enrichment.
+// The token parameter is the generation token acquired at refresh start; if a newer
+// refresh has started by the time enrichment completes, the callback is a no-op.
+// When showFinalMessage is true, a "Data refreshed successfully" message is shown after
+// enrichment completes. Set to false for the doFastRefresh path where the VM enrichment
+// callback will show the final status message.
+func (a *App) doEnrichNodes(cluster *api.Cluster, refreshClient *api.Client, token uint64, showFinalMessage bool) {
 	go func() {
 		var wg sync.WaitGroup
 
-		// Enrich nodes in parallel
+		// Start loading tasks in parallel with node enrichment (independent operation)
+		a.loadTasksData()
+
+		// Accumulate enriched nodes into a local slice, then swap into GlobalState
+		// inside QueueUpdateDraw to avoid data races with the UI goroutine.
+		enrichedNodes := make([]*api.Node, len(cluster.Nodes))
+		copy(enrichedNodes, cluster.Nodes)
+
 		for i, node := range cluster.Nodes {
 			if node == nil {
 				continue
@@ -189,42 +375,47 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			go func(idx int, n *api.Node) {
 				defer wg.Done()
 
-				freshNode, err := a.client.RefreshNodeData(n.Name)
+				freshNode, err := refreshClient.RefreshNodeData(n.Name)
 				if err == nil && freshNode != nil {
-					// Preserve VMs from the FRESH cluster data (not the original stale data)
-					// This ensures we keep the updated VM names we just fetched
+					// Preserve VMs from the FRESH cluster data
 					if cluster.Nodes[idx] != nil {
 						freshNode.VMs = cluster.Nodes[idx].VMs
 					}
-
-					// Update only the specific node index in global state
-					// Safe to access specific index concurrently
-					if idx < len(models.GlobalState.OriginalNodes) {
-						models.GlobalState.OriginalNodes[idx] = freshNode
-					}
+					enrichedNodes[idx] = freshNode
 				}
 			}(i, node)
 		}
 
 		wg.Wait()
 
-		// Final update: rebuild VMs, cluster version, status, and complete refresh
+		// Final update on the UI goroutine
 		a.QueueUpdateDraw(func() {
+			// Stale guard: if a newer refresh has started (e.g. profile switch), discard these results.
+			// endRefresh is a no-op here since the token no longer matches.
+			if a.refreshGen.Load() != token {
+				return
+			}
+
+			// Capture selections on the UI goroutine (race-free tview access).
+			snap := a.captureSelections()
+
+			// Apply enriched nodes to global state
+			models.GlobalState.OriginalNodes = make([]*api.Node, len(enrichedNodes))
+			copy(models.GlobalState.OriginalNodes, enrichedNodes)
+
 			// Re-apply node filters with enriched data
 			nodeState := models.GlobalState.GetSearchState(api.PageNodes)
 			if nodeState != nil && nodeState.Filter != "" {
 				models.FilterNodes(nodeState.Filter)
 			} else {
-				// Update filtered nodes from original (copy)
-				// We need to re-copy because OriginalNodes was updated in place
-				models.GlobalState.FilteredNodes = make([]*api.Node, len(models.GlobalState.OriginalNodes))
-				copy(models.GlobalState.FilteredNodes, models.GlobalState.OriginalNodes)
+				models.GlobalState.FilteredNodes = make([]*api.Node, len(enrichedNodes))
+				copy(models.GlobalState.FilteredNodes, enrichedNodes)
 			}
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 
 			// Rebuild VM list from enriched nodes
 			var vms []*api.VM
-			for _, n := range models.GlobalState.OriginalNodes {
+			for _, n := range enrichedNodes {
 				if n != nil {
 					for _, vm := range n.VMs {
 						if vm != nil {
@@ -234,11 +425,9 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 				}
 			}
 
-			// Update global VM state with enriched data
 			models.GlobalState.OriginalVMs = make([]*api.VM, len(vms))
 			copy(models.GlobalState.OriginalVMs, vms)
 
-			// Apply VM filter if active
 			vmSearchState := models.GlobalState.GetSearchState(api.PageGuests)
 			if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 				models.FilterVMs(vmSearchState.Filter)
@@ -250,7 +439,7 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			}
 
 			// Update cluster version from enriched nodes
-			for _, n := range models.GlobalState.OriginalNodes {
+			for _, n := range enrichedNodes {
 				if n != nil && n.Version != "" {
 					cluster.Version = fmt.Sprintf("Proxmox VE %s", n.Version)
 					break
@@ -258,33 +447,49 @@ func (a *App) enrichNodesSequentially(cluster *api.Cluster, hasSelectedNode bool
 			}
 			a.clusterStatus.Update(cluster)
 
-			// Final selection restore and search UI restoration
+			// Restore selection (use vmSearchState already fetched above)
 			nodeSearchState := models.GlobalState.GetSearchState(api.PageNodes)
+			a.restoreSelection(snap.hasSelectedVM, snap.selectedVMID, snap.selectedVMNode, vmSearchState,
+				snap.hasSelectedNode, snap.selectedNodeName, nodeSearchState)
 
-			a.restoreSelection(hasSelectedVM, selectedVMID, selectedVMNode, vmSearchState,
-				hasSelectedNode, selectedNodeName, nodeSearchState)
-
-			// Update details if items are selected
+			// Update details for whatever is now selected
 			if node := a.nodeList.GetSelectedNode(); node != nil {
 				a.nodeDetails.Update(node, models.GlobalState.OriginalNodes)
 			}
-
 			if vm := a.vmList.GetSelectedVM(); vm != nil {
 				a.vmDetails.Update(vm)
 			}
 
-			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
-			a.header.ShowSuccess("Data refreshed successfully")
+			a.restoreSearchUI(snap.searchWasActive, nodeSearchState, vmSearchState)
+			if showFinalMessage {
+				// Manual refresh path: no VM enrichment callback follows, so show success here.
+				a.header.ShowSuccess("Data refreshed successfully")
+			}
+			// Fast refresh path: the VM enrichment callback (in doFastRefresh) will show
+			// the final status message after guest agent data is loaded.
 			a.footer.SetLoading(false)
-			a.loadTasksData()
+			a.endRefresh(token)
 		})
 	}()
 }
 
-// enrichGroupNodesSequentially enriches group node data in parallel and finalizes the refresh
-func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool, isInitialLoad bool) {
+// enrichGroupNodesParallel enriches group node data in parallel and finalizes the refresh.
+// token is the generation token that must be passed to endRefresh when enrichment completes.
+func (a *App) enrichGroupNodesParallel(token uint64, nodes []*api.Node, hasSelectedNode bool, selectedNodeName string, hasSelectedVM bool, selectedVMID int, selectedVMNode string, searchWasActive bool, isInitialLoad bool) {
 	go func() {
 		var wg sync.WaitGroup
+
+		// Start loading tasks in parallel with node enrichment (independent operation)
+		a.loadTasksData()
+
+		// Snapshot connection state under lock so reads are race-free.
+		conn := a.snapConn()
+
+		// Accumulate enriched nodes into a local slice to avoid data races.
+		// Concurrent goroutines write to their own index; the slice is swapped into
+		// GlobalState inside QueueUpdateDraw after all goroutines complete.
+		enrichedNodes := make([]*api.Node, len(nodes))
+		copy(enrichedNodes, nodes)
 
 		// Create a context for the enrichment process
 		ctx := context.Background()
@@ -299,8 +504,8 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 			go func(idx int, n *api.Node) {
 				defer wg.Done()
 
-				// We need to fetch the node status from the specific profile
-				freshNode, err := a.groupManager.GetNodeFromGroup(ctx, n.SourceProfile, n.Name)
+				// Fetch the node status from the specific profile's client
+				freshNode, err := conn.groupManager.GetNodeFromGroup(ctx, n.SourceProfile, n.Name)
 
 				if err == nil && freshNode != nil {
 					// Ensure Online status is set to true if we got a response
@@ -326,30 +531,32 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 					// Ensure SourceProfile is preserved
 					freshNode.SourceProfile = n.SourceProfile
 
-					// Update GlobalState
-					if idx < len(models.GlobalState.OriginalNodes) {
-						models.GlobalState.OriginalNodes[idx] = freshNode
-					}
+					// Write to local slice only — no GlobalState mutation from goroutines.
+					enrichedNodes[idx] = freshNode
 				}
 			}(i, node)
 		}
 
 		wg.Wait()
 
-		// Final update
+		// Final update — swap enriched nodes into GlobalState on the UI goroutine.
 		a.QueueUpdateDraw(func() {
+			// Apply enriched nodes to global state (race-free: single UI goroutine).
+			models.GlobalState.OriginalNodes = make([]*api.Node, len(enrichedNodes))
+			copy(models.GlobalState.OriginalNodes, enrichedNodes)
+
 			// Re-apply node filters
 			nodeState := models.GlobalState.GetSearchState(api.PageNodes)
 			if nodeState != nil && nodeState.Filter != "" {
 				models.FilterNodes(nodeState.Filter)
 			} else {
-				models.GlobalState.FilteredNodes = make([]*api.Node, len(models.GlobalState.OriginalNodes))
-				copy(models.GlobalState.FilteredNodes, models.GlobalState.OriginalNodes)
+				models.GlobalState.FilteredNodes = make([]*api.Node, len(enrichedNodes))
+				copy(models.GlobalState.FilteredNodes, enrichedNodes)
 			}
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
 
 			// Update cluster status with the enriched nodes
-			syntheticCluster := a.createSyntheticGroup(models.GlobalState.OriginalNodes)
+			syntheticCluster := a.createSyntheticGroup(enrichedNodes)
 			a.clusterStatus.Update(syntheticCluster)
 
 			// Final selection restore and search UI restoration
@@ -381,7 +588,7 @@ func (a *App) enrichGroupNodesSequentially(nodes []*api.Node, hasSelectedNode bo
 				a.header.ShowSuccess("Data refreshed successfully")
 			}
 			a.footer.SetLoading(false)
-			a.loadTasksData()
+			a.endRefresh(token)
 		})
 	}()
 }
@@ -471,16 +678,19 @@ func (a *App) refreshNodeData(node *api.Node) {
 // loadTasksData loads and updates task data with proper filtering.
 func (a *App) loadTasksData() {
 	go func() {
+		// Snapshot connection state under lock so reads are race-free.
+		conn := a.snapConn()
+
 		var tasks []*api.ClusterTask
 		var err error
 
-		if a.isGroupMode {
+		if conn.isGroupMode {
 			// Create context with timeout for group operations
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			tasks, err = a.groupManager.GetGroupTasks(ctx)
+			tasks, err = conn.groupManager.GetGroupTasks(ctx)
 		} else {
-			tasks, err = a.client.GetClusterTasks()
+			tasks, err = conn.client.GetClusterTasks()
 		}
 
 		if err == nil {

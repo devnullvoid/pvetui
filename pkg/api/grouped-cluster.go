@@ -284,15 +284,16 @@ func (m *GroupClientManager) GetGroupClusterResources(ctx context.Context, fresh
 
 	// Fetch nodes
 	go func() {
-		nodes, err := m.GetGroupNodes(ctx)
 		if fresh {
-			// Invalidate node status caches for each profile before returning
+			// Selectively invalidate cluster-level cache keys per profile
+			// instead of wiping the entire cache (preserves node disks, updates, etc.)
 			for _, pc := range m.GetConnectedClients() {
-				if pc.Client != nil && pc.Client.cache != nil {
-					_ = pc.Client.cache.Clear()
+				if pc.Client != nil {
+					pc.Client.ClearClusterCache()
 				}
 			}
 		}
+		nodes, err := m.GetGroupNodes(ctx)
 		nodesChan <- result{nodes: nodes, err: err}
 	}()
 
@@ -326,10 +327,10 @@ func (m *GroupClientManager) GetNodeFromGroup(
 	nodeName string,
 ) (*Node, error) {
 	operation := func(pName string, client *Client) (interface{}, error) {
-		// Clear per-node caches to ensure fresh status
-		if client.cache != nil {
-			_ = client.cache.Clear()
-		}
+		// Selectively invalidate this node's cache keys instead of wiping the entire cache.
+		// This preserves disk/update/VM caches for other nodes in the same profile.
+		client.ClearNodeCache(nodeName)
+
 		node, err := client.GetNodeStatus(nodeName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get node status: %w", err)
