@@ -186,13 +186,8 @@ func (a *App) performMigrationOperation(vm *api.VM, options *api.MigrationOption
 				} else {
 					a.header.ShowSuccess(fmt.Sprintf("Migration of %s to %s completed successfully", vm.Name, options.Target))
 
-					// Clear API cache for the specific client
-					client, _ := a.getClientForVM(vm)
-					if client != nil {
-						client.ClearAPICache()
-					}
-
-					// Full refresh needed as node changed
+					// manualRefresh handles selective cache invalidation;
+					// no need for a redundant full cache wipe here.
 					a.manualRefresh()
 				}
 			})
