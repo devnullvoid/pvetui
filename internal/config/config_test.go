@@ -546,6 +546,7 @@ plugins:
       username: ansible
       shell: /bin/bash
       create_home: true
+      exclude_windows_guests: true
       ssh_public_key_file: ~/.ssh/id_ed25519.pub
       install_authorized_key: true
       set_password: true
@@ -582,6 +583,7 @@ plugins:
 	assert.Equal(t, "ansible", cfg.Plugins.Ansible.Bootstrap.Username)
 	assert.Equal(t, "/bin/bash", cfg.Plugins.Ansible.Bootstrap.Shell)
 	assert.True(t, cfg.Plugins.Ansible.Bootstrap.CreateHome)
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests)
 	assert.Contains(t, cfg.Plugins.Ansible.Bootstrap.SSHPublicKeyFile, ".ssh")
 	assert.True(t, cfg.Plugins.Ansible.Bootstrap.InstallAuthorizedKey)
 	assert.True(t, cfg.Plugins.Ansible.Bootstrap.SetPassword)
@@ -592,6 +594,31 @@ plugins:
 	assert.Equal(t, 12, cfg.Plugins.Ansible.Bootstrap.Parallelism)
 	assert.Equal(t, "3m", cfg.Plugins.Ansible.Bootstrap.Timeout)
 	assert.False(t, cfg.Plugins.Ansible.Bootstrap.FailFast)
+}
+
+func TestConfig_MergeWithFile_AnsibleBootstrapExcludeWindowsGuestsFalse(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "config-ansible-bootstrap-windows-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	content := `
+plugins:
+  ansible:
+    bootstrap:
+      exclude_windows_guests: false
+`
+
+	_, err = tempFile.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tempFile.Close())
+
+	cfg := NewConfig()
+	require.True(t, cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests)
+
+	require.NoError(t, cfg.MergeWithFile(tempFile.Name()))
+	cfg.SetDefaults()
+
+	assert.False(t, cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests)
 }
 
 func TestConfig_MergeWithEncryptedFile(t *testing.T) {

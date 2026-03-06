@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,10 +48,15 @@ const (
 	bootstrapScopeGuests      = "guests"
 	bootstrapMethodDirect     = "direct"
 	bootstrapMethodAnsible    = "ansible"
+	hostKindNode              = "node"
+	hostKindGuest             = "guest"
 	statusOK                  = "ok"
 	statusChanged             = "changed"
 	statusFailed              = "failed"
 	statusSkipped             = "skipped"
+	transportSSH              = "ssh"
+	transportPCTExec          = "pct-exec"
+	transportGuestAgent       = "guest-agent"
 	liveOutputPageName        = "plugin.ansible.live-output"
 )
 
@@ -360,6 +366,7 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 	username := strings.TrimSpace(bootstrap.Username)
 	shell := strings.TrimSpace(bootstrap.Shell)
 	createHome := bootstrap.CreateHome
+	excludeWindowsGuests := bootstrap.ExcludeWindowsGuests
 	sshPublicKeyFile := strings.TrimSpace(bootstrap.SSHPublicKeyFile)
 	installAuthorizedKey := bootstrap.InstallAuthorizedKey
 	setPassword := bootstrap.SetPassword
@@ -375,6 +382,9 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 	form.AddInputField("Username", username, 32, nil, func(text string) { username = strings.TrimSpace(text) })
 	form.AddInputField("Shell", shell, 32, nil, func(text string) { shell = strings.TrimSpace(text) })
 	form.AddCheckbox("Create Home", createHome, func(checked bool) { createHome = checked })
+	form.AddCheckbox("Exclude Windows Guests", excludeWindowsGuests, func(checked bool) {
+		excludeWindowsGuests = checked
+	})
 	form.AddInputField("SSH Public Key File", sshPublicKeyFile, 80, nil, func(text string) {
 		sshPublicKeyFile = strings.TrimSpace(text)
 	})
@@ -418,6 +428,7 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 		cfg.Plugins.Ansible.Bootstrap.Username = username
 		cfg.Plugins.Ansible.Bootstrap.Shell = shell
 		cfg.Plugins.Ansible.Bootstrap.CreateHome = createHome
+		cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests = excludeWindowsGuests
 		cfg.Plugins.Ansible.Bootstrap.SSHPublicKeyFile = cfgpkg.ExpandHomePath(sshPublicKeyFile)
 		cfg.Plugins.Ansible.Bootstrap.InstallAuthorizedKey = installAuthorizedKey
 		cfg.Plugins.Ansible.Bootstrap.SetPassword = setPassword
@@ -914,6 +925,21 @@ func (p *Plugin) runBootstrapDirect(
 		sem := make(chan struct{}, parallelism)
 		var wg sync.WaitGroup
 
+		nodeByName := map[string]coreansible.InventoryHost{}
+		for _, host := range inventory.Hosts {
+			if host.Vars["pvetui_kind"] == hostKindNode {
+				nodeByName[host.Vars["pvetui_node"]] = host
+			}
+		}
+		guestByNodeID := map[string]*api.VM{}
+		for _, vm := range p.app.VMList().GetVMs() {
+			if vm == nil {
+				continue
+			}
+			key := fmt.Sprintf("%s:%d", vm.Node, vm.ID)
+			guestByNodeID[key] = vm
+		}
+
 		for idx, host := range targets {
 			idx, host := idx, host
 			wg.Add(1)
@@ -932,10 +958,19 @@ func (p *Plugin) runBootstrapDirect(
 					return
 				}
 
-				results[idx] = p.runDirectBootstrapForHost(ctx, host, bootstrap, keyContent, dryRun, func(line string) {
-					appendLiveLine(fmt.Sprintf("[%s] %s", host.Alias, line))
-					ansibleLogger().Debug("direct bootstrap stream %s: %s", host.Alias, line)
-				})
+				results[idx] = p.runDirectBootstrapForHost(
+					ctx,
+					host,
+					bootstrap,
+					keyContent,
+					dryRun,
+					nodeByName,
+					guestByNodeID,
+					func(line string) {
+						appendLiveLine(fmt.Sprintf("[%s] %s", host.Alias, line))
+						ansibleLogger().Debug("direct bootstrap stream %s: %s", host.Alias, line)
+					},
+				)
 			}()
 		}
 
@@ -957,8 +992,12 @@ func (p *Plugin) runDirectBootstrapForHost(
 	cfg cfgpkg.AnsibleBootstrapConfig,
 	keyContent string,
 	dryRun bool,
+	nodeByName map[string]coreansible.InventoryHost,
+	guestByNodeID map[string]*api.VM,
 	stream func(string),
 ) directBootstrapResult {
+	hostKind := strings.TrimSpace(host.Vars["pvetui_kind"])
+	guestType := strings.TrimSpace(host.Vars["pvetui_guest_type"])
 	target := strings.TrimSpace(host.Vars["ansible_host"])
 	user := strings.TrimSpace(host.Vars["ansible_user"])
 	password := strings.TrimSpace(host.Vars["ansible_password"])
@@ -969,41 +1008,186 @@ func (p *Plugin) runDirectBootstrapForHost(
 		Target: target,
 		Status: statusOK,
 	}
+	ansibleLogger().Debug(
+		"direct bootstrap host start alias=%s kind=%s guest_type=%s target=%s",
+		host.Alias,
+		hostKind,
+		guestType,
+		target,
+	)
 
-	if target == "" || user == "" {
-		result.Status = statusFailed
-		result.Message = "missing ansible_host or ansible_user"
+	if hostKind == hostKindNode && !strings.EqualFold(host.Vars["pvetui_online"], "true") {
+		result.Status = statusSkipped
+		result.Message = "node is offline"
+		return result
+	}
+	if hostKind == hostKindGuest && !strings.EqualFold(host.Vars["pvetui_status"], api.VMStatusRunning) {
+		result.Status = statusSkipped
+		result.Message = "guest is not running"
+		return result
+	}
+	if hostKind == hostKindGuest && cfg.ExcludeWindowsGuests && isWindowsGuestHost(host) {
+		result.Status = statusSkipped
+		result.Message = "windows guest excluded (winrm bootstrap not implemented)"
 		return result
 	}
 
+	// Nodes only support SSH transport; require a routable IP target.
+	if hostKind == hostKindNode {
+		if target == "" || user == "" {
+			result.Status = statusFailed
+			result.Message = "missing ansible_host or ansible_user"
+			return result
+		}
+		if net.ParseIP(target) == nil {
+			result.Status = statusSkipped
+			result.Message = "node target is not an IP address"
+			return result
+		}
+	}
+
 	script := buildDirectBootstrapScript(cfg, keyContent, dryRun)
-	output, err := executeRemoteBootstrapScript(ctx, user, target, password, keyPath, script, stream)
+	targetIsIP := net.ParseIP(target) != nil
+	attemptTimeout := directBootstrapAttemptTimeout(dryRun)
+	canAttemptSSH := targetIsIP && strings.TrimSpace(user) != ""
+
+	if hostKind == hostKindGuest {
+		primaryTransport := ""
+		switch guestType {
+		case api.VMTypeLXC:
+			primaryTransport = transportPCTExec
+		case api.VMTypeQemu:
+			primaryTransport = transportGuestAgent
+		}
+
+		if primaryTransport != "" {
+			fallbackCtx, cancelFallback := context.WithTimeout(ctx, attemptTimeout)
+			start := time.Now()
+			output, transport, err := p.tryGuestBootstrapFallback(
+				fallbackCtx,
+				host,
+				guestType,
+				nodeByName,
+				guestByNodeID,
+				script,
+				attemptTimeout,
+				stream,
+			)
+			cancelFallback()
+			ansibleLogger().Debug(
+				"direct bootstrap host=%s transport=%s duration=%s err=%v",
+				host.Alias,
+				transport,
+				time.Since(start),
+				err,
+			)
+			if err == nil {
+				result.Output = output
+				result.Transport = transport
+				return finalizeDirectBootstrapResult(result, output, dryRun, transport)
+			}
+
+			if !canAttemptSSH {
+				result.Status = statusFailed
+				result.Transport = transport
+				result.Output = output
+				result.Message = err.Error()
+				return result
+			}
+
+			sshCtx, cancelSSH := context.WithTimeout(ctx, attemptTimeout)
+			sshStart := time.Now()
+			sshOutput, sshErr := executeRemoteBootstrapScript(sshCtx, user, target, password, keyPath, script, stream)
+			cancelSSH()
+			ansibleLogger().Debug(
+				"direct bootstrap host=%s transport=ssh duration=%s err=%v (after %s failed)",
+				host.Alias,
+				time.Since(sshStart),
+				sshErr,
+				primaryTransport,
+			)
+			result.Output = sshOutput
+			result.Transport = transportSSH
+			if sshErr != nil {
+				result.Status = statusFailed
+				result.Message = fmt.Sprintf("%s failed: %v; ssh failed: %v", primaryTransport, err, sshErr)
+				return result
+			}
+			return finalizeDirectBootstrapResult(result, sshOutput, dryRun, transportSSH)
+		}
+	}
+
+	if !canAttemptSSH {
+		result.Status = statusSkipped
+		result.Message = "missing routable ansible_host or ansible_user for SSH transport"
+		return result
+	}
+	sshCtx, cancelSSH := context.WithTimeout(ctx, attemptTimeout)
+	sshStart := time.Now()
+	output, err := executeRemoteBootstrapScript(sshCtx, user, target, password, keyPath, script, stream)
+	cancelSSH()
+	ansibleLogger().Debug("direct bootstrap host=%s transport=ssh duration=%s err=%v", host.Alias, time.Since(sshStart), err)
+
 	result.Output = output
-	result.Transport = "ssh"
+	if result.Transport == "" {
+		result.Transport = transportSSH
+	}
 	if err != nil {
 		result.Status = statusFailed
 		result.Message = err.Error()
 		return result
 	}
 
-	if strings.Contains(output, "changed=1") {
-		result.Status = statusChanged
-		result.Changed = true
-		result.Message = "changes applied"
-		return result
-	}
+	return finalizeDirectBootstrapResult(result, output, dryRun, result.Transport)
+}
+
+func directBootstrapAttemptTimeout(dryRun bool) time.Duration {
 	if dryRun {
-		result.Message = "dry-run completed"
-	} else {
-		result.Message = "already in desired state"
+		return 15 * time.Second
 	}
 
-	return result
+	return 45 * time.Second
+}
+
+func isWindowsGuestHost(host coreansible.InventoryHost) bool {
+	guestType := strings.ToLower(strings.TrimSpace(host.Vars["pvetui_guest_type"]))
+	if guestType != strings.ToLower(api.VMTypeQemu) {
+		return false
+	}
+
+	osType := strings.ToLower(strings.TrimSpace(host.Vars["pvetui_guest_os"]))
+	if strings.HasPrefix(osType, "win") || strings.Contains(osType, "windows") {
+		return true
+	}
+
+	name := strings.ToLower(strings.TrimSpace(host.Vars["pvetui_guest_name"]))
+	if name == "" {
+		name = strings.ToLower(strings.TrimSpace(host.Alias))
+	}
+
+	// Conservative heuristic: "win" token patterns commonly seen in Windows guest names.
+	return strings.Contains(name, "windows") ||
+		strings.Contains(name, "win2k") ||
+		strings.Contains(name, "win11") ||
+		strings.Contains(name, "win10")
 }
 
 func executeRemoteBootstrapScript(
 	ctx context.Context,
 	user, target, password, keyPath, script string,
+	stream func(string),
+) (string, error) {
+	remoteCmd := "sh -s"
+	if !strings.EqualFold(strings.TrimSpace(user), "root") {
+		remoteCmd = "sudo -n sh -s"
+	}
+
+	return executeSSHScript(ctx, user, target, password, keyPath, remoteCmd, script, stream)
+}
+
+func executeSSHScript(
+	ctx context.Context,
+	user, target, password, keyPath, remoteCmd, script string,
 	stream func(string),
 ) (string, error) {
 	sshArgs := []string{
@@ -1016,25 +1200,24 @@ func executeRemoteBootstrapScript(
 		sshArgs = append(sshArgs, "-i", strings.TrimSpace(keyPath))
 	}
 	sshArgs = append(sshArgs, fmt.Sprintf("%s@%s", user, target))
-
-	remoteCmd := "sh -s"
-	if !strings.EqualFold(strings.TrimSpace(user), "root") {
-		remoteCmd = "sudo -n sh -s"
-	}
 	sshArgs = append(sshArgs, remoteCmd)
 
 	var cmd *exec.Cmd
+	var logCmd []string
 	if strings.TrimSpace(password) != "" {
 		if _, err := exec.LookPath("sshpass"); err != nil {
 			return "", fmt.Errorf("sshpass not found but ansible_password is set for %s", target)
 		}
 		args := append([]string{"-p", password, "ssh"}, sshArgs...)
+		logCmd = append([]string{"sshpass", "-p", "<redacted>", "ssh"}, sshArgs...)
 		// #nosec G204 -- command and args are constructed from validated settings.
 		cmd = exec.CommandContext(ctx, "sshpass", args...)
 	} else {
+		logCmd = append([]string{"ssh"}, sshArgs...)
 		// #nosec G204 -- command and args are constructed from validated settings.
 		cmd = exec.CommandContext(ctx, "ssh", sshArgs...)
 	}
+	ansibleLogger().Debug("direct bootstrap exec: %s", strings.Join(logCmd, " "))
 	cmd.Stdin = strings.NewReader(script)
 	output, err := runCommandWithStreaming(cmd, stream)
 	if err != nil {
@@ -1042,6 +1225,180 @@ func executeRemoteBootstrapScript(
 	}
 
 	return strings.TrimSpace(output), nil
+}
+
+func executeLXCBootstrapViaPCT(
+	ctx context.Context,
+	host coreansible.InventoryHost,
+	nodeByName map[string]coreansible.InventoryHost,
+	script string,
+	stream func(string),
+) (string, error) {
+	vmidRaw := strings.TrimSpace(host.Vars["pvetui_guest_id"])
+	nodeName := strings.TrimSpace(host.Vars["pvetui_node"])
+	if vmidRaw == "" || nodeName == "" {
+		return "", fmt.Errorf("missing guest VMID/node metadata for pct exec fallback")
+	}
+	vmid, err := strconv.Atoi(vmidRaw)
+	if err != nil || vmid <= 0 {
+		return "", fmt.Errorf("invalid guest VMID %q for pct exec fallback", vmidRaw)
+	}
+
+	nodeHost, ok := nodeByName[nodeName]
+	if !ok {
+		return "", fmt.Errorf("node %q not found in inventory for pct exec fallback", nodeName)
+	}
+	nodeTarget := strings.TrimSpace(nodeHost.Vars["ansible_host"])
+	nodeUser := strings.TrimSpace(nodeHost.Vars["ansible_user"])
+	nodePassword := strings.TrimSpace(nodeHost.Vars["ansible_password"])
+	nodeKeyPath := strings.TrimSpace(nodeHost.Vars["ansible_ssh_private_key_file"])
+	if nodeTarget == "" || nodeUser == "" {
+		return "", fmt.Errorf("missing ansible_host or ansible_user on node %q for pct exec fallback", nodeName)
+	}
+	if net.ParseIP(nodeTarget) == nil {
+		return "", fmt.Errorf("node %q target %q is not an IP address for pct exec fallback", nodeName, nodeTarget)
+	}
+
+	pctCmd := fmt.Sprintf("pct exec %d -- sh -s", vmid)
+	if !strings.EqualFold(nodeUser, "root") {
+		pctCmd = "sudo -n " + pctCmd
+	}
+	ansibleLogger().Debug("direct bootstrap pct fallback command: %s", pctCmd)
+	return executeSSHScript(ctx, nodeUser, nodeTarget, nodePassword, nodeKeyPath, pctCmd, script, stream)
+}
+
+func (p *Plugin) executeQEMUBootstrapViaGuestAgent(
+	ctx context.Context,
+	host coreansible.InventoryHost,
+	guestByNodeID map[string]*api.VM,
+	script string,
+	timeout time.Duration,
+	stream func(string),
+) (string, error) {
+	vmidRaw := strings.TrimSpace(host.Vars["pvetui_guest_id"])
+	nodeName := strings.TrimSpace(host.Vars["pvetui_node"])
+	if vmidRaw == "" || nodeName == "" {
+		return "", fmt.Errorf("missing guest VMID/node metadata for guest-agent fallback")
+	}
+	vmid, err := strconv.Atoi(vmidRaw)
+	if err != nil || vmid <= 0 {
+		return "", fmt.Errorf("invalid guest VMID %q for guest-agent fallback", vmidRaw)
+	}
+
+	key := fmt.Sprintf("%s:%d", nodeName, vmid)
+	vm := guestByNodeID[key]
+	if vm == nil {
+		return "", fmt.Errorf("guest %s not found in VM list for guest-agent fallback", key)
+	}
+
+	client := p.app.Client()
+	if client == nil {
+		return "", fmt.Errorf("api client unavailable for guest-agent fallback")
+	}
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	// Execute a non-interactive shell snippet through guest agent.
+	command := []string{"/bin/sh", "-c", script}
+	ansibleLogger().Debug(
+		"direct bootstrap guest-agent command: vm=%s node=%s vmid=%d argv=%q script_bytes=%d",
+		vm.Name,
+		vm.Node,
+		vm.ID,
+		command[:2],
+		len(script),
+	)
+	stdout, stderr, exitCode, execErr := client.ExecuteGuestAgentCommand(ctx, vm, command, timeout)
+	if strings.TrimSpace(stdout) != "" && stream != nil {
+		for _, line := range strings.Split(strings.TrimSpace(stdout), "\n") {
+			stream(line)
+		}
+	}
+	if strings.TrimSpace(stderr) != "" && stream != nil {
+		for _, line := range strings.Split(strings.TrimSpace(stderr), "\n") {
+			stream(line)
+		}
+	}
+	combined := strings.TrimSpace(strings.Join([]string{strings.TrimSpace(stdout), strings.TrimSpace(stderr)}, "\n"))
+	if execErr != nil {
+		if combined == "" {
+			return combined, fmt.Errorf("guest-agent execution failed: %w", execErr)
+		}
+		return combined, fmt.Errorf("guest-agent execution failed: %w", execErr)
+	}
+	if exitCode != 0 {
+		if combined == "" {
+			return combined, fmt.Errorf("guest-agent command exited with code %d", exitCode)
+		}
+		return combined, fmt.Errorf("guest-agent command exited with code %d: %s", exitCode, firstLine(combined))
+	}
+
+	return combined, nil
+}
+
+func (p *Plugin) tryGuestBootstrapFallback(
+	ctx context.Context,
+	host coreansible.InventoryHost,
+	guestType string,
+	nodeByName map[string]coreansible.InventoryHost,
+	guestByNodeID map[string]*api.VM,
+	script string,
+	timeout time.Duration,
+	stream func(string),
+) (output string, transport string, err error) {
+	switch guestType {
+	case api.VMTypeLXC:
+		out, pctErr := executeLXCBootstrapViaPCT(ctx, host, nodeByName, script, stream)
+		if pctErr != nil {
+			return out, "pct-exec", pctErr
+		}
+		return out, transportPCTExec, nil
+	case api.VMTypeQemu:
+		out, gaErr := p.executeQEMUBootstrapViaGuestAgent(ctx, host, guestByNodeID, script, timeout, stream)
+		if gaErr != nil {
+			return out, transportGuestAgent, gaErr
+		}
+		return out, transportGuestAgent, nil
+	default:
+		return "", "", fmt.Errorf("guest type %q has no supported fallback transport", guestType)
+	}
+}
+
+func finalizeDirectBootstrapResult(
+	result directBootstrapResult,
+	output string,
+	dryRun bool,
+	transport string,
+) directBootstrapResult {
+	result.Output = output
+	if transport != "" {
+		result.Transport = transport
+	}
+	if strings.Contains(output, "changed=1") {
+		result.Status = statusChanged
+		result.Changed = true
+		if result.Transport != "" {
+			result.Message = fmt.Sprintf("changes applied via %s", result.Transport)
+		} else {
+			result.Message = "changes applied"
+		}
+		return result
+	}
+	if dryRun {
+		if result.Transport != "" {
+			result.Message = fmt.Sprintf("dry-run completed via %s", result.Transport)
+		} else {
+			result.Message = "dry-run completed"
+		}
+	} else {
+		if result.Transport != "" {
+			result.Message = fmt.Sprintf("already in desired state via %s", result.Transport)
+		} else {
+			result.Message = "already in desired state"
+		}
+	}
+
+	return result
 }
 
 func buildDirectBootstrapScript(cfg cfgpkg.AnsibleBootstrapConfig, keyContent string, dryRun bool) string {
@@ -1068,12 +1425,50 @@ GRANT_SUDO=%t
 changed=0
 
 if [ "$DRY_RUN" = "true" ]; then
-  if ! id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then echo "would_create_user=1"; fi
-  if [ "$INSTALL_KEY" = "true" ]; then echo "would_install_authorized_key=1"; fi
-  if [ "$SET_PASSWORD" = "true" ]; then echo "would_set_password=1"; fi
-  if [ "$GRANT_SUDO" = "true" ]; then
-    if [ ! -f "/etc/sudoers.d/$BOOTSTRAP_USER" ]; then echo "would_create_sudoers=1"; fi
+  would_change=0
+
+  if ! id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then
+    echo "would_create_user=1"
+    echo "plan_useradd=useradd -s $BOOTSTRAP_SHELL $BOOTSTRAP_USER"
+    would_change=$((would_change+1))
+  else
+    echo "would_create_user=0"
   fi
+
+  if [ "$INSTALL_KEY" = "true" ] && [ -n "$BOOTSTRAP_KEY" ]; then
+    if id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then
+      HOME_DIR="$(getent passwd "$BOOTSTRAP_USER" | cut -d: -f6)"
+      AUTH_KEYS="$HOME_DIR/.ssh/authorized_keys"
+      if [ ! -f "$AUTH_KEYS" ] || ! grep -qxF "$BOOTSTRAP_KEY" "$AUTH_KEYS"; then
+        echo "would_install_authorized_key=1"
+        echo "plan_authorized_key=install key to $AUTH_KEYS"
+        would_change=$((would_change+1))
+      else
+        echo "would_install_authorized_key=0"
+      fi
+    else
+      echo "would_install_authorized_key=1"
+      echo "plan_authorized_key=install key to /home/$BOOTSTRAP_USER/.ssh/authorized_keys"
+      would_change=$((would_change+1))
+    fi
+  fi
+
+  if [ "$SET_PASSWORD" = "true" ] && [ -n "$BOOTSTRAP_PASS" ]; then
+    echo "would_set_password=1"
+    echo "plan_set_password=chpasswd for $BOOTSTRAP_USER"
+    would_change=$((would_change+1))
+  fi
+
+  if [ "$GRANT_SUDO" = "true" ]; then
+    if [ ! -f "/etc/sudoers.d/$BOOTSTRAP_USER" ]; then
+      echo "would_create_sudoers=1"
+      echo "plan_create_sudoers=/etc/sudoers.d/$BOOTSTRAP_USER mode=$SUDOERS_MODE"
+      would_change=$((would_change+1))
+    else
+      echo "would_create_sudoers=0"
+    fi
+  fi
+  echo "would_change_total=$would_change"
   echo "changed=0"
   exit 0
 fi
@@ -1189,6 +1584,13 @@ func formatDirectBootstrapReport(results []directBootstrapResult, dryRun bool) s
 			totalOK++
 		}
 		_, _ = fmt.Fprintf(&b, "- %s (%s) [%s]: %s\n", r.Alias, r.Target, r.Status, r.Message)
+		if dryRun {
+			plan := extractDryRunPlan(r.Output)
+			if plan != "" {
+				_, _ = fmt.Fprintf(&b, "  plan: %s\n", plan)
+				continue
+			}
+		}
 		if strings.TrimSpace(r.Output) != "" {
 			_, _ = fmt.Fprintf(&b, "  output: %s\n", firstLine(r.Output))
 		}
@@ -1204,6 +1606,18 @@ func firstLine(s string) string {
 		return ""
 	}
 	return lines[0]
+}
+
+func extractDryRunPlan(output string) string {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	plans := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "would_") || strings.HasPrefix(trimmed, "plan_") {
+			plans = append(plans, trimmed)
+		}
+	}
+	return strings.Join(plans, ", ")
 }
 
 func shellSingleQuote(s string) string {
@@ -1589,6 +2003,7 @@ func (p *Plugin) ansiblePluginConfig() cfgpkg.AnsiblePluginConfig {
 				Username:             "ansible",
 				Shell:                "/bin/bash",
 				CreateHome:           true,
+				ExcludeWindowsGuests: true,
 				InstallAuthorizedKey: true,
 				SudoersFileMode:      "0440",
 				DryRunDefault:        true,

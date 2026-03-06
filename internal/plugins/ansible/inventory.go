@@ -125,8 +125,10 @@ func BuildInventoryWithFormat(nodes []*api.Node, guests []*api.VM, defaults Inve
 			"ansible_host":      target,
 			"ansible_user":      defaults.VMSSHUser,
 			"pvetui_kind":       "guest",
+			"pvetui_guest_name": guest.Name,
 			"pvetui_guest_id":   fmt.Sprintf("%d", guest.ID),
 			"pvetui_guest_type": guest.Type,
+			"pvetui_guest_os":   strings.TrimSpace(guest.OSType),
 			"pvetui_status":     guest.Status,
 			"pvetui_node":       guest.Node,
 		}

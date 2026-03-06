@@ -203,6 +203,7 @@ type AnsibleBootstrapConfig struct {
 	Username             string `yaml:"username,omitempty"`
 	Shell                string `yaml:"shell,omitempty"`
 	CreateHome           bool   `yaml:"create_home,omitempty"`
+	ExcludeWindowsGuests bool   `yaml:"exclude_windows_guests,omitempty"`
 	SSHPublicKeyFile     string `yaml:"ssh_public_key_file,omitempty"`
 	InstallAuthorizedKey bool   `yaml:"install_authorized_key,omitempty"`
 	SetPassword          bool   `yaml:"set_password,omitempty"`
@@ -355,6 +356,7 @@ func NewConfig() *Config {
 			Ansible: AnsiblePluginConfig{
 				Bootstrap: AnsibleBootstrapConfig{
 					CreateHome:           true,
+					ExcludeWindowsGuests: true,
 					InstallAuthorizedKey: true,
 					DryRunDefault:        true,
 				},
@@ -463,6 +465,7 @@ func (c *Config) MergeWithFile(path string) error {
 					Username             string `yaml:"username"`
 					Shell                string `yaml:"shell"`
 					CreateHome           *bool  `yaml:"create_home"`
+					ExcludeWindowsGuests *bool  `yaml:"exclude_windows_guests"`
 					SSHPublicKeyFile     string `yaml:"ssh_public_key_file"`
 					InstallAuthorizedKey *bool  `yaml:"install_authorized_key"`
 					SetPassword          *bool  `yaml:"set_password"`
@@ -776,6 +779,9 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.Plugins.Ansible.Bootstrap.CreateHome != nil {
 		c.Plugins.Ansible.Bootstrap.CreateHome = *fileConfig.Plugins.Ansible.Bootstrap.CreateHome
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests != nil {
+		c.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests = *fileConfig.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests
 	}
 	if fileConfig.Plugins.Ansible.Bootstrap.SSHPublicKeyFile != "" {
 		c.Plugins.Ansible.Bootstrap.SSHPublicKeyFile = ExpandHomePath(fileConfig.Plugins.Ansible.Bootstrap.SSHPublicKeyFile)
