@@ -999,9 +999,15 @@ func (p *Plugin) runDirectBootstrapForHost(
 	hostKind := strings.TrimSpace(host.Vars["pvetui_kind"])
 	guestType := strings.TrimSpace(host.Vars["pvetui_guest_type"])
 	target := strings.TrimSpace(host.Vars["ansible_host"])
-	user := strings.TrimSpace(host.Vars["ansible_user"])
-	password := strings.TrimSpace(host.Vars["ansible_password"])
-	keyPath := strings.TrimSpace(host.Vars["ansible_ssh_private_key_file"])
+	user := ""
+	switch hostKind {
+	case hostKindNode:
+		user = strings.TrimSpace(p.resolveNodeUser())
+	case hostKindGuest:
+		user = strings.TrimSpace(p.resolveVMUser())
+	}
+	password := ""
+	keyPath := ""
 
 	result := directBootstrapResult{
 		Alias:  host.Alias,
@@ -1036,7 +1042,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 	if hostKind == hostKindNode {
 		if target == "" || user == "" {
 			result.Status = statusFailed
-			result.Message = "missing ansible_host or ansible_user"
+			result.Message = "missing ansible_host or SSH user"
 			return result
 		}
 		if net.ParseIP(target) == nil {
@@ -1069,6 +1075,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 				guestType,
 				nodeByName,
 				guestByNodeID,
+				p.resolveNodeUser(),
 				script,
 				attemptTimeout,
 				stream,
@@ -1119,7 +1126,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 
 	if !canAttemptSSH {
 		result.Status = statusSkipped
-		result.Message = "missing routable ansible_host or ansible_user for SSH transport"
+		result.Message = "missing routable ansible_host or SSH user for SSH transport"
 		return result
 	}
 	sshCtx, cancelSSH := context.WithTimeout(ctx, attemptTimeout)
@@ -1194,6 +1201,7 @@ func executeSSHScript(
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "UserKnownHostsFile=/dev/null",
 		"-o", "ConnectTimeout=10",
+		"-o", "BatchMode=yes",
 		"-o", "LogLevel=ERROR",
 	}
 	if strings.TrimSpace(keyPath) != "" {
@@ -1231,6 +1239,7 @@ func executeLXCBootstrapViaPCT(
 	ctx context.Context,
 	host coreansible.InventoryHost,
 	nodeByName map[string]coreansible.InventoryHost,
+	nodeSSHUser string,
 	script string,
 	stream func(string),
 ) (string, error) {
@@ -1249,11 +1258,11 @@ func executeLXCBootstrapViaPCT(
 		return "", fmt.Errorf("node %q not found in inventory for pct exec fallback", nodeName)
 	}
 	nodeTarget := strings.TrimSpace(nodeHost.Vars["ansible_host"])
-	nodeUser := strings.TrimSpace(nodeHost.Vars["ansible_user"])
-	nodePassword := strings.TrimSpace(nodeHost.Vars["ansible_password"])
-	nodeKeyPath := strings.TrimSpace(nodeHost.Vars["ansible_ssh_private_key_file"])
+	nodeUser := strings.TrimSpace(nodeSSHUser)
+	nodePassword := ""
+	nodeKeyPath := ""
 	if nodeTarget == "" || nodeUser == "" {
-		return "", fmt.Errorf("missing ansible_host or ansible_user on node %q for pct exec fallback", nodeName)
+		return "", fmt.Errorf("missing ansible_host or SSH user on node %q for pct exec fallback", nodeName)
 	}
 	if net.ParseIP(nodeTarget) == nil {
 		return "", fmt.Errorf("node %q target %q is not an IP address for pct exec fallback", nodeName, nodeTarget)
@@ -1342,13 +1351,14 @@ func (p *Plugin) tryGuestBootstrapFallback(
 	guestType string,
 	nodeByName map[string]coreansible.InventoryHost,
 	guestByNodeID map[string]*api.VM,
+	nodeSSHUser string,
 	script string,
 	timeout time.Duration,
 	stream func(string),
 ) (output string, transport string, err error) {
 	switch guestType {
 	case api.VMTypeLXC:
-		out, pctErr := executeLXCBootstrapViaPCT(ctx, host, nodeByName, script, stream)
+		out, pctErr := executeLXCBootstrapViaPCT(ctx, host, nodeByName, nodeSSHUser, script, stream)
 		if pctErr != nil {
 			return out, "pct-exec", pctErr
 		}
