@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const maxFormBodySize = 1 << 20 // 1 MiB
+
 func HandleClusterResources(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resources := state.GetClusterResources()
@@ -193,12 +195,16 @@ func HandleVMConfig(state *MockState) http.HandlerFunc {
 			if strings.Contains(contentType, "application/json") {
 				_ = json.NewDecoder(r.Body).Decode(&updates)
 			} else {
-				if err := r.ParseForm(); err == nil {
-					updates = make(map[string]interface{})
-					for k, v := range r.Form {
-						if len(v) > 0 {
-							updates[k] = v[0]
-						}
+				r.Body = http.MaxBytesReader(w, r.Body, maxFormBodySize)
+				if err := r.ParseForm(); err != nil {
+					http.Error(w, "invalid form payload", http.StatusBadRequest)
+					return
+				}
+
+				updates = make(map[string]interface{})
+				for k, v := range r.Form {
+					if len(v) > 0 {
+						updates[k] = v[0]
 					}
 				}
 			}
