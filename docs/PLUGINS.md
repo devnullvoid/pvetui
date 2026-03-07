@@ -35,17 +35,33 @@ The `ansible` plugin adds an **Ansible Toolkit** entry to the global actions men
 ### Features
 
 - **Inventory generation**: Builds inventory from currently loaded Proxmox nodes and guests in YAML (default) or INI format.
+- **Inventory style modes**:
+  - `compact`: shared ansible vars are lifted to `all:vars` / `all.vars`.
+  - `expanded`: host-level vars are kept per-host.
 - **Inventory export**: Preview and save generated inventory to a user-selected path.
-- **Ad-hoc connectivity tests**: Run `ansible -m ping` with optional limit, extra arguments, and timeout.
-- **Playbook execution**: Run `ansible-playbook` against generated inventory with optional `--limit`, `--check`, custom args, and timeout.
-- **Smart default limit**: The Run Ping/Run Playbook forms prefill `Limit` from your current node/guest selection.
-- **SSH setup assistant**: Shows practical `ssh-copy-id` and validation commands for all discovered targets.
-- **Safe defaults**: Commands run without shell interpolation and temporary inventory files are created with `0600` permissions.
+- **Ad-hoc connectivity tests**: Run `ansible -m ping` with configurable scope, limit, target picker, extra args, and timeout.
+- **Playbook execution**: Run `ansible-playbook` with configurable scope, limit, target picker, `--check`, extra args, and timeout.
+- **Limit UX**: Ping/Playbook/Bootstrap forms include:
+  - `Scope` (`all`, `nodes`, `guests`)
+  - `Limit` (manual/custom)
+  - `Target` picker (inventory groups and host aliases) that fills `Limit`.
+- **Bootstrap Access workflow**:
+  - **Direct mode**: bootstraps via SSH / `pct exec` / QEMU guest agent (transport chosen by host type).
+  - **Ansible mode**: runs a generated bootstrap playbook.
+  - Supports dry-run and streamed output.
+- **Bootstrap diagnostics**:
+  - dry-run plan markers (`would_*`, `plan_*`)
+  - apply markers (`applied_*`)
+  - pre/post SSH reachability hints in report (`before/after` on port 22 for IP targets).
+- **SSH Setup Guide**: Shows practical key-based setup examples.
+- **Settings UI**: General settings and bootstrap-specific settings are editable from the toolkit.
+- **Safe defaults**: Commands run without shell interpolation; temporary files are created with `0600` permissions.
 
 ### Requirements
 
 - `ansible` and `ansible-playbook` must be available in your `PATH`.
-- SSH access must be configured for targets (`ssh_user` and optional `vm_ssh_user` in pvetui config are used as default inventory users).
+- SSH access must be configured for targets for Ping/Playbook and for direct bootstrap node access.
+- Direct bootstrap uses pvetui SSH users (`ssh_user` / `vm_ssh_user`) and system SSH defaults.
 
 ### Configuration
 
@@ -57,23 +73,44 @@ plugins:
     - "ansible"
   ansible:
     inventory_format: "yaml"            # yaml|ini
+    inventory_style: "compact"          # compact|expanded
+    inventory_vars:                     # optional vars merged into each host/all vars
+      ansible_python_interpreter: /usr/bin/python3
     default_user: "ubuntu"              # optional ansible_user override
     # default_password: "secret"        # optional sensitive field
     ssh_private_key_file: "~/.ssh/id_ed25519"
     default_limit_mode: "selection"     # selection|all|none
     ask_pass: false
     ask_become_pass: false
-    extra_args: []
+    extra_args: []                      # appended to ansible and ansible-playbook
+    bootstrap:
+      enabled: true
+      username: "ansible"
+      shell: "/bin/bash"
+      create_home: true
+      exclude_windows_guests: true      # skip Windows guests in direct mode
+      ssh_public_key_file: "~/.ssh/id_ed25519.pub"
+      install_authorized_key: true
+      set_password: false               # if true, password below is required
+      # password: "secret"              # optional sensitive field
+      grant_sudo_nopasswd: true
+      sudoers_file_mode: "0440"
+      dry_run_default: true
+      parallelism: 10
+      timeout: "2m"
+      fail_fast: false
 ```
 
 Notes:
-- `default_password` is treated as sensitive data and follows the same encryption/decryption handling as other secrets.
-- `default_limit_mode: selection` preserves the selected node/guest behavior for prefilled limits in forms.
+- `default_password` and `bootstrap.password` are treated as sensitive fields and follow the same encryption/decryption handling as other secrets.
+- `default_limit_mode: selection` keeps node/guest selection behavior for prefilled form limits.
+- Bootstrap settings are edited in **Bootstrap Settings** from the toolkit.
 
 ### Notes
 
 - The plugin uses nodes/guests currently loaded in the UI to build inventory.
-- Cancelling a running command from the plugin now cancels the underlying Ansible process context.
+- Cancelling a running command from the plugin cancels the underlying process context.
+- Direct bootstrap prepares user/key/sudo access; it does not guarantee SSH daemon/network reachability on guest targets.
 
 ## Command Runner Plugin
 
