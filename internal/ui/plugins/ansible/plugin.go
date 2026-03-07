@@ -1045,6 +1045,8 @@ type directBootstrapResult struct {
 	Message   string
 	Output    string
 	Transport string
+	SSHBefore *bool
+	SSHAfter  *bool
 }
 
 func (p *Plugin) runBootstrapDirect(
@@ -1227,6 +1229,30 @@ func (p *Plugin) runDirectBootstrapForHost(
 	targetIsIP := net.ParseIP(target) != nil
 	attemptTimeout := directBootstrapAttemptTimeout(dryRun)
 	canAttemptSSH := targetIsIP && strings.TrimSpace(user) != ""
+	if targetIsIP {
+		before := checkSSHPortReachable(target, 1200*time.Millisecond)
+		result.SSHBefore = boolPtr(before)
+		ansibleLogger().Debug("direct bootstrap host=%s ssh_precheck_reachable=%t", host.Alias, before)
+	}
+	applyPostSSHReachability := func(r directBootstrapResult) directBootstrapResult {
+		if !targetIsIP {
+			return r
+		}
+		if r.Status != statusOK && r.Status != statusChanged {
+			return r
+		}
+		after := checkSSHPortReachable(target, 1200*time.Millisecond)
+		r.SSHAfter = boolPtr(after)
+		ansibleLogger().Debug("direct bootstrap host=%s ssh_postcheck_reachable=%t", host.Alias, after)
+		if !after {
+			if strings.TrimSpace(r.Message) == "" {
+				r.Message = "ssh still unreachable on port 22"
+			} else if !strings.Contains(strings.ToLower(r.Message), "ssh still unreachable") {
+				r.Message += "; ssh still unreachable on port 22"
+			}
+		}
+		return r
+	}
 
 	if hostKind == hostKindGuest {
 		primaryTransport := ""
@@ -1262,7 +1288,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 			if err == nil {
 				result.Output = output
 				result.Transport = transport
-				return finalizeDirectBootstrapResult(result, output, dryRun, transport)
+				return applyPostSSHReachability(finalizeDirectBootstrapResult(result, output, dryRun, transport))
 			}
 
 			if !canAttemptSSH {
@@ -1291,7 +1317,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 				result.Message = fmt.Sprintf("%s failed: %v; ssh failed: %v", primaryTransport, err, sshErr)
 				return result
 			}
-			return finalizeDirectBootstrapResult(result, sshOutput, dryRun, transportSSH)
+			return applyPostSSHReachability(finalizeDirectBootstrapResult(result, sshOutput, dryRun, transportSSH))
 		}
 	}
 
@@ -1316,7 +1342,7 @@ func (p *Plugin) runDirectBootstrapForHost(
 		return result
 	}
 
-	return finalizeDirectBootstrapResult(result, output, dryRun, result.Transport)
+	return applyPostSSHReachability(finalizeDirectBootstrapResult(result, output, dryRun, result.Transport))
 }
 
 func directBootstrapAttemptTimeout(dryRun bool) time.Duration {
@@ -1325,6 +1351,22 @@ func directBootstrapAttemptTimeout(dryRun bool) time.Duration {
 	}
 
 	return 45 * time.Second
+}
+
+func checkSSHPortReachable(target string, timeout time.Duration) bool {
+	if strings.TrimSpace(target) == "" {
+		return false
+	}
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(target, "22"), timeout)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 func isWindowsGuestHost(host coreansible.InventoryHost) bool {
@@ -1785,6 +1827,9 @@ func formatDirectBootstrapReport(results []directBootstrapResult, dryRun bool) s
 			totalOK++
 		}
 		_, _ = fmt.Fprintf(&b, "- %s (%s) [%s]: %s\n", r.Alias, r.Target, r.Status, r.Message)
+		if r.SSHBefore != nil || r.SSHAfter != nil {
+			_, _ = fmt.Fprintf(&b, "  ssh: before=%s after=%s\n", sshReachabilityString(r.SSHBefore), sshReachabilityString(r.SSHAfter))
+		}
 		if dryRun {
 			plan := extractDryRunPlan(r.Output)
 			if plan != "" {
@@ -1804,6 +1849,16 @@ func formatDirectBootstrapReport(results []directBootstrapResult, dryRun bool) s
 
 	_, _ = fmt.Fprintf(&b, "\nTotals: ok=%d changed=%d failed=%d skipped=%d\n", totalOK, totalChanged, totalFailed, totalSkipped)
 	return b.String()
+}
+
+func sshReachabilityString(v *bool) string {
+	if v == nil {
+		return "n/a"
+	}
+	if *v {
+		return "reachable"
+	}
+	return "unreachable"
 }
 
 func firstLine(s string) string {
