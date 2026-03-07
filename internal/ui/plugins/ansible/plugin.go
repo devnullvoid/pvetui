@@ -71,6 +71,7 @@ type Plugin struct {
 
 type playbookFormState struct {
 	PlaybookPath string
+	Scope        string
 	Limit        string
 	ExtraArgsRaw string
 	CheckMode    bool
@@ -480,17 +481,40 @@ func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onD
 	method := bootstrapMethodDirect
 	scope := bootstrapScopeAll
 	limit := ""
+	limitPickerLabels, limitPickerValues := buildLimitPickerOptions(inventory)
 	dryRun := bootstrap.DryRunDefault
 	timeoutRaw := bootstrap.Timeout
 	extraArgsRaw := ""
+	var limitInput *tview.InputField
 
 	form.AddDropDown("Method", methodOptions, 0, func(option string, _ int) {
 		method = option
 	})
 	form.AddDropDown("Scope", scopeOptions, 0, func(option string, _ int) {
 		scope = option
+		resolved := resolveLimitForScope(scope, "")
+		limit = resolved
+		if limitInput != nil {
+			limitInput.SetText(resolved)
+		}
 	})
 	form.AddInputField("Limit", limit, 50, nil, func(text string) { limit = strings.TrimSpace(text) })
+	if input, ok := form.GetFormItem(form.GetFormItemCount() - 1).(*tview.InputField); ok {
+		limitInput = input
+	}
+	form.AddDropDown("Target", limitPickerLabels, 0, func(_ string, index int) {
+		if index < 0 || index >= len(limitPickerValues) {
+			return
+		}
+		val := strings.TrimSpace(limitPickerValues[index])
+		if val == "" {
+			return
+		}
+		limit = val
+		if limitInput != nil {
+			limitInput.SetText(val)
+		}
+	})
 	form.AddCheckbox("Dry Run (--check)", dryRun, func(checked bool) { dryRun = checked })
 	form.AddInputField("Timeout", timeoutRaw, 16, nil, func(text string) { timeoutRaw = strings.TrimSpace(text) })
 	form.AddInputField("Extra Args", extraArgsRaw, 80, nil, func(text string) { extraArgsRaw = strings.TrimSpace(text) })
@@ -513,15 +537,11 @@ func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onD
 			return
 		}
 
-		resolvedLimit := strings.TrimSpace(limit)
-		if resolvedLimit == "" {
-			switch scope {
-			case bootstrapScopeNodes:
-				resolvedLimit = "proxmox_nodes"
-			case bootstrapScopeGuests:
-				resolvedLimit = "proxmox_guests"
-			}
+		currentLimit := strings.TrimSpace(limit)
+		if limitInput != nil {
+			currentLimit = strings.TrimSpace(limitInput.GetText())
 		}
+		resolvedLimit := resolveLimitForScope(scope, currentLimit)
 
 		run := func() {
 			closeForm()
@@ -564,7 +584,7 @@ func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onD
 		return event
 	})
 
-	pages.AddPage(bootstrapRunPageName, p.centerModal(form, 98, 16), true, true)
+	pages.AddPage(bootstrapRunPageName, p.centerModal(form, 98, 18), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -579,10 +599,37 @@ func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.Invent
 	form.SetTitleColor(theme.Colors.Primary)
 
 	limit := defaultLimit
+	scope := detectScopeFromLimit(defaultLimit)
+	limitPickerLabels, limitPickerValues := buildLimitPickerOptions(inventory)
 	extra := ""
 	timeout := "5m"
+	var limitInput *tview.InputField
 
-	form.AddInputField("Limit", defaultLimit, 50, nil, func(text string) { limit = text })
+	form.AddDropDown("Scope", []string{bootstrapScopeAll, bootstrapScopeNodes, bootstrapScopeGuests}, scopeToIndex(scope), func(option string, _ int) {
+		scope = option
+		resolved := resolveLimitForScope(scope, "")
+		limit = resolved
+		if limitInput != nil {
+			limitInput.SetText(resolved)
+		}
+	})
+	form.AddInputField("Limit", defaultLimit, 50, nil, func(text string) { limit = strings.TrimSpace(text) })
+	if input, ok := form.GetFormItem(form.GetFormItemCount() - 1).(*tview.InputField); ok {
+		limitInput = input
+	}
+	form.AddDropDown("Target", limitPickerLabels, 0, func(_ string, index int) {
+		if index < 0 || index >= len(limitPickerValues) {
+			return
+		}
+		val := strings.TrimSpace(limitPickerValues[index])
+		if val == "" {
+			return
+		}
+		limit = val
+		if limitInput != nil {
+			limitInput.SetText(val)
+		}
+	})
 	form.AddInputField("Extra Args", "", 50, nil, func(text string) { extra = text })
 	form.AddInputField("Timeout", timeout, 10, nil, func(text string) { timeout = text })
 
@@ -599,8 +646,13 @@ func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.Invent
 			p.app.ShowMessageSafe(fmt.Sprintf("Invalid timeout: %v", err))
 			return
 		}
+		currentLimit := strings.TrimSpace(limit)
+		if limitInput != nil {
+			currentLimit = strings.TrimSpace(limitInput.GetText())
+		}
+		resolvedLimit := resolveLimitForScope(scope, currentLimit)
 		closeForm()
-		p.runPing(inventory, strings.TrimSpace(limit), strings.Fields(extra), timeoutDuration)
+		p.runPing(inventory, resolvedLimit, strings.Fields(extra), timeoutDuration)
 	})
 	form.AddButton("Cancel", closeForm)
 
@@ -612,7 +664,7 @@ func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.Invent
 		return event
 	})
 
-	pages.AddPage(adhocPageName, p.centerModal(form, 86, 12), true, true)
+	pages.AddPage(adhocPageName, p.centerModal(form, 86, 14), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -636,12 +688,18 @@ func (p *Plugin) showPlaybookFormWithState(
 	form.SetTitleColor(theme.Colors.Primary)
 
 	playbookPath := ""
+	scope := detectScopeFromLimit(defaultLimit)
 	limit := defaultLimit
+	limitPickerLabels, limitPickerValues := buildLimitPickerOptions(inventory)
 	extra := ""
 	checkMode := false
 	timeout := "20m"
+	var limitInput *tview.InputField
 	if state != nil {
 		playbookPath = state.PlaybookPath
+		if strings.TrimSpace(state.Scope) != "" {
+			scope = strings.TrimSpace(state.Scope)
+		}
 		limit = state.Limit
 		extra = state.ExtraArgsRaw
 		checkMode = state.CheckMode
@@ -651,7 +709,31 @@ func (p *Plugin) showPlaybookFormWithState(
 	}
 
 	form.AddInputField("Playbook", playbookPath, 60, nil, func(text string) { playbookPath = text })
-	form.AddInputField("Limit", limit, 40, nil, func(text string) { limit = text })
+	form.AddDropDown("Scope", []string{bootstrapScopeAll, bootstrapScopeNodes, bootstrapScopeGuests}, scopeToIndex(scope), func(option string, _ int) {
+		scope = option
+		resolved := resolveLimitForScope(scope, "")
+		limit = resolved
+		if limitInput != nil {
+			limitInput.SetText(resolved)
+		}
+	})
+	form.AddInputField("Limit", limit, 40, nil, func(text string) { limit = strings.TrimSpace(text) })
+	if input, ok := form.GetFormItem(form.GetFormItemCount() - 1).(*tview.InputField); ok {
+		limitInput = input
+	}
+	form.AddDropDown("Target", limitPickerLabels, 0, func(_ string, index int) {
+		if index < 0 || index >= len(limitPickerValues) {
+			return
+		}
+		val := strings.TrimSpace(limitPickerValues[index])
+		if val == "" {
+			return
+		}
+		limit = val
+		if limitInput != nil {
+			limitInput.SetText(val)
+		}
+	})
 	form.AddInputField("Extra Args", extra, 60, nil, func(text string) { extra = text })
 	form.AddCheckbox("Check Mode", checkMode, func(checked bool) { checkMode = checked })
 	form.AddInputField("Timeout", timeout, 10, nil, func(text string) { timeout = text })
@@ -681,7 +763,14 @@ func (p *Plugin) showPlaybookFormWithState(
 
 		submitted := &playbookFormState{
 			PlaybookPath: strings.TrimSpace(playbookPath),
-			Limit:        strings.TrimSpace(limit),
+			Scope:        strings.TrimSpace(scope),
+			Limit: func() string {
+				currentLimit := strings.TrimSpace(limit)
+				if limitInput != nil {
+					currentLimit = strings.TrimSpace(limitInput.GetText())
+				}
+				return resolveLimitForScope(scope, currentLimit)
+			}(),
 			ExtraArgsRaw: strings.TrimSpace(extra),
 			CheckMode:    checkMode,
 			TimeoutRaw:   strings.TrimSpace(timeout),
@@ -708,8 +797,90 @@ func (p *Plugin) showPlaybookFormWithState(
 		return event
 	})
 
-	pages.AddPage(playbookPageName, p.centerModal(form, 92, 16), true, true)
+	pages.AddPage(playbookPageName, p.centerModal(form, 92, 19), true, true)
 	p.app.SetFocus(form)
+}
+
+func resolveLimitForScope(scope, limit string) string {
+	manual := strings.TrimSpace(limit)
+	if manual != "" {
+		return manual
+	}
+
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case bootstrapScopeNodes:
+		return "proxmox_nodes"
+	case bootstrapScopeGuests:
+		return "proxmox_guests"
+	default:
+		return bootstrapScopeAll
+	}
+}
+
+func detectScopeFromLimit(limit string) string {
+	switch strings.TrimSpace(limit) {
+	case "proxmox_nodes":
+		return bootstrapScopeNodes
+	case "proxmox_guests":
+		return bootstrapScopeGuests
+	default:
+		return bootstrapScopeAll
+	}
+}
+
+func scopeToIndex(scope string) int {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case bootstrapScopeNodes:
+		return 1
+	case bootstrapScopeGuests:
+		return 2
+	default:
+		return 0
+	}
+}
+
+func buildLimitPickerOptions(inventory coreansible.InventoryResult) ([]string, []string) {
+	groupSet := make(map[string]struct{})
+	hosts := make([]string, 0, len(inventory.Hosts))
+	for _, host := range inventory.Hosts {
+		if host.Alias != "" {
+			hosts = append(hosts, host.Alias)
+		}
+		for _, group := range host.GroupNames {
+			if strings.TrimSpace(group) == "" {
+				continue
+			}
+			groupSet[group] = struct{}{}
+		}
+	}
+	sort.Strings(hosts)
+
+	groups := make([]string, 0, len(groupSet))
+	for g := range groupSet {
+		groups = append(groups, g)
+	}
+	sort.Strings(groups)
+
+	labels := []string{"(manual/custom)"}
+	values := []string{""}
+
+	labels = append(labels, "Scope: all")
+	values = append(values, bootstrapScopeAll)
+	labels = append(labels, "Scope: nodes")
+	values = append(values, "proxmox_nodes")
+	labels = append(labels, "Scope: guests")
+	values = append(values, "proxmox_guests")
+
+	for _, group := range groups {
+		labels = append(labels, "Group: "+group)
+		values = append(values, group)
+	}
+	for _, host := range hosts {
+		labels = append(labels, "Host: "+host)
+		values = append(values, host)
+	}
+
+	return labels, values
 }
 
 func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, extraArgs []string, timeout time.Duration) {
