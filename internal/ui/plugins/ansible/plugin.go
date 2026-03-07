@@ -1433,6 +1433,11 @@ SET_PASSWORD=%t
 GRANT_SUDO=%t
 
 changed=0
+applied_create_user=0
+applied_update_shell=0
+applied_install_authorized_key=0
+applied_set_password=0
+applied_create_sudoers=0
 
 if [ "$DRY_RUN" = "true" ]; then
   would_change=0
@@ -1490,9 +1495,16 @@ if ! id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then
     useradd -M -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
   fi
   changed=1
+  applied_create_user=1
 fi
 
-usermod -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+# Update shell only if needed.
+CURRENT_SHELL="$(getent passwd "$BOOTSTRAP_USER" | cut -d: -f7 || true)"
+if [ "$CURRENT_SHELL" != "$BOOTSTRAP_SHELL" ]; then
+  usermod -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+  changed=1
+  applied_update_shell=1
+fi
 HOME_DIR="$(getent passwd "$BOOTSTRAP_USER" | cut -d: -f6)"
 
 if [ "$INSTALL_KEY" = "true" ] && [ -n "$BOOTSTRAP_KEY" ]; then
@@ -1504,6 +1516,7 @@ if [ "$INSTALL_KEY" = "true" ] && [ -n "$BOOTSTRAP_KEY" ]; then
   if ! grep -qxF "$BOOTSTRAP_KEY" "$AUTH_KEYS"; then
     printf "%%s\n" "$BOOTSTRAP_KEY" >> "$AUTH_KEYS"
     changed=1
+    applied_install_authorized_key=1
   fi
   chown -R "$BOOTSTRAP_USER:$BOOTSTRAP_USER" "$HOME_DIR/.ssh"
 fi
@@ -1511,6 +1524,7 @@ fi
 if [ "$SET_PASSWORD" = "true" ] && [ -n "$BOOTSTRAP_PASS" ]; then
   printf "%%s:%%s\n" "$BOOTSTRAP_USER" "$BOOTSTRAP_PASS" | chpasswd
   changed=1
+  applied_set_password=1
 fi
 
 if [ "$GRANT_SUDO" = "true" ]; then
@@ -1522,9 +1536,15 @@ if [ "$GRANT_SUDO" = "true" ]; then
       visudo -cf "$SUDOERS_FILE"
     fi
     changed=1
+    applied_create_sudoers=1
   fi
 fi
 
+echo "applied_create_user=$applied_create_user"
+echo "applied_update_shell=$applied_update_shell"
+echo "applied_install_authorized_key=$applied_install_authorized_key"
+echo "applied_set_password=$applied_set_password"
+echo "applied_create_sudoers=$applied_create_sudoers"
 echo "changed=$changed"
 `, userQuoted, shellQuoted, passQuoted, keyQuoted, modeQuoted, dryRun, cfg.CreateHome, cfg.InstallAuthorizedKey, cfg.SetPassword, cfg.GrantSudoNOPASSWD)
 }
@@ -1601,6 +1621,11 @@ func formatDirectBootstrapReport(results []directBootstrapResult, dryRun bool) s
 				continue
 			}
 		}
+		applied := extractAppliedPlan(r.Output)
+		if applied != "" {
+			_, _ = fmt.Fprintf(&b, "  applied: %s\n", applied)
+			continue
+		}
 		if strings.TrimSpace(r.Output) != "" {
 			_, _ = fmt.Fprintf(&b, "  output: %s\n", firstLine(r.Output))
 		}
@@ -1623,11 +1648,23 @@ func extractDryRunPlan(output string) string {
 	plans := make([]string, 0, len(lines))
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "would_") || strings.HasPrefix(trimmed, "plan_") {
+		if strings.HasPrefix(trimmed, "would_") || strings.HasPrefix(trimmed, "plan_") || strings.HasPrefix(trimmed, "applied_") {
 			plans = append(plans, trimmed)
 		}
 	}
 	return strings.Join(plans, ", ")
+}
+
+func extractAppliedPlan(output string) string {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	applied := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "applied_") {
+			applied = append(applied, trimmed)
+		}
+	}
+	return strings.Join(applied, ", ")
 }
 
 func shellSingleQuote(s string) string {
