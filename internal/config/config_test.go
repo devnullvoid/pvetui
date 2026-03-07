@@ -541,6 +541,22 @@ plugins:
     extra_args:
       - --forks
       - "20"
+    bootstrap:
+      enabled: true
+      username: ansible
+      shell: /bin/bash
+      create_home: true
+      exclude_windows_guests: true
+      ssh_public_key_file: ~/.ssh/id_ed25519.pub
+      install_authorized_key: true
+      set_password: true
+      password: bootstrap-secret
+      grant_sudo_nopasswd: true
+      sudoers_file_mode: "0440"
+      dry_run_default: true
+      parallelism: 12
+      timeout: 3m
+      fail_fast: false
 `
 
 	_, err = tempFile.WriteString(content)
@@ -563,6 +579,46 @@ plugins:
 	assert.True(t, cfg.Plugins.Ansible.AskPass)
 	assert.True(t, cfg.Plugins.Ansible.AskBecomePass)
 	assert.Equal(t, []string{"--forks", "20"}, cfg.Plugins.Ansible.ExtraArgs)
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.Enabled)
+	assert.Equal(t, "ansible", cfg.Plugins.Ansible.Bootstrap.Username)
+	assert.Equal(t, "/bin/bash", cfg.Plugins.Ansible.Bootstrap.Shell)
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.CreateHome)
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests)
+	assert.Contains(t, cfg.Plugins.Ansible.Bootstrap.SSHPublicKeyFile, ".ssh")
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.InstallAuthorizedKey)
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.SetPassword)
+	assert.Equal(t, "bootstrap-secret", cfg.Plugins.Ansible.Bootstrap.Password)
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.GrantSudoNOPASSWD)
+	assert.Equal(t, "0440", cfg.Plugins.Ansible.Bootstrap.SudoersFileMode)
+	assert.True(t, cfg.Plugins.Ansible.Bootstrap.DryRunDefault)
+	assert.Equal(t, 12, cfg.Plugins.Ansible.Bootstrap.Parallelism)
+	assert.Equal(t, "3m", cfg.Plugins.Ansible.Bootstrap.Timeout)
+	assert.False(t, cfg.Plugins.Ansible.Bootstrap.FailFast)
+}
+
+func TestConfig_MergeWithFile_AnsibleBootstrapExcludeWindowsGuestsFalse(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "config-ansible-bootstrap-windows-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	content := `
+plugins:
+  ansible:
+    bootstrap:
+      exclude_windows_guests: false
+`
+
+	_, err = tempFile.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tempFile.Close())
+
+	cfg := NewConfig()
+	require.True(t, cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests)
+
+	require.NoError(t, cfg.MergeWithFile(tempFile.Name()))
+	cfg.SetDefaults()
+
+	assert.False(t, cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests)
 }
 
 func TestConfig_MergeWithEncryptedFile(t *testing.T) {
@@ -614,6 +670,11 @@ func TestConfig_SetDefaults(t *testing.T) {
 	assert.Equal(t, "yaml", config.Plugins.Ansible.InventoryFormat)
 	assert.Equal(t, "compact", config.Plugins.Ansible.InventoryStyle)
 	assert.Equal(t, "selection", config.Plugins.Ansible.DefaultLimitMode)
+	assert.Equal(t, "ansible", config.Plugins.Ansible.Bootstrap.Username)
+	assert.Equal(t, "/bin/bash", config.Plugins.Ansible.Bootstrap.Shell)
+	assert.Equal(t, "0440", config.Plugins.Ansible.Bootstrap.SudoersFileMode)
+	assert.Equal(t, "2m", config.Plugins.Ansible.Bootstrap.Timeout)
+	assert.Equal(t, 10, config.Plugins.Ansible.Bootstrap.Parallelism)
 	assert.Equal(t, "Ctrl+f", config.KeyBindings.AdvancedGuestFilter)
 }
 
@@ -1206,6 +1267,24 @@ func TestMergeWithFileMarksCleartextSensitive(t *testing.T) {
 
 	require.NoError(t, cfg.MergeWithFile(path))
 	require.True(t, cfg.HasCleartextSensitiveData(), "expected cleartext detection when passwords are unencrypted")
+}
+
+func TestMergeWithFileMarksCleartextSensitiveForBootstrapPassword(t *testing.T) {
+	cfg := NewConfig()
+	cfg.Profiles = make(map[string]ProfileConfig)
+	cfg.DefaultProfile = testDefaultProfile
+
+	content := `plugins:
+  ansible:
+    bootstrap:
+      set_password: true
+      password: plain-bootstrap-secret
+`
+	path := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	require.NoError(t, cfg.MergeWithFile(path))
+	require.True(t, cfg.HasCleartextSensitiveData(), "expected cleartext detection for bootstrap password")
 }
 
 func TestMergeWithFileSkipsEncryptedSensitive(t *testing.T) {
