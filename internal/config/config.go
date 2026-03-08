@@ -330,8 +330,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 //	}
 func NewConfig() *Config {
 	config := &Config{
-		Profiles:       make(map[string]ProfileConfig),
-		DefaultProfile: "default",
+		Profiles: make(map[string]ProfileConfig),
 		// Read environment variables for legacy fields
 		Addr:        os.Getenv("PVETUI_ADDR"),
 		User:        os.Getenv("PVETUI_USER"),
@@ -1243,8 +1242,8 @@ func (c *Config) SetDefaults() {
 		c.Plugins.Ansible.Bootstrap.SSHPublicKeyFile = ExpandHomePath(c.Plugins.Ansible.Bootstrap.SSHPublicKeyFile)
 	}
 
-	// ShowIcons defaults to true (icons enabled)
-	// No explicit default needed since it's already set in NewConfig()
+	// ShowIcons defaults to true (icons enabled).
+	// The zero value is treated as enabled unless explicitly set to false by env/config.
 }
 
 // ExpandHomePath expands a leading ~ in paths using the current user's home directory.

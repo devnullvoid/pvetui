@@ -151,20 +151,9 @@ func (a *App) doManualRefresh(token uint64) {
 	}()
 }
 
-// fastRefresh loads basic node/VM names immediately and enriches details in the background.
-// This is the public entry point; it acquires the refresh guard and delegates to doFastRefresh.
-// Used for normal fast-refresh (failover callbacks, etc.) where a refresh may already be running.
-func (a *App) fastRefresh() {
-	token, ok := a.startRefresh()
-	if !ok {
-		return
-	}
-	a.doFastRefresh(token)
-}
-
 // doFastRefresh is the implementation of fast refresh.
 // Callers that already hold a generation token (e.g. profile switches via forceNewRefresh)
-// should call this directly instead of fastRefresh.
+// should call this directly instead of acquiring a new token first.
 // This is used for profile switching where perceived speed matters most —
 // the user sees node and guest lists right away, then details (CPU, filesystems, guest agent)
 // fill in progressively.

@@ -7,6 +7,7 @@ package bootstrap
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -61,6 +62,8 @@ type BootstrapResult struct {
 	NoCache      bool
 	InitialGroup string
 }
+
+var errSelectionCanceled = errors.New("profile selection canceled")
 
 // ParseFlags parses command line flags and returns bootstrap options.
 func ParseFlags() BootstrapOptions {
@@ -262,8 +265,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		} else {
 			chosen, err := promptProfileSelection(cfg)
 			if err != nil {
-				fmt.Println("🚪 Exiting.")
-				os.Exit(0)
+				return nil, fmt.Errorf("interactive profile selection failed: %w", err)
 			}
 			selectedProfile = chosen
 		}
@@ -629,6 +631,11 @@ func valueOrDash(value string) string {
 // It returns the selected profile or group name, or an error if the user
 // cancels or no valid input is provided.
 func promptProfileSelection(cfg *config.Config) (string, error) {
+	stat, err := os.Stdin.Stat()
+	if err != nil || stat.Mode()&os.ModeCharDevice == 0 {
+		return "", fmt.Errorf("%w: no interactive terminal available", errSelectionCanceled)
+	}
+
 	// Collect groups (sorted)
 	groups := cfg.GetGroups()
 	groupNames := make([]string, 0, len(groups))
@@ -696,7 +703,7 @@ func promptProfileSelection(cfg *config.Config) (string, error) {
 		if !scanner.Scan() {
 			// EOF or Ctrl+C
 			fmt.Println()
-			return "", fmt.Errorf("selection canceled")
+			return "", errSelectionCanceled
 		}
 		line := strings.TrimSpace(scanner.Text())
 		n, err := strconv.Atoi(line)

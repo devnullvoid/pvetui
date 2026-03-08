@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -98,5 +99,58 @@ func TestFormatProfileAndGroupListNoProfiles(t *testing.T) {
 	}
 	if !strings.Contains(output, "Selected by current flags/config: -") {
 		t.Fatalf("expected empty selected value in output: %q", output)
+	}
+}
+
+func TestPromptProfileSelectionRequiresInteractiveTerminal(t *testing.T) {
+	t.Setenv("PVETUI_PROFILE", "")
+
+	cfg := &config.Config{
+		Profiles: map[string]config.ProfileConfig{
+			"dev": {
+				Addr: "https://dev.example",
+				User: "root@pam",
+			},
+			"prod": {
+				Addr: "https://prod.example",
+				User: "root@pam",
+			},
+		},
+	}
+
+	_, err := promptProfileSelection(cfg)
+	if !errors.Is(err, errSelectionCanceled) {
+		t.Fatalf("expected errSelectionCanceled, got %v", err)
+	}
+	if err == nil {
+		t.Fatal("expected selection cancellation error")
+	}
+}
+
+func TestBootstrapReturnsErrorWhenSelectionNeedsTTY(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configData := `profiles:
+  dev:
+    addr: https://dev.example
+    user: root@pam
+    password: secret
+  prod:
+    addr: https://prod.example
+    user: root@pam
+    password: secret
+`
+	if err := os.WriteFile(configPath, []byte(configData), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	result, err := Bootstrap(BootstrapOptions{ConfigPath: configPath})
+	if result != nil {
+		t.Fatalf("expected nil result when bootstrap cannot prompt, got %+v", result)
+	}
+	if err == nil {
+		t.Fatal("expected bootstrap error when no interactive terminal is available")
+	}
+	if !strings.Contains(err.Error(), "interactive profile selection failed") {
+		t.Fatalf("expected interactive selection error, got %v", err)
 	}
 }

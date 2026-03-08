@@ -678,6 +678,12 @@ func TestConfig_SetDefaults(t *testing.T) {
 	assert.Equal(t, "Ctrl+f", config.KeyBindings.AdvancedGuestFilter)
 }
 
+func TestNewConfigDoesNotSeedDefaultProfile(t *testing.T) {
+	cfg := NewConfig()
+
+	assert.Empty(t, cfg.DefaultProfile)
+}
+
 func TestConfig_MergeWithFile_AdvancedGuestFilterBinding(t *testing.T) {
 	tempFile, err := os.CreateTemp("", "config-advanced-filter-key-*.yaml")
 	require.NoError(t, err)
