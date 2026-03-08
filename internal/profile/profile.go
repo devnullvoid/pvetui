@@ -29,12 +29,7 @@ func ResolveProfile(flagProfile string, cfg *config.Config) (string, error) {
 		return cfg.DefaultProfile, nil
 	}
 
-	// If no explicit profile but profiles exist, use "default"
-	if len(cfg.Profiles) > 0 {
-		return "default", nil
-	}
-
-	// No profile selected (no profiles configured)
+	// No default set - return empty string to signal interactive selection is needed
 	return "", nil
 }
 

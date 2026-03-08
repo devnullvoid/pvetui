@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
@@ -276,6 +277,49 @@ func (c *Client) ClearAPICache() {
 	}
 }
 
+// ClearClusterCache selectively invalidates cluster-level cache entries
+// instead of wiping the entire cache. This preserves node-level cached
+// data (disks, updates) that rarely changes, avoiding unnecessary API
+// round-trips during refresh.
+func (c *Client) ClearClusterCache() {
+	clusterPaths := []string{
+		"/cluster/status",
+		"/cluster/resources",
+		"/cluster/tasks",
+	}
+
+	for _, path := range clusterPaths {
+		cacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, path)
+		cacheKey = strings.ReplaceAll(cacheKey, "/", "_")
+
+		_ = c.cache.Delete(cacheKey)
+	}
+
+	c.logger.Debug("Cluster-level cache entries cleared selectively")
+}
+
+// ClearNodeCache selectively invalidates cache entries for a specific node.
+// This is more efficient than clearing the entire cache when only one node's
+// data needs to be refreshed.
+func (c *Client) ClearNodeCache(nodeName string) {
+	nodePaths := []string{
+		fmt.Sprintf("/nodes/%s/status", nodeName),
+		fmt.Sprintf("/nodes/%s/version", nodeName),
+		fmt.Sprintf("/nodes/%s/config", nodeName),
+		fmt.Sprintf("/nodes/%s/disks/list", nodeName),
+		fmt.Sprintf("/nodes/%s/apt/update", nodeName),
+	}
+
+	for _, path := range nodePaths {
+		cacheKey := fmt.Sprintf("proxmox_api_%s_%s", c.baseURL, path)
+		cacheKey = strings.ReplaceAll(cacheKey, "/", "_")
+
+		_ = c.cache.Delete(cacheKey)
+	}
+
+	c.logger.Debug("Cache entries cleared for node %s", nodeName)
+}
+
 // GetCache returns the cache instance used by this client.
 // This is useful for sharing cache instances across multiple clients in group mode.
 func (c *Client) GetCache() interfaces.Cache {
@@ -293,9 +337,107 @@ func (c *Client) BaseHostname() string {
 }
 
 // GetFreshClusterStatus retrieves cluster status bypassing cache completely.
+// This includes VM enrichment with guest agent data for full accuracy.
 func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
-	// Clear the cache first to ensure fresh data
-	c.ClearAPICache()
+	return c.getFreshClusterStatusInternal(true)
+}
+
+// GetLightClusterStatus retrieves fresh cluster status without VM enrichment.
+// This is faster than GetFreshClusterStatus and suitable for periodic auto-refresh
+// where guest agent data (IPs, filesystems) doesn't need to be refreshed every cycle.
+func (c *Client) GetLightClusterStatus() (*Cluster, error) {
+	return c.getFreshClusterStatusInternal(false)
+}
+
+// GetFastFreshClusterStatus retrieves fresh cluster status (cache-busting) and returns
+// basic data immediately. VM enrichment runs in the background and the provided callback
+// is called when enrichment completes (with any error that occurred).
+// This gives the UI instant node/VM names while detailed guest agent data loads asynchronously.
+func (c *Client) GetFastFreshClusterStatus(onEnrichmentComplete func(error)) (*Cluster, error) {
+	// Clear cluster-level cache so we get truly fresh data
+	c.ClearClusterCache()
+
+	cluster := &Cluster{
+		Nodes:          make([]*Node, 0),
+		StorageManager: NewStorageManager(),
+		lastUpdate:     time.Now(),
+	}
+
+	// 1. Get basic cluster status (node names, online/offline)
+	if err := c.getClusterBasicStatus(cluster); err != nil {
+		return nil, err
+	}
+
+	// 2. Get cluster resources fresh (TTL=0) — gives us node stats + VM names/status
+	if err := c.processClusterResourcesWithCache(cluster, 0); err != nil {
+		return nil, err
+	}
+
+	// 3. Calculate cluster-wide totals from the basic data
+	c.calculateClusterTotals(cluster)
+
+	c.Cluster = cluster
+
+	// 4. Run VM enrichment in background — guest agent IPs, filesystems, configs
+	go func() {
+		c.logger.Debug("[FAST-FRESH] Starting background VM enrichment for %d nodes", len(cluster.Nodes))
+
+		// Reset guestAgentChecked before enrichment (same as startup path)
+		for _, node := range cluster.Nodes {
+			if node.Online && node.VMs != nil {
+				for _, vm := range node.VMs {
+					vm.guestAgentChecked = false
+				}
+			}
+		}
+
+		var enrichErr error
+		if err := c.EnrichVMs(cluster); err != nil {
+			c.logger.Debug("[FAST-FRESH] Error enriching VM data: %v", err)
+			enrichErr = err
+		}
+
+		// Retry QEMU VMs with missing guest agent data (same as startup path)
+		time.Sleep(3 * time.Second)
+		for _, node := range cluster.Nodes {
+			if !node.Online || node.VMs == nil {
+				continue
+			}
+			for _, vm := range node.VMs {
+				if vm.Status == VMStatusRunning && vm.Type == VMTypeQemu && vm.AgentEnabled && (!vm.AgentRunning || len(vm.NetInterfaces) == 0) {
+					if err := c.GetVmStatus(vm); err != nil {
+						if strings.Contains(err.Error(), "guest agent is not running") {
+							// Expected: agent not yet ready; not a reportable error.
+							continue
+						}
+						// Unexpected retry error: aggregate into enrichErr so the caller
+						// is aware that some VMs may have incomplete guest agent data.
+						c.logger.Debug("[FAST-FRESH] Retry error for VM %d on %s: %v", vm.ID, node.Name, err)
+						if enrichErr == nil {
+							enrichErr = fmt.Errorf("guest agent retry: VM %d (%s): %w", vm.ID, node.Name, err)
+						} else {
+							enrichErr = fmt.Errorf("%w; VM %d (%s): %v", enrichErr, vm.ID, node.Name, err)
+						}
+					}
+				}
+			}
+		}
+
+		if onEnrichmentComplete != nil {
+			onEnrichmentComplete(enrichErr)
+		}
+	}()
+
+	return cluster, nil
+}
+
+// getFreshClusterStatusInternal is the shared implementation for cluster status retrieval.
+// When enrichVMs is true, running VMs are enriched with guest agent data (slower but more complete).
+func (c *Client) getFreshClusterStatusInternal(enrichVMs bool) (*Cluster, error) {
+	// Selectively clear cluster-level cache entries rather than the entire cache.
+	// Node-level data (disks, updates) is invalidated per-node during enrichment,
+	// so clearing everything here wastes cached data that is still valid.
+	c.ClearClusterCache()
 
 	// Create a fresh cluster with minimal cache TTL for resources
 	cluster := &Cluster{
@@ -314,10 +456,12 @@ func (c *Client) GetFreshClusterStatus() (*Cluster, error) {
 		return nil, err
 	}
 
-	// 3. Enrich VMs with detailed status information
-	if err := c.EnrichVMs(cluster); err != nil {
-		// Log error but continue
-		c.logger.Debug("[CLUSTER] Error enriching VM data: %v", err)
+	// 3. Enrich VMs with detailed status information (skipped for light refresh)
+	if enrichVMs {
+		if err := c.EnrichVMs(cluster); err != nil {
+			// Log error but continue
+			c.logger.Debug("[CLUSTER] Error enriching VM data: %v", err)
+		}
 	}
 
 	// 4. Calculate cluster-wide totals
@@ -365,15 +509,49 @@ func (c *Client) RefreshNodeData(nodeName string) (*Node, error) {
 		}
 	}
 
-	// Fetch fresh node data
-	freshNode, err := c.GetNodeStatus(nodeName)
-	if err != nil {
+	// Fetch node status, disks, and updates concurrently.
+	// Disks and updates only need the node name and are independent of each other.
+	var (
+		freshNode *Node
+		statusErr error
+		disks     []NodeDisk
+		updates   []NodeUpdate
+		wg        sync.WaitGroup
+	)
+
+	wg.Add(3) //nolint:mnd // status + disks + updates
+
+	go func() {
+		defer wg.Done()
+
+		freshNode, statusErr = c.GetNodeStatus(nodeName)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		if d, err := c.GetNodeDisks(nodeName); err == nil {
+			disks = d
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		if u, err := c.GetNodeUpdates(nodeName); err == nil {
+			updates = u
+		}
+	}()
+
+	wg.Wait()
+
+	if statusErr != nil {
 		// If we can't reach the node, it's likely offline
 		if originalNode != nil {
 			originalNode.Online = false
 		}
 
-		return nil, fmt.Errorf("failed to refresh node %s: %w", nodeName, err)
+		return nil, fmt.Errorf("failed to refresh node %s: %w", nodeName, statusErr)
 	}
 
 	// If we successfully got node status, the node is online
@@ -392,15 +570,9 @@ func (c *Client) RefreshNodeData(nodeName string) (*Node, error) {
 		}
 	}
 
-	// Fetch Disks
-	if disks, err := c.GetNodeDisks(nodeName); err == nil {
-		freshNode.Disks = disks
-	}
-
-	// Fetch Updates
-	if updates, err := c.GetNodeUpdates(nodeName); err == nil {
-		freshNode.Updates = updates
-	}
+	// Apply concurrently-fetched disks and updates
+	freshNode.Disks = disks
+	freshNode.Updates = updates
 
 	return freshNode, nil
 }
@@ -594,14 +766,47 @@ func (c *Client) enrichNodeMissingDetails(node *Node) error {
 		return nil
 	}
 
-	fullStatus, err := c.GetNodeStatus(node.Name)
-	if err != nil {
+	// Fetch status, disks, and updates concurrently.
+	// All three only require the node name and are independent of each other.
+	var (
+		fullStatus *Node
+		statusErr  error
+		disks      []NodeDisk
+		disksErr   error
+		updates    []NodeUpdate
+		updatesErr error
+		wg         sync.WaitGroup
+	)
+
+	wg.Add(3) //nolint:mnd // status + disks + updates
+
+	go func() {
+		defer wg.Done()
+
+		fullStatus, statusErr = c.GetNodeStatus(node.Name)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		disks, disksErr = c.GetNodeDisks(node.Name)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		updates, updatesErr = c.GetNodeUpdates(node.Name)
+	}()
+
+	wg.Wait()
+
+	if statusErr != nil {
 		// Mark node as offline if we can't reach it
 		node.Online = false
-		c.logger.Debug("[CLUSTER] Node %s appears to be offline or unreachable for detail enrichment: %v", node.Name, err)
+		c.logger.Debug("[CLUSTER] Node %s appears to be offline or unreachable for detail enrichment: %v", node.Name, statusErr)
 
 		// Return error for logging but don't make it critical
-		return fmt.Errorf("node %s offline/unreachable for details: %w", node.Name, err)
+		return fmt.Errorf("node %s offline/unreachable for details: %w", node.Name, statusErr)
 	}
 
 	// Only update fields not available in cluster resources
@@ -611,18 +816,16 @@ func (c *Client) enrichNodeMissingDetails(node *Node) error {
 	node.LoadAvg = fullStatus.LoadAvg
 	node.lastMetricsUpdate = time.Now()
 
-	// Fetch Disks
-	if disks, err := c.GetNodeDisks(node.Name); err == nil {
+	if disksErr == nil {
 		node.Disks = disks
 	} else {
-		c.logger.Debug("Failed to fetch disks for node %s: %v", node.Name, err)
+		c.logger.Debug("Failed to fetch disks for node %s: %v", node.Name, disksErr)
 	}
 
-	// Fetch Updates
-	if updates, err := c.GetNodeUpdates(node.Name); err == nil {
+	if updatesErr == nil {
 		node.Updates = updates
 	} else {
-		c.logger.Debug("Failed to fetch updates for node %s: %v", node.Name, err)
+		c.logger.Debug("Failed to fetch updates for node %s: %v", node.Name, updatesErr)
 	}
 
 	c.logger.Debug("[CLUSTER] Successfully enriched missing details for node: %s", node.Name)

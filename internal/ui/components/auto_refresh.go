@@ -39,19 +39,20 @@ func (a *App) startAutoRefresh() {
 		return
 	}
 
-	if a.autoRefreshTicker != nil {
+	if a.autoRefreshRunning {
 		return // Already running
 	}
 
-	a.autoRefreshStop = make(chan bool, 1)
-	a.autoRefreshTicker = time.NewTicker(10 * time.Second) // 10 second interval
+	a.autoRefreshRunning = true
 	a.autoRefreshCountdown = 10
 	a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 	a.autoRefreshCountdownStop = make(chan bool, 1)
 
-	// Start countdown goroutine
+	// Start countdown goroutine using a proper ticker instead of busy-wait + sleep
 	go func() {
 		uiLogger := models.GetUILogger()
+		countdownTicker := time.NewTicker(1 * time.Second)
+		defer countdownTicker.Stop()
 
 		for {
 			select {
@@ -59,9 +60,7 @@ func (a *App) startAutoRefresh() {
 				return
 			case <-a.ctx.Done():
 				return
-			default:
-				time.Sleep(1 * time.Second)
-
+			case <-countdownTicker.C:
 				if !a.autoRefreshEnabled {
 					return
 				}
@@ -77,13 +76,16 @@ func (a *App) startAutoRefresh() {
 
 				// Trigger refresh when countdown reaches 0
 				if a.autoRefreshCountdown == 0 {
-					// Only refresh if not currently loading something and no pending operations
-					if !a.header.IsLoading() && !models.GlobalState.HasPendingOperations() {
+					// Only refresh if not currently loading, no pending operations,
+					// and no other refresh (manual/fast/enrichment) is in progress.
+					if !a.header.IsLoading() && !models.GlobalState.HasPendingOperations() && !a.isRefreshActive() {
 						uiLogger.Debug("Auto-refresh triggered by countdown")
 
 						go a.autoRefreshDataWithFooter()
 					} else {
-						if a.header.IsLoading() {
+						if a.isRefreshActive() {
+							uiLogger.Debug("Auto-refresh skipped - refresh already in progress")
+						} else if a.header.IsLoading() {
 							uiLogger.Debug("Auto-refresh skipped - header loading operation in progress")
 						} else {
 							uiLogger.Debug("Auto-refresh skipped - pending VM/node operations in progress")
@@ -100,15 +102,18 @@ func (a *App) startAutoRefresh() {
 		}
 	}()
 
-	// Spinner animation goroutine
+	// Spinner animation goroutine using a proper ticker
 	go func() {
+		spinnerTicker := time.NewTicker(100 * time.Millisecond)
+		defer spinnerTicker.Stop()
+
 		for {
 			select {
+			case <-a.autoRefreshCountdownStop:
+				return
 			case <-a.ctx.Done():
 				return
-			default:
-				time.Sleep(100 * time.Millisecond)
-
+			case <-spinnerTicker.C:
 				if !a.autoRefreshEnabled {
 					return
 				}
@@ -125,26 +130,12 @@ func (a *App) startAutoRefresh() {
 
 // stopAutoRefresh stops the auto-refresh timer.
 func (a *App) stopAutoRefresh() {
-	// Always stop and nil out the ticker, close channels, and reset countdown
-	if a.autoRefreshTicker != nil {
-		a.autoRefreshTicker.Stop()
-		a.autoRefreshTicker = nil
-	}
-
-	if a.autoRefreshStop != nil {
-		select {
-		case a.autoRefreshStop <- true:
-		default:
-		}
-		close(a.autoRefreshStop)
-		a.autoRefreshStop = nil
-	}
-
 	if a.autoRefreshCountdownStop != nil {
 		close(a.autoRefreshCountdownStop)
 		a.autoRefreshCountdownStop = nil
 	}
 
+	a.autoRefreshRunning = false
 	a.autoRefreshCountdown = 0
 	a.footer.UpdateAutoRefreshCountdown(0)
 }

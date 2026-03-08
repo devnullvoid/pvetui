@@ -76,13 +76,8 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 				} else {
 					a.header.ShowSuccess(fmt.Sprintf("Successfully deleted %s", vm.Name))
 
-					// Clear API cache for the specific client
-					client, _ := a.getClientForVM(vm)
-					if client != nil {
-						client.ClearAPICache()
-					}
-
-					// Refresh to update the UI (VM should be gone)
+					// manualRefresh handles selective cache invalidation;
+					// no need for a redundant full cache wipe here.
 					a.manualRefresh()
 				}
 			})
