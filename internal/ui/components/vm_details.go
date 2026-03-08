@@ -109,7 +109,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 
 	statusEmoji := utils.GetStatusEmoji(vm.Status, showIcons)
 	if vm.Template && showIcons {
-		statusEmoji = "📄"
+		statusEmoji = "🟡"
 	}
 	switch {
 	case vm.Template:
