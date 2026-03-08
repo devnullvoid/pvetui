@@ -86,7 +86,7 @@ func (vd *VMDetails) Update(vm *api.VM) {
 		vd.SetCell(row, 1, tview.NewTableCell(api.StringNA).SetTextColor(theme.Colors.Secondary))
 		// Cluster resources often omit description for stopped guests.
 		// Hydrate from config for the currently selected guest only.
-		if vd.app != nil && !strings.EqualFold(vm.Status, api.VMStatusRunning) {
+		if vd.app != nil && !vm.Template && !strings.EqualFold(vm.Status, api.VMStatusRunning) {
 			vd.hydrateDescriptionForStoppedGuest(vm)
 		}
 	}
@@ -548,7 +548,7 @@ func (vd *VMDetails) hydrateDescriptionForStoppedGuest(vm *api.VM) {
 
 	go func() {
 		client, err := vd.app.getClientForVM(vm)
-		if err != nil {
+		if err != nil || client == nil {
 			return
 		}
 

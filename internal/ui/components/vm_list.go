@@ -146,10 +146,6 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			} else {
 				vmText = "○ " + vmText
 			}
-			if isTemplateGuest(vm) {
-				vmText += " [warning](template)[-]"
-			}
-
 			// Apply color formatting and pending state
 			var mainText string
 			if isPending {
