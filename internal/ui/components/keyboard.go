@@ -15,6 +15,10 @@ import (
 
 // keyMatch checks if an event matches a key specification string.
 func keyMatch(ev *tcell.EventKey, spec string) bool {
+	if strings.TrimSpace(spec) == "" {
+		return false
+	}
+
 	key, r, mod, err := keys.Parse(spec)
 	if err != nil {
 		if config.DebugEnabled {
