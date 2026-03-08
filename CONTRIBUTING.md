@@ -6,12 +6,17 @@ Thank you for your interest in contributing to pvetui! This document provides gu
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/yourusername/pvetui.git`
-3. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Create a feature branch from `develop`: `git checkout origin/develop -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes
 6. Commit your changes: `git commit -m "Add your feature"`
 7. Push to your fork: `git push origin feature/your-feature-name`
-8. Create a Pull Request
+8. Create a Pull Request targeting `develop`
+
+## Branching Model
+
+- `develop` is the integration branch for ongoing work and the required base branch for pull requests.
+- `master` tracks the latest stable release and should not be used as the base branch for normal feature or fix PRs.
 
 ## Development Setup
 
@@ -200,8 +205,9 @@ Screenshots, mockups, or examples.
 2. Update documentation as needed
 3. Add or update tests as appropriate
 4. Ensure all CI checks pass
-5. Request review from maintainers
-6. Address feedback promptly
+5. Open the pull request against `develop` (not `master`)
+6. Request review from maintainers
+7. Address feedback promptly
 
 ### Pull Request Template
 ```
@@ -225,6 +231,7 @@ Brief description of changes.
 - [ ] Documentation updated
 - [ ] Tests added/updated
 - [ ] CI checks pass
+- [ ] Pull request targets `develop`
 ```
 
 ## Community
