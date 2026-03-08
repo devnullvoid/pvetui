@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Startup Profile Chooser Default Handling**: When `default_profile` is unset, startup now correctly prompts for profile/group selection even if a profile is literally named `default`, and non-interactive launches now return a clear error instead of exiting successfully without starting the app.
+- **Template Guest Handling**: Template VMs/CTs are now labeled as templates in the guest list and Guest Details, no longer appear as ordinary stopped guests for lifecycle UX, and are excluded from start-oriented context-menu and batch-action flows.
 
 ## [1.0.20] - 2026-02-28
 

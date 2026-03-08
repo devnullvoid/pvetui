@@ -98,23 +98,25 @@ func (vd *VMDetails) Update(vm *api.VM) {
 	row++
 
 	vd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("Type", "📦", showIcons)).SetTextColor(theme.Colors.HeaderText))
-	vd.SetCell(row, 1, tview.NewTableCell(strings.ToUpper(vm.Type)).SetTextColor(theme.Colors.Primary))
+	vd.SetCell(row, 1, tview.NewTableCell(guestTypeLabel(vm)).SetTextColor(theme.Colors.Primary))
 
 	row++
 
 	// Status Info
-	statusText := vm.Status
-	if len(statusText) > 0 {
-		statusText = strings.ToUpper(statusText[:1]) + statusText[1:]
-	}
+	statusText := guestStatusLabel(vm)
 
 	var statusColor tcell.Color
 
 	statusEmoji := utils.GetStatusEmoji(vm.Status, showIcons)
-	switch strings.ToLower(vm.Status) {
-	case api.VMStatusRunning:
+	if vm.Template && showIcons {
+		statusEmoji = "📄"
+	}
+	switch {
+	case vm.Template:
+		statusColor = theme.Colors.Warning
+	case strings.ToLower(vm.Status) == api.VMStatusRunning:
 		statusColor = theme.Colors.StatusRunning
-	case api.VMStatusStopped:
+	case strings.ToLower(vm.Status) == api.VMStatusStopped:
 		statusColor = theme.Colors.StatusStopped
 	default:
 		statusColor = theme.Colors.StatusPending

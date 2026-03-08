@@ -76,3 +76,39 @@ func TestVMDetailsShowsZeroCPUForRunningGuestWithNonFiniteMetric(t *testing.T) {
 		t.Fatalf("expected CPU value %q, got %q", "0.0% of 2 cores", value)
 	}
 }
+
+func TestVMDetailsLabelsTemplates(t *testing.T) {
+	vd := NewVMDetails()
+	vd.SetApp(&App{config: config.Config{ShowIcons: false}})
+
+	vm := &api.VM{
+		ID:       900,
+		Name:     "ubuntu-template",
+		Type:     api.VMTypeQemu,
+		Node:     "pve1",
+		Status:   api.VMStatusStopped,
+		Template: true,
+	}
+
+	vd.Update(vm)
+
+	typeValue, found := findDetailValueByLabel(vd, "Type")
+	if !found {
+		t.Fatalf("expected Type row to be present")
+	}
+	if typeValue != "QEMU Template" {
+		t.Fatalf("expected Type value %q, got %q", "QEMU Template", typeValue)
+	}
+
+	statusValue, found := findDetailValueByLabel(vd, "Status")
+	if !found {
+		t.Fatalf("expected Status row to be present")
+	}
+	if statusValue != "Template" {
+		t.Fatalf("expected Status value %q, got %q", "Template", statusValue)
+	}
+
+	if _, found := findDetailValueByLabel(vd, "Template"); found {
+		t.Fatalf("did not expect a separate Template row")
+	}
+}

@@ -88,7 +88,7 @@ func (a *App) ShowVMContextMenu() {
 		if vm.Type == api.VMTypeQemu {
 			menuItems = append(menuItems, vmActionReset)
 		}
-	} else if vm.Status == api.VMStatusStopped {
+	} else if canStartGuest(vm) {
 		menuItems = append(menuItems, vmActionStart)
 	}
 
@@ -409,10 +409,13 @@ func isEligibleForBatchAction(vm *api.VM, action string) bool {
 	if vm == nil {
 		return false
 	}
+	if vm.Template {
+		return false
+	}
 
 	switch action {
 	case vmActionStart:
-		return vm.Status == api.VMStatusStopped
+		return canStartGuest(vm)
 	case vmActionShutdown, vmActionStop, vmActionRestart:
 		return vm.Status == api.VMStatusRunning
 	case vmActionReset:

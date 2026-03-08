@@ -133,8 +133,11 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 				isPending, operation = models.GlobalState.IsVMPending(vm)
 			}
 
-			// Get status indicator with pending state awareness
+			// Get status indicator with pending state awareness.
 			statusIndicator := utils.FormatPendingStatusIndicator(vm.Status, isPending, operation)
+			if isTemplateGuest(vm) && !isPending {
+				statusIndicator = theme.ReplaceSemanticTags("[warning]◆[-] ")
+			}
 
 			// Format the VM name with ID
 			vmText := fmt.Sprintf("%d - %s", vm.ID, vm.Name)
@@ -143,12 +146,17 @@ func (vl *VMList) SetVMs(vms []*api.VM) {
 			} else {
 				vmText = "○ " + vmText
 			}
+			if isTemplateGuest(vm) {
+				vmText += " [warning](template)[-]"
+			}
 
 			// Apply color formatting and pending state
 			var mainText string
 			if isPending {
 				// For pending VMs, apply a dimmed effect to the entire item
 				mainText = statusIndicator + fmt.Sprintf("[secondary]%s[-]", vmText)
+			} else if isTemplateGuest(vm) {
+				mainText = statusIndicator + fmt.Sprintf("[warning]%s[-]", vmText)
 			} else if vm.Status != api.VMStatusRunning {
 				// For stopped VMs, use gray color for the VM text part only
 				// Keep the red status indicator but make the text gray

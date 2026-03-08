@@ -289,6 +289,7 @@ Key architectural decisions and rationale:
 - **Header loading animation**: Multiple overlapping `ShowLoading` calls can spawn concurrent animations and make the spinner appear too fast; ensure loading state is serialized (single animation, cancelable ticker).
 - **Context menu anchoring**: Anchor node/guest context menus to their source list primitives (`nodeList`/`vmList`), not the currently focused pane; focus can be in details and produce inconsistent placement.
 - **Context menu geometry**: Compute/clamp modal placement against the `pages` container rect (not `mainLayout`) to avoid low/clipped menus on smaller terminals.
+- **Template guests are not ordinary stopped guests**: Proxmox templates often surface with `status=stopped`, but lifecycle UX must treat `VM.Template` as authoritative: label templates explicitly in guest list/details, do not offer start actions, and exclude them from batch lifecycle actions.
 - **Keybind unsetting semantics**: Treat empty string keybinds (for example `global_menu: ""`) as explicit unbinds; do not silently reapply default keys.
 - **Back navigation consistency**: For non-input views, support both `Esc` and `Backspace` for back navigation; avoid adding `Backspace` handlers on input-focused views where it must remain text editing.
 
