@@ -158,6 +158,15 @@ func (a *App) setupKeyboardHandlers() {
 			return event
 		}
 
+		// The Storage page uses single-key content filters and refresh shortcuts that
+		// intentionally overlap with some global bindings. Let the page-local handlers
+		// consume those keys before running global shortcut matching.
+		if currentPage, _ := a.pages.GetFrontPage(); currentPage == api.PageStorage {
+			if browser, ok := a.storageBrowser.(*StorageBrowser); ok && browser.reservesKey(event) {
+				return event
+			}
+		}
+
 		// Smart Escape handling (global menu)
 		if event.Key() == tcell.KeyEscape {
 			a.ShowGlobalContextMenu()

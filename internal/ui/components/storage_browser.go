@@ -21,12 +21,14 @@ type storageSelection struct {
 type StorageBrowser struct {
 	*tview.Flex
 
-	tree         *tview.TreeView
-	details      *tview.Table
-	contentTable *tview.Table
-	app          *App
-	nodes        []*api.Node
-	selection    storageSelection
+	tree          *tview.TreeView
+	details       *tview.Table
+	contentTable  *tview.Table
+	app           *App
+	nodes         []*api.Node
+	selection     storageSelection
+	contentItems  []api.StorageContentItem
+	contentFilter string
 }
 
 var _ StorageBrowserComponent = (*StorageBrowser)(nil)
@@ -55,10 +57,11 @@ func NewStorageBrowser() *StorageBrowser {
 	return &StorageBrowser{
 		Flex: tview.NewFlex().
 			AddItem(tree, 0, 1, true).
-			AddItem(right, 0, 2, false),
-		tree:         tree,
-		details:      details,
-		contentTable: contentTable,
+			AddItem(right, 0, 3, false),
+		tree:          tree,
+		details:       details,
+		contentTable:  contentTable,
+		contentFilter: storageFilterAll,
 	}
 }
 
@@ -82,6 +85,9 @@ func (sb *StorageBrowser) SetApp(app *App) {
 	contentNav := createNavigationInputCapture(app, sb.tree, nil)
 	pendingG = false
 	sb.contentTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if sb.handleContentFilterKey(event) {
+			return nil
+		}
 		if handleVimTopBottomRune(event, &pendingG, func() {
 			jumpTableTop(sb.contentTable)
 		}, func() {
@@ -180,6 +186,7 @@ func (sb *StorageBrowser) handleTreeSelection(node *tview.TreeNode) {
 	}
 
 	sb.selection = *ref
+	sb.contentItems = nil
 	if ref.Storage == nil {
 		sb.showNodeSummary(ref.Node)
 		sb.showContentMessage("Select a storage under the node to view content")
@@ -219,7 +226,8 @@ func (sb *StorageBrowser) loadStorageContent(selection storageSelection) {
 				sb.showContentMessage(fmt.Sprintf("Failed to load content: %v", err))
 				return
 			}
-			sb.showStorageContent(content)
+			sb.contentItems = content
+			sb.showStorageContent()
 		})
 	}()
 }
@@ -292,11 +300,13 @@ func (sb *StorageBrowser) setDetailsRow(row int, label, value string) {
 
 func (sb *StorageBrowser) showContentMessage(message string) {
 	sb.contentTable.Clear()
+	sb.updateContentTitle()
 	sb.contentTable.SetCell(0, 0, tview.NewTableCell(message).SetTextColor(theme.Colors.Primary))
 }
 
-func (sb *StorageBrowser) showStorageContent(items []api.StorageContentItem) {
+func (sb *StorageBrowser) showStorageContent() {
 	sb.contentTable.Clear()
+	sb.updateContentTitle()
 	headers := []string{"Type", "Volume", "Size", "Created", "VMID", "Format"}
 	for col, header := range headers {
 		sb.contentTable.SetCell(0, col, tview.NewTableCell(header).
@@ -304,6 +314,7 @@ func (sb *StorageBrowser) showStorageContent(items []api.StorageContentItem) {
 			SetSelectable(false))
 	}
 
+	items := sb.filteredContentItems()
 	if len(items) == 0 {
 		sb.contentTable.SetCell(1, 0, tview.NewTableCell("No content found").SetTextColor(theme.Colors.Primary))
 		return
@@ -337,6 +348,79 @@ func (sb *StorageBrowser) showStorageContent(items []api.StorageContentItem) {
 	}
 
 	sb.contentTable.Select(1, 0)
+}
+
+func (sb *StorageBrowser) handleContentFilterKey(event *tcell.EventKey) bool {
+	if event.Key() != tcell.KeyRune {
+		return false
+	}
+
+	switch event.Rune() {
+	case '0', 'a':
+		sb.contentFilter = storageFilterAll
+	case 'd':
+		sb.contentFilter = storageFilterGuestVolumes
+	case 'i':
+		sb.contentFilter = storageFilterISO
+	case 't':
+		sb.contentFilter = storageFilterTemplates
+	case 's':
+		sb.contentFilter = storageFilterSnippets
+	case 'b':
+		sb.contentFilter = storageFilterBackups
+	case 'r':
+		if sb.selection.Node != nil && sb.selection.Storage != nil {
+			sb.showContentMessage("Refreshing storage content...")
+			sb.loadStorageContent(sb.selection)
+		}
+		return true
+	default:
+		return false
+	}
+
+	if sb.selection.Storage != nil {
+		sb.showStorageContent()
+	}
+	return true
+}
+
+func (sb *StorageBrowser) reservesKey(event *tcell.EventKey) bool {
+	if event == nil || event.Key() != tcell.KeyRune {
+		return false
+	}
+
+	switch event.Rune() {
+	case '0', 'a', 'd', 'i', 't', 's', 'b', 'r':
+		return true
+	default:
+		return false
+	}
+}
+
+func (sb *StorageBrowser) filteredContentItems() []api.StorageContentItem {
+	if sb.contentFilter == storageFilterAll {
+		return append([]api.StorageContentItem(nil), sb.contentItems...)
+	}
+
+	filtered := make([]api.StorageContentItem, 0, len(sb.contentItems))
+	for _, item := range sb.contentItems {
+		if contentMatchesFilter(item.Content, sb.contentFilter) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func (sb *StorageBrowser) updateContentTitle() {
+	sb.contentTable.SetTitle(fmt.Sprintf(
+		" Content [%s]All[-][secondary](a/0)[-] [%s]Guest[-][secondary](d)[-] [%s]ISO[-][secondary](i)[-] [%s]Tpl[-][secondary](t)[-] [%s]Snip[-][secondary](s)[-] [%s]Bkp[-][secondary](b)[-] [primary]Ref[-][secondary](r)[-] ",
+		filterColor(storageFilterAll, sb.contentFilter),
+		filterColor(storageFilterGuestVolumes, sb.contentFilter),
+		filterColor(storageFilterISO, sb.contentFilter),
+		filterColor(storageFilterTemplates, sb.contentFilter),
+		filterColor(storageFilterSnippets, sb.contentFilter),
+		filterColor(storageFilterBackups, sb.contentFilter),
+	))
 }
 
 func (sb *StorageBrowser) restoreSelection(root *tview.TreeNode, key string) *tview.TreeNode {
@@ -433,4 +517,37 @@ func sortedKeys(values map[string]struct{}) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+const (
+	storageFilterAll          = "all"
+	storageFilterGuestVolumes = "guest"
+	storageFilterISO          = "iso"
+	storageFilterTemplates    = "vztmpl"
+	storageFilterSnippets     = "snippets"
+	storageFilterBackups      = "backup"
+)
+
+func contentMatchesFilter(content, filter string) bool {
+	switch filter {
+	case storageFilterGuestVolumes:
+		return content == "images" || content == "rootdir"
+	case storageFilterISO:
+		return content == "iso"
+	case storageFilterTemplates:
+		return content == "vztmpl"
+	case storageFilterSnippets:
+		return content == "snippets"
+	case storageFilterBackups:
+		return content == "backup"
+	default:
+		return true
+	}
+}
+
+func filterColor(filter, active string) string {
+	if filter == active {
+		return theme.ColorToTag(theme.Colors.Primary)
+	}
+	return theme.ColorToTag(theme.Colors.Secondary)
 }

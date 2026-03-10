@@ -304,6 +304,7 @@ func (a *App) applyInitialClusterUpdate(cluster *api.Cluster) {
 			copy(models.GlobalState.FilteredNodes, cluster.Nodes)
 		}
 		a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+		a.syncStorageBrowserNodes()
 
 		// Rebuild VM list from fresh cluster resources so new guests appear immediately
 		var vms []*api.VM
@@ -401,6 +402,7 @@ func (a *App) doEnrichNodes(cluster *api.Cluster, refreshClient *api.Client, tok
 				copy(models.GlobalState.FilteredNodes, enrichedNodes)
 			}
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			a.syncStorageBrowserNodes()
 
 			// Rebuild VM list from enriched nodes
 			var vms []*api.VM
@@ -543,6 +545,7 @@ func (a *App) enrichGroupNodesParallel(token uint64, nodes []*api.Node, hasSelec
 				copy(models.GlobalState.FilteredNodes, enrichedNodes)
 			}
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			a.syncStorageBrowserNodes()
 
 			// Update cluster status with the enriched nodes
 			syntheticCluster := a.createSyntheticGroup(enrichedNodes)
@@ -567,6 +570,7 @@ func (a *App) enrichGroupNodesParallel(token uint64, nodes []*api.Node, hasSelec
 			a.restoreSearchUI(searchWasActive, nodeSearchState, vmSearchState)
 			// Update lists and cluster status after enrichment to minimize flicker
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			a.syncStorageBrowserNodes()
 			a.vmList.SetVMs(models.GlobalState.FilteredVMs)
 			a.clusterStatus.Update(a.getDisplayCluster())
 
@@ -632,6 +636,7 @@ func (a *App) refreshNodeData(node *api.Node) {
 			}
 
 			a.nodeList.SetNodes(models.GlobalState.FilteredNodes)
+			a.syncStorageBrowserNodes()
 			a.nodeDetails.Update(freshNode, models.GlobalState.OriginalNodes)
 			// Restore selection by previously selected node name using the tview list data
 			restored := false

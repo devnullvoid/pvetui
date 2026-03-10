@@ -190,6 +190,7 @@ func (a *App) autoRefreshData(snap selSnap) {
 			} else {
 				a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
 			}
+			a.syncStorageBrowserNodes()
 
 			if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 				models.FilterVMs(vmSearchState.Filter)
@@ -355,6 +356,7 @@ func (a *App) autoRefreshData(snap selSnap) {
 		} else {
 			a.nodeList.SetNodes(models.GlobalState.OriginalNodes)
 		}
+		a.syncStorageBrowserNodes()
 
 		if vmSearchState != nil && vmSearchState.HasActiveVMFilter() {
 			models.FilterVMs(vmSearchState.Filter)
