@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,5 +166,99 @@ func TestPVEMockAPI(t *testing.T) {
 			}
 			return refreshedVM.Status == "running"
 		}, 8*time.Second, 200*time.Millisecond)
+	})
+
+	t.Run("cluster_nextid_and_guest_creation", func(t *testing.T) {
+		var nextIDResp map[string]interface{}
+		err := client.Get("/cluster/nextid", &nextIDResp)
+		require.NoError(t, err)
+		require.Equal(t, float64(102), nextIDResp["data"])
+
+		resp, err := http.PostForm(
+			fmt.Sprintf("%s/api2/json/nodes/pve/qemu", mockURL),
+			url.Values{
+				"vmid":    {"102"},
+				"name":    {"created-vm"},
+				"memory":  {"2048"},
+				"cores":   {"2"},
+				"sockets": {"1"},
+				"scsi0":   {"local-zfs:20"},
+				"cdrom":   {"local:iso/debian-12.5.iso"},
+				"net0":    {"virtio=DE:AD:BE:EF:00:01,bridge=vmbr0"},
+				"start":   {"1"},
+			},
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "qemu", ID: 102}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Name == "created-vm"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		createdVM, err := client.RefreshVMData(&api.VM{Node: "pve", Type: "qemu", ID: 102}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "running", createdVM.Status)
+
+		var storageContent map[string]interface{}
+		err = client.Get("/nodes/pve/storage/local-zfs/content?content=images&vmid=102", &storageContent)
+		require.NoError(t, err)
+
+		items, ok := storageContent["data"].([]interface{})
+		require.True(t, ok)
+		require.Len(t, items, 1)
+	})
+
+	t.Run("lxc_creation_storage_content_and_resize", func(t *testing.T) {
+		resp, err := http.PostForm(
+			fmt.Sprintf("%s/api2/json/nodes/pve/lxc", mockURL),
+			url.Values{
+				"vmid":         {"103"},
+				"hostname":     {"created-ct"},
+				"memory":       {"1024"},
+				"swap":         {"512"},
+				"cores":        {"2"},
+				"rootfs":       {"local-zfs:12"},
+				"ostemplate":   {"local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"},
+				"net0":         {"name=eth0,bridge=vmbr0,ip=dhcp"},
+				"unprivileged": {"1"},
+			},
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "lxc", ID: 103}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Hostname == "created-ct"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		ct := &api.VM{Node: "pve", Type: "lxc", ID: 103}
+		err = client.ResizeVMStorage(ct, "rootfs", "+4G")
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			config, cfgErr := client.GetVMConfig(ct)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Disks["rootfs"] == int64(16*1024*1024*1024)
+		}, 3*time.Second, 100*time.Millisecond)
+
+		for _, contentType := range []string{"iso", "vztmpl", "snippets", "backup"} {
+			items, listErr := client.GetStorageContent("pve", "local", contentType)
+			err = listErr
+			require.NoError(t, err)
+			require.NotEmpty(t, items, "expected mock storage content for %s", contentType)
+		}
 	})
 }

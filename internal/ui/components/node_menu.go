@@ -8,9 +8,10 @@ import (
 
 // Node menu action constants
 const (
-	nodeActionOpenShell = "Open Shell"
-	nodeActionOpenVNC   = "Open VNC Console"
-	nodeActionRefresh   = "Refresh"
+	nodeActionOpenShell     = "Open Shell"
+	nodeActionOpenVNC       = "Open VNC Console"
+	nodeActionBrowseStorage = "Browse Storage"
+	nodeActionRefresh       = "Refresh"
 )
 
 // ShowNodeContextMenu displays the context menu for node actions.
@@ -32,6 +33,7 @@ func (a *App) ShowNodeContextMenu() {
 	entries := []menuEntry{
 		{label: nodeActionOpenShell, shortcut: 's', handler: func() { a.openNodeShell() }},
 		{label: nodeActionOpenVNC, shortcut: 'v', handler: func() { a.openNodeVNC() }},
+		{label: nodeActionBrowseStorage, shortcut: 'b', handler: func() { a.showStorageBrowser(node) }},
 	}
 
 	if a.pluginRegistry != nil {

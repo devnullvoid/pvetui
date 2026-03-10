@@ -29,32 +29,33 @@ type App struct {
 	// Background goroutines (doManualRefresh, doFastRefresh, autoRefreshData, loadTasksData)
 	// read these fields; profile-switch goroutines (applyConnectionProfile, switchToClusterGroup)
 	// write them. Always use snapConn() for reads and connMu.Lock() for writes.
-	connMu        sync.RWMutex
-	client        *api.Client
-	groupManager  *api.GroupClientManager
-	isGroupMode   bool
-	groupName     string
-	clusterClient *api.ClusterClient
-	isClusterMode bool
-	config        config.Config
-	configPath    string
-	vncService    *vnc.Service
-	pages         *tview.Pages
-	header        HeaderComponent
-	footer        FooterComponent
-	nodeList      NodeListComponent
-	vmList        VMListComponent
-	nodeDetails   NodeDetailsComponent
-	vmDetails     VMDetailsComponent
-	tasksList     TasksListComponent
-	clusterStatus ClusterStatusComponent
-	helpModal     *HelpModal
-	mainLayout    *tview.Flex
-	searchInput   *tview.InputField
-	contextMenu   *tview.List
-	isMenuOpen    bool
-	lastFocus     tview.Primitive
-	logger        interfaces.Logger
+	connMu         sync.RWMutex
+	client         *api.Client
+	groupManager   *api.GroupClientManager
+	isGroupMode    bool
+	groupName      string
+	clusterClient  *api.ClusterClient
+	isClusterMode  bool
+	config         config.Config
+	configPath     string
+	vncService     *vnc.Service
+	pages          *tview.Pages
+	header         HeaderComponent
+	footer         FooterComponent
+	nodeList       NodeListComponent
+	vmList         VMListComponent
+	nodeDetails    NodeDetailsComponent
+	vmDetails      VMDetailsComponent
+	tasksList      TasksListComponent
+	storageBrowser StorageBrowserComponent
+	clusterStatus  ClusterStatusComponent
+	helpModal      *HelpModal
+	mainLayout     *tview.Flex
+	searchInput    *tview.InputField
+	contextMenu    *tview.List
+	isMenuOpen     bool
+	lastFocus      tview.Primitive
+	logger         interfaces.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -225,6 +226,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	app.nodeDetails = NewNodeDetails()
 	app.vmDetails = NewVMDetails()
 	app.tasksList = NewTasksList()
+	app.storageBrowser = NewStorageBrowser()
 	app.clusterStatus = NewClusterStatus()
 	app.helpModal = NewHelpModal(cfg.KeyBindings)
 

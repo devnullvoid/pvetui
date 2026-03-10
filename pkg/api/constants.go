@@ -48,9 +48,10 @@ const (
 
 // UI Pages.
 const (
-	PageNodes  = "Nodes"
-	PageGuests = "Guests"
-	PageTasks  = "Tasks"
+	PageNodes   = "Nodes"
+	PageGuests  = "Guests"
+	PageTasks   = "Tasks"
+	PageStorage = "Storage"
 )
 
 // Menu actions.

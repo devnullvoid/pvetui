@@ -22,10 +22,14 @@ func (a *App) createMainLayout() *tview.Flex {
 	// Setup Tasks page
 	tasksPage := a.tasksList
 
+	// Setup Storage page
+	storagePage := a.storageBrowser
+
 	// Add pages
 	a.pages.AddPage(api.PageNodes, nodesPage, true, true)
 	a.pages.AddPage(api.PageGuests, vmsPage, true, false)
 	a.pages.AddPage(api.PageTasks, tasksPage, true, false)
+	a.pages.AddPage(api.PageStorage, storagePage, true, false)
 
 	// Build main layout
 	return tview.NewFlex().
@@ -101,6 +105,10 @@ func (a *App) setupComponentConnections() {
 
 	// Configure tasks list
 	a.tasksList.SetApp(a)
+
+	// Configure storage browser
+	a.storageBrowser.SetApp(a)
+	a.storageBrowser.SetNodes(models.GlobalState.OriginalNodes)
 
 	// Load initial tasks data
 	a.loadTasksData()

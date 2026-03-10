@@ -67,7 +67,7 @@ func buildHelpText(keys config.KeyBindings) string {
 	}{
 		{Cat: "[warning]Navigation[-]"},
 		{Key: "Arrow Keys / hjkl", Desc: "Navigate lists and panels"},
-		{Key: fmt.Sprintf("%s / %s", keys.SwitchView, keys.SwitchViewReverse), Desc: "Switch between views (forward/reverse)"},
+		{Key: fmt.Sprintf("%s / %s", keys.SwitchView, keys.SwitchViewReverse), Desc: "Switch between views (forward/reverse, including Storage)"},
 		{Key: keys.NodesPage, Desc: "Switch to Nodes tab"},
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
@@ -95,7 +95,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Desc: fmt.Sprintf("• Use search ([primary]%s[-]) to quickly find nodes or guests.", keys.Search)},
 		{Desc: fmt.Sprintf("• The context menu ([primary]%s[-]) provides quick access to actions.", keys.Menu)},
 		{Desc: "• Press [primary]Esc[-] to open the global menu for app-wide actions."},
-		{Desc: "• When focused in Nodes/Guests/Tasks lists, use [primary]gg[-]/[primary]G[-] for top/bottom navigation."},
+		{Desc: "• When focused in Nodes/Guests/Tasks/Storage lists, use [primary]gg[-]/[primary]G[-] for top/bottom navigation."},
 		{Desc: "• VNC opens in your default web browser."},
 		{Desc: "• SSH sessions suspend the UI until the session is closed."},
 	}

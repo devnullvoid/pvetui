@@ -11,6 +11,7 @@ import (
 const stringYes = "yes"
 
 var networkConfigKeyPattern = regexp.MustCompile(`^net[0-9]+$`)
+var diskConfigKeyPattern = regexp.MustCompile(`^(ide|sata|scsi|virtio|unused|mp)[0-9]+$|^rootfs$`)
 
 // VMConfig represents editable configuration for both QEMU and LXC guests.
 type VMConfig struct {
@@ -206,6 +207,21 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 
 	for key, raw := range data {
 		if !networkConfigKeyPattern.MatchString(key) {
+			if !diskConfigKeyPattern.MatchString(key) {
+				continue
+			}
+			rawValue, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			sizeBytes, ok := parseConfigSizeBytes(rawValue)
+			if !ok {
+				continue
+			}
+			if cfg.Disks == nil {
+				cfg.Disks = make(map[string]int64)
+			}
+			cfg.Disks[key] = sizeBytes
 			continue
 		}
 		rawValue, ok := raw.(string)
@@ -220,6 +236,44 @@ func parseVMConfig(vmType string, data map[string]interface{}) *VMConfig {
 
 	// Storage parsing can be added here
 	return cfg
+}
+
+func parseConfigSizeBytes(raw string) (int64, bool) {
+	parts := strings.Split(raw, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if !strings.HasPrefix(part, "size=") {
+			continue
+		}
+
+		value := strings.TrimPrefix(part, "size=")
+		if value == "" {
+			return 0, false
+		}
+
+		multiplier := int64(1024 * 1024 * 1024)
+		switch suffix := strings.ToUpper(value[len(value)-1:]); suffix {
+		case "K":
+			multiplier = 1024
+			value = value[:len(value)-1]
+		case "M":
+			multiplier = 1024 * 1024
+			value = value[:len(value)-1]
+		case "G":
+			value = value[:len(value)-1]
+		case "T":
+			multiplier = 1024 * 1024 * 1024 * 1024
+			value = value[:len(value)-1]
+		}
+
+		size, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return size * multiplier, true
+	}
+
+	return 0, false
 }
 
 // buildConfigPayload builds the payload for updating VM/LXC config.
