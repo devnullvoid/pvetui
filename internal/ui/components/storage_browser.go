@@ -261,6 +261,7 @@ func (sb *StorageBrowser) showNodeSummary(node *api.Node) {
 	sb.details.SetTitle(" Storage Details ")
 	if node == nil {
 		sb.details.SetCell(0, 0, tview.NewTableCell("Select a node or storage").SetTextColor(theme.Colors.Primary))
+		sb.details.ScrollToBeginning()
 		return
 	}
 
@@ -290,6 +291,7 @@ func (sb *StorageBrowser) showNodeSummary(node *api.Node) {
 	}
 	sb.setDetailsRow(3, "Shared Storages", fmt.Sprintf("%d", shared))
 	sb.setDetailsRow(4, "Content Types", strings.Join(sortedKeys(contentTypes), ", "))
+	sb.details.ScrollToBeginning()
 }
 
 func (sb *StorageBrowser) showStorageSummary(node *api.Node, storage *api.Storage, loadErr error) {
@@ -297,6 +299,7 @@ func (sb *StorageBrowser) showStorageSummary(node *api.Node, storage *api.Storag
 	sb.details.SetTitle(" Storage Details ")
 	if node == nil || storage == nil {
 		sb.details.SetCell(0, 0, tview.NewTableCell("Select a storage").SetTextColor(theme.Colors.Primary))
+		sb.details.ScrollToBeginning()
 		return
 	}
 
@@ -315,6 +318,7 @@ func (sb *StorageBrowser) showStorageSummary(node *api.Node, storage *api.Storag
 	if loadErr != nil {
 		sb.setDetailsRow(7, "Content Load", loadErr.Error())
 	}
+	sb.details.ScrollToBeginning()
 }
 
 func (sb *StorageBrowser) showSelectedContentDetails(item *api.StorageContentItem) {
@@ -358,6 +362,7 @@ func (sb *StorageBrowser) showSelectedContentDetails(item *api.StorageContentIte
 		}
 		sb.setDetailsRow(row, "Protected", protected)
 	}
+	sb.details.ScrollToBeginning()
 }
 
 func (sb *StorageBrowser) setDetailsRow(row int, label, value string) {
