@@ -242,6 +242,12 @@ func (a *App) setupKeyboardHandlers() {
 			return nil
 		}
 
+		if keyMatch(event, a.config.KeyBindings.StoragePage) {
+			a.showStorageBrowser(nil)
+
+			return nil
+		}
+
 		if keyMatch(event, a.config.KeyBindings.Refresh) {
 			// * Check if there are any pending operations
 			if models.GlobalState.HasPendingOperations() {

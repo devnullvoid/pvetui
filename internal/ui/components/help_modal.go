@@ -71,6 +71,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.NodesPage, Desc: "Switch to Nodes tab"},
 		{Key: keys.GuestsPage, Desc: "Switch to Guests tab"},
 		{Key: keys.TasksPage, Desc: "Switch to Tasks tab"},
+		{Key: keys.StoragePage, Desc: "Switch to Storage tab"},
 		{Key: "gg / G", Desc: "Jump to top/bottom in focused list"},
 		{Key: "Tab / Shift+Tab", Desc: "Switch focus between fields and panels"},
 		{Cat: ""}, // Spacer
