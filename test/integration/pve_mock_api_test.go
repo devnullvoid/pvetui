@@ -304,4 +304,50 @@ func TestPVEMockAPI(t *testing.T) {
 			return refreshErr == nil
 		}, 3*time.Second, 100*time.Millisecond)
 	})
+
+	t.Run("storage_download_url_and_oci_pull", func(t *testing.T) {
+		downloadUPID, err := client.DownloadStorageContentFromURL("pve", "local", api.StorageDownloadURLOptions{
+			URL:                "https://example.invalid/ubuntu-24.04.iso",
+			Content:            "iso",
+			Filename:           "ubuntu-24.04.iso",
+			VerifyCertificates: true,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, downloadUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local", "iso")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == "local:iso/ubuntu-24.04.iso" {
+					return true
+				}
+			}
+			return false
+		}, 3*time.Second, 100*time.Millisecond)
+
+		ociUPID, err := client.PullStorageOCIImage("pve", "local-zfs", api.StorageOCIPullOptions{
+			Reference: "docker.io/library/alpine:latest",
+			Filename:  "alpine-latest.oci",
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, ociUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local-zfs", "import")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == "local-zfs:import/alpine-latest.oci" {
+					return true
+				}
+			}
+			return false
+		}, 3*time.Second, 100*time.Millisecond)
+	})
 }

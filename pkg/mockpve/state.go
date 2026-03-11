@@ -2,6 +2,8 @@ package mockpve
 
 import (
 	"fmt"
+	"net/url"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,6 +18,8 @@ const (
 	guestStatusStopped = "stopped"
 	guestTypeQEMU      = "qemu"
 	guestTypeLXC       = "lxc"
+	contentTemplate    = "vztmpl"
+	contentImport      = "import"
 )
 
 type MockState struct {
@@ -876,12 +880,83 @@ func (s *MockState) QueueDeleteStorageContent(volume string) (string, error) {
 	}), nil
 }
 
+func (s *MockState) QueueDownloadStorageContent(node, storage string, params map[string]interface{}) (string, error) {
+	urlValue := getStringParam(params, "url", "")
+	content := getStringParam(params, "content", "")
+	filename := getStringParam(params, "filename", "")
+
+	if strings.TrimSpace(urlValue) == "" {
+		return "", fmt.Errorf("url is required")
+	}
+	if strings.TrimSpace(content) == "" {
+		return "", fmt.Errorf("content is required")
+	}
+
+	storageEntry, err := s.getStorage(node, storage)
+	if err != nil {
+		return "", err
+	}
+	if err := validateStorageDownloadContent(storageEntry, content); err != nil {
+		return "", err
+	}
+
+	volume, err := buildDownloadedStorageVolume(node, storage, content, urlValue, filename)
+	if err != nil {
+		return "", err
+	}
+
+	return s.createTaskWithCompletion(node, "download", volume.VolID, "root@pam", func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.addStorageVolumeLocked(volume)
+		s.recalculateStorageUsageLocked()
+	}), nil
+}
+
+func (s *MockState) QueueOCIPullStorageContent(node, storage string, params map[string]interface{}) (string, error) {
+	reference := getStringParam(params, "reference", "")
+	filename := getStringParam(params, "filename", "")
+
+	if strings.TrimSpace(reference) == "" {
+		return "", fmt.Errorf("reference is required")
+	}
+
+	storageEntry, err := s.getStorage(node, storage)
+	if err != nil {
+		return "", err
+	}
+	if err := validateStorageDownloadContent(storageEntry, "import"); err != nil {
+		return "", err
+	}
+
+	volume := buildOCIStorageVolume(node, storage, reference, filename)
+	return s.createTaskWithCompletion(node, "ocipull", volume.VolID, "root@pam", func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.addStorageVolumeLocked(volume)
+		s.recalculateStorageUsageLocked()
+	}), nil
+}
+
 func (s *MockState) addStorageVolumeLocked(volume *MockStorageVolume) {
 	key := storageContentKey(volume.Node, volume.Storage)
 	if _, ok := s.StorageContent[key]; !ok {
 		s.StorageContent[key] = make(map[string]*MockStorageVolume)
 	}
 	s.StorageContent[key][volume.VolID] = volume
+}
+
+func (s *MockState) getStorage(node, storage string) (*MockStorage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, entry := range s.Storage {
+		if entry.Node == node && entry.ID == storage {
+			return entry, nil
+		}
+	}
+
+	return nil, fmt.Errorf("storage not found")
 }
 
 func (s *MockState) deleteStorageVolumeLocked(volID string) {
@@ -959,6 +1034,144 @@ func (s *MockState) recalculateStorageUsageLocked() {
 	for _, st := range s.Storage {
 		st.Disk = usage[storageContentKey(st.Node, st.ID)]
 	}
+}
+
+func validateStorageDownloadContent(storage *MockStorage, content string) error {
+	if storage == nil {
+		return fmt.Errorf("storage not found")
+	}
+
+	supported := splitStorageContent(storage.Content)
+	switch content {
+	case "iso", contentTemplate:
+		if _, ok := supported[content]; ok {
+			return nil
+		}
+		return fmt.Errorf("storage %s does not support %s content", storage.ID, content)
+	case contentImport:
+		if _, ok := supported["images"]; ok {
+			return nil
+		}
+		if _, ok := supported["rootdir"]; ok {
+			return nil
+		}
+		return fmt.Errorf("storage %s does not support import content", storage.ID)
+	default:
+		return fmt.Errorf("unsupported content type: %s", content)
+	}
+}
+
+func splitStorageContent(raw string) map[string]struct{} {
+	values := make(map[string]struct{})
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		values[part] = struct{}{}
+	}
+	return values
+}
+
+func buildDownloadedStorageVolume(node, storage, content, rawURL, filename string) (*MockStorageVolume, error) {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		parsed, err := url.Parse(rawURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid url: %w", err)
+		}
+		filename = path.Base(parsed.Path)
+	}
+	filename = normalizeStorageFilename(filename)
+	if filename == "" {
+		return nil, fmt.Errorf("filename could not be determined")
+	}
+
+	subdir := content
+	if content == contentImport {
+		subdir = contentImport
+	}
+
+	format := storageFormatFromFilename(filename, content)
+	size := int64(700 * 1024 * 1024)
+	switch content {
+	case contentTemplate:
+		size = 180 * 1024 * 1024
+	case contentImport:
+		size = 2 * 1024 * 1024 * 1024
+	}
+
+	return &MockStorageVolume{
+		VolID:     fmt.Sprintf("%s:%s/%s", storage, subdir, filename),
+		Node:      node,
+		Storage:   storage,
+		Content:   content,
+		Format:    format,
+		Size:      size,
+		Used:      size,
+		CreatedAt: time.Now().Unix(),
+	}, nil
+}
+
+func buildOCIStorageVolume(node, storage, reference, filename string) *MockStorageVolume {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		filename = normalizeStorageFilename(strings.NewReplacer("/", "_", ":", "_", "@", "_").Replace(reference))
+	}
+	if !strings.Contains(filename, ".") {
+		filename += ".oci"
+	}
+
+	size := int64(350 * 1024 * 1024)
+	return &MockStorageVolume{
+		VolID:     fmt.Sprintf("%s:import/%s", storage, filename),
+		Node:      node,
+		Storage:   storage,
+		Content:   contentImport,
+		Format:    "oci",
+		Size:      size,
+		Used:      size,
+		CreatedAt: time.Now().Unix(),
+		Notes:     reference,
+	}
+}
+
+func normalizeStorageFilename(filename string) string {
+	filename = strings.TrimSpace(filename)
+	filename = strings.ReplaceAll(filename, "\\", "_")
+	filename = strings.ReplaceAll(filename, "/", "_")
+	filename = strings.ReplaceAll(filename, ":", "_")
+	filename = strings.ReplaceAll(filename, " ", "_")
+	filename = strings.Trim(filename, "._")
+	return filename
+}
+
+func storageFormatFromFilename(filename, content string) string {
+	lower := strings.ToLower(filename)
+	switch {
+	case strings.HasSuffix(lower, ".tar.zst"):
+		return "tar.zst"
+	case strings.HasSuffix(lower, ".tar.gz"):
+		return "tar.gz"
+	case strings.HasSuffix(lower, ".qcow2"):
+		return "qcow2"
+	case strings.HasSuffix(lower, ".vma.zst"):
+		return "vma.zst"
+	case strings.HasSuffix(lower, ".ova"):
+		return "ova"
+	case strings.HasSuffix(lower, ".img"):
+		return "img"
+	case strings.HasSuffix(lower, ".iso"):
+		return "iso"
+	}
+
+	if content == contentTemplate {
+		return "tar"
+	}
+	if content == contentImport {
+		return "raw"
+	}
+	return content
 }
 
 func buildGuest(node, vmType string, vmid int, params map[string]interface{}) (*MockVM, []*MockStorageVolume, error) {

@@ -52,6 +52,18 @@ func (a *App) ShowStorageContextMenu() {
 
 	a.lastFocus = a.GetFocus()
 
+	if a.GetFocus() == browser.contentTable {
+		if item := browser.selectedContentItem(); item != nil {
+			a.showStorageContentContextMenu(browser, item)
+			return
+		}
+	}
+
+	if a.GetFocus() == browser.details || a.GetFocus() == browser.tree {
+		a.showStorageSelectionContextMenu(browser)
+		return
+	}
+
 	if item := browser.selectedContentItem(); item != nil {
 		a.showStorageContentContextMenu(browser, item)
 		return
@@ -65,6 +77,9 @@ func (a *App) showStorageSelectionContextMenu(browser *StorageBrowser) {
 		{label: "Refresh Content", shortcut: 'r', handler: func() {
 			browser.showContentMessage("Refreshing storage content...")
 			browser.loadStorageContent(browser.selection)
+		}},
+		{label: "Download Content", shortcut: 'n', handler: func() {
+			a.showStorageDownloadMenu(browser.selection, browser.tree)
 		}},
 		{label: "Show All Content", shortcut: 'a', handler: func() {
 			browser.contentFilter = storageFilterAll
@@ -225,6 +240,194 @@ func (a *App) enqueueStorageContentDelete(selection storageSelection, item api.S
 
 	a.taskManager.Enqueue(task)
 	a.header.ShowSuccess(fmt.Sprintf("Queued delete for %s", item.VolID))
+}
+
+func (a *App) showStorageDownloadMenu(selection storageSelection, anchor tview.Primitive) {
+	if selection.Node == nil || selection.Storage == nil {
+		a.showMessageSafe("Select a storage first")
+		return
+	}
+
+	entries := []storageMenuEntry{
+		{label: "URL Download", shortcut: 'u', handler: func() {
+			a.showStorageURLDownloadForm(selection)
+		}},
+		{label: "OCI Pull", shortcut: 'o', handler: func() {
+			a.showStorageOCIPullForm(selection)
+		}},
+	}
+
+	a.showStorageMenu(" Download Content ", entries, anchor)
+}
+
+func (a *App) showStorageURLDownloadForm(selection storageSelection) {
+	if selection.Node == nil || selection.Storage == nil {
+		a.showMessageSafe("Select a storage first")
+		return
+	}
+
+	contentOptions := storageDownloadContentOptions(selection.Storage)
+	if len(contentOptions) == 0 {
+		a.showMessageSafe("Selected storage does not support URL downloads in this view")
+		return
+	}
+
+	form := newStandardForm()
+	form.SetBorder(true)
+	form.SetTitle(" URL Download ")
+
+	contentDropdown := tview.NewDropDown().
+		SetLabel("Content Type").
+		SetOptions(contentOptions, nil).
+		SetCurrentOption(0).
+		SetFieldWidth(18)
+	urlField := tview.NewInputField().
+		SetLabel("URL").
+		SetFieldWidth(64)
+	filenameField := tview.NewInputField().
+		SetLabel("Filename").
+		SetFieldWidth(36)
+	verifyCheckbox := tview.NewCheckbox().
+		SetLabel("Verify TLS").
+		SetChecked(true)
+
+	form.AddFormItem(contentDropdown)
+	form.AddFormItem(urlField)
+	form.AddFormItem(filenameField)
+	form.AddFormItem(verifyCheckbox)
+
+	pageName := "modal:storageDownloadURL"
+	closeForm := func() {
+		a.removePageIfPresent(pageName)
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
+
+	form.AddButton("Download", func() {
+		contentIndex, _ := contentDropdown.GetCurrentOption()
+		contentType := contentOptions[contentIndex]
+		options := api.StorageDownloadURLOptions{
+			URL:                strings.TrimSpace(urlField.GetText()),
+			Content:            storageDownloadContentValue(contentType),
+			Filename:           strings.TrimSpace(filenameField.GetText()),
+			VerifyCertificates: verifyCheckbox.IsChecked(),
+		}
+		if options.URL == "" {
+			a.showMessageSafe("URL is required")
+			return
+		}
+
+		closeForm()
+		a.enqueueStorageURLDownload(selection, options)
+	})
+	form.AddButton("Cancel", closeForm)
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			closeForm()
+			return nil
+		}
+		return event
+	})
+
+	a.pages.AddPage(pageName, form, true, true)
+	a.SetFocus(form)
+}
+
+func (a *App) showStorageOCIPullForm(selection storageSelection) {
+	if selection.Node == nil || selection.Storage == nil {
+		a.showMessageSafe("Select a storage first")
+		return
+	}
+	if !storageSupportsOCIImport(selection.Storage) {
+		a.showMessageSafe("Selected storage does not support OCI imports")
+		return
+	}
+
+	form := newStandardForm()
+	form.SetBorder(true)
+	form.SetTitle(" OCI Pull ")
+
+	referenceField := tview.NewInputField().
+		SetLabel("Reference").
+		SetFieldWidth(64)
+	filenameField := tview.NewInputField().
+		SetLabel("Filename").
+		SetFieldWidth(36)
+
+	form.AddFormItem(referenceField)
+	form.AddFormItem(filenameField)
+
+	pageName := "modal:storageOCIPull"
+	closeForm := func() {
+		a.removePageIfPresent(pageName)
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
+
+	form.AddButton("Pull", func() {
+		options := api.StorageOCIPullOptions{
+			Reference: strings.TrimSpace(referenceField.GetText()),
+			Filename:  strings.TrimSpace(filenameField.GetText()),
+		}
+		if options.Reference == "" {
+			a.showMessageSafe("OCI reference is required")
+			return
+		}
+
+		closeForm()
+		a.enqueueStorageOCIPull(selection, options)
+	})
+	form.AddButton("Cancel", closeForm)
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			closeForm()
+			return nil
+		}
+		return event
+	})
+
+	a.pages.AddPage(pageName, form, true, true)
+	a.SetFocus(form)
+}
+
+func (a *App) enqueueStorageURLDownload(selection storageSelection, options api.StorageDownloadURLOptions) {
+	if selection.Node == nil || selection.Storage == nil {
+		a.showMessageSafe("Select a storage first")
+		return
+	}
+
+	targetName := storageDownloadTargetName(options.Filename, options.URL)
+	a.enqueueStorageImportTask(selection, storageImportTaskSpec{
+		taskType:        "Download",
+		descriptionVerb: "Download",
+		successVerb:     "Downloaded",
+		errorPrefix:     "Download failed",
+		targetName:      targetName,
+		operation: func(client *api.Client) (string, error) {
+			return client.DownloadStorageContentFromURL(selection.Node.Name, selection.Storage.Name, options)
+		},
+	})
+}
+
+func (a *App) enqueueStorageOCIPull(selection storageSelection, options api.StorageOCIPullOptions) {
+	if selection.Node == nil || selection.Storage == nil {
+		a.showMessageSafe("Select a storage first")
+		return
+	}
+
+	targetName := storageDownloadTargetName(options.Filename, options.Reference)
+	a.enqueueStorageImportTask(selection, storageImportTaskSpec{
+		taskType:        "OCI Pull",
+		descriptionVerb: "Pull",
+		successVerb:     "Pulled OCI image",
+		errorPrefix:     "OCI pull failed",
+		targetName:      targetName,
+		operation: func(client *api.Client) (string, error) {
+			return client.PullStorageOCIImage(selection.Node.Name, selection.Storage.Name, options)
+		},
+	})
 }
 
 func (a *App) showStorageBackupRestoreForm(selection storageSelection, item api.StorageContentItem) {
@@ -424,4 +627,96 @@ func extractBackupVMID(volID, marker string) int {
 		return 0
 	}
 	return vmid
+}
+
+func storageDownloadContentOptions(storage *api.Storage) []string {
+	if storage == nil {
+		return nil
+	}
+
+	options := make([]string, 0, 3)
+	if storageSupportsContent(storage, storageFilterISO) {
+		options = append(options, "iso")
+	}
+	if storageSupportsContent(storage, storageFilterTemplates) {
+		options = append(options, "vztmpl")
+	}
+	if storageSupportsOCIImport(storage) {
+		options = append(options, "import")
+	}
+	return options
+}
+
+func storageSupportsContent(storage *api.Storage, content string) bool {
+	if storage == nil {
+		return false
+	}
+	for _, part := range strings.Split(storage.Content, ",") {
+		if strings.EqualFold(strings.TrimSpace(part), content) {
+			return true
+		}
+	}
+	return false
+}
+
+func storageSupportsOCIImport(storage *api.Storage) bool {
+	return storageSupportsContent(storage, "images") || storageSupportsContent(storage, "rootdir")
+}
+
+func storageDownloadContentValue(option string) string {
+	return strings.TrimSpace(strings.ToLower(option))
+}
+
+func storageDownloadTargetName(filename, fallback string) string {
+	if strings.TrimSpace(filename) != "" {
+		return strings.TrimSpace(filename)
+	}
+	fallback = strings.TrimSpace(fallback)
+	if fallback == "" {
+		return "download"
+	}
+	return fallback
+}
+
+type storageImportTaskSpec struct {
+	taskType        string
+	descriptionVerb string
+	successVerb     string
+	errorPrefix     string
+	targetName      string
+	operation       func(client *api.Client) (string, error)
+}
+
+func (a *App) enqueueStorageImportTask(selection storageSelection, spec storageImportTaskSpec) {
+	task := &taskmanager.Task{
+		Type:        spec.taskType,
+		Description: fmt.Sprintf("%s %s to %s", spec.descriptionVerb, spec.targetName, selection.Storage.Name),
+		TargetVMID:  storageTaskTargetID(api.StorageContentItem{VolID: selection.Storage.Name + ":" + spec.targetName}),
+		TargetNode:  selection.Node.Name,
+		TargetName:  spec.targetName,
+		Operation: func() (string, error) {
+			client, err := a.getClientForNode(selection.Node)
+			if err != nil {
+				return "", err
+			}
+			return spec.operation(client)
+		},
+		OnComplete: func(err error) {
+			if err != nil {
+				a.QueueUpdateDraw(func() {
+					a.header.ShowError(fmt.Sprintf("%s: %v", spec.errorPrefix, err))
+				})
+				return
+			}
+
+			a.ClearAPICache()
+			a.QueueUpdateDraw(func() {
+				a.header.ShowSuccess(fmt.Sprintf("%s %s", spec.successVerb, spec.targetName))
+			})
+			go a.manualRefresh()
+		},
+	}
+
+	a.taskManager.Enqueue(task)
+	a.header.ShowSuccess(fmt.Sprintf("Queued %s for %s", strings.ToLower(spec.taskType), spec.targetName))
 }

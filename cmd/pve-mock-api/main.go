@@ -68,6 +68,8 @@ func main() {
 	r.HandleFunc("/nodes/{node}/vzdump", mockpve.HandleVzdump(state)).Methods("POST")
 	r.HandleFunc("/nodes/{node}/storage/{storage}/content", mockpve.HandleStorageContent(state)).Methods("GET")
 	r.HandleFunc("/nodes/{node}/storage/{storage}/content/{volume:.+}", mockpve.HandleDeleteStorageContent(state)).Methods("DELETE")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/download-url", mockpve.HandleDownloadStorageContent(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/oci-registry-pull", mockpve.HandleOCIPullStorageContent(state)).Methods("POST")
 
 	// Tasks
 	r.HandleFunc("/nodes/{node}/tasks/{upid}/status", mockpve.HandleTaskStatus(state)).Methods("GET")

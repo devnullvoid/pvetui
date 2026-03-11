@@ -311,6 +311,54 @@ func HandleDeleteStorageContent(state *MockState) http.HandlerFunc {
 	}
 }
 
+func HandleDownloadStorageContent(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		node := vars["node"]
+		storage := vars["storage"]
+
+		params, err := decodeRequestParams(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		upid, err := state.QueueDownloadStorageContent(node, storage, params)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": upid,
+		})
+	}
+}
+
+func HandleOCIPullStorageContent(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		node := vars["node"]
+		storage := vars["storage"]
+
+		params, err := decodeRequestParams(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		upid, err := state.QueueOCIPullStorageContent(node, storage, params)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": upid,
+		})
+	}
+}
+
 func HandleGuestCreate(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

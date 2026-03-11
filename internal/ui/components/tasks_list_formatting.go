@@ -146,6 +146,8 @@ func formatTaskType(taskType string) string {
 		return "Image Delete"
 	case "download":
 		return "Download"
+	case "ocipull":
+		return "OCI Pull"
 	case "upload":
 		return "Upload"
 	default:
