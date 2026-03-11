@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -68,4 +70,93 @@ func (c *Client) GetStorageContent(nodeName, storageName, contentType string) ([
 	}
 
 	return items, nil
+}
+
+// DeleteStorageContent deletes a storage content item and returns the queued task UPID.
+func (c *Client) DeleteStorageContent(nodeName, storageName, volID string) (string, error) {
+	if strings.TrimSpace(nodeName) == "" {
+		return "", fmt.Errorf("node name is required")
+	}
+	if strings.TrimSpace(storageName) == "" {
+		return "", fmt.Errorf("storage name is required")
+	}
+	if strings.TrimSpace(volID) == "" {
+		return "", fmt.Errorf("volume ID is required")
+	}
+
+	path := fmt.Sprintf(
+		"/nodes/%s/storage/%s/content/%s",
+		nodeName,
+		storageName,
+		url.PathEscape(strings.TrimSpace(volID)),
+	)
+
+	var res map[string]interface{}
+	if err := c.DeleteWithResponse(path, &res); err != nil {
+		return "", fmt.Errorf("failed to delete storage content %s on %s/%s: %w", volID, nodeName, storageName, err)
+	}
+
+	if errMsg, ok := res["error"].(string); ok && errMsg != "" {
+		return "", fmt.Errorf("storage content delete failed: %s", errMsg)
+	}
+
+	upid, ok := res["data"].(string)
+	if !ok || !strings.HasPrefix(upid, "UPID:") {
+		return "", fmt.Errorf("failed to get delete task ID")
+	}
+
+	c.ClearAPICache()
+
+	return upid, nil
+}
+
+// RestoreGuestFromBackup restores a VM or container from a backup volume and returns the queued task UPID.
+func (c *Client) RestoreGuestFromBackup(nodeName, guestType string, vmid int, volID string, force bool) (string, error) {
+	if strings.TrimSpace(nodeName) == "" {
+		return "", fmt.Errorf("node name is required")
+	}
+	if vmid <= 0 {
+		return "", fmt.Errorf("vmid must be positive")
+	}
+	if strings.TrimSpace(volID) == "" {
+		return "", fmt.Errorf("volume ID is required")
+	}
+
+	guestType = strings.TrimSpace(strings.ToLower(guestType))
+	path := fmt.Sprintf("/nodes/%s/%s", nodeName, guestType)
+	data := map[string]interface{}{
+		"vmid": strconv.Itoa(vmid),
+	}
+
+	switch guestType {
+	case VMTypeQemu:
+		data["archive"] = volID
+	case VMTypeLXC:
+		data["ostemplate"] = volID
+		data["restore"] = "1"
+	default:
+		return "", fmt.Errorf("unsupported guest type: %s", guestType)
+	}
+
+	if force {
+		data["force"] = "1"
+	}
+
+	var res map[string]interface{}
+	if err := c.PostWithResponse(path, data, &res); err != nil {
+		return "", fmt.Errorf("failed to restore backup %s to %s %d on node %s: %w", volID, guestType, vmid, nodeName, err)
+	}
+
+	if errMsg, ok := res["error"].(string); ok && errMsg != "" {
+		return "", fmt.Errorf("restore failed: %s", errMsg)
+	}
+
+	upid, ok := res["data"].(string)
+	if !ok || !strings.HasPrefix(upid, "UPID:") {
+		return "", fmt.Errorf("failed to get restore task ID")
+	}
+
+	c.ClearAPICache()
+
+	return upid, nil
 }

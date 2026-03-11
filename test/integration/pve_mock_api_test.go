@@ -261,4 +261,47 @@ func TestPVEMockAPI(t *testing.T) {
 			require.NotEmpty(t, items, "expected mock storage content for %s", contentType)
 		}
 	})
+
+	t.Run("storage_content_delete_and_backup_restore", func(t *testing.T) {
+		backups, err := client.GetStorageContent("pve", "local", "backup")
+		require.NoError(t, err)
+		require.NotEmpty(t, backups)
+
+		backupVolID := backups[0].VolID
+
+		upid, err := client.DeleteStorageContent("pve", "local", backupVolID)
+		require.NoError(t, err)
+		require.NotEmpty(t, upid)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local", "backup")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == backupVolID {
+					return false
+				}
+			}
+			return true
+		}, 3*time.Second, 100*time.Millisecond)
+
+		restoreUPID, err := client.RestoreGuestFromBackup(
+			"pve",
+			api.VMTypeQemu,
+			104,
+			"local:backup/vzdump-qemu-100-2023_01_01-12_00_00.vma.zst",
+			false,
+		)
+		require.NoError(t, err)
+		require.NotEmpty(t, restoreUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			vm := &api.VM{Node: "pve", Type: api.VMTypeQemu, ID: 104}
+			_, refreshErr := client.RefreshVMData(vm, nil)
+			return refreshErr == nil
+		}, 3*time.Second, 100*time.Millisecond)
+	})
 }

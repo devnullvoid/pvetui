@@ -315,7 +315,7 @@ func (a *App) setupKeyboardHandlers() {
 				}
 				a.ShowVMContextMenu()
 			} else if currentPage == api.PageStorage {
-				a.showMessageSafe("Storage context actions are not implemented yet")
+				a.ShowStorageContextMenu()
 			}
 
 			return nil

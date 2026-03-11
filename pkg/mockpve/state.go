@@ -645,7 +645,21 @@ func (s *MockState) QueueCreateGuest(node, vmType string, params map[string]inte
 		return "", fmt.Errorf("node not found")
 	}
 
-	vmid, err := s.GetNextID(getIntParam(params, "vmid", 0))
+	requestedVMID := getIntParam(params, "vmid", 0)
+	forceRestore := isRestore && getBoolParam(params, "force", false)
+
+	vmid := requestedVMID
+	var err error
+	if forceRestore && requestedVMID > 0 {
+		s.mu.RLock()
+		_, exists := s.VMs[strconv.Itoa(requestedVMID)]
+		s.mu.RUnlock()
+		if !exists {
+			vmid, err = s.GetNextID(requestedVMID)
+		}
+	} else {
+		vmid, err = s.GetNextID(requestedVMID)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -670,6 +684,9 @@ func (s *MockState) QueueCreateGuest(node, vmType string, params map[string]inte
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
+		if forceRestore {
+			s.deleteGuestVolumesLocked(vmid)
+		}
 		s.VMs[strconv.Itoa(vmid)] = vm
 		for _, volume := range volumes {
 			s.addStorageVolumeLocked(volume)
@@ -875,6 +892,20 @@ func (s *MockState) deleteStorageVolumeLocked(volID string) {
 				delete(s.StorageContent, key)
 			}
 			return
+		}
+	}
+}
+
+func (s *MockState) deleteGuestVolumesLocked(vmid int) {
+	for key, volumes := range s.StorageContent {
+		for volID, volume := range volumes {
+			if volume.VMID != vmid {
+				continue
+			}
+			delete(volumes, volID)
+		}
+		if len(volumes) == 0 {
+			delete(s.StorageContent, key)
 		}
 	}
 }

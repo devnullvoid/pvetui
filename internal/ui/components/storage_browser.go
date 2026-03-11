@@ -21,14 +21,15 @@ type storageSelection struct {
 type StorageBrowser struct {
 	*tview.Flex
 
-	tree          *tview.TreeView
-	details       *tview.Table
-	contentTable  *tview.Table
-	app           *App
-	nodes         []*api.Node
-	selection     storageSelection
-	contentItems  []api.StorageContentItem
-	contentFilter string
+	tree           *tview.TreeView
+	details        *tview.Table
+	contentTable   *tview.Table
+	app            *App
+	nodes          []*api.Node
+	selection      storageSelection
+	contentItems   []api.StorageContentItem
+	visibleContent []api.StorageContentItem
+	contentFilter  string
 }
 
 var _ StorageBrowserComponent = (*StorageBrowser)(nil)
@@ -43,6 +44,8 @@ func NewStorageBrowser() *StorageBrowser {
 	details.SetBorders(false)
 	details.SetBorder(true)
 	details.SetTitle(" Storage Details ")
+	details.SetSelectable(true, false)
+	details.SetSelectedStyle(tcell.StyleDefault)
 
 	contentTable := tview.NewTable()
 	contentTable.SetBorder(true)
@@ -82,9 +85,28 @@ func (sb *StorageBrowser) SetApp(app *App) {
 		return treeNav(event)
 	})
 
+	detailsNav := createNavigationInputCapture(app, sb.tree, sb.contentTable)
+	pendingG = false
+	sb.details.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if sb.handlePaneCycleKey(event, sb.contentTable, sb.contentTable) {
+			return nil
+		}
+		if handleVimTopBottomRune(event, &pendingG, func() {
+			jumpTableTop(sb.details)
+		}, func() {
+			jumpTableBottom(sb.details)
+		}) {
+			return nil
+		}
+		return detailsNav(event)
+	})
+
 	contentNav := createNavigationInputCapture(app, sb.tree, nil)
 	pendingG = false
 	sb.contentTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if sb.handlePaneCycleKey(event, sb.details, sb.details) {
+			return nil
+		}
 		if sb.handleContentFilterKey(event) {
 			return nil
 		}
@@ -96,6 +118,9 @@ func (sb *StorageBrowser) SetApp(app *App) {
 			return nil
 		}
 		return contentNav(event)
+	})
+	sb.contentTable.SetSelectionChangedFunc(func(row, column int) {
+		sb.handleContentSelection(row)
 	})
 }
 
@@ -187,6 +212,7 @@ func (sb *StorageBrowser) handleTreeSelection(node *tview.TreeNode) {
 
 	sb.selection = *ref
 	sb.contentItems = nil
+	sb.visibleContent = nil
 	if ref.Storage == nil {
 		sb.showNodeSummary(ref.Node)
 		sb.showContentMessage("Select a storage under the node to view content")
@@ -237,6 +263,7 @@ func (sb *StorageBrowser) showNodeSummary(node *api.Node) {
 	sb.details.SetTitle(" Storage Details ")
 	if node == nil {
 		sb.details.SetCell(0, 0, tview.NewTableCell("Select a node or storage").SetTextColor(theme.Colors.Primary))
+		sb.details.Select(0, 0)
 		return
 	}
 
@@ -266,6 +293,7 @@ func (sb *StorageBrowser) showNodeSummary(node *api.Node) {
 	}
 	sb.setDetailsRow(3, "Shared Storages", fmt.Sprintf("%d", shared))
 	sb.setDetailsRow(4, "Content Types", strings.Join(sortedKeys(contentTypes), ", "))
+	sb.details.Select(0, 0)
 }
 
 func (sb *StorageBrowser) showStorageSummary(node *api.Node, storage *api.Storage, loadErr error) {
@@ -273,6 +301,7 @@ func (sb *StorageBrowser) showStorageSummary(node *api.Node, storage *api.Storag
 	sb.details.SetTitle(" Storage Details ")
 	if node == nil || storage == nil {
 		sb.details.SetCell(0, 0, tview.NewTableCell("Select a storage").SetTextColor(theme.Colors.Primary))
+		sb.details.Select(0, 0)
 		return
 	}
 
@@ -291,6 +320,51 @@ func (sb *StorageBrowser) showStorageSummary(node *api.Node, storage *api.Storag
 	if loadErr != nil {
 		sb.setDetailsRow(7, "Content Load", loadErr.Error())
 	}
+	sb.details.Select(0, 0)
+}
+
+func (sb *StorageBrowser) showSelectedContentDetails(item *api.StorageContentItem) {
+	if sb.selection.Node == nil || sb.selection.Storage == nil || item == nil {
+		return
+	}
+
+	sb.showStorageSummary(sb.selection.Node, sb.selection.Storage, nil)
+
+	row := 8
+	sb.setDetailsRow(row, "Volume", item.VolID)
+	row++
+	sb.setDetailsRow(row, "Content Type", item.Content)
+	row++
+	sb.setDetailsRow(row, "Format", valueOrDash(item.Format))
+	row++
+	sb.setDetailsRow(row, "Size", utils.FormatBytes(item.Size))
+	row++
+	if !item.CreatedAt.IsZero() {
+		sb.setDetailsRow(row, "Created", item.CreatedAt.Local().Format("2006-01-02 15:04"))
+	} else {
+		sb.setDetailsRow(row, "Created", "-")
+	}
+	row++
+	if item.VMID > 0 {
+		sb.setDetailsRow(row, "Owner VMID", fmt.Sprintf("%d", item.VMID))
+		row++
+	}
+	if item.Parent != "" {
+		sb.setDetailsRow(row, "Parent", item.Parent)
+		row++
+	}
+	if item.Notes != "" {
+		sb.setDetailsRow(row, "Notes", item.Notes)
+		row++
+	}
+	if item.Content == storageFilterBackups {
+		protected := "No"
+		if item.Protected {
+			protected = "Yes"
+		}
+		sb.setDetailsRow(row, "Protected", protected)
+	}
+	sb.details.Select(0, 0)
 }
 
 func (sb *StorageBrowser) setDetailsRow(row int, label, value string) {
@@ -300,12 +374,14 @@ func (sb *StorageBrowser) setDetailsRow(row int, label, value string) {
 
 func (sb *StorageBrowser) showContentMessage(message string) {
 	sb.contentTable.Clear()
+	sb.visibleContent = nil
 	sb.updateContentTitle()
 	sb.contentTable.SetCell(0, 0, tview.NewTableCell(message).SetTextColor(theme.Colors.Primary))
 }
 
 func (sb *StorageBrowser) showStorageContent() {
 	sb.contentTable.Clear()
+	sb.visibleContent = nil
 	sb.updateContentTitle()
 	headers := []string{"Type", "Volume", "Size", "Created", "VMID", "Format"}
 	for col, header := range headers {
@@ -317,6 +393,7 @@ func (sb *StorageBrowser) showStorageContent() {
 	items := sb.filteredContentItems()
 	if len(items) == 0 {
 		sb.contentTable.SetCell(1, 0, tview.NewTableCell("No content found").SetTextColor(theme.Colors.Primary))
+		sb.showStorageSummary(sb.selection.Node, sb.selection.Storage, nil)
 		return
 	}
 
@@ -327,7 +404,8 @@ func (sb *StorageBrowser) showStorageContent() {
 		return items[i].Content < items[j].Content
 	})
 
-	for i, item := range items {
+	sb.visibleContent = items
+	for i, item := range sb.visibleContent {
 		row := i + 1
 		created := "-"
 		if !item.CreatedAt.IsZero() {
@@ -348,6 +426,7 @@ func (sb *StorageBrowser) showStorageContent() {
 	}
 
 	sb.contentTable.Select(1, 0)
+	sb.handleContentSelection(1)
 }
 
 func (sb *StorageBrowser) handleContentFilterKey(event *tcell.EventKey) bool {
@@ -413,7 +492,7 @@ func (sb *StorageBrowser) filteredContentItems() []api.StorageContentItem {
 
 func (sb *StorageBrowser) updateContentTitle() {
 	sb.contentTable.SetTitle(fmt.Sprintf(
-		" Content [%s]All[-][secondary](a/0)[-] [%s]Guest[-][secondary](d)[-] [%s]ISO[-][secondary](i)[-] [%s]Tpl[-][secondary](t)[-] [%s]Snip[-][secondary](s)[-] [%s]Bkp[-][secondary](b)[-] [primary]Ref[-][secondary](r)[-] ",
+		" Content [%s]All[-][secondary](a/0)[-] [%s]Guest[-][secondary](d)[-] [%s]ISO[-][secondary](i)[-] [%s]Tpl[-][secondary](t)[-] [%s]Snip[-][secondary](s)[-] [%s]Bkp[-][secondary](b)[-] [primary]Ref[-][secondary](r)[-] [primary]Menu[-] ",
 		filterColor(storageFilterAll, sb.contentFilter),
 		filterColor(storageFilterGuestVolumes, sb.contentFilter),
 		filterColor(storageFilterISO, sb.contentFilter),
@@ -421,6 +500,53 @@ func (sb *StorageBrowser) updateContentTitle() {
 		filterColor(storageFilterSnippets, sb.contentFilter),
 		filterColor(storageFilterBackups, sb.contentFilter),
 	))
+}
+
+func (sb *StorageBrowser) handleContentSelection(row int) {
+	item := sb.selectedContentItemForRow(row)
+	if item == nil {
+		sb.showStorageSummary(sb.selection.Node, sb.selection.Storage, nil)
+		return
+	}
+	sb.showSelectedContentDetails(item)
+}
+
+func (sb *StorageBrowser) handlePaneCycleKey(event *tcell.EventKey, next, prev tview.Primitive) bool {
+	if sb.app == nil || event == nil {
+		return false
+	}
+
+	switch event.Key() {
+	case tcell.KeyTab:
+		if next != nil {
+			sb.app.SetFocus(next)
+			return true
+		}
+	case tcell.KeyBacktab:
+		if prev != nil {
+			sb.app.SetFocus(prev)
+			return true
+		}
+	}
+
+	return false
+}
+
+func (sb *StorageBrowser) selectedContentItem() *api.StorageContentItem {
+	row, _ := sb.contentTable.GetSelection()
+	return sb.selectedContentItemForRow(row)
+}
+
+func (sb *StorageBrowser) selectedContentItemForRow(row int) *api.StorageContentItem {
+	if row <= 0 {
+		return nil
+	}
+	index := row - 1
+	if index < 0 || index >= len(sb.visibleContent) {
+		return nil
+	}
+	item := sb.visibleContent[index]
+	return &item
 }
 
 func (sb *StorageBrowser) restoreSelection(root *tview.TreeNode, key string) *tview.TreeNode {
@@ -533,13 +659,13 @@ func contentMatchesFilter(content, filter string) bool {
 	case storageFilterGuestVolumes:
 		return content == "images" || content == "rootdir"
 	case storageFilterISO:
-		return content == "iso"
+		return content == storageFilterISO
 	case storageFilterTemplates:
-		return content == "vztmpl"
+		return content == storageFilterTemplates
 	case storageFilterSnippets:
-		return content == "snippets"
+		return content == storageFilterSnippets
 	case storageFilterBackups:
-		return content == "backup"
+		return content == storageFilterBackups
 	default:
 		return true
 	}
@@ -550,4 +676,11 @@ func filterColor(filter, active string) string {
 		return theme.ColorToTag(theme.Colors.Primary)
 	}
 	return theme.ColorToTag(theme.Colors.Secondary)
+}
+
+func valueOrDash(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "-"
+	}
+	return value
 }

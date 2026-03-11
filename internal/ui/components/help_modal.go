@@ -91,6 +91,8 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Cat: "[warning]Storage Page[-]"},
 		{Key: "a/0 d i t s b", Desc: "Filter storage content: All, Guest volumes, ISO, Templates, Snippets, Backups"},
 		{Key: "r", Desc: "Refresh selected storage content"},
+		{Key: "Tab / Shift+Tab", Desc: "Toggle focus between storage details and content"},
+		{Key: fmt.Sprintf("%s (content row)", keys.Menu), Desc: "Open storage content actions (delete/restore where supported)"},
 		{Cat: ""},
 		{Cat: "[warning]Tasks Page[-]"},
 		{Key: keys.TasksToggleQueue, Desc: "Toggle active queue panel visibility"},
