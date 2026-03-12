@@ -148,6 +148,8 @@ func formatTaskType(taskType string) string {
 		return "Download"
 	case "ocipull":
 		return "OCI Pull"
+	case "ociregistrypull":
+		return "OCI Pull"
 	case "upload":
 		return "Upload"
 	default:
