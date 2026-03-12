@@ -3,6 +3,8 @@ package components
 import (
 	"fmt"
 	"hash/fnv"
+	"net/url"
+	"path"
 	"strconv"
 	"strings"
 
@@ -290,11 +292,28 @@ func (a *App) showStorageURLDownloadForm(selection storageSelection) {
 	verifyCheckbox := tview.NewCheckbox().
 		SetLabel("Verify TLS").
 		SetChecked(true)
+	lastAutoFilename := ""
 
 	form.AddFormItem(contentDropdown)
 	form.AddFormItem(urlField)
 	form.AddFormItem(filenameField)
 	form.AddFormItem(verifyCheckbox)
+
+	urlField.SetChangedFunc(func(text string) {
+		currentFilename := strings.TrimSpace(filenameField.GetText())
+		if currentFilename != "" && currentFilename != lastAutoFilename {
+			return
+		}
+
+		if err := validateDownloadURL(text); err != nil {
+			return
+		}
+
+		if inferred := inferDownloadFilename(text); inferred != "" {
+			lastAutoFilename = inferred
+			filenameField.SetText(inferred)
+		}
+	})
 
 	pageName := "modal:storageDownloadURL"
 	closeForm := func() {
@@ -316,6 +335,13 @@ func (a *App) showStorageURLDownloadForm(selection storageSelection) {
 		if options.URL == "" {
 			a.showMessageSafe("URL is required")
 			return
+		}
+		if err := validateDownloadURL(options.URL); err != nil {
+			a.showMessageSafe(fmt.Sprintf("Invalid URL: %v", err))
+			return
+		}
+		if options.Filename == "" {
+			options.Filename = inferDownloadFilename(options.URL)
 		}
 
 		closeForm()
@@ -685,6 +711,32 @@ func storageDownloadTargetName(filename, fallback string) string {
 		return "download"
 	}
 	return fallback
+}
+
+func validateDownloadURL(rawURL string) error {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return err
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("scheme must be http or https")
+	}
+	if strings.TrimSpace(parsed.Host) == "" {
+		return fmt.Errorf("host is required")
+	}
+	return nil
+}
+
+func inferDownloadFilename(rawURL string) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return ""
+	}
+	name := path.Base(parsed.Path)
+	if name == "." || name == "/" || strings.TrimSpace(name) == "" {
+		return ""
+	}
+	return strings.TrimSpace(name)
 }
 
 type storageImportTaskSpec struct {
