@@ -1049,10 +1049,7 @@ func validateStorageDownloadContent(storage *MockStorage, content string) error 
 		}
 		return fmt.Errorf("storage %s does not support %s content", storage.ID, content)
 	case contentImport:
-		if _, ok := supported["images"]; ok {
-			return nil
-		}
-		if _, ok := supported["rootdir"]; ok {
+		if isFileBasedStorageType(storage.Type) {
 			return nil
 		}
 		return fmt.Errorf("storage %s does not support import content", storage.ID)
@@ -1071,6 +1068,15 @@ func splitStorageContent(raw string) map[string]struct{} {
 		values[part] = struct{}{}
 	}
 	return values
+}
+
+func isFileBasedStorageType(storageType string) bool {
+	switch strings.ToLower(strings.TrimSpace(storageType)) {
+	case "dir", "nfs", "cifs", "cephfs", "glusterfs", "btrfs":
+		return true
+	default:
+		return false
+	}
 }
 
 func buildDownloadedStorageVolume(node, storage, content, rawURL, filename string) (*MockStorageVolume, error) {

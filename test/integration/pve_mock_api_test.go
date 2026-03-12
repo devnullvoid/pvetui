@@ -333,17 +333,24 @@ func TestPVEMockAPI(t *testing.T) {
 			Reference: "docker.io/library/alpine:latest",
 			Filename:  "alpine-latest.oci",
 		})
+		require.Error(t, err)
+		require.Empty(t, ociUPID)
+
+		ociUPID, err = client.PullStorageOCIImage("pve", "local", api.StorageOCIPullOptions{
+			Reference: "docker.io/library/alpine:latest",
+			Filename:  "alpine-latest.oci",
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, ociUPID)
 
 		require.Eventually(t, func() bool {
 			client.ClearAPICache()
-			items, listErr := client.GetStorageContent("pve", "local-zfs", "import")
+			items, listErr := client.GetStorageContent("pve", "local", "import")
 			if listErr != nil {
 				return false
 			}
 			for _, item := range items {
-				if item.VolID == "local-zfs:import/alpine-latest.oci" {
+				if item.VolID == "local:import/alpine-latest.oci" {
 					return true
 				}
 			}

@@ -339,7 +339,7 @@ func (a *App) showStorageOCIPullForm(selection storageSelection) {
 		a.showMessageSafe("Select a storage first")
 		return
 	}
-	if !storageSupportsOCIImport(selection.Storage) {
+	if !storageSupportsFileImports(selection.Storage) {
 		a.showMessageSafe("Selected storage does not support OCI imports")
 		return
 	}
@@ -641,7 +641,7 @@ func storageDownloadContentOptions(storage *api.Storage) []string {
 	if storageSupportsContent(storage, storageFilterTemplates) {
 		options = append(options, "vztmpl")
 	}
-	if storageSupportsOCIImport(storage) {
+	if storageSupportsFileImports(storage) {
 		options = append(options, "import")
 	}
 	return options
@@ -659,8 +659,17 @@ func storageSupportsContent(storage *api.Storage, content string) bool {
 	return false
 }
 
-func storageSupportsOCIImport(storage *api.Storage) bool {
-	return storageSupportsContent(storage, "images") || storageSupportsContent(storage, "rootdir")
+func storageSupportsFileImports(storage *api.Storage) bool {
+	if storage == nil {
+		return false
+	}
+
+	switch strings.ToLower(strings.TrimSpace(storage.Plugintype)) {
+	case "dir", "nfs", "cifs", "cephfs", "glusterfs", "btrfs":
+		return true
+	default:
+		return false
+	}
 }
 
 func storageDownloadContentValue(option string) string {
@@ -704,7 +713,9 @@ func (a *App) enqueueStorageImportTask(selection storageSelection, spec storageI
 		OnComplete: func(err error) {
 			if err != nil {
 				a.QueueUpdateDraw(func() {
-					a.header.ShowError(fmt.Sprintf("%s: %v", spec.errorPrefix, err))
+					message := fmt.Sprintf("%s: %v", spec.errorPrefix, err)
+					a.header.ShowError(message)
+					a.showMessageSafe(message)
 				})
 				return
 			}
