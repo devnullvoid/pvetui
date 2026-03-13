@@ -149,8 +149,13 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 
 		isoStorages := append([]string{vmCreateNoneOption}, data.isoStorages...)
 		isoStorageDropdown.SetOptions(isoStorages, nil)
-		isoStorageDropdown.SetCurrentOption(0)
-		updateISOImages("")
+		if len(data.isoStorages) > 0 {
+			isoStorageDropdown.SetCurrentOption(1)
+			updateISOImages(data.isoStorages[0])
+		} else {
+			isoStorageDropdown.SetCurrentOption(0)
+			updateISOImages("")
+		}
 	}
 	applyNodeData(initialData)
 
