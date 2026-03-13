@@ -21,8 +21,9 @@ func (a *App) ShowGlobalContextMenu() {
 	menuItems := []string{
 		"Connection Profiles",
 		"Manage Plugins",
+		"Create VM",
 	}
-	shortcuts := []rune{'p', 'm'}
+	shortcuts := []rune{'p', 'm', 'c'}
 
 	if ansibleEnabled {
 		menuItems = append(menuItems, "Ansible Toolkit")
@@ -48,6 +49,8 @@ func (a *App) ShowGlobalContextMenu() {
 			a.showConnectionProfilesDialog()
 		case "Manage Plugins":
 			a.showManagePluginsDialog()
+		case "Create VM":
+			a.showVMCreateForm(a.nodeList.GetSelectedNode())
 		case "Ansible Toolkit":
 			plugin, ok := a.plugins["ansible"]
 			if !ok || plugin == nil {
