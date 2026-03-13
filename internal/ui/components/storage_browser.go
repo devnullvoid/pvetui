@@ -646,6 +646,8 @@ func sortedKeys(values map[string]struct{}) []string {
 const (
 	storageFilterAll          = "all"
 	storageFilterGuestVolumes = "guest"
+	storageContentImages      = "images"
+	storageContentRootDir     = "rootdir"
 	storageFilterISO          = "iso"
 	storageFilterTemplates    = "vztmpl"
 	storageFilterSnippets     = "snippets"
@@ -655,7 +657,7 @@ const (
 func contentMatchesFilter(content, filter string) bool {
 	switch filter {
 	case storageFilterGuestVolumes:
-		return content == "images" || content == "rootdir"
+		return content == storageContentImages || content == storageContentRootDir
 	case storageFilterISO:
 		return content == storageFilterISO
 	case storageFilterTemplates:

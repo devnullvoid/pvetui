@@ -667,7 +667,7 @@ func storageDownloadContentOptions(storage *api.Storage) []string {
 	if storageSupportsContent(storage, storageFilterTemplates) {
 		options = append(options, "vztmpl")
 	}
-	if storageSupportsFileImports(storage) {
+	if storageSupportsContent(storage, "images") {
 		options = append(options, "import")
 	}
 	return options

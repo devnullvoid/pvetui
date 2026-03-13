@@ -248,6 +248,17 @@ func NewMockState() *MockState {
 		CreatedAt: 1709251200,
 	})
 	state.addStorageVolumeLocked(&MockStorageVolume{
+		VolID:     "local:import/alpine-latest.oci",
+		Node:      "pve",
+		Storage:   "local",
+		Content:   contentImport,
+		Format:    "oci",
+		Size:      350 * 1024 * 1024,
+		Used:      350 * 1024 * 1024,
+		CreatedAt: 1709500000,
+		Notes:     "docker.io/library/alpine:latest",
+	})
+	state.addStorageVolumeLocked(&MockStorageVolume{
 		VolID:     "local-zfs:vm-100-disk-0",
 		Node:      "pve",
 		Storage:   "local-zfs",
@@ -668,7 +679,7 @@ func (s *MockState) QueueCreateGuest(node, vmType string, params map[string]inte
 		return "", err
 	}
 
-	vm, volumes, err := buildGuest(node, vmType, vmid, params)
+	vm, volumes, err := buildGuest(s, node, vmType, vmid, params)
 	if err != nil {
 		return "", err
 	}
@@ -1180,18 +1191,18 @@ func storageFormatFromFilename(filename, content string) string {
 	return content
 }
 
-func buildGuest(node, vmType string, vmid int, params map[string]interface{}) (*MockVM, []*MockStorageVolume, error) {
+func buildGuest(state *MockState, node, vmType string, vmid int, params map[string]interface{}) (*MockVM, []*MockStorageVolume, error) {
 	switch vmType {
 	case guestTypeQEMU:
-		return buildQEMUGuest(node, vmid, params)
+		return buildQEMUGuest(state, node, vmid, params)
 	case guestTypeLXC:
-		return buildLXCGuest(node, vmid, params)
+		return buildLXCGuest(state, node, vmid, params)
 	default:
 		return nil, nil, fmt.Errorf("unsupported guest type: %s", vmType)
 	}
 }
 
-func buildQEMUGuest(node string, vmid int, params map[string]interface{}) (*MockVM, []*MockStorageVolume, error) {
+func buildQEMUGuest(state *MockState, node string, vmid int, params map[string]interface{}) (*MockVM, []*MockStorageVolume, error) {
 	name := getStringParam(params, "name", fmt.Sprintf("vm-%d", vmid))
 	cores := getIntParam(params, "cores", 1)
 	sockets := getIntParam(params, "sockets", 1)
@@ -1213,7 +1224,7 @@ func buildQEMUGuest(node string, vmid int, params map[string]interface{}) (*Mock
 			continue
 		}
 
-		configValue, volume, err := buildAllocatedVolume(node, guestTypeQEMU, vmid, diskKey, diskValue, 0)
+		configValue, volume, err := buildAllocatedVolume(state, node, guestTypeQEMU, vmid, diskKey, diskValue, 0)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1255,7 +1266,7 @@ func buildQEMUGuest(node string, vmid int, params map[string]interface{}) (*Mock
 	return vm, volumes, nil
 }
 
-func buildLXCGuest(node string, vmid int, params map[string]interface{}) (*MockVM, []*MockStorageVolume, error) {
+func buildLXCGuest(state *MockState, node string, vmid int, params map[string]interface{}) (*MockVM, []*MockStorageVolume, error) {
 	hostname := getStringParam(params, "hostname", fmt.Sprintf("ct-%d", vmid))
 	cores := getIntParam(params, "cores", 1)
 	memoryMB := getIntParam(params, "memory", 512)
@@ -1265,7 +1276,7 @@ func buildLXCGuest(node string, vmid int, params map[string]interface{}) (*MockV
 		return nil, nil, fmt.Errorf("rootfs is required for LXC create")
 	}
 
-	configValue, volume, err := buildAllocatedVolume(node, guestTypeLXC, vmid, "rootfs", rootfs, 0)
+	configValue, volume, err := buildAllocatedVolume(state, node, guestTypeLXC, vmid, "rootfs", rootfs, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1308,7 +1319,7 @@ func buildLXCGuest(node string, vmid int, params map[string]interface{}) (*MockV
 	return vm, []*MockStorageVolume{volume}, nil
 }
 
-func buildAllocatedVolume(node, vmType string, vmid int, diskKey, value string, index int) (string, *MockStorageVolume, error) {
+func buildAllocatedVolume(state *MockState, node, vmType string, vmid int, diskKey, value string, index int) (string, *MockStorageVolume, error) {
 	storage, payload, found := strings.Cut(value, ":")
 	if !found || storage == "" || payload == "" {
 		return value, nil, nil
@@ -1334,9 +1345,24 @@ func buildAllocatedVolume(node, vmType string, vmid int, diskKey, value string, 
 		volName = fmt.Sprintf("subvol-%d-disk-%d", vmid, index)
 	}
 
+	importFrom := ""
 	for _, part := range payloadParts[1:] {
 		if strings.HasPrefix(part, "format=") {
 			format = strings.TrimPrefix(part, "format=")
+		}
+		if strings.HasPrefix(part, "import-from=") {
+			importFrom = strings.TrimPrefix(part, "import-from=")
+		}
+	}
+
+	if importFrom != "" {
+		sourceVolume, err := findStorageVolume(state, importFrom)
+		if err != nil {
+			return "", nil, err
+		}
+		sizeBytes = sourceVolume.Size
+		if sourceVolume.Format != "" {
+			format = sourceVolume.Format
 		}
 	}
 
@@ -1356,7 +1382,26 @@ func buildAllocatedVolume(node, vmType string, vmid int, diskKey, value string, 
 		Used:      sizeBytes,
 		VMID:      vmid,
 		CreatedAt: time.Now().Unix(),
+		Parent:    importFrom,
 	}, nil
+}
+
+func findStorageVolume(state *MockState, volID string) (*MockStorageVolume, error) {
+	if state == nil {
+		return nil, fmt.Errorf("storage state is required")
+	}
+
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+
+	_, volume, ok := state.findStorageVolumeLocked(volID)
+	if !ok || volume == nil {
+		return nil, fmt.Errorf("source volume not found: %s", volID)
+	}
+
+	cloned := *volume
+
+	return &cloned, nil
 }
 
 func parseDiskSize(raw string) (int64, error) {

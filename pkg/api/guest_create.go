@@ -16,6 +16,7 @@ type VMCreateOptions struct {
 	DiskStorage string
 	DiskSizeGB  int
 	ISOVolume   string
+	ImportFrom  string
 	Bridge      string
 	Start       bool
 }
@@ -54,7 +55,7 @@ func (c *Client) CreateVM(nodeName string, options VMCreateOptions) (string, err
 	if strings.TrimSpace(options.DiskStorage) == "" {
 		return "", fmt.Errorf("disk storage is required")
 	}
-	if options.DiskSizeGB <= 0 {
+	if strings.TrimSpace(options.ImportFrom) == "" && options.DiskSizeGB <= 0 {
 		return "", fmt.Errorf("disk size must be positive")
 	}
 
@@ -78,12 +79,21 @@ func (c *Client) CreateVM(nodeName string, options VMCreateOptions) (string, err
 		"cores":   options.Cores,
 		"sockets": options.Sockets,
 		"ostype":  "l26",
-		"scsi0":   fmt.Sprintf("%s:%d", strings.TrimSpace(options.DiskStorage), options.DiskSizeGB),
 		"net0":    fmt.Sprintf("virtio,bridge=%s", strings.TrimSpace(options.Bridge)),
+	}
+	if strings.TrimSpace(options.ImportFrom) != "" {
+		data["scsi0"] = fmt.Sprintf("%s:0,import-from=%s",
+			strings.TrimSpace(options.DiskStorage),
+			strings.TrimSpace(options.ImportFrom),
+		)
+	} else {
+		data["scsi0"] = fmt.Sprintf("%s:%d", strings.TrimSpace(options.DiskStorage), options.DiskSizeGB)
 	}
 	if strings.TrimSpace(options.ISOVolume) != "" {
 		data["cdrom"] = strings.TrimSpace(options.ISOVolume)
 		data["boot"] = "order=ide2;scsi0;net0"
+	} else if strings.TrimSpace(options.ImportFrom) != "" {
+		data["boot"] = "order=scsi0;net0"
 	}
 	if options.Start {
 		data["start"] = true

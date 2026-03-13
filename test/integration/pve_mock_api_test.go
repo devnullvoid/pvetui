@@ -214,6 +214,46 @@ func TestPVEMockAPI(t *testing.T) {
 		require.Len(t, items, 1)
 	})
 
+	t.Run("vm_creation_from_import_volume", func(t *testing.T) {
+		upid, err := client.CreateVM("pve", api.VMCreateOptions{
+			VMID:        104,
+			Name:        "imported-vm",
+			MemoryMB:    2048,
+			Cores:       2,
+			Sockets:     1,
+			DiskStorage: "local-zfs",
+			ImportFrom:  "local:import/alpine-latest.oci",
+			Bridge:      "vmbr0",
+			Start:       false,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, upid)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "qemu", ID: 104}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Name == "imported-vm"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		config, err := client.GetVMConfig(&api.VM{Node: "pve", Type: "qemu", ID: 104})
+		require.NoError(t, err)
+		require.Contains(t, config.BootOrder, "scsi0")
+
+		var storageContent map[string]interface{}
+		err = client.Get("/nodes/pve/storage/local-zfs/content?content=images&vmid=104", &storageContent)
+		require.NoError(t, err)
+
+		items, ok := storageContent["data"].([]interface{})
+		require.True(t, ok)
+		require.Len(t, items, 1)
+		item, ok := items[0].(map[string]interface{})
+		require.True(t, ok)
+		require.Equal(t, "local-zfs:vm-104-disk-0", item["volid"])
+	})
+
 	t.Run("lxc_creation_storage_content_and_resize", func(t *testing.T) {
 		resp, err := http.PostForm(
 			fmt.Sprintf("%s/api2/json/nodes/pve/lxc", mockURL),
@@ -290,7 +330,7 @@ func TestPVEMockAPI(t *testing.T) {
 		restoreUPID, err := client.RestoreGuestFromBackup(
 			"pve",
 			api.VMTypeQemu,
-			104,
+			105,
 			"local:backup/vzdump-qemu-100-2023_01_01-12_00_00.vma.zst",
 			false,
 		)
@@ -299,7 +339,7 @@ func TestPVEMockAPI(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			client.ClearAPICache()
-			vm := &api.VM{Node: "pve", Type: api.VMTypeQemu, ID: 104}
+			vm := &api.VM{Node: "pve", Type: api.VMTypeQemu, ID: 105}
 			_, refreshErr := client.RefreshVMData(vm, nil)
 			return refreshErr == nil
 		}, 3*time.Second, 100*time.Millisecond)
