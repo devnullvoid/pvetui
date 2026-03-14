@@ -28,6 +28,13 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 		fmt.Fprintf(&sb, "[%s]Type:[-] %s\n", labelColor, script.Type)
 	}
 
+	if script.IsDev {
+		fmt.Fprintf(&sb, "[%s]Status:[-] In Development\n", labelColor)
+		fmt.Fprintf(&sb, "[%s]Source Repo:[-] community-scripts/ProxmoxVED\n", labelColor)
+	} else {
+		fmt.Fprintf(&sb, "[%s]Source Repo:[-] community-scripts/ProxmoxVE\n", labelColor)
+	}
+
 	if script.ScriptPath != "" {
 		fmt.Fprintf(&sb, "[%s]Script Path:[-] %s\n", labelColor, script.ScriptPath)
 	}
@@ -66,6 +73,10 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 		sb.WriteString(" This will create a new LXC container.")
 	} else if script.Type == scriptTypeVM {
 		sb.WriteString(" This will create a new virtual machine.")
+	}
+
+	if script.IsDev {
+		sb.WriteString(" This script is in development and is sourced from the dev repository.")
 	}
 
 	return sb.String()
@@ -157,14 +168,10 @@ func (s *ScriptSelector) onSearchChanged(text string) {
 	s.scriptList.Clear()
 
 	for _, script := range s.filteredScripts {
-		// Add more detailed information in the secondary text
-		var secondaryText string
-		if script.Type == scriptTypeCT {
-			secondaryText = fmt.Sprintf("Container: %s", script.Description)
-		} else if script.Type == scriptTypeVM {
-			secondaryText = fmt.Sprintf("VM: %s", script.Description)
-		} else {
-			secondaryText = script.Description
+		secondaryText := script.Description
+
+		if script.IsDev {
+			secondaryText = "DEV: " + secondaryText
 		}
 
 		// Truncate description if too long
@@ -234,14 +241,10 @@ func (s *ScriptSelector) fetchScriptsForCategory(category ScriptCategory) {
 
 			// Add scripts to the existing list
 			for _, script := range s.filteredScripts {
-				// Add more detailed information in the secondary text
-				var secondaryText string
-				if script.Type == scriptTypeCT {
-					secondaryText = fmt.Sprintf("Container: %s", script.Description)
-				} else if script.Type == scriptTypeVM {
-					secondaryText = fmt.Sprintf("VM: %s", script.Description)
-				} else {
-					secondaryText = script.Description
+				secondaryText := script.Description
+
+				if script.IsDev {
+					secondaryText = "DEV: " + secondaryText
 				}
 
 				// Truncate description if too long
