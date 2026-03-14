@@ -254,6 +254,37 @@ func TestPVEMockAPI(t *testing.T) {
 		require.Equal(t, "local-zfs:vm-104-disk-0", item["volid"])
 	})
 
+	t.Run("lxc_creation_via_client", func(t *testing.T) {
+		upid, err := client.CreateLXC("pve", api.LXCCreateOptions{
+			VMID:          106,
+			Hostname:      "created-ct-client",
+			MemoryMB:      1024,
+			SwapMB:        512,
+			Cores:         2,
+			RootFSStorage: "local-zfs",
+			RootFSSizeGB:  12,
+			OSTemplate:    "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst",
+			Bridge:        "vmbr0",
+			Unprivileged:  true,
+			Start:         true,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, upid)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "lxc", ID: 106}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Hostname == "created-ct-client"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		createdCT, err := client.RefreshVMData(&api.VM{Node: "pve", Type: "lxc", ID: 106}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "running", createdCT.Status)
+	})
+
 	t.Run("lxc_creation_storage_content_and_resize", func(t *testing.T) {
 		resp, err := http.PostForm(
 			fmt.Sprintf("%s/api2/json/nodes/pve/lxc", mockURL),

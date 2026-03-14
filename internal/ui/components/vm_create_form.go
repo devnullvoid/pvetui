@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/devnullvoid/pvetui/internal/taskmanager"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
@@ -42,28 +41,19 @@ func (a *App) showVMCreateForm(initialNode *api.Node) {
 		return
 	}
 
-	selectedIndex := 0
-	if initialNode != nil {
-		for i, choice := range choices {
-			if choice.node != nil && choice.node.Name == initialNode.Name && choice.node.SourceProfile == initialNode.SourceProfile {
-				selectedIndex = i
-				break
-			}
-		}
+	nodes := make([]*api.Node, len(choices))
+	for i, choice := range choices {
+		nodes[i] = choice.node
 	}
-
-	a.header.ShowLoading("Loading VM creation options...")
-	go func() {
-		data, err := a.loadVMCreateNodeData(choices[selectedIndex].node)
-		a.QueueUpdateDraw(func() {
-			a.header.ShowActiveProfile(a.header.GetCurrentProfile())
-			if err != nil {
-				a.showMessageSafe(fmt.Sprintf("Failed to load VM creation options: %v", err))
-				return
-			}
-			a.displayVMCreateForm(choices, selectedIndex, data)
-		})
-	}()
+	selectedIndex := initialCreateNodeIndex(initialNode, nodes)
+	loadGuestCreateData(
+		a,
+		"Loading VM creation options...",
+		choices[selectedIndex].node,
+		a.loadVMCreateNodeData,
+		func(data vmCreateNodeData) { a.displayVMCreateForm(choices, selectedIndex, data) },
+		"Failed to load VM creation options",
+	)
 }
 
 func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex int, initialData vmCreateNodeData) {
@@ -204,18 +194,14 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 			return
 		}
 
-		a.header.ShowLoading(fmt.Sprintf("Loading VM options for %s...", choices[index].label))
-		go func(choice vmCreateNodeChoice) {
-			data, err := a.loadVMCreateNodeData(choice.node)
-			a.QueueUpdateDraw(func() {
-				a.header.ShowActiveProfile(a.header.GetCurrentProfile())
-				if err != nil {
-					a.showMessageSafe(fmt.Sprintf("Failed to load node options: %v", err))
-					return
-				}
-				applyNodeData(data)
-			})
-		}(choices[index])
+		loadGuestCreateData(
+			a,
+			fmt.Sprintf("Loading VM options for %s...", choices[index].label),
+			choices[index].node,
+			a.loadVMCreateNodeData,
+			applyNodeData,
+			"Failed to load node options",
+		)
 	})
 
 	isoStorageDropdown.SetSelectedFunc(func(option string, index int) {
@@ -338,44 +324,21 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 }
 
 func (a *App) enqueueVMCreate(node *api.Node, options api.VMCreateOptions) {
-	if node == nil {
-		a.showMessageSafe("Select a node first")
-		return
-	}
-
-	task := &taskmanager.Task{
-		Type:        "Create",
-		Description: fmt.Sprintf("Create VM %s (%d)", options.Name, options.VMID),
-		TargetVMID:  options.VMID,
-		TargetNode:  node.Name,
-		TargetName:  options.Name,
-		Operation: func() (string, error) {
+	a.enqueueGuestCreateTask(
+		node,
+		fmt.Sprintf("Create VM %s (%d)", options.Name, options.VMID),
+		options.Name,
+		options.VMID,
+		fmt.Sprintf("Created VM %s", options.Name),
+		"VM create failed",
+		func(node *api.Node) (string, error) {
 			client, err := a.getClientForNode(node)
 			if err != nil {
 				return "", err
 			}
 			return client.CreateVM(node.Name, options)
 		},
-		OnComplete: func(err error) {
-			if err != nil {
-				a.QueueUpdateDraw(func() {
-					message := fmt.Sprintf("VM create failed: %v", err)
-					a.header.ShowError(message)
-					a.showMessageSafe(message)
-				})
-				return
-			}
-
-			a.ClearAPICache()
-			a.QueueUpdateDraw(func() {
-				a.header.ShowSuccess(fmt.Sprintf("Created VM %s", options.Name))
-			})
-			go a.manualRefresh()
-		},
-	}
-
-	a.taskManager.Enqueue(task)
-	a.header.ShowSuccess(fmt.Sprintf("Queued VM create for %s", options.Name))
+	)
 }
 
 func (a *App) vmCreateNodeChoices() []vmCreateNodeChoice {

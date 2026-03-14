@@ -21,6 +21,21 @@ type VMCreateOptions struct {
 	Start       bool
 }
 
+// LXCCreateOptions contains the initial field set for creating an LXC container.
+type LXCCreateOptions struct {
+	VMID          int
+	Hostname      string
+	MemoryMB      int
+	SwapMB        int
+	Cores         int
+	RootFSStorage string
+	RootFSSizeGB  int
+	OSTemplate    string
+	Bridge        string
+	Unprivileged  bool
+	Start         bool
+}
+
 // GetNextID returns the next free VMID, optionally validating a requested one.
 func (c *Client) GetNextID(requested int) (int, error) {
 	path := "/cluster/nextid"
@@ -105,6 +120,72 @@ func (c *Client) CreateVM(nodeName string, options VMCreateOptions) (string, err
 	}
 	if errMsg, ok := res["error"].(string); ok && errMsg != "" {
 		return "", fmt.Errorf("vm create failed: %s", errMsg)
+	}
+
+	upid, ok := res["data"].(string)
+	if !ok || !strings.HasPrefix(upid, "UPID:") {
+		return "", fmt.Errorf("failed to get create task ID")
+	}
+
+	c.ClearAPICache()
+
+	return upid, nil
+}
+
+// CreateLXC creates an LXC container and returns the queued task UPID.
+func (c *Client) CreateLXC(nodeName string, options LXCCreateOptions) (string, error) {
+	if strings.TrimSpace(nodeName) == "" {
+		return "", fmt.Errorf("node name is required")
+	}
+	if options.VMID <= 0 {
+		return "", fmt.Errorf("vmid must be positive")
+	}
+	if strings.TrimSpace(options.Hostname) == "" {
+		return "", fmt.Errorf("hostname is required")
+	}
+	if strings.TrimSpace(options.OSTemplate) == "" {
+		return "", fmt.Errorf("os template is required")
+	}
+	if strings.TrimSpace(options.RootFSStorage) == "" {
+		return "", fmt.Errorf("rootfs storage is required")
+	}
+	if options.RootFSSizeGB <= 0 {
+		return "", fmt.Errorf("rootfs size must be positive")
+	}
+	if options.MemoryMB <= 0 {
+		options.MemoryMB = 512
+	}
+	if options.Cores <= 0 {
+		options.Cores = 1
+	}
+	if options.SwapMB < 0 {
+		options.SwapMB = 0
+	}
+	if strings.TrimSpace(options.Bridge) == "" {
+		options.Bridge = "vmbr0"
+	}
+
+	data := map[string]interface{}{
+		"vmid":         options.VMID,
+		"hostname":     strings.TrimSpace(options.Hostname),
+		"memory":       options.MemoryMB,
+		"swap":         options.SwapMB,
+		"cores":        options.Cores,
+		"ostemplate":   strings.TrimSpace(options.OSTemplate),
+		"rootfs":       fmt.Sprintf("%s:%d", strings.TrimSpace(options.RootFSStorage), options.RootFSSizeGB),
+		"net0":         fmt.Sprintf("name=eth0,bridge=%s,ip=dhcp", strings.TrimSpace(options.Bridge)),
+		"unprivileged": options.Unprivileged,
+	}
+	if options.Start {
+		data["start"] = true
+	}
+
+	var res map[string]interface{}
+	if err := c.PostWithResponse(fmt.Sprintf("/nodes/%s/lxc", nodeName), data, &res); err != nil {
+		return "", fmt.Errorf("failed to create LXC on node %s: %w", nodeName, err)
+	}
+	if errMsg, ok := res["error"].(string); ok && errMsg != "" {
+		return "", fmt.Errorf("lxc create failed: %s", errMsg)
 	}
 
 	upid, ok := res["data"].(string)
