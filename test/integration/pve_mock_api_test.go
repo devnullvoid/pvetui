@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,5 +166,284 @@ func TestPVEMockAPI(t *testing.T) {
 			}
 			return refreshedVM.Status == "running"
 		}, 8*time.Second, 200*time.Millisecond)
+	})
+
+	t.Run("cluster_nextid_and_guest_creation", func(t *testing.T) {
+		var nextIDResp map[string]interface{}
+		err := client.Get("/cluster/nextid", &nextIDResp)
+		require.NoError(t, err)
+		require.Equal(t, float64(102), nextIDResp["data"])
+
+		resp, err := http.PostForm(
+			fmt.Sprintf("%s/api2/json/nodes/pve/qemu", mockURL),
+			url.Values{
+				"vmid":    {"102"},
+				"name":    {"created-vm"},
+				"memory":  {"2048"},
+				"cores":   {"2"},
+				"sockets": {"1"},
+				"scsi0":   {"local-zfs:20"},
+				"cdrom":   {"local:iso/debian-12.5.iso"},
+				"net0":    {"virtio=DE:AD:BE:EF:00:01,bridge=vmbr0"},
+				"start":   {"1"},
+			},
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "qemu", ID: 102}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Name == "created-vm"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		createdVM, err := client.RefreshVMData(&api.VM{Node: "pve", Type: "qemu", ID: 102}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "running", createdVM.Status)
+
+		var storageContent map[string]interface{}
+		err = client.Get("/nodes/pve/storage/local-zfs/content?content=images&vmid=102", &storageContent)
+		require.NoError(t, err)
+
+		items, ok := storageContent["data"].([]interface{})
+		require.True(t, ok)
+		require.Len(t, items, 1)
+	})
+
+	t.Run("vm_creation_from_import_volume", func(t *testing.T) {
+		upid, err := client.CreateVM("pve", api.VMCreateOptions{
+			VMID:        104,
+			Name:        "imported-vm",
+			MemoryMB:    2048,
+			Cores:       2,
+			Sockets:     1,
+			DiskStorage: "local-zfs",
+			ImportFrom:  "local:import/alpine-latest.oci",
+			Bridge:      "vmbr0",
+			Start:       false,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, upid)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "qemu", ID: 104}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Name == "imported-vm"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		config, err := client.GetVMConfig(&api.VM{Node: "pve", Type: "qemu", ID: 104})
+		require.NoError(t, err)
+		require.Contains(t, config.BootOrder, "scsi0")
+
+		var storageContent map[string]interface{}
+		err = client.Get("/nodes/pve/storage/local-zfs/content?content=images&vmid=104", &storageContent)
+		require.NoError(t, err)
+
+		items, ok := storageContent["data"].([]interface{})
+		require.True(t, ok)
+		require.Len(t, items, 1)
+		item, ok := items[0].(map[string]interface{})
+		require.True(t, ok)
+		require.Equal(t, "local-zfs:vm-104-disk-0", item["volid"])
+	})
+
+	t.Run("lxc_creation_via_client", func(t *testing.T) {
+		upid, err := client.CreateLXC("pve", api.LXCCreateOptions{
+			VMID:          106,
+			Hostname:      "created-ct-client",
+			MemoryMB:      1024,
+			SwapMB:        512,
+			Cores:         2,
+			RootFSStorage: "local-zfs",
+			RootFSSizeGB:  12,
+			OSTemplate:    "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst",
+			Bridge:        "vmbr0",
+			Unprivileged:  true,
+			Start:         true,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, upid)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "lxc", ID: 106}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Hostname == "created-ct-client"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		createdCT, err := client.RefreshVMData(&api.VM{Node: "pve", Type: "lxc", ID: 106}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "running", createdCT.Status)
+	})
+
+	t.Run("lxc_creation_storage_content_and_resize", func(t *testing.T) {
+		resp, err := http.PostForm(
+			fmt.Sprintf("%s/api2/json/nodes/pve/lxc", mockURL),
+			url.Values{
+				"vmid":         {"103"},
+				"hostname":     {"created-ct"},
+				"memory":       {"1024"},
+				"swap":         {"512"},
+				"cores":        {"2"},
+				"rootfs":       {"local-zfs:12"},
+				"ostemplate":   {"local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"},
+				"net0":         {"name=eth0,bridge=vmbr0,ip=dhcp"},
+				"unprivileged": {"1"},
+			},
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		require.Eventually(t, func() bool {
+			vm := &api.VM{Node: "pve", Type: "lxc", ID: 103}
+			config, cfgErr := client.GetVMConfig(vm)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Hostname == "created-ct"
+		}, 3*time.Second, 100*time.Millisecond)
+
+		ct := &api.VM{Node: "pve", Type: "lxc", ID: 103}
+		err = client.ResizeVMStorage(ct, "rootfs", "+4G")
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			config, cfgErr := client.GetVMConfig(ct)
+			if cfgErr != nil {
+				return false
+			}
+			return config.Disks["rootfs"] == int64(16*1024*1024*1024)
+		}, 3*time.Second, 100*time.Millisecond)
+
+		for _, contentType := range []string{"iso", "vztmpl", "snippets", "backup"} {
+			items, listErr := client.GetStorageContent("pve", "local", contentType)
+			err = listErr
+			require.NoError(t, err)
+			require.NotEmpty(t, items, "expected mock storage content for %s", contentType)
+		}
+	})
+
+	t.Run("storage_content_delete_and_backup_restore", func(t *testing.T) {
+		backups, err := client.GetStorageContent("pve", "local", "backup")
+		require.NoError(t, err)
+		require.NotEmpty(t, backups)
+
+		backupVolID := backups[0].VolID
+
+		upid, err := client.DeleteStorageContent("pve", "local", backupVolID)
+		require.NoError(t, err)
+		require.NotEmpty(t, upid)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local", "backup")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == backupVolID {
+					return false
+				}
+			}
+			return true
+		}, 3*time.Second, 100*time.Millisecond)
+
+		restoreUPID, err := client.RestoreGuestFromBackup(
+			"pve",
+			api.VMTypeQemu,
+			105,
+			"local:backup/vzdump-qemu-100-2023_01_01-12_00_00.vma.zst",
+			false,
+		)
+		require.NoError(t, err)
+		require.NotEmpty(t, restoreUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			vm := &api.VM{Node: "pve", Type: api.VMTypeQemu, ID: 105}
+			_, refreshErr := client.RefreshVMData(vm, nil)
+			return refreshErr == nil
+		}, 3*time.Second, 100*time.Millisecond)
+	})
+
+	t.Run("storage_download_url_and_oci_pull", func(t *testing.T) {
+		downloadUPID, err := client.DownloadStorageContentFromURL("pve", "local", api.StorageDownloadURLOptions{
+			URL:                "https://example.invalid/ubuntu-24.04.iso",
+			Content:            "iso",
+			Filename:           "ubuntu-24.04.iso",
+			VerifyCertificates: true,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, downloadUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local", "iso")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == "local:iso/ubuntu-24.04.iso" {
+					return true
+				}
+			}
+			return false
+		}, 3*time.Second, 100*time.Millisecond)
+
+		ociUPID, err := client.PullStorageOCIImage("pve", "local-zfs", api.StorageOCIPullOptions{
+			Reference: "docker.io/library/alpine:latest",
+			Filename:  "alpine-latest.oci",
+		})
+		require.Error(t, err)
+		require.Empty(t, ociUPID)
+
+		ociUPID, err = client.PullStorageOCIImage("pve", "local", api.StorageOCIPullOptions{
+			Reference: "docker.io/library/alpine:latest",
+			Filename:  "alpine-latest.oci",
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, ociUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local", "import")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == "local:import/alpine-latest.oci" {
+					return true
+				}
+			}
+			return false
+		}, 3*time.Second, 100*time.Millisecond)
+
+		deleteUPID, err := client.DeleteStorageContent("pve", "local", "local:import/alpine-latest.oci")
+		require.NoError(t, err)
+		require.NotEmpty(t, deleteUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local", "import")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == "local:import/alpine-latest.oci" {
+					return false
+				}
+			}
+			return true
+		}, 3*time.Second, 100*time.Millisecond)
 	})
 }

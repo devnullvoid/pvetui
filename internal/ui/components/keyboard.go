@@ -158,6 +158,15 @@ func (a *App) setupKeyboardHandlers() {
 			return event
 		}
 
+		// The Storage page uses single-key content filters and refresh shortcuts that
+		// intentionally overlap with some global bindings. Let the page-local handlers
+		// consume those keys before running global shortcut matching.
+		if currentPage, _ := a.pages.GetFrontPage(); currentPage == api.PageStorage {
+			if browser, ok := a.storageBrowser.(*StorageBrowser); ok && browser.reservesKey(event) {
+				return event
+			}
+		}
+
 		// Smart Escape handling (global menu)
 		if event.Key() == tcell.KeyEscape {
 			a.ShowGlobalContextMenu()
@@ -183,6 +192,8 @@ func (a *App) setupKeyboardHandlers() {
 			case api.PageGuests:
 				a.pages.SwitchToPage(api.PageTasks)
 				a.SetFocus(a.tasksList)
+			case api.PageTasks:
+				a.showStorageBrowser(nil)
 			default:
 				a.pages.SwitchToPage(api.PageNodes)
 				a.SetFocus(a.nodeList)
@@ -197,12 +208,14 @@ func (a *App) setupKeyboardHandlers() {
 			case api.PageTasks:
 				a.pages.SwitchToPage(api.PageGuests)
 				a.SetFocus(a.vmList)
+			case api.PageStorage:
+				a.pages.SwitchToPage(api.PageTasks)
+				a.SetFocus(a.tasksList)
 			case api.PageGuests:
 				a.pages.SwitchToPage(api.PageNodes)
 				a.SetFocus(a.nodeList)
 			default: // PageNodes
-				a.pages.SwitchToPage(api.PageTasks)
-				a.SetFocus(a.tasksList)
+				a.showStorageBrowser(nil)
 			}
 
 			return nil
@@ -229,6 +242,12 @@ func (a *App) setupKeyboardHandlers() {
 			return nil
 		}
 
+		if keyMatch(event, a.config.KeyBindings.StoragePage) {
+			a.showStorageBrowser(nil)
+
+			return nil
+		}
+
 		if keyMatch(event, a.config.KeyBindings.Refresh) {
 			// * Check if there are any pending operations
 			if models.GlobalState.HasPendingOperations() {
@@ -246,6 +265,11 @@ func (a *App) setupKeyboardHandlers() {
 		}
 
 		if keyMatch(event, a.config.KeyBindings.Search) {
+			currentPage, _ := a.pages.GetFrontPage()
+			if currentPage == api.PageStorage {
+				a.showMessageSafe("Search is not implemented for the Storage page yet")
+				return nil
+			}
 			// Activate search
 			a.activateSearch()
 
@@ -290,6 +314,8 @@ func (a *App) setupKeyboardHandlers() {
 					}
 				}
 				a.ShowVMContextMenu()
+			} else if currentPage == api.PageStorage {
+				a.ShowStorageContextMenu()
 			}
 
 			return nil

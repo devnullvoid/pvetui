@@ -49,24 +49,27 @@ func main() {
 	// Stateful Handlers (Priority)
 	r.HandleFunc("/cluster/resources", mockpve.HandleClusterResources(state)).Methods("GET")
 	r.HandleFunc("/cluster/status", mockpve.HandleClusterStatus(state)).Methods("GET")
+	r.HandleFunc("/cluster/nextid", mockpve.HandleClusterNextID(state)).Methods("GET")
 
 	// Node
 	r.HandleFunc("/nodes/{node}/status", mockpve.HandleNodeStatus(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/storage", mockpve.HandleNodeStorages(state)).Methods("GET")
 
 	// VM/CT
+	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}", mockpve.HandleGuestIndex(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}", mockpve.HandleGuestCreate(state)).Methods("POST")
 	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/status/current", mockpve.HandleVMStatusCurrent(state)).Methods("GET")
 	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/status/{action}", mockpve.HandleVMStatusAction(state)).Methods("POST")
 	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/config", mockpve.HandleVMConfig(state)).Methods("GET", "POST", "PUT")
+	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}/resize", mockpve.HandleResizeGuestDisk(state)).Methods("PUT")
 	r.HandleFunc("/nodes/{node}/{type:qemu|lxc}/{vmid:[0-9]+}", mockpve.HandleDeleteVM(state)).Methods("DELETE")
 
 	// Backups
 	r.HandleFunc("/nodes/{node}/vzdump", mockpve.HandleVzdump(state)).Methods("POST")
 	r.HandleFunc("/nodes/{node}/storage/{storage}/content", mockpve.HandleStorageContent(state)).Methods("GET")
 	r.HandleFunc("/nodes/{node}/storage/{storage}/content/{volume:.+}", mockpve.HandleDeleteStorageContent(state)).Methods("DELETE")
-
-	// Restore (Create VM/CT)
-	r.HandleFunc("/nodes/{node}/qemu", mockpve.HandleRestore(state)).Methods("POST")
-	r.HandleFunc("/nodes/{node}/lxc", mockpve.HandleRestore(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/download-url", mockpve.HandleDownloadStorageContent(state)).Methods("POST")
+	r.HandleFunc("/nodes/{node}/storage/{storage}/oci-registry-pull", mockpve.HandleOCIPullStorageContent(state)).Methods("POST")
 
 	// Tasks
 	r.HandleFunc("/nodes/{node}/tasks/{upid}/status", mockpve.HandleTaskStatus(state)).Methods("GET")

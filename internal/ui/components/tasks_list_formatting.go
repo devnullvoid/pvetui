@@ -68,6 +68,8 @@ func formatTaskType(taskType string) string {
 		return "Resiza Volume"
 	case "vzdump":
 		return "Backup"
+	case "vzdumpdel":
+		return "Backup Delete"
 	case "pvestatd":
 		return "Statistics"
 	case "spiceproxy":
@@ -144,6 +146,10 @@ func formatTaskType(taskType string) string {
 		return "Image Delete"
 	case "download":
 		return "Download"
+	case "ocipull":
+		return "OCI Pull"
+	case "ociregistrypull":
+		return "OCI Pull"
 	case "upload":
 		return "Upload"
 	default:

@@ -55,6 +55,13 @@ type TasksListComponent interface {
 	Refresh()
 }
 
+type StorageBrowserComponent interface {
+	tview.Primitive
+	SetApp(*App)
+	SetNodes([]*api.Node)
+	SelectNode(*api.Node)
+}
+
 type ClusterStatusComponent interface {
 	tview.Primitive
 	Update(*api.Cluster)

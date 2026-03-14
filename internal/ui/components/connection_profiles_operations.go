@@ -258,6 +258,7 @@ func (a *App) switchToGroup(groupName string) {
 
 			// Update lists
 			a.nodeList.SetNodes(nodes)
+			a.syncStorageBrowserNodes()
 			a.vmList.SetVMs(vms)
 
 			// Update cluster status (create a summary cluster object)

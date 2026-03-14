@@ -10,6 +10,8 @@ import (
 const (
 	nodeActionOpenShell = "Open Shell"
 	nodeActionOpenVNC   = "Open VNC Console"
+	nodeActionCreateVM  = "Create VM"
+	nodeActionCreateLXC = "Create LXC"
 	nodeActionRefresh   = "Refresh"
 )
 
@@ -32,6 +34,8 @@ func (a *App) ShowNodeContextMenu() {
 	entries := []menuEntry{
 		{label: nodeActionOpenShell, shortcut: 's', handler: func() { a.openNodeShell() }},
 		{label: nodeActionOpenVNC, shortcut: 'v', handler: func() { a.openNodeVNC() }},
+		{label: nodeActionCreateVM, shortcut: 'c', handler: func() { a.showVMCreateForm(node) }},
+		{label: nodeActionCreateLXC, shortcut: 'l', handler: func() { a.showLXCCreateForm(node) }},
 	}
 
 	if a.pluginRegistry != nil {
