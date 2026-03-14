@@ -136,6 +136,14 @@ func (a *App) showStorageContentContextMenu(browser *StorageBrowser, item *api.S
 		entries = append(entries, storageMenuEntry{label: "Delete Snippet", shortcut: 'd', handler: func() {
 			a.confirmDeleteStorageContent(browser.selection, *item)
 		}})
+	case "import":
+		entries = append(entries, storageMenuEntry{label: "Delete Import", shortcut: 'd', handler: func() {
+			a.confirmDeleteStorageContent(browser.selection, *item)
+		}})
+	case "images":
+		entries = append(entries, storageMenuEntry{label: "Delete Disk Image", shortcut: 'd', handler: func() {
+			a.confirmDeleteStorageContent(browser.selection, *item)
+		}})
 	default:
 		entries = append(entries, storageMenuEntry{label: "Inspect Details", shortcut: 'i', handler: func() {
 			browser.showSelectedContentDetails(item)
@@ -607,6 +615,8 @@ func storageContentLabel(item api.StorageContentItem) string {
 		return "snippet"
 	case "images":
 		return "disk image"
+	case "import":
+		return "imported image"
 	case "rootdir":
 		return "container volume"
 	default:
@@ -667,7 +677,7 @@ func storageDownloadContentOptions(storage *api.Storage) []string {
 	if storageSupportsContent(storage, storageFilterTemplates) {
 		options = append(options, "vztmpl")
 	}
-	if storageSupportsContent(storage, "images") {
+	if storageSupportsContent(storage, "import") {
 		options = append(options, "import")
 	}
 	return options

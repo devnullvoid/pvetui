@@ -427,5 +427,23 @@ func TestPVEMockAPI(t *testing.T) {
 			}
 			return false
 		}, 3*time.Second, 100*time.Millisecond)
+
+		deleteUPID, err := client.DeleteStorageContent("pve", "local", "local:import/alpine-latest.oci")
+		require.NoError(t, err)
+		require.NotEmpty(t, deleteUPID)
+
+		require.Eventually(t, func() bool {
+			client.ClearAPICache()
+			items, listErr := client.GetStorageContent("pve", "local", "import")
+			if listErr != nil {
+				return false
+			}
+			for _, item := range items {
+				if item.VolID == "local:import/alpine-latest.oci" {
+					return false
+				}
+			}
+			return true
+		}, 3*time.Second, 100*time.Millisecond)
 	})
 }

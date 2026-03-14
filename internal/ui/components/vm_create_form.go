@@ -18,20 +18,17 @@ type vmCreateNodeChoice struct {
 }
 
 type vmCreateNodeData struct {
-	nextID          int
-	diskStorages    []string
-	isoStorages     []string
-	isoByStorage    map[string][]string
-	importStorages  []string
-	importByStorage map[string][]string
+	nextID       int
+	diskStorages []string
+	isoStorages  []string
+	isoByStorage map[string][]string
 }
 
 const vmCreateNoneOption = "None"
 
 const (
-	vmCreateSourceBlank  = "Blank Disk"
-	vmCreateSourceISO    = "ISO Installer"
-	vmCreateSourceImport = "Imported Image"
+	vmCreateSourceBlank = "Blank Disk"
+	vmCreateSourceISO   = "ISO Installer"
 )
 
 func (a *App) showVMCreateForm(initialNode *api.Node) {
@@ -94,7 +91,7 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 		SetText("2")
 	sourceDropdown := tview.NewDropDown().
 		SetLabel("Source").
-		SetOptions([]string{vmCreateSourceBlank, vmCreateSourceISO, vmCreateSourceImport}, nil).
+		SetOptions([]string{vmCreateSourceBlank, vmCreateSourceISO}, nil).
 		SetCurrentOption(1).
 		SetFieldWidth(18)
 	diskStorageDropdown := tview.NewDropDown().
@@ -109,12 +106,6 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 		SetFieldWidth(24)
 	isoVolumeDropdown := tview.NewDropDown().
 		SetLabel("ISO Image").
-		SetFieldWidth(40)
-	importStorageDropdown := tview.NewDropDown().
-		SetLabel("Import Storage").
-		SetFieldWidth(24)
-	importVolumeDropdown := tview.NewDropDown().
-		SetLabel("Import Image").
 		SetFieldWidth(40)
 	bridgeField := tview.NewInputField().
 		SetLabel("Bridge").
@@ -134,8 +125,6 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 	form.AddFormItem(diskSizeField)
 	form.AddFormItem(isoStorageDropdown)
 	form.AddFormItem(isoVolumeDropdown)
-	form.AddFormItem(importStorageDropdown)
-	form.AddFormItem(importVolumeDropdown)
 	form.AddFormItem(bridgeField)
 	form.AddFormItem(startCheckbox)
 
@@ -147,14 +136,6 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 		}
 		isoVolumeDropdown.SetOptions(volumes, nil)
 		isoVolumeDropdown.SetCurrentOption(0)
-	}
-	updateImportImages := func(storage string) {
-		volumes := append([]string{vmCreateNoneOption}, currentData.importByStorage[storage]...)
-		if storage == "" || len(currentData.importByStorage[storage]) == 0 {
-			volumes = []string{vmCreateNoneOption}
-		}
-		importVolumeDropdown.SetOptions(volumes, nil)
-		importVolumeDropdown.SetCurrentOption(0)
 	}
 	applyNodeData := func(data vmCreateNodeData) {
 		currentData = data
@@ -177,15 +158,6 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 			updateISOImages("")
 		}
 
-		importStorages := append([]string{vmCreateNoneOption}, data.importStorages...)
-		importStorageDropdown.SetOptions(importStorages, nil)
-		if len(data.importStorages) > 0 {
-			importStorageDropdown.SetCurrentOption(1)
-			updateImportImages(data.importStorages[0])
-		} else {
-			importStorageDropdown.SetCurrentOption(0)
-			updateImportImages("")
-		}
 	}
 	applyNodeData(initialData)
 
@@ -211,14 +183,6 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 		}
 		updateISOImages(option)
 	})
-	importStorageDropdown.SetSelectedFunc(func(option string, index int) {
-		if option == vmCreateNoneOption {
-			updateImportImages("")
-			return
-		}
-		updateImportImages(option)
-	})
-
 	pageName := "modal:vmCreate"
 	closeForm := func() {
 		a.removePageIfPresent(pageName)
@@ -261,13 +225,10 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 			return
 		}
 		_, sourceType := sourceDropdown.GetCurrentOption()
-		diskSizeGB := 0
-		if sourceType != vmCreateSourceImport {
-			diskSizeGB, err = strconv.Atoi(strings.TrimSpace(diskSizeField.GetText()))
-			if err != nil || diskSizeGB <= 0 {
-				a.showMessageSafe("Enter a valid positive disk size")
-				return
-			}
+		diskSizeGB, err := strconv.Atoi(strings.TrimSpace(diskSizeField.GetText()))
+		if err != nil || diskSizeGB <= 0 {
+			a.showMessageSafe("Enter a valid positive disk size")
+			return
 		}
 		isoStorageIndex, isoStorage := isoStorageDropdown.GetCurrentOption()
 		_ = isoStorageIndex
@@ -275,17 +236,6 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 		_ = isoVolumeIndex
 		if sourceType != vmCreateSourceISO || isoStorage == vmCreateNoneOption || isoVolume == vmCreateNoneOption {
 			isoVolume = ""
-		}
-		importStorageIndex, importStorage := importStorageDropdown.GetCurrentOption()
-		_ = importStorageIndex
-		importVolumeIndex, importVolume := importVolumeDropdown.GetCurrentOption()
-		_ = importVolumeIndex
-		if sourceType != vmCreateSourceImport || importStorage == vmCreateNoneOption || importVolume == vmCreateNoneOption {
-			importVolume = ""
-		}
-		if sourceType == vmCreateSourceImport && importVolume == "" {
-			a.showMessageSafe("Select an imported image")
-			return
 		}
 		bridge := strings.TrimSpace(bridgeField.GetText())
 		if bridge == "" {
@@ -302,7 +252,6 @@ func (a *App) displayVMCreateForm(choices []vmCreateNodeChoice, selectedIndex in
 			DiskStorage: currentData.diskStorages[diskStorageIndex],
 			DiskSizeGB:  diskSizeGB,
 			ISOVolume:   isoVolume,
-			ImportFrom:  importVolume,
 			Bridge:      bridge,
 			Start:       startCheckbox.IsChecked(),
 		}
@@ -365,32 +314,16 @@ func (a *App) vmCreateNodeChoices() []vmCreateNodeChoice {
 }
 
 func (a *App) loadVMCreateNodeData(node *api.Node) (vmCreateNodeData, error) {
-	if node == nil {
-		return vmCreateNodeData{}, fmt.Errorf("node is required")
-	}
-
-	client, err := a.getClientForNode(node)
-	if err != nil {
-		return vmCreateNodeData{}, err
-	}
-
-	nextID, err := client.GetNextID(0)
-	if err != nil {
-		return vmCreateNodeData{}, err
-	}
-
-	storages, err := client.GetNodeStorages(node.Name)
+	nextID, storages, err := a.loadCreateNodeStorages(node)
 	if err != nil {
 		return vmCreateNodeData{}, err
 	}
 
 	data := vmCreateNodeData{
-		nextID:          nextID,
-		diskStorages:    make([]string, 0),
-		isoStorages:     make([]string, 0),
-		isoByStorage:    make(map[string][]string),
-		importStorages:  make([]string, 0),
-		importByStorage: make(map[string][]string),
+		nextID:       nextID,
+		diskStorages: make([]string, 0),
+		isoStorages:  make([]string, 0),
+		isoByStorage: make(map[string][]string),
 	}
 
 	for _, storage := range storages {
@@ -400,42 +333,12 @@ func (a *App) loadVMCreateNodeData(node *api.Node) (vmCreateNodeData, error) {
 		if strings.Contains(storage.Content, "images") {
 			data.diskStorages = append(data.diskStorages, storage.Name)
 		}
-		if strings.Contains(storage.Content, "iso") {
-			data.isoStorages = append(data.isoStorages, storage.Name)
-			items, listErr := client.GetStorageContent(node.Name, storage.Name, "iso")
-			if listErr != nil {
-				return vmCreateNodeData{}, listErr
-			}
-			for _, item := range items {
-				data.isoByStorage[storage.Name] = append(data.isoByStorage[storage.Name], item.VolID)
-			}
-			sort.Strings(data.isoByStorage[storage.Name])
-		}
-		if vmCreateSupportsImportSource(storage) {
-			data.importStorages = append(data.importStorages, storage.Name)
-			items, listErr := client.GetStorageContent(node.Name, storage.Name, "")
-			if listErr != nil {
-				return vmCreateNodeData{}, listErr
-			}
-			for _, item := range items {
-				if item.Content != "images" && item.Content != "import" {
-					continue
-				}
-				data.importByStorage[storage.Name] = append(data.importByStorage[storage.Name], item.VolID)
-			}
-			sort.Strings(data.importByStorage[storage.Name])
-		}
 	}
 
 	sort.Strings(data.diskStorages)
-	sort.Strings(data.isoStorages)
-	sort.Strings(data.importStorages)
-	return data, nil
-}
-
-func vmCreateSupportsImportSource(storage *api.Storage) bool {
-	if storage == nil {
-		return false
+	data.isoStorages, data.isoByStorage, err = a.collectNodeStorageContent(node, storages, storageSupportsToken("iso"), "iso")
+	if err != nil {
+		return vmCreateNodeData{}, err
 	}
-	return strings.Contains(storage.Content, "images")
+	return data, nil
 }

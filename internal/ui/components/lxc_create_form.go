@@ -313,21 +313,7 @@ func (a *App) lxcCreateNodeChoices() []lxcCreateNodeChoice {
 }
 
 func (a *App) loadLXCCreateNodeData(node *api.Node) (lxcCreateNodeData, error) {
-	if node == nil {
-		return lxcCreateNodeData{}, fmt.Errorf("node is required")
-	}
-
-	client, err := a.getClientForNode(node)
-	if err != nil {
-		return lxcCreateNodeData{}, err
-	}
-
-	nextID, err := client.GetNextID(0)
-	if err != nil {
-		return lxcCreateNodeData{}, err
-	}
-
-	storages, err := client.GetNodeStorages(node.Name)
+	nextID, storages, err := a.loadCreateNodeStorages(node)
 	if err != nil {
 		return lxcCreateNodeData{}, err
 	}
@@ -346,20 +332,12 @@ func (a *App) loadLXCCreateNodeData(node *api.Node) (lxcCreateNodeData, error) {
 		if strings.Contains(storage.Content, "rootdir") {
 			data.rootFSStorages = append(data.rootFSStorages, storage.Name)
 		}
-		if strings.Contains(storage.Content, "vztmpl") {
-			data.templateStorages = append(data.templateStorages, storage.Name)
-			items, listErr := client.GetStorageContent(node.Name, storage.Name, "vztmpl")
-			if listErr != nil {
-				return lxcCreateNodeData{}, listErr
-			}
-			for _, item := range items {
-				data.templatesByStorage[storage.Name] = append(data.templatesByStorage[storage.Name], item.VolID)
-			}
-			sort.Strings(data.templatesByStorage[storage.Name])
-		}
 	}
 
 	sort.Strings(data.rootFSStorages)
-	sort.Strings(data.templateStorages)
+	data.templateStorages, data.templatesByStorage, err = a.collectNodeStorageContent(node, storages, storageSupportsToken("vztmpl"), "vztmpl")
+	if err != nil {
+		return lxcCreateNodeData{}, err
+	}
 	return data, nil
 }

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Storage Browser Navigation**: Added a first-class Storage page with its own configurable shortcut (`Alt+4` by default), footer/help integration, node-scoped storage browsing, content filtering, and storage refresh controls.
 - **Storage Content Acquisition**: Added storage-level download actions for URL-based ISO/template/import downloads and OCI image pulls from the Storage page.
+- **Guest Creation Flows**: Added initial node/global creation flows for VMs and LXCs, including VM creation from ISO-based installers and LXC creation from templates.
 
 ### Fixed
 
