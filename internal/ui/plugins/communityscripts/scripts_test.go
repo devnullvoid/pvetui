@@ -26,21 +26,21 @@ func isTerminal(fd uintptr) bool {
 var mockMetadataFiles = []GitHubContent{
 	{
 		Name:        "nextcloud.json",
-		Path:        "frontend/public/json/nextcloud.json",
+		Path:        "public/json/nextcloud.json",
 		Type:        "file",
-		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/frontend/public/json/nextcloud.json",
+		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main/public/json/nextcloud.json",
 	},
 	{
 		Name:        "homeassistant.json",
-		Path:        "frontend/public/json/homeassistant.json",
+		Path:        "public/json/homeassistant.json",
 		Type:        "file",
-		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/frontend/public/json/homeassistant.json",
+		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main/public/json/homeassistant.json",
 	},
 	{
 		Name:        "metadata.json", // Should be filtered out
-		Path:        "frontend/public/json/metadata.json",
+		Path:        "public/json/metadata.json",
 		Type:        "file",
-		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/frontend/public/json/metadata.json",
+		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main/public/json/metadata.json",
 	},
 }
 
@@ -377,6 +377,9 @@ func TestGitHubConstants(t *testing.T) {
 	assert.Contains(t, GitHubRepo, "github.com/community-scripts/ProxmoxVE")
 	assert.Contains(t, GitHubAPIRepo, "api.github.com/repos/community-scripts/ProxmoxVE")
 	assert.Contains(t, RawGitHubRepo, "raw.githubusercontent.com/community-scripts/ProxmoxVE/main")
+	assert.Contains(t, MetadataGitHubRepo, "github.com/community-scripts/ProxmoxVE-Frontend-Archive")
+	assert.Contains(t, MetadataGitHubAPIRepo, "api.github.com/repos/community-scripts/ProxmoxVE-Frontend-Archive")
+	assert.Contains(t, MetadataRawGitHubRepo, "raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main")
 }
 
 // Test GitHubContent struct.

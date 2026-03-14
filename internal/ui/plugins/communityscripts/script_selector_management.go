@@ -33,7 +33,7 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 	}
 
 	if script.Slug != "" {
-		pageURL := fmt.Sprintf("https://community-scripts.github.io/ProxmoxVE/scripts?id=%s", script.Slug)
+		pageURL := fmt.Sprintf("https://community-scripts.org/scripts/%s", script.Slug)
 		fmt.Fprintf(&sb, "[%s]Script Page:[-] %s\n", labelColor, pageURL)
 	}
 

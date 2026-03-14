@@ -21,9 +21,12 @@ import (
 
 // GitHubRepo is the URL to the Proxmox Community Scripts repository.
 const (
-	GitHubRepo    = "https://github.com/community-scripts/ProxmoxVE"
-	GitHubAPIRepo = "https://api.github.com/repos/community-scripts/ProxmoxVE"
-	RawGitHubRepo = "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+	GitHubRepo            = "https://github.com/community-scripts/ProxmoxVE"
+	GitHubAPIRepo         = "https://api.github.com/repos/community-scripts/ProxmoxVE"
+	RawGitHubRepo         = "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+	MetadataGitHubRepo    = "https://github.com/community-scripts/ProxmoxVE-Frontend-Archive"
+	MetadataGitHubAPIRepo = "https://api.github.com/repos/community-scripts/ProxmoxVE-Frontend-Archive"
+	MetadataRawGitHubRepo = "https://raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main"
 )
 
 // Cache TTLs.
@@ -176,8 +179,8 @@ func GetScriptMetadataFiles() ([]GitHubContent, error) {
 		return cachedFiles, nil
 	}
 
-	// The GitHub API URL for the JSON metadata directory
-	endpoint := GitHubAPIRepo + "/contents/frontend/public/json"
+	// The GitHub API URL for the archived JSON metadata directory
+	endpoint := MetadataGitHubAPIRepo + "/contents/public/json"
 	endpoint, err = validateGitHubURL(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("invalid metadata list endpoint: %w", err)
