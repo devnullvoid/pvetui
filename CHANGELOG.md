@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-03-14
+
 ### Fixed
 
 - **Community Scripts Metadata Source**: Switched the Community Scripts plugin from the stale archive fallback to the newly exposed public PocketBase metadata API at `db.community-scripts.org`, restoring up-to-date script listings while keeping install script execution on `community-scripts/ProxmoxVE`.
