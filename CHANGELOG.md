@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Storage Browser Actions**: Added storage-content context actions for deleting ISO/template/snippet/backup entries and restoring backups directly from the Storage page, while removing the redundant Storage Browser entry from the Global menu.
+- **Community Scripts Metadata Source**: Temporarily restored Community Scripts plugin metadata loading by switching from the removed upstream frontend JSON path to the archived `community-scripts/ProxmoxVE-Frontend-Archive` metadata source while upstream stabilizes a replacement for the new website architecture.
 
 ## [1.1.0] - 2026-03-08
 
