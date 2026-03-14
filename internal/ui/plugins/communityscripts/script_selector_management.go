@@ -38,7 +38,7 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 	}
 
 	if script.ScriptPath != "" {
-		installCmd := fmt.Sprintf(`bash -c "$(curl -fsSL %s/%s)"`, RawGitHubRepo, script.ScriptPath)
+		installCmd := fmt.Sprintf(`bash -c "$(curl -fsSL %s)"`, rawScriptURL(script))
 		fmt.Fprintf(&sb, "[%s]Install Command:[-] %s\n", labelColor, installCmd)
 	}
 
@@ -73,6 +73,22 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 
 // installScript installs the selected script.
 func (s *ScriptSelector) installScript(script Script) {
+	if script.IsDeleted || script.IsDisabled {
+		s.app.ShowMessageSafe("This script is not currently installable.")
+		return
+	}
+
+	ok, err := scriptURLExists(script)
+	if err != nil {
+		s.app.ShowMessageSafe(fmt.Sprintf("Failed to verify script availability: %v", err))
+		return
+	}
+
+	if !ok {
+		s.app.ShowMessageSafe("This script is listed in metadata but is not published in the upstream repository yet.")
+		return
+	}
+
 	// Temporarily suspend the UI for interactive script installation (same pattern as working shell functions)
 	success := false
 	s.app.Suspend(func() {
@@ -82,9 +98,9 @@ func (s *ScriptSelector) installScript(script Script) {
 		var exitCode int
 		var err error
 		if s.vm != nil && s.vm.Type == api.VMTypeLXC {
-			exitCode, err = InstallScriptInLXC(s.user, s.nodeIP, s.vm.ID, script.ScriptPath, false)
+			exitCode, err = InstallScriptInLXC(s.user, s.nodeIP, s.vm.ID, script, false)
 		} else {
-			exitCode, err = InstallScript(s.user, s.nodeIP, script.ScriptPath, false)
+			exitCode, err = InstallScript(s.user, s.nodeIP, script, false)
 		}
 		if err != nil {
 			fmt.Printf("\nScript installation failed (exit=%d): %v\n", exitCode, err)

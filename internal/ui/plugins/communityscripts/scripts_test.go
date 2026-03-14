@@ -25,22 +25,22 @@ func isTerminal(fd uintptr) bool {
 // Test data for mock GitHub API responses.
 var mockMetadataFiles = []GitHubContent{
 	{
-		Name:        "nextcloud.json",
-		Path:        "public/json/nextcloud.json",
-		Type:        "file",
-		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main/public/json/nextcloud.json",
+		Name:        "nextcloud",
+		Path:        "script_scripts/nextcloud-record",
+		Type:        "record",
+		DownloadURL: "https://db.community-scripts.org/api/collections/script_scripts/records/nextcloud-record?expand=type",
 	},
 	{
-		Name:        "homeassistant.json",
-		Path:        "public/json/homeassistant.json",
-		Type:        "file",
-		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main/public/json/homeassistant.json",
+		Name:        "homeassistant",
+		Path:        "script_scripts/homeassistant-record",
+		Type:        "record",
+		DownloadURL: "https://db.community-scripts.org/api/collections/script_scripts/records/homeassistant-record?expand=type",
 	},
 	{
-		Name:        "metadata.json", // Should be filtered out
-		Path:        "public/json/metadata.json",
-		Type:        "file",
-		DownloadURL: "https://raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main/public/json/metadata.json",
+		Name:        "metadata-preview",
+		Path:        "script_scripts/metadata-preview",
+		Type:        "record",
+		DownloadURL: "https://db.community-scripts.org/api/collections/script_scripts/records/metadata-preview?expand=type",
 	},
 }
 
@@ -48,7 +48,7 @@ var mockScript = Script{
 	Name:          "Nextcloud",
 	Slug:          "nextcloud",
 	Description:   "Cloud storage and collaboration platform",
-	Categories:    []int{1, 2},
+	Categories:    []string{"scriptcat00011", "scriptcat00021"},
 	Type:          "ct",
 	Updateable:    true,
 	Privileged:    false,
@@ -191,7 +191,7 @@ func TestInstallScript_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Use a non-routable IP for faster timeout
-			_, err := InstallScript("testuser", "192.168.254.254", tt.scriptPath, false)
+			_, err := InstallScript("testuser", "192.168.254.254", Script{ScriptPath: tt.scriptPath}, false)
 
 			assert.Error(t, err)
 
@@ -215,12 +215,27 @@ func TestWrapRemoteCommandWithBash(t *testing.T) {
 	assert.Equal(t, `/bin/bash -lc 'if true; then echo '"'"'ok'"'"'; fi'`, wrapped)
 }
 
+func TestBuildInstallScriptCommand(t *testing.T) {
+	cmd := buildInstallScriptCommand("https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/nextcloud.sh")
+	assert.Equal(t, "set -o pipefail && curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/nextcloud.sh | /bin/bash", cmd)
+}
+
+func TestRawRepoForScript(t *testing.T) {
+	assert.Equal(t, RawGitHubRepo, rawRepoForScript(Script{IsDev: false}))
+	assert.Equal(t, RawGitHubDevRepo, rawRepoForScript(Script{IsDev: true}))
+}
+
+func TestRawScriptURL(t *testing.T) {
+	assert.Equal(t, RawGitHubRepo+"/ct/nextcloud.sh", rawScriptURL(Script{ScriptPath: "ct/nextcloud.sh"}))
+	assert.Equal(t, RawGitHubDevRepo+"/ct/affine.sh", rawScriptURL(Script{ScriptPath: "ct/affine.sh", IsDev: true}))
+}
+
 func TestScript_Methods(t *testing.T) {
 	script := &Script{
 		Name:        "Test Script",
 		Type:        "ct",
 		ScriptPath:  "ct/test.sh",
-		Categories:  []int{1, 2, 3},
+		Categories:  []string{"scriptcat00001", "scriptcat00002", "scriptcat00003"},
 		Updateable:  true,
 		Privileged:  false,
 		DateCreated: "2023-01-01",
@@ -327,7 +342,7 @@ func BenchmarkGetScriptMetadataFiles_WithMemoryCache(b *testing.B) {
 	memCache := cache.NewMemoryCache()
 
 	// Pre-populate cache with mock data
-	_ = memCache.Set(ScriptListCacheKey, mockMetadataFiles, ScriptListTTL)
+	_ = memCache.Set(ScriptMetadataListCacheKey, mockMetadataFiles, ScriptListTTL)
 
 	b.ResetTimer()
 
@@ -368,33 +383,89 @@ func TestScriptsLogger(t *testing.T) {
 func TestCacheTTLConstants(t *testing.T) {
 	assert.Equal(t, 24*time.Hour, ScriptMetadataTTL)
 	assert.Equal(t, 12*time.Hour, ScriptListTTL)
-	assert.Equal(t, "github_script_list", ScriptListCacheKey)
-	assert.Equal(t, "github_script_", ScriptCacheKeyPrefix)
+	assert.Equal(t, "communityscripts_script_metadata_list_v3", ScriptMetadataListCacheKey)
+	assert.Equal(t, "communityscripts_script_list_v3", ScriptListCacheKey)
+	assert.Equal(t, "communityscripts_script_", ScriptCacheKeyPrefix)
 }
 
-// Test GitHub repository constants.
-func TestGitHubConstants(t *testing.T) {
+// Test metadata source constants.
+func TestMetadataConstants(t *testing.T) {
 	assert.Contains(t, GitHubRepo, "github.com/community-scripts/ProxmoxVE")
 	assert.Contains(t, GitHubAPIRepo, "api.github.com/repos/community-scripts/ProxmoxVE")
 	assert.Contains(t, RawGitHubRepo, "raw.githubusercontent.com/community-scripts/ProxmoxVE/main")
-	assert.Contains(t, MetadataGitHubRepo, "github.com/community-scripts/ProxmoxVE-Frontend-Archive")
-	assert.Contains(t, MetadataGitHubAPIRepo, "api.github.com/repos/community-scripts/ProxmoxVE-Frontend-Archive")
-	assert.Contains(t, MetadataRawGitHubRepo, "raw.githubusercontent.com/community-scripts/ProxmoxVE-Frontend-Archive/main")
+	assert.Contains(t, RawGitHubDevRepo, "raw.githubusercontent.com/community-scripts/ProxmoxVED/main")
+	assert.Equal(t, "https://db.community-scripts.org", MetadataPocketBaseBase)
+	assert.Equal(t, "https://db.community-scripts.org/api/collections", MetadataPocketBaseAPI)
 }
 
 // Test GitHubContent struct.
 func TestGitHubContent(t *testing.T) {
 	content := GitHubContent{
-		Name:        "test.json",
-		Path:        "path/to/test.json",
-		Type:        "file",
+		Name:        "test",
+		Path:        "script_scripts/test-record",
+		Type:        "record",
 		DownloadURL: "https://example.com/test.json",
 	}
 
-	assert.Equal(t, "test.json", content.Name)
-	assert.Equal(t, "path/to/test.json", content.Path)
-	assert.Equal(t, "file", content.Type)
+	assert.Equal(t, "test", content.Name)
+	assert.Equal(t, "script_scripts/test-record", content.Path)
+	assert.Equal(t, "record", content.Type)
 	assert.Equal(t, "https://example.com/test.json", content.DownloadURL)
+}
+
+func TestBuildScriptPath(t *testing.T) {
+	tests := []struct {
+		scriptType string
+		slug       string
+		expected   string
+	}{
+		{scriptType: "lxc", slug: "homeassistant", expected: "ct/homeassistant.sh"},
+		{scriptType: "vm", slug: "ubuntu2204-vm", expected: "vm/ubuntu2204-vm.sh"},
+		{scriptType: "addon", slug: "clean-lxcs", expected: "tools/addon/clean-lxcs.sh"},
+		{scriptType: "pve", slug: "post-pve-install", expected: "tools/pve/post-pve-install.sh"},
+		{scriptType: "turnkey", slug: "turnkey", expected: "turnkey/turnkey.sh"},
+		{scriptType: "unknown", slug: "mystery", expected: ""},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, buildScriptPath(tt.scriptType, tt.slug))
+	}
+}
+
+func TestNormalizeScriptType(t *testing.T) {
+	assert.Equal(t, "ct", normalizeScriptType("lxc"))
+	assert.Equal(t, "vm", normalizeScriptType("vm"))
+	assert.Equal(t, "tools", normalizeScriptType("addon"))
+	assert.Equal(t, "tools", normalizeScriptType("pve"))
+	assert.Equal(t, "turnkey", normalizeScriptType("turnkey"))
+}
+
+func TestMapPocketBaseRecord(t *testing.T) {
+	record := pocketBaseScriptRecord{
+		Name:        "AFFiNE",
+		Slug:        "affine",
+		Description: "Docs",
+		Categories:  []string{"scriptcat00012"},
+		Updateable:  true,
+		Privileged:  false,
+		Port:        3010,
+		Website:     "https://affine.pro/",
+		ConfigPath:  "/opt/affine/.env",
+		Created:     "2026-03-02 14:43:54.170Z",
+		IsDev:       true,
+		IsDisabled:  false,
+		IsDeleted:   false,
+		Expand: pocketBaseScriptExpand{
+			Type: pocketBaseRelation{Type: "lxc"},
+		},
+	}
+
+	script := mapPocketBaseRecord(record)
+	assert.Equal(t, "ct", script.Type)
+	assert.Equal(t, "ct/affine.sh", script.ScriptPath)
+	assert.True(t, script.IsDev)
+	assert.False(t, script.IsDisabled)
+	assert.False(t, script.IsDeleted)
 }
 
 // Test script filtering logic (without external dependencies).
@@ -509,5 +580,5 @@ func TestFetchScripts_Integration(t *testing.T) {
 
 	// This would test actual script fetching
 	// For now, we skip to avoid network dependencies in unit tests
-	t.Skip("Integration test - requires network access to GitHub API")
+	t.Skip("Integration test - requires network access to metadata API")
 }

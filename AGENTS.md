@@ -230,6 +230,7 @@ Comprehensive code review resulted in these fixes (Oct 2025):
 - Recently added pluggable architecture for UI extensions
 - Plugins disabled by default, opt-in via `plugins.enabled` config
 - Community Scripts extracted to plugin
+- Community Scripts metadata is no longer repo-backed JSON; the current live source is the public PocketBase API at `https://db.community-scripts.org/api/collections/script_scripts/records`, while install scripts still come from `community-scripts/ProxmoxVE` and script paths are derived from PocketBase `type` + `slug`
 - Ansible Toolkit plugin (`ansible`) provides inventory generation + playbook execution flows from node/guest context menus
 - Namespaced cache support for plugin isolation
 
