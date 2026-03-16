@@ -41,6 +41,12 @@ func init() {
 
 	// Add commands
 	RootCmd.AddCommand(newConfigWizardCmd())
+	RootCmd.AddCommand(newNodesCmd())
+	RootCmd.AddCommand(newGuestsCmd())
+	RootCmd.AddCommand(newTasksCmd())
+
+	// Output format flag (inherited by all subcommands)
+	RootCmd.PersistentFlags().StringP("output", "o", outputJSON, "Output format: json, table")
 }
 
 // runMainApplication runs the main application
