@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -53,18 +54,18 @@ func newTasksListCmd() *cobra.Command {
 }
 
 func runTasksList(cmd *cobra.Command, _ []string) error {
-	client, _, err := initAPIClient(cmd)
+	session, err := initCLISession(cmd)
 	if err != nil {
 		return printError(err)
 	}
 
-	if client == nil {
+	if session == nil {
 		return nil
 	}
 
 	recent, _ := cmd.Flags().GetInt("recent")
 
-	tasks, err := client.GetClusterTasks()
+	tasks, err := session.getTasks(context.Background())
 	if err != nil {
 		return printError(fmt.Errorf("failed to fetch tasks: %w", err))
 	}

@@ -112,12 +112,12 @@ func newGuestsListCmd() *cobra.Command {
 }
 
 func runGuestsList(cmd *cobra.Command, _ []string) error {
-	client, _, err := initAPIClient(cmd)
+	session, err := initCLISession(cmd)
 	if err != nil {
 		return printError(err)
 	}
 
-	if client == nil {
+	if session == nil {
 		return nil
 	}
 
@@ -125,37 +125,31 @@ func runGuestsList(cmd *cobra.Command, _ []string) error {
 	statusFilter, _ := cmd.Flags().GetString("status")
 	typeFilter, _ := cmd.Flags().GetString("type")
 
-	cluster, err := client.GetClusterStatus()
+	vms, err := session.getVMs(context.Background())
 	if err != nil {
 		return printError(fmt.Errorf("failed to fetch guests: %w", err))
 	}
 
 	var out []guestOutput
 
-	for _, n := range cluster.Nodes {
-		if n == nil {
+	for _, vm := range vms {
+		if vm == nil {
 			continue
 		}
 
-		if nodeFilter != "" && n.Name != nodeFilter {
+		if nodeFilter != "" && vm.Node != nodeFilter {
 			continue
 		}
 
-		for _, vm := range n.VMs {
-			if vm == nil {
-				continue
-			}
-
-			if statusFilter != "" && vm.Status != statusFilter {
-				continue
-			}
-
-			if typeFilter != "" && vm.Type != typeFilter {
-				continue
-			}
-
-			out = append(out, vmToGuestOutput(vm))
+		if statusFilter != "" && vm.Status != statusFilter {
+			continue
 		}
+
+		if typeFilter != "" && vm.Type != typeFilter {
+			continue
+		}
+
+		out = append(out, vmToGuestOutput(vm))
 	}
 
 	if out == nil {
@@ -207,16 +201,16 @@ func runGuestsShow(cmd *cobra.Command, args []string) error {
 		return printError(err)
 	}
 
-	client, _, initErr := initAPIClient(cmd)
+	session, initErr := initCLISession(cmd)
 	if initErr != nil {
 		return printError(initErr)
 	}
 
-	if client == nil {
+	if session == nil {
 		return nil
 	}
 
-	vm, err := findGuestByVMID(client, vmid)
+	vm, err := session.findVM(context.Background(), vmid)
 	if err != nil {
 		return printError(err)
 	}
@@ -313,22 +307,29 @@ func makeLifecycleCmd(
 			return printError(err)
 		}
 
-		client, _, initErr := initAPIClient(cmd)
+		session, initErr := initCLISession(cmd)
 		if initErr != nil {
 			return printError(initErr)
 		}
 
-		if client == nil {
+		if session == nil {
 			return nil
 		}
 
-		vm, err := findGuestByVMID(client, vmid)
+		ctx := context.Background()
+
+		vm, err := session.findVM(ctx, vmid)
 		if err != nil {
 			return printError(err)
 		}
 
 		if vm.Template {
 			return printError(fmt.Errorf("guest %d is a template; lifecycle operations are not supported", vmid))
+		}
+
+		client, err := session.clientForVM(vm)
+		if err != nil {
+			return printError(err)
 		}
 
 		upid, err := fn(client, vm)
@@ -399,16 +400,18 @@ func runGuestsExec(cmd *cobra.Command, args []string) error {
 	command := args[1]
 	timeout, _ := cmd.Flags().GetDuration("timeout")
 
-	client, _, initErr := initAPIClient(cmd)
+	session, initErr := initCLISession(cmd)
 	if initErr != nil {
 		return printError(initErr)
 	}
 
-	if client == nil {
+	if session == nil {
 		return nil
 	}
 
-	vm, err := findGuestByVMID(client, vmid)
+	ctx := context.Background()
+
+	vm, err := session.findVM(ctx, vmid)
 	if err != nil {
 		return printError(err)
 	}
@@ -425,14 +428,19 @@ func runGuestsExec(cmd *cobra.Command, args []string) error {
 		return printError(fmt.Errorf("guest agent is not available on VM %d (enabled: %v, running: %v)", vmid, vm.AgentEnabled, vm.AgentRunning))
 	}
 
+	client, err := session.clientForVM(vm)
+	if err != nil {
+		return printError(err)
+	}
+
 	cmdParts := buildExecCommand(vm.OSType, command)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	start := time.Now()
 
-	stdout, stderr, exitCode, err := client.ExecuteGuestAgentCommand(ctx, vm, cmdParts, timeout)
+	stdout, stderr, exitCode, err := client.ExecuteGuestAgentCommand(execCtx, vm, cmdParts, timeout)
 	elapsed := time.Since(start)
 
 	if err != nil {

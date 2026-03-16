@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -77,22 +78,22 @@ func newNodesListCmd() *cobra.Command {
 }
 
 func runNodesList(cmd *cobra.Command, _ []string) error {
-	client, _, err := initAPIClient(cmd)
+	session, err := initCLISession(cmd)
 	if err != nil {
 		return printError(err)
 	}
 
-	if client == nil {
+	if session == nil {
 		return nil
 	}
 
-	cluster, err := client.GetClusterStatus()
+	nodes, err := session.getNodes(context.Background())
 	if err != nil {
 		return printError(fmt.Errorf("failed to fetch nodes: %w", err))
 	}
 
-	out := make([]nodeOutput, 0, len(cluster.Nodes))
-	for _, n := range cluster.Nodes {
+	out := make([]nodeOutput, 0, len(nodes))
+	for _, n := range nodes {
 		if n != nil {
 			out = append(out, nodeToOutput(n))
 		}
@@ -135,23 +136,23 @@ func newNodesShowCmd() *cobra.Command {
 }
 
 func runNodesShow(cmd *cobra.Command, args []string) error {
-	client, _, err := initAPIClient(cmd)
+	session, err := initCLISession(cmd)
 	if err != nil {
 		return printError(err)
 	}
 
-	if client == nil {
+	if session == nil {
 		return nil
 	}
 
 	nodeName := args[0]
 
-	cluster, err := client.GetClusterStatus()
+	nodes, err := session.getNodes(context.Background())
 	if err != nil {
 		return printError(fmt.Errorf("failed to fetch nodes: %w", err))
 	}
 
-	for _, n := range cluster.Nodes {
+	for _, n := range nodes {
 		if n != nil && n.Name == nodeName {
 			out := nodeToOutput(n)
 
