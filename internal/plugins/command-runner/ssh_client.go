@@ -3,6 +3,7 @@ package commandrunner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -315,6 +316,70 @@ func (c *SSHClientImpl) ExecuteContainerCommand(ctx context.Context, host string
 
 	// Return stdout output
 	return stdout.String(), nil
+}
+
+// ExecuteContainerCommandDetailed executes a command inside an LXC container via
+// SSH to the Proxmox node and returns stdout, stderr, and the exit code separately.
+// cmdParts is an argument list (e.g. []string{"/bin/sh", "-c", "uptime"}) that is
+// shell-quoted and joined into the pct exec call.
+func (c *SSHClientImpl) ExecuteContainerCommandDetailed(ctx context.Context, host string, containerID int, cmdParts []string) (stdout, stderr string, exitCode int, err error) {
+	client, cleanup, dialErr := c.dialHost(host)
+	if dialErr != nil {
+		return "", "", 0, dialErr
+	}
+	defer func() { _ = client.Close() }()
+	if cleanup != nil {
+		defer cleanup()
+	}
+
+	session, sessionErr := client.NewSession()
+	if sessionErr != nil {
+		return "", "", 0, fmt.Errorf("failed to create session: %w", sessionErr)
+	}
+	defer func() { _ = session.Close() }()
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+	session.Stderr = &stderrBuf
+
+	// Build: pct exec <ctid> -- <cmd> [args...], shell-quoting each argument.
+	quoted := make([]string, len(cmdParts))
+	for i, p := range cmdParts {
+		quoted[i] = shellQuoteArg(p)
+	}
+	pctCmd := fmt.Sprintf("pct exec %d -- %s", containerID, strings.Join(quoted, " "))
+	if !strings.EqualFold(c.username, "root") {
+		pctCmd = "sudo " + pctCmd
+	}
+	crSSHLogger().Debug("SSH exec (container detailed): user=%s host=%s vmid=%d cmd=%s", c.username, host, containerID, pctCmd)
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- session.Run(pctCmd)
+	}()
+
+	select {
+	case <-ctx.Done():
+		_ = session.Signal(ssh.SIGTERM)
+		_ = session.Close()
+		return stdoutBuf.String(), stderrBuf.String(), 0, fmt.Errorf("command execution cancelled: %w", ctx.Err())
+	case runErr := <-errChan:
+		stdoutStr := stdoutBuf.String()
+		stderrStr := stderrBuf.String()
+		if runErr != nil {
+			var exitErr *ssh.ExitError
+			if errors.As(runErr, &exitErr) {
+				return stdoutStr, stderrStr, exitErr.ExitStatus(), nil
+			}
+			return stdoutStr, stderrStr, 1, fmt.Errorf("command failed: %w", runErr)
+		}
+		return stdoutStr, stderrStr, 0, nil
+	}
+}
+
+// shellQuoteArg wraps s in single quotes, escaping any embedded single quotes.
+func shellQuoteArg(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // MockSSHClient is a mock implementation for testing

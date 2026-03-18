@@ -9,6 +9,7 @@
   <a href="#-installation">Installation</a> •
   <a href="#-configuration">Configuration</a> •
   <a href="#-usage">Usage</a> •
+  <a href="#-cli-subcommands">CLI</a> •
   <a href="#-theming">Theming</a> •
   <a href="#-vnc-console-access">VNC Console</a>
 </p>
@@ -40,6 +41,7 @@
 - **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
 - **Comprehensive Documentation**: Detailed guides for configuration, theming, and development
 - **Group Mode (multi-cluster)**: Combine multiple Proxmox profiles into one unified view with routed actions per cluster
+- **CLI Subcommands**: Use `pvetui` non-interactively from scripts or AI agent workflows — list/show nodes, guests, and tasks; start/stop/restart guests; execute commands in QEMU VMs via the guest agent or in LXC containers via `pct exec`
 
 ## 📸 Screenshots
 
@@ -322,6 +324,7 @@ Windows legacy fallback:
 | Flag | Short | Environment Variable | Description |
 |------|-------|----------------------|-------------|
 | `--config` | `-c` | n/a | Path to YAML config file |
+| `--output` | `-o` | n/a | CLI subcommand output format: `json` (default) or `table` |
 | `--profile` | `-p` | n/a | Connection profile to use (overrides default_profile) |
 | `--no-cache` | `-n` | n/a | Disable caching |
 | `--version` | `-v` | n/a | Show version information |
@@ -360,6 +363,72 @@ Windows legacy fallback:
 | `?` | Help | `q` | Quit |
 
 Customize keys via the `key_bindings` section in your config. This includes task-panel controls (`tasks_toggle_queue`, `task_stop_cancel`) in addition to global navigation/actions. See [docs/CONFIGURATION.md#key-bindings](docs/CONFIGURATION.md#key-bindings) for all options (including macOS `Opt` key support).
+
+## 🖥️ CLI Subcommands
+
+> **AI Agent / Claude Code skill available:** `npx skills add github:devnullvoid/pvetui` — installs the [`pvetui-cli` skill](skills/pvetui-cli/SKILL.md) so agents know how to use these commands.
+
+`pvetui` doubles as a non-interactive CLI tool. Running any subcommand skips the TUI entirely, making it easy to use in shell scripts, cron jobs, and AI agent workflows.
+
+All subcommands share the same config file, `--profile` selection, and group/aggregate profile support as the TUI. Output defaults to JSON (stdout); pass `--output table` for human-readable output. Errors are written as JSON to stderr and the process exits non-zero on failure.
+
+### Nodes
+
+```bash
+# List all cluster nodes
+pvetui nodes list
+pvetui nodes list --output table
+
+# Show a specific node
+pvetui nodes show pve01
+```
+
+### Guests (VMs and Containers)
+
+```bash
+# List all guests
+pvetui guests list
+pvetui guests list --output table
+
+# Filter by node, status, or type
+pvetui guests list --node pve01 --status running --type qemu
+
+# Show a specific guest
+pvetui guests show 100
+
+# Lifecycle operations (returns UPID)
+pvetui guests start 100
+pvetui guests shutdown 100   # graceful ACPI shutdown
+pvetui guests stop 100       # force power-off
+pvetui guests restart 100
+
+# Execute a command in a QEMU VM via the guest agent (no SSH to the guest needed)
+pvetui guests exec 100 "uptime"
+# Execute a command in an LXC container via pct exec over SSH to the node
+pvetui guests exec 200 "df -h" --timeout 60s
+```
+
+`exec` automatically wraps commands in `/bin/sh -c` on Linux guests and `powershell.exe` on Windows guests. The guest must be running with the QEMU guest agent active.
+
+### Tasks
+
+```bash
+# List recent cluster tasks (default: last 20)
+pvetui tasks list
+pvetui tasks list --recent 50 --output table
+```
+
+### Profiles
+
+All subcommands work with `--profile` and aggregate groups:
+
+```bash
+# Use a specific profile
+pvetui --profile prod guests list
+
+# Fan out across all members of an aggregate group
+pvetui --profile all-servers guests list --status running
+```
 
 ## 🎨 Theming
 

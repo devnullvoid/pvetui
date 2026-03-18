@@ -52,6 +52,10 @@ type BootstrapOptions struct {
 	FlagCacheDir           string
 	FlagAgeDir             string
 	FlagShowIcons          *bool // Pointer to distinguish "not set" from false
+
+	// Quiet suppresses startup progress messages. Set by CLI subcommands so
+	// human-facing banners do not pollute structured JSON output.
+	Quiet bool
 }
 
 // BootstrapResult contains the result of the bootstrap process.
@@ -174,7 +178,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, nil
 	}
 
-	fmt.Println("🚀 Starting pvetui...")
+	if !opts.Quiet {
+		fmt.Println("🚀 Starting pvetui...")
+	}
 
 	// Handle config wizard BEFORE config loading and profile resolution
 	// This allows the wizard to work even when no config file exists
@@ -248,7 +254,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		_, isProfile := cfg.Profiles[selectedProfile]
 		isGroup := cfg.IsGroup(selectedProfile)
 		if !isProfile && !isGroup {
-			fmt.Printf("⚠️  Profile/group '%s' not found — falling back to selection.\n", selectedProfile)
+			if !opts.Quiet {
+				fmt.Printf("⚠️  Profile/group '%s' not found — falling back to selection.\n", selectedProfile)
+			}
 			selectedProfile = ""
 		}
 	}
@@ -262,6 +270,10 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			for name := range cfg.Profiles {
 				selectedProfile = name
 			}
+		} else if opts.Quiet {
+			// Non-interactive mode (CLI subcommands): don't prompt; require
+			// an explicit --profile flag or a default_profile in config.
+			return nil, fmt.Errorf("multiple profiles configured; use --profile to select one")
 		} else {
 			chosen, err := promptProfileSelection(cfg)
 			if err != nil {
@@ -286,7 +298,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			members := cfg.GetProfileNamesInGroup(selectedProfile)
 			if len(members) > 0 {
 				startupProfile = members[0]
-				fmt.Printf("🔄 Selected group '%s' (bootstrapping via '%s')\n", selectedProfile, startupProfile)
+				if !opts.Quiet {
+					fmt.Printf("🔄 Selected group '%s' (bootstrapping via '%s')\n", selectedProfile, startupProfile)
+				}
 			} else {
 				return nil, fmt.Errorf("aggregate group '%s' has no members", selectedProfile)
 			}

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLI Subcommands**: `pvetui` can now be used as a non-interactive CLI tool in addition to launching the TUI. Running any subcommand bypasses the TUI entirely, making `pvetui` composable in scripts and AI agent workflows.
+  - `pvetui nodes list` — list all cluster nodes with status and resource metrics.
+  - `pvetui nodes show <node>` — detailed view of a single node.
+  - `pvetui guests list` — list all VMs and LXC containers with optional `--node`, `--status`, and `--type` filters.
+  - `pvetui guests show <vmid>` — detailed view of a single guest.
+  - `pvetui guests start|stop|shutdown|restart <vmid>` — lifecycle operations returning a UPID.
+  - `pvetui guests exec <vmid> <command>` — execute a shell command inside a running guest. QEMU VMs use the guest agent (no SSH to the guest required), with automatic PowerShell wrapping on Windows. LXC containers use `pct exec` over SSH to the Proxmox node (`ssh_user` must be configured). Supports `--timeout`.
+  - `pvetui tasks list` — list recent cluster tasks with `--recent N` (default 20).
+  - `--output` / `-o` persistent flag selects `json` (default, structured stdout) or `table` (human-readable).
+  - All subcommands respect `--profile` and work transparently with aggregate group profiles (fan-out queries across all member nodes).
+  - No TUI startup banners are emitted when a subcommand is active.
+  - Errors are written as JSON to stderr; the process exits non-zero on failure.
+
 ## [1.2.1] - 2026-03-14
 
 ### Fixed
