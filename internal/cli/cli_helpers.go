@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/bootstrap"
 	"github.com/devnullvoid/pvetui/internal/cache"
 	"github.com/devnullvoid/pvetui/internal/config"
+	commandrunner "github.com/devnullvoid/pvetui/internal/plugins/command-runner"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
@@ -296,6 +298,73 @@ func formatUptime(seconds int64) string {
 	default:
 		return fmt.Sprintf("%ds", s)
 	}
+}
+
+// findNodeIP returns the IP address of the named node.
+func (s *cliSession) findNodeIP(ctx context.Context, nodeName string) (string, error) {
+	nodes, err := s.getNodes(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch nodes: %w", err)
+	}
+
+	for _, n := range nodes {
+		if n != nil && n.Name == nodeName {
+			return n.IP, nil
+		}
+	}
+
+	return "", fmt.Errorf("node %q not found", nodeName)
+}
+
+// resolveSSHCreds returns the SSH username and jump-host config to use for the
+// node that hosts vm, preferring the guest's source profile when available.
+func (s *cliSession) resolveSSHCreds(vm *api.VM) (sshUser string, jumpHost config.SSHJumpHost) {
+	if vm != nil && vm.SourceProfile != "" {
+		if p, ok := s.cfg.Profiles[vm.SourceProfile]; ok {
+			if p.SSHUser != "" {
+				sshUser = p.SSHUser
+			}
+
+			if p.SSHJumpHost.Addr != "" {
+				jumpHost = p.SSHJumpHost
+			}
+		}
+	}
+
+	if sshUser == "" {
+		sshUser = s.cfg.SSHUser
+	}
+
+	if jumpHost.Addr == "" {
+		jumpHost = s.cfg.SSHJumpHost
+	}
+
+	return sshUser, jumpHost
+}
+
+// execLXC executes cmdParts inside an LXC container via SSH to its host node
+// using pct exec. Returns stdout, stderr, exit code, and any transport error.
+func (s *cliSession) execLXC(ctx context.Context, vm *api.VM, cmdParts []string, timeout time.Duration) (stdout, stderr string, exitCode int, err error) {
+	nodeIP, err := s.findNodeIP(ctx, vm.Node)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("cannot resolve node for guest %d: %w", vm.ID, err)
+	}
+
+	sshUser, jumpHost := s.resolveSSHCreds(vm)
+
+	sshClient := commandrunner.NewSSHClient(commandrunner.SSHClientConfig{
+		Username: sshUser,
+		Timeout:  timeout,
+		Port:     22,
+		JumpHost: commandrunner.JumpHostConfig{
+			Addr:    jumpHost.Addr,
+			User:    jumpHost.User,
+			KeyPath: jumpHost.Keyfile,
+			Port:    jumpHost.Port,
+		},
+	})
+
+	return sshClient.ExecuteContainerCommandDetailed(ctx, nodeIP, vm.ID, cmdParts)
 }
 
 // findGuestByVMID scans all nodes for a guest with the given VMID.

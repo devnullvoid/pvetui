@@ -19,8 +19,9 @@ var RootCmd = &cobra.Command{
 
 It provides an interactive interface for managing virtual machines, containers,
 nodes, and other Proxmox resources directly from the terminal.`,
-	Version: version.GetVersionString(),
-	RunE:    runMainApplication,
+	Version:      version.GetVersionString(),
+	RunE:         runMainApplication,
+	SilenceUsage: true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

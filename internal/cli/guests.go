@@ -368,19 +368,21 @@ func newGuestsExecCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "exec <vmid> <command>",
 		Short: "Execute a command inside a guest via QEMU guest agent",
-		Long: `Execute a shell command inside a running QEMU VM via the guest agent.
+		Long: `Execute a shell command inside a running guest.
 
-The guest must be running and have the QEMU guest agent enabled and responding.
-This command does NOT require SSH access to the guest.
-
+For QEMU VMs the command runs via the QEMU guest agent (no SSH to the guest
+required). The VM must have the guest agent enabled and running.
 On Linux guests the command runs via /bin/sh -c.
 On Windows guests it runs via PowerShell.
 
+For LXC containers the command runs via pct exec over SSH to the Proxmox node
+(ssh_user must be configured). The command always runs via /bin/sh -c.
+
 Note: unlike the command-runner plugin, exec imposes no command whitelist.
 The caller is responsible for what they run. Security is enforced by the
-Proxmox API token permissions granted to this client.`,
+Proxmox API token permissions and SSH access granted to this client.`,
 		Example: `  pvetui guests exec 100 "uptime"
-  pvetui guests exec 100 "df -h"
+  pvetui guests exec 200 "df -h"
   pvetui --profile prod guests exec 100 "systemctl status nginx"`,
 		Args: cobra.ExactArgs(2),
 		RunE: runGuestsExec,
@@ -416,36 +418,45 @@ func runGuestsExec(cmd *cobra.Command, args []string) error {
 		return printError(err)
 	}
 
-	if vm.Type != api.VMTypeQemu {
-		return printError(fmt.Errorf("guest %d is type %q; exec is only supported for QEMU VMs via guest agent", vmid, vm.Type))
+	if vm.Type != api.VMTypeQemu && vm.Type != api.VMTypeLXC {
+		return printError(fmt.Errorf("guest %d is type %q; exec is only supported for QEMU VMs and LXC containers", vmid, vm.Type))
 	}
 
 	if vm.Status != api.VMStatusRunning {
 		return printError(fmt.Errorf("guest %d is not running (status: %s)", vmid, vm.Status))
 	}
 
-	if !vm.AgentEnabled || !vm.AgentRunning {
-		return printError(fmt.Errorf("guest agent is not available on VM %d (enabled: %v, running: %v)", vmid, vm.AgentEnabled, vm.AgentRunning))
-	}
-
-	client, err := session.clientForVM(vm)
-	if err != nil {
-		return printError(err)
-	}
-
-	cmdParts := buildExecCommand(vm.OSType, command)
-
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	start := time.Now()
 
-	stdout, stderr, exitCode, err := client.ExecuteGuestAgentCommand(execCtx, vm, cmdParts, timeout)
-	elapsed := time.Since(start)
+	var stdout, stderr string
+	var exitCode int
 
-	if err != nil {
-		return printError(fmt.Errorf("exec failed on VM %d: %w", vmid, err))
+	if vm.Type == api.VMTypeLXC {
+		stdout, stderr, exitCode, err = session.execLXC(execCtx, vm, []string{"/bin/sh", "-c", command}, timeout)
+		if err != nil {
+			return printError(fmt.Errorf("exec failed on LXC %d: %w", vmid, err))
+		}
+	} else {
+		if !vm.AgentEnabled || !vm.AgentRunning {
+			return printError(fmt.Errorf("guest agent is not available on VM %d (enabled: %v, running: %v)", vmid, vm.AgentEnabled, vm.AgentRunning))
+		}
+
+		client, clientErr := session.clientForVM(vm)
+		if clientErr != nil {
+			return printError(clientErr)
+		}
+
+		cmdParts := buildExecCommand(vm.OSType, command)
+		stdout, stderr, exitCode, err = client.ExecuteGuestAgentCommand(execCtx, vm, cmdParts, timeout)
+		if err != nil {
+			return printError(fmt.Errorf("exec failed on VM %d: %w", vmid, err))
+		}
 	}
+
+	elapsed := time.Since(start)
 
 	out := execOutput{
 		VMID:       vmid,
