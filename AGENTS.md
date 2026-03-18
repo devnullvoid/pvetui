@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** March 2026 | **For:** pvetui - Proxmox TUI
+**Last Updated:** March 2026 (CLI subcommands) | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -170,6 +170,13 @@ The following conventions must be followed for any changes in this repository.
   - CacheItem stores data as `json.RawMessage` to avoid double marshaling
   - Supports configurable size limits for memory management
 
+- **`internal/cli/`** - Non-interactive CLI subcommands (nodes, guests, tasks)
+  - `cli_helpers.go` - `cliSession` abstraction, SSH helpers, output utilities
+  - `guests.go` - Guest list/show/lifecycle/exec (QEMU guest agent + LXC pct exec)
+  - `nodes.go` - Node list/show
+  - `tasks.go` - Task list
+  - All subcommands work with single-profile and aggregate group profiles transparently
+
 - **`internal/ui/`** - TUI components using tview library
   - Main interface with tabbed navigation (Nodes, Guests, Tasks)
   - Context menus, dialogs, forms, and detail panels
@@ -263,6 +270,9 @@ Key architectural decisions and rationale:
 - **Interface-driven design**: All public APIs accept interfaces for maximum testability and flexibility
 - **Namespaced plugin caching**: Prevents cache key collisions and allows per-plugin cache management
 - **Plugin modal page registration**: Plugins declare modal pages via `ModalPageNames()` method instead of modifying core keyboard handler; maintains separation of concerns and enables self-contained plugins
+- **CLI subcommands via `cliSession`**: Non-interactive CLI shares all auth/config/group logic with the TUI through a `cliSession` struct that wraps either `*api.Client` (single profile) or `*api.GroupClientManager` (group/aggregate). Subcommand handlers call methods on `cliSession` without knowing which mode they're in. `BootstrapOptions.Quiet = true` suppresses TUI banners; `SilenceUsage: true` on the Cobra root prevents runtime errors from printing the full help menu.
+- **LXC exec via SSH + pct exec**: LXC containers have no API exec equivalent (unlike QEMU guest agent). Use `SSHClientImpl.ExecuteContainerCommandDetailed` from the command-runner package to run `pct exec <ctid> -- <cmd>` over SSH to the Proxmox node. SSH credentials are resolved per-VM via `vm.SourceProfile` → global config fallback.
+- **Agent skill packaging**: Skills for the skills.sh ecosystem live in `skills/<skill-name>/SKILL.md` at the repo root. Install via `npx skills add owner/repo`. The `skills/` path is auto-discovered; `docs/skills/` is not.
 
 ## Common Pitfalls
 
@@ -293,6 +303,10 @@ Key architectural decisions and rationale:
 - **Template guests are not ordinary stopped guests**: Proxmox templates often surface with `status=stopped`, but lifecycle UX must treat `VM.Template` as authoritative: label templates explicitly in guest list/details, do not offer start actions, and exclude them from batch lifecycle actions.
 - **Keybind unsetting semantics**: Treat empty string keybinds (for example `global_menu: ""`) as explicit unbinds; do not silently reapply default keys.
 - **Back navigation consistency**: For non-input views, support both `Esc` and `Backspace` for back navigation; avoid adding `Backspace` handlers on input-focused views where it must remain text editing.
+- **Cobra `SilenceUsage`**: Set `SilenceUsage: true` on the root command so runtime errors (API failures, not-found, wrong guest type) don't print the full help menu. Without it, any `RunE` error dumps usage, which is confusing for CLI consumers.
+- **CLI group mode detection**: Check `result.InitialGroup != ""` (from `bootstrap.Bootstrap`) to determine group mode; build a `GroupClientManager` with one `api.Client` per profile using `cfg.GetProfileNamesInGroup()`. Don't rely on single-client code paths when group mode is active — they only see one node's data.
+- **CLI SSH credential resolution**: For operations that need SSH to a node (e.g., LXC exec), resolve credentials with: source profile from `vm.SourceProfile` → active profile → global config `SSHUser`/`SSHJumpHost`. The same pattern is in `internal/ui/plugins/commandrunner/plugin.go:resolveSSHUser`.
+- **Shell quoting for pct exec**: When building `pct exec <ctid> -- <cmd>` as a shell string for `session.Run()`, shell-quote each argument with single quotes and escape embedded single quotes as `'\''`. Passing unquoted arguments silently mis-parses commands with spaces or special characters.
 
 ## Troubleshooting
 
