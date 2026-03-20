@@ -299,11 +299,11 @@ func (e *Executor) GetAllowedVMCommands(vm VM) []string {
 func (e *Executor) AddToWhitelist(targetType TargetType, command string) {
 	switch targetType {
 	case TargetHost:
-		e.config.AllowedCommands.Host = append(e.config.AllowedCommands.Host, command)
+		e.config.AllowedCommands.Host = append([]string{command}, e.config.AllowedCommands.Host...)
 	case TargetContainer:
-		e.config.AllowedCommands.Container = append(e.config.AllowedCommands.Container, command)
+		e.config.AllowedCommands.Container = append([]string{command}, e.config.AllowedCommands.Container...)
 	case TargetVM:
-		e.config.AllowedCommands.VM = append(e.config.AllowedCommands.VM, command)
+		e.config.AllowedCommands.VM = append([]string{command}, e.config.AllowedCommands.VM...)
 	}
 	// Refresh the validator so it picks up the new entry.
 	e.validator = NewValidator(e.config)
