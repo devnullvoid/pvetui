@@ -489,7 +489,7 @@ func (u *UIManager) showCustomResultModal(result ExecutionResult, targetType Tar
 	// Build hint line; include whitelist shortcut only when the command succeeded.
 	hintText := " [primary]ESC/Backspace[-] Close | [primary]↑/↓[-] Scroll"
 	if result.Error == nil {
-		hintText += " | [primary]w[-] Save to Whitelist"
+		hintText += fmt.Sprintf(" | [primary]w[-] Save to %s Whitelist (session)", targetType)
 	}
 	hintText += " "
 
@@ -514,7 +514,7 @@ func (u *UIManager) showCustomResultModal(result ExecutionResult, targetType Tar
 				onAddToWhitelist(result.Command)
 			}
 			// Update the hint to confirm the save (disable 'w' to prevent duplicates).
-			buttons.SetText(" [green]Saved to whitelist (session only)[-] | [primary]ESC/Backspace[-] Close | [primary]↑/↓[-] Scroll ")
+			buttons.SetText(fmt.Sprintf(" [green]Saved to %s whitelist (session only)[-] | [primary]ESC/Backspace[-] Close | [primary]↑/↓[-] Scroll ", targetType))
 			return nil
 		}
 		return event
