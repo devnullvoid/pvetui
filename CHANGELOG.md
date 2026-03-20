@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Command Runner: Custom Commands**: The Command Runner plugin now exposes a "Custom Command..." entry at the top of the command menu for all target types (host, LXC container, QEMU VM). Users can type any non-interactive command and execute it directly without it needing to be on the whitelist. After a successful run, pressing `w` on the result screen promotes the command into the session whitelist and inserts it at the top of the command list immediately — no close/reopen required. Commands run without a PTY; `sudo` requiring a password will fail fast with a clear error, as will interactive programs.
+
 - **CLI Subcommands**: `pvetui` can now be used as a non-interactive CLI tool in addition to launching the TUI. Running any subcommand bypasses the TUI entirely, making `pvetui` composable in scripts and AI agent workflows.
   - `pvetui nodes list` — list all cluster nodes with status and resource metrics.
   - `pvetui nodes show <node>` — detailed view of a single node.

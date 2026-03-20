@@ -79,6 +79,21 @@ func (u *UIManager) showCommandMenu(targetType TargetType, target string, comman
 		u.app.SetFocus(list)
 	}
 
+	// addToList inserts a newly whitelisted command at index 1 (right after "Custom
+	// Command...") so it appears at the top of the whitelist section immediately.
+	addToList := func(cmd string) {
+		desc := GetCommandDescription(cmd)
+		cmdCopy := cmd
+		list.InsertItem(1, cmdCopy, desc, 0, func() {
+			u.handleCommandSelection(targetType, target, cmdCopy, returnToMenu)
+		})
+	}
+
+	// Custom command entry first so it is always visible at the top.
+	list.AddItem("Custom Command...", "Type and run any non-interactive command", '!', func() {
+		u.showCustomCommandForm(targetType, target, returnToMenu, addToList)
+	})
+
 	for _, cmd := range commands {
 		cmdCopy := cmd // Capture for closure
 		description := GetCommandDescription(cmdCopy)
@@ -167,9 +182,9 @@ func (u *UIManager) showParameterForm(targetType TargetType, target, command str
 
 	form.AddButton("Cancel", closeForm)
 
-	// Set input handler for back keys
+	// Only intercept ESC — backspace must remain available for text editing in input fields.
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if isBackKey(event) {
+		if event.Key() == tcell.KeyEsc {
 			closeForm()
 			return nil
 		}
@@ -339,6 +354,171 @@ func (u *UIManager) ShowResultModal(result ExecutionResult, onClose func()) {
 		SetDirection(tview.FlexRow).
 		AddItem(textView, 0, 1, true).
 		AddItem(buttons, 1, 0, false)
+
+	pages.AddPage("commandResult", flex, true, true)
+}
+
+// showCustomCommandForm displays an input form for the user to type an arbitrary command.
+// Commands run non-interactively: sudo requiring a password and interactive programs
+// (vim, top, etc.) will fail with an error from the remote end.
+func (u *UIManager) showCustomCommandForm(targetType TargetType, target string, onReturn func(), onAddToWhitelist func(string)) {
+	pages := u.app.Pages()
+
+	closeForm := func() {
+		pages.RemovePage("customCommandForm")
+		if onReturn != nil {
+			onReturn()
+		}
+	}
+
+	form := tview.NewForm()
+	form.SetBorder(true)
+	form.SetTitle(fmt.Sprintf(" Custom Command on %s (%s) — non-interactive only ", target, targetType))
+
+	var command string
+	form.AddInputField("Command", "", 60, nil, func(text string) {
+		command = text
+	})
+
+	form.AddButton("Execute", func() {
+		cmd := strings.TrimSpace(command)
+		if cmd == "" {
+			return
+		}
+		pages.RemovePage("customCommandForm")
+		u.executeCustomAndShowResult(targetType, target, cmd, onReturn, onAddToWhitelist)
+	})
+
+	form.AddButton("Cancel", closeForm)
+
+	// Only intercept ESC — backspace must remain available for text editing in input fields.
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			closeForm()
+			return nil
+		}
+		return event
+	})
+
+	pages.AddPage("customCommandForm", form, true, true)
+}
+
+// executeCustomAndShowResult runs a custom command (no whitelist check) and shows the result.
+// It mirrors executeAndShowResult but calls the custom execution paths.
+func (u *UIManager) executeCustomAndShowResult(targetType TargetType, target, command string, onClose func(), onAddToWhitelist func(string)) {
+	u.showExecutingModal(command)
+
+	go func() {
+		var result ExecutionResult
+		ctx := context.Background()
+
+		switch targetType {
+		case TargetHost:
+			result = u.executor.ExecuteCustomHostCommand(ctx, target, command)
+		case TargetContainer:
+			node, containerID, err := parseContainerTarget(target)
+			if err != nil {
+				result = ExecutionResult{
+					Command: command,
+					Error:   fmt.Errorf("invalid target format: %w", err),
+				}
+			} else {
+				result = u.executor.ExecuteCustomContainerCommand(ctx, node, containerID, command)
+			}
+		case TargetVM:
+			vm, err := u.vmFromTarget(target)
+			if err != nil {
+				result = ExecutionResult{
+					Command: command,
+					Error:   fmt.Errorf("invalid target format: %w", err),
+				}
+			} else {
+				result = u.executor.ExecuteCustomVMCommand(ctx, vm, command)
+			}
+		default:
+			result = ExecutionResult{
+				Command: command,
+				Error:   fmt.Errorf("unsupported target type: %s", targetType),
+			}
+		}
+
+		u.app.QueueUpdateDraw(func() {
+			u.showCustomResultModal(result, targetType, onClose, onAddToWhitelist)
+		})
+	}()
+}
+
+// showCustomResultModal is like ShowResultModal but adds a "Save to Whitelist" button
+// so the user can promote a successful custom command into the session whitelist.
+func (u *UIManager) showCustomResultModal(result ExecutionResult, targetType TargetType, onClose func(), onAddToWhitelist func(string)) {
+	pages := u.app.Pages()
+	pages.RemovePage("executingCommand")
+
+	closeResult := func() {
+		pages.RemovePage("commandResult")
+		if onClose != nil {
+			onClose()
+		}
+	}
+
+	var text strings.Builder
+	fmt.Fprintf(&text, "Command: %s\n", result.Command)
+	fmt.Fprintf(&text, "Duration: %v\n\n", result.Duration)
+
+	if result.Error != nil {
+		fmt.Fprintf(&text, "Error: %v\n\n", result.Error)
+		if result.Output != "" {
+			text.WriteString("Output:\n")
+			text.WriteString(result.Output)
+		}
+	} else {
+		text.WriteString("Output:\n")
+		text.WriteString(result.Output)
+		if result.Truncated {
+			text.WriteString("\n\n[Output truncated]")
+		}
+	}
+
+	textView := tview.NewTextView().
+		SetText(text.String()).
+		SetDynamicColors(true).
+		SetScrollable(true)
+	textView.SetBorder(true)
+	textView.SetTitle(" Custom Command Result ")
+
+	// Build hint line; include whitelist shortcut only when the command succeeded.
+	hintText := " [primary]ESC/Backspace[-] Close | [primary]↑/↓[-] Scroll"
+	if result.Error == nil {
+		hintText += " | [primary]w[-] Save to Whitelist"
+	}
+	hintText += " "
+
+	buttons := tview.NewTextView().
+		SetText(hintText).
+		SetTextAlign(tview.AlignCenter).
+		SetDynamicColors(true)
+
+	flex := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(textView, 0, 1, true).
+		AddItem(buttons, 1, 0, false)
+
+	textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if isBackKey(event) {
+			closeResult()
+			return nil
+		}
+		if result.Error == nil && event.Key() == tcell.KeyRune && event.Rune() == 'w' {
+			u.executor.AddToWhitelist(targetType, result.Command)
+			if onAddToWhitelist != nil {
+				onAddToWhitelist(result.Command)
+			}
+			// Update the hint to confirm the save (disable 'w' to prevent duplicates).
+			buttons.SetText(" [green]Saved to whitelist (session only)[-] | [primary]ESC/Backspace[-] Close | [primary]↑/↓[-] Scroll ")
+			return nil
+		}
+		return event
+	})
 
 	pages.AddPage("commandResult", flex, true, true)
 }

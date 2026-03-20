@@ -122,6 +122,7 @@ func (p *Plugin) ModalPageNames() []string {
 		"commandResult",
 		"commandError",
 		"executingCommand",
+		"customCommandForm",
 	}
 }
 

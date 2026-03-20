@@ -294,6 +294,123 @@ func (e *Executor) GetAllowedVMCommands(vm VM) []string {
 	return e.validator.GetAllowedVMCommands(vm)
 }
 
+// AddToWhitelist adds a command to the in-memory whitelist for a target type.
+// This change is session-only and does not persist to the config file.
+func (e *Executor) AddToWhitelist(targetType TargetType, command string) {
+	switch targetType {
+	case TargetHost:
+		e.config.AllowedCommands.Host = append(e.config.AllowedCommands.Host, command)
+	case TargetContainer:
+		e.config.AllowedCommands.Container = append(e.config.AllowedCommands.Container, command)
+	case TargetVM:
+		e.config.AllowedCommands.VM = append(e.config.AllowedCommands.VM, command)
+	}
+	// Refresh the validator so it picks up the new entry.
+	e.validator = NewValidator(e.config)
+}
+
+// ExecuteCustomHostCommand executes an arbitrary command on a host via SSH without
+// whitelist validation. The command must be non-interactive; sudo requiring a password
+// will fail immediately because no PTY is allocated.
+func (e *Executor) ExecuteCustomHostCommand(ctx context.Context, host, command string) ExecutionResult {
+	start := time.Now()
+
+	result := ExecutionResult{Command: command}
+
+	ctx, cancel := context.WithTimeout(ctx, e.config.Timeout)
+	defer cancel()
+
+	output, err := e.sshClient.ExecuteCommand(ctx, host, command)
+	result.Duration = time.Since(start)
+
+	if err != nil {
+		result.Error = fmt.Errorf("execution failed: %w", err)
+		return result
+	}
+
+	if len(output) > e.config.MaxOutputSize {
+		result.Output = output[:e.config.MaxOutputSize]
+		result.Truncated = true
+	} else {
+		result.Output = output
+	}
+
+	return result
+}
+
+// ExecuteCustomContainerCommand executes an arbitrary command in an LXC container via
+// SSH + pct exec without whitelist validation.
+func (e *Executor) ExecuteCustomContainerCommand(ctx context.Context, host string, containerID int, command string) ExecutionResult {
+	start := time.Now()
+
+	result := ExecutionResult{Command: command}
+
+	ctx, cancel := context.WithTimeout(ctx, e.config.Timeout)
+	defer cancel()
+
+	output, err := e.sshClient.ExecuteContainerCommand(ctx, host, containerID, command)
+	result.Duration = time.Since(start)
+
+	if err != nil {
+		result.Error = fmt.Errorf("execution failed: %w", err)
+		return result
+	}
+
+	if len(output) > e.config.MaxOutputSize {
+		result.Output = output[:e.config.MaxOutputSize]
+		result.Truncated = true
+	} else {
+		result.Output = output
+	}
+
+	return result
+}
+
+// ExecuteCustomVMCommand executes an arbitrary command in a QEMU VM via the guest
+// agent without whitelist validation.
+func (e *Executor) ExecuteCustomVMCommand(ctx context.Context, vm VM, command string) ExecutionResult {
+	start := time.Now()
+
+	result := ExecutionResult{Command: command}
+
+	if e.apiClient == nil {
+		result.Error = fmt.Errorf("API client not configured")
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, e.config.Timeout)
+	defer cancel()
+
+	cmdParts := e.buildGuestAgentCommand(vm, command)
+
+	stdout, stderr, exitCode, err := e.apiClient.ExecuteGuestAgentCommand(ctx, vm, cmdParts, e.config.Timeout)
+	result.Duration = time.Since(start)
+	result.ExitCode = exitCode
+
+	if err != nil {
+		result.Error = fmt.Errorf("execution failed: %w", err)
+		if stderr != "" {
+			result.Output = stderr
+		}
+		return result
+	}
+
+	output := stdout
+	if stderr != "" {
+		output = stdout + "\n--- stderr ---\n" + stderr
+	}
+
+	if len(output) > e.config.MaxOutputSize {
+		result.Output = output[:e.config.MaxOutputSize]
+		result.Truncated = true
+	} else {
+		result.Output = output
+	}
+
+	return result
+}
+
 func (e *Executor) buildGuestAgentCommand(vm VM, command string) []string {
 	switch detectOSFamily(vm.OSType) {
 	case OSFamilyWindows:
