@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-03-21
+
 ### Added
 
 - **Command Runner: Custom Commands**: The Command Runner plugin now exposes a "Custom Command..." entry at the top of the command menu for all target types (host, LXC container, QEMU VM). Users can type any non-interactive command and execute it directly without it needing to be on the whitelist. After a successful run, pressing `w` on the result screen promotes the command into the session whitelist and inserts it at the top of the command list immediately — no close/reopen required. Commands run without a PTY; `sudo` requiring a password will fail fast with a clear error, as will interactive programs.
