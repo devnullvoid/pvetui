@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **gRPC Security Update**: Upgraded indirect dependency `google.golang.org/grpc` from `v1.79.1` to `v1.79.3` to address CVE-2026-33186, an authorization bypass in HTTP/2 `:path` pseudo-header validation.
+
 ## [1.3.0] - 2026-03-21
 
 ### Added
