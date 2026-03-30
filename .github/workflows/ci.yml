@@ -61,7 +61,7 @@ jobs:
           go tool cover -func=coverage.out
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           file: ./coverage.out
           fail_ci_if_error: false
