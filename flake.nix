@@ -17,7 +17,7 @@
 
           src = self;
 
-          vendorHash = "sha256-ocvTfV9JNG7ZTkWKEYEPW6HlLHOjk12gLjUExNcoZeM=";
+          vendorHash = "sha256-Bk9MW5keW3UZSP+qXMcO+PUiwe6O4n+EXumnZF69fjI=";
 
           subPackages = [ "cmd/pvetui" ];
 
