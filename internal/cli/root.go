@@ -34,9 +34,6 @@ func Execute() {
 
 // init initializes the root command and sets up flags
 func init() {
-	// Disable cobra's completion command for now
-	RootCmd.CompletionOptions.DisableDefaultCmd = true
-
 	// Add persistent flags
 	addPersistentFlags(RootCmd)
 

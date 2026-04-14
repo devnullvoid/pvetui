@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Shell Completions**: `pvetui completion` now generates shell completion scripts for bash, zsh, fish, and PowerShell via Cobra's built-in completion support. Run `pvetui completion <shell> --help` for installation instructions.
+
 ### Fixed
 
 - **gRPC Security Update**: Upgraded indirect dependency `google.golang.org/grpc` from `v1.79.1` to `v1.79.3` to address CVE-2026-33186, an authorization bypass in HTTP/2 `:path` pseudo-header validation.
