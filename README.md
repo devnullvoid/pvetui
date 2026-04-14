@@ -148,8 +148,10 @@ profiles:
     token_secret: "your-secret"
     insecure: false
     ssh_user: "your-ssh-user"
-    vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VM shells
-    ssh_jump_host:                 # Optional: configure a bastion host for SSH
+    vm_ssh_user: "vm-login-user"       # Optional: overrides ssh_user for QEMU VM shells
+    ssh_keyfile: "~/.ssh/id_ed25519"   # Optional: SSH private key (defaults to SSH agent / standard paths)
+    vm_ssh_keyfile: "~/.ssh/id_vm"     # Optional: key for QEMU VM shells (defaults to ssh_keyfile)
+    ssh_jump_host:                     # Optional: configure a bastion host for SSH
       addr: "jump.example.com"
       user: "jumpuser"
       keyfile: "/path/to/jump.key"
@@ -183,7 +185,7 @@ debug: false
 show_icons: true
 ```
 
-`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
+`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_keyfile` is optional; when omitted, pvetui uses the running SSH agent (`SSH_AUTH_SOCK`) if available, then falls back to `~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, and `~/.ssh/id_ecdsa`. `vm_ssh_keyfile` follows the same logic and falls back to `ssh_keyfile`. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
 
 Guest tags can be edited from the VM/LXC **Edit Configuration** form using a semicolon-separated list (for example: `prod;monitoring;db`).
 
@@ -340,6 +342,8 @@ Windows legacy fallback:
 | `--api-path` | | `PVETUI_API_PATH` | Proxmox API path |
 | `--ssh-user` | | `PVETUI_SSH_USER` | SSH username |
 | `--vm-ssh-user` | | `PVETUI_VM_SSH_USER` | QEMU VM SSH username (defaults to ssh-user) |
+| `--ssh-keyfile` | | `PVETUI_SSH_KEYFILE` | SSH private key file (defaults to SSH agent / standard paths) |
+| `--vm-ssh-keyfile` | | `PVETUI_VM_SSH_KEYFILE` | SSH private key for QEMU VM connections (defaults to ssh-keyfile) |
 | `--ssh-jumphost-addr` | | `PVETUI_SSH_JUMPHOST_ADDR` | SSH jump host address |
 | `--ssh-jumphost-user` | | `PVETUI_SSH_JUMPHOST_USER` | SSH jump host user |
 | `--ssh-jumphost-keyfile` | | `PVETUI_SSH_JUMPHOST_KEYFILE` | SSH jump host identity file |
@@ -429,6 +433,30 @@ pvetui --profile prod guests list
 # Fan out across all members of an aggregate group
 pvetui --profile all-servers guests list --status running
 ```
+
+### Shell Completions
+
+`pvetui` provides shell completion scripts for bash, zsh, fish, and PowerShell via Cobra's built-in completion support.
+
+```bash
+# Fish
+pvetui completion fish | source
+# Persist across sessions:
+pvetui completion fish > ~/.config/fish/completions/pvetui.fish
+
+# Zsh
+pvetui completion zsh > "${fpath[1]}/_pvetui"
+
+# Bash
+pvetui completion bash > /etc/bash_completion.d/pvetui
+# Or for a single user:
+pvetui completion bash >> ~/.bash_completion
+
+# PowerShell
+pvetui completion powershell | Out-String | Invoke-Expression
+```
+
+Run `pvetui completion <shell> --help` for full installation instructions for your shell.
 
 ## 🎨 Theming
 

@@ -121,17 +121,19 @@ type Config struct {
 	ShowIcons     bool                           `yaml:"show_icons"`
 	GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings,omitempty"`
 	// Deprecated: legacy single-profile fields for migration
-	Addr        string      `yaml:"addr"`
-	User        string      `yaml:"user"`
-	Password    string      `yaml:"password"`
-	TokenID     string      `yaml:"token_id"`
-	TokenSecret string      `yaml:"token_secret"`
-	Realm       string      `yaml:"realm"`
-	ApiPath     string      `yaml:"api_path"`
-	Insecure    bool        `yaml:"insecure"`
-	SSHUser     string      `yaml:"ssh_user"`
-	VMSSHUser   string      `yaml:"vm_ssh_user"`
-	SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
+	Addr         string      `yaml:"addr"`
+	User         string      `yaml:"user"`
+	Password     string      `yaml:"password"`
+	TokenID      string      `yaml:"token_id"`
+	TokenSecret  string      `yaml:"token_secret"`
+	Realm        string      `yaml:"realm"`
+	ApiPath      string      `yaml:"api_path"`
+	Insecure     bool        `yaml:"insecure"`
+	SSHUser      string      `yaml:"ssh_user"`
+	VMSSHUser    string      `yaml:"vm_ssh_user"`
+	SSHKeyfile   string      `yaml:"ssh_keyfile,omitempty"`
+	VMSSHKeyfile string      `yaml:"vm_ssh_keyfile,omitempty"`
+	SSHJumpHost  SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 }
 
 func (c *Config) HasCleartextSensitiveData() bool {
@@ -313,6 +315,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 //   - PVETUI_API_PATH: API base path (default: "/api2/json")
 //   - PVETUI_INSECURE: Skip TLS verification ("true"/"false")
 //   - PVETUI_SSH_USER: SSH username
+//   - PVETUI_SSH_KEYFILE: Path to SSH private key file
 //   - PVETUI_AGE_DIR: Custom age key directory (overrides platform defaults)
 //   - PVETUI_DEBUG: Enable debug logging ("true"/"false")
 //   - PVETUI_CACHE_DIR: Custom cache directory (overrides platform defaults)
@@ -335,16 +338,18 @@ func NewConfig() *Config {
 	config := &Config{
 		Profiles: make(map[string]ProfileConfig),
 		// Read environment variables for legacy fields
-		Addr:        os.Getenv("PVETUI_ADDR"),
-		User:        os.Getenv("PVETUI_USER"),
-		Password:    os.Getenv("PVETUI_PASSWORD"),
-		TokenID:     os.Getenv("PVETUI_TOKEN_ID"),
-		TokenSecret: os.Getenv("PVETUI_TOKEN_SECRET"),
-		Realm:       os.Getenv("PVETUI_REALM"),
-		ApiPath:     os.Getenv("PVETUI_API_PATH"),
-		Insecure:    strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
-		SSHUser:     os.Getenv("PVETUI_SSH_USER"),
-		AgeDir:      ExpandHomePath(os.Getenv("PVETUI_AGE_DIR")),
+		Addr:         os.Getenv("PVETUI_ADDR"),
+		User:         os.Getenv("PVETUI_USER"),
+		Password:     os.Getenv("PVETUI_PASSWORD"),
+		TokenID:      os.Getenv("PVETUI_TOKEN_ID"),
+		TokenSecret:  os.Getenv("PVETUI_TOKEN_SECRET"),
+		Realm:        os.Getenv("PVETUI_REALM"),
+		ApiPath:      os.Getenv("PVETUI_API_PATH"),
+		Insecure:     strings.ToLower(os.Getenv("PVETUI_INSECURE")) == trueString,
+		SSHUser:      os.Getenv("PVETUI_SSH_USER"),
+		SSHKeyfile:   ExpandHomePath(os.Getenv("PVETUI_SSH_KEYFILE")),
+		VMSSHKeyfile: ExpandHomePath(os.Getenv("PVETUI_VM_SSH_KEYFILE")),
+		AgeDir:       ExpandHomePath(os.Getenv("PVETUI_AGE_DIR")),
 		SSHJumpHost: SSHJumpHost{
 			Addr:    os.Getenv("PVETUI_SSH_JUMPHOST_ADDR"),
 			User:    os.Getenv("PVETUI_SSH_JUMPHOST_USER"),
@@ -485,17 +490,19 @@ func (c *Config) MergeWithFile(path string) error {
 		ShowIcons     *bool                          `yaml:"show_icons"`
 		GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings"`
 		// Legacy fields for migration
-		Addr        string      `yaml:"addr"`
-		User        string      `yaml:"user"`
-		Password    string      `yaml:"password"`
-		TokenID     string      `yaml:"token_id"`
-		TokenSecret string      `yaml:"token_secret"`
-		Realm       string      `yaml:"realm"`
-		ApiPath     string      `yaml:"api_path"`
-		Insecure    *bool       `yaml:"insecure"`
-		SSHUser     string      `yaml:"ssh_user"`
-		VMSSHUser   string      `yaml:"vm_ssh_user"`
-		SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
+		Addr         string      `yaml:"addr"`
+		User         string      `yaml:"user"`
+		Password     string      `yaml:"password"`
+		TokenID      string      `yaml:"token_id"`
+		TokenSecret  string      `yaml:"token_secret"`
+		Realm        string      `yaml:"realm"`
+		ApiPath      string      `yaml:"api_path"`
+		Insecure     *bool       `yaml:"insecure"`
+		SSHUser      string      `yaml:"ssh_user"`
+		VMSSHUser    string      `yaml:"vm_ssh_user"`
+		SSHKeyfile   string      `yaml:"ssh_keyfile,omitempty"`
+		VMSSHKeyfile string      `yaml:"vm_ssh_keyfile,omitempty"`
+		SSHJumpHost  SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 	}
 
 	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
@@ -576,6 +583,12 @@ func (c *Config) MergeWithFile(path string) error {
 				if fileProfile.VMSSHUser != "" {
 					existingProfile.VMSSHUser = fileProfile.VMSSHUser
 				}
+				if fileProfile.SSHKeyfile != "" {
+					existingProfile.SSHKeyfile = ExpandHomePath(fileProfile.SSHKeyfile)
+				}
+				if fileProfile.VMSSHKeyfile != "" {
+					existingProfile.VMSSHKeyfile = ExpandHomePath(fileProfile.VMSSHKeyfile)
+				}
 				if fileProfile.SSHJumpHost.Addr != "" {
 					existingProfile.SSHJumpHost = fileProfile.SSHJumpHost
 				}
@@ -622,6 +635,12 @@ func (c *Config) MergeWithFile(path string) error {
 		}
 		if fileConfig.VMSSHUser != "" {
 			c.VMSSHUser = fileConfig.VMSSHUser
+		}
+		if fileConfig.SSHKeyfile != "" {
+			c.SSHKeyfile = ExpandHomePath(fileConfig.SSHKeyfile)
+		}
+		if fileConfig.VMSSHKeyfile != "" {
+			c.VMSSHKeyfile = ExpandHomePath(fileConfig.VMSSHKeyfile)
 		}
 		if fileConfig.SSHJumpHost.Addr != "" {
 			c.SSHJumpHost = fileConfig.SSHJumpHost

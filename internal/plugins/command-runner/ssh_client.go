@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 // SSHClientImpl implements SSH command execution using Go's crypto/ssh library
@@ -138,7 +140,7 @@ func (c *SSHClientImpl) buildClientConfig(user, authValue, keyPath string) (*ssh
 	}
 
 	if len(config.Auth) == 0 {
-		return nil, fmt.Errorf("no SSH authentication method available (no keys in ~/.ssh/ and no password configured)")
+		return nil, fmt.Errorf("no SSH authentication method available (no SSH agent, no keys found, and no password configured)")
 	}
 
 	return config, nil
@@ -201,48 +203,62 @@ func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
 	return ssh.NewClient(clientConn, chans, reqs), cleanup, nil
 }
 
-// loadSSHKeys attempts to load SSH private keys from standard locations
+// loadSSHKeys returns SSH signers from all available sources in priority order:
+//  1. SSH agent (if SSH_AUTH_SOCK is set) — supports encrypted and hardware keys
+//  2. Explicit keyPath if provided
+//  3. Standard key paths (~/.ssh/id_ed25519, id_rsa, id_ecdsa) as fallback
 func (c *SSHClientImpl) loadSSHKeys(keyPath string) ([]ssh.Signer, error) {
 	var signers []ssh.Signer
 
-	// Get user's home directory
+	// 1. SSH agent
+	if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
+		// nolint:gosec // G704: sock is sourced from SSH_AUTH_SOCK env var, not user input
+		if conn, err := net.Dial("unix", sock); err == nil {
+			agentSigners, err := agent.NewClient(conn).Signers()
+			if err == nil && len(agentSigners) > 0 {
+				crSSHLogger().Debug("SSH auth: loaded %d signer(s) from SSH agent", len(agentSigners))
+				signers = append(signers, agentSigners...)
+			}
+		}
+	}
+
+	// 2. Explicit keyfile or standard paths
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
+		if len(signers) > 0 {
+			return signers, nil
+		}
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	// Standard SSH key locations to try
-	keyPaths := []string{
-		filepath.Join(homeDir, ".ssh", "id_rsa"),
-		filepath.Join(homeDir, ".ssh", "id_ed25519"),
-		filepath.Join(homeDir, ".ssh", "id_ecdsa"),
-	}
-
+	var keyPaths []string
 	if keyPath != "" {
 		keyPaths = []string{keyPath}
+	} else {
+		keyPaths = []string{
+			filepath.Join(homeDir, ".ssh", "id_ed25519"),
+			filepath.Join(homeDir, ".ssh", "id_rsa"),
+			filepath.Join(homeDir, ".ssh", "id_ecdsa"),
+		}
 	}
 
-	// Try each key path
 	for _, candidate := range keyPaths {
-		// nolint:gosec // G304: Reading SSH keys from standard paths is expected behavior
+		// nolint:gosec // G304: Reading SSH keys from configured/standard paths is expected behavior
 		keyBytes, err := os.ReadFile(candidate)
 		if err != nil {
-			continue // Skip if key doesn't exist
+			continue // key doesn't exist at this path
 		}
-
-		// Try to parse the key
 		signer, err := ssh.ParsePrivateKey(keyBytes)
 		if err != nil {
-			// Key might be encrypted, skip for now
-			// TODO: Support encrypted keys with ssh-agent or passphrase prompt
-			continue
+			crSSHLogger().Debug("SSH auth: skipping key %s (encrypted or unsupported format)", candidate)
+			continue // encrypted key — agent should cover this case
 		}
-
+		crSSHLogger().Debug("SSH auth: loaded key from %s", candidate)
 		signers = append(signers, signer)
 	}
 
 	if len(signers) == 0 {
-		return nil, fmt.Errorf("no valid SSH keys found in %v", keyPaths)
+		return nil, fmt.Errorf("no SSH authentication available: SSH_AUTH_SOCK not set and no readable keys found in %v", keyPaths)
 	}
 
 	return signers, nil

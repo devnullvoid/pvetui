@@ -20,24 +20,25 @@ type SSHJumpHost struct {
 
 // ProfileConfig holds a single connection profile's settings.
 type ProfileConfig struct {
-	Addr        string      `yaml:"addr"`
-	User        string      `yaml:"user"`
-	Password    string      `yaml:"password"`
-	TokenID     string      `yaml:"token_id"`
-	TokenSecret string      `yaml:"token_secret"`
-	Realm       string      `yaml:"realm"`
-	ApiPath     string      `yaml:"api_path"`
-	Insecure    bool        `yaml:"insecure"`
-	SSHUser     string      `yaml:"ssh_user"`
-	VMSSHUser   string      `yaml:"vm_ssh_user"`
-	SSHJumpHost SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
+	Addr         string      `yaml:"addr"`
+	User         string      `yaml:"user"`
+	Password     string      `yaml:"password"`
+	TokenID      string      `yaml:"token_id"`
+	TokenSecret  string      `yaml:"token_secret"`
+	Realm        string      `yaml:"realm"`
+	ApiPath      string      `yaml:"api_path"`
+	Insecure     bool        `yaml:"insecure"`
+	SSHUser      string      `yaml:"ssh_user"`
+	VMSSHUser    string      `yaml:"vm_ssh_user"`
+	SSHKeyfile   string      `yaml:"ssh_keyfile,omitempty"`
+	VMSSHKeyfile string      `yaml:"vm_ssh_keyfile,omitempty"`
+	SSHJumpHost  SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
 
 	// Groups is a list of group identifiers.
 	// This allows a profile to belong to multiple groups.
 	// Profiles in the same group will be combined into a single "group cluster" view.
 	Groups []string `yaml:"groups,omitempty"`
 }
-
 
 // GroupMode constants define the operational mode for a group.
 const (
@@ -81,6 +82,8 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.Insecure = profile.Insecure
 	c.SSHUser = profile.SSHUser
 	c.VMSSHUser = profile.VMSSHUser
+	c.SSHKeyfile = profile.SSHKeyfile
+	c.VMSSHKeyfile = profile.VMSSHKeyfile
 	c.SSHJumpHost = profile.SSHJumpHost
 
 	// Mark runtime active profile so getters resolve to this profile without changing persisted default
@@ -94,7 +97,8 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	// Check if we have legacy fields but no profiles
 	hasLegacyFields := c.Addr != "" || c.User != "" || c.Password != "" ||
 		c.TokenID != "" || c.TokenSecret != "" || c.Realm != "" ||
-		c.ApiPath != "" || c.SSHUser != "" || c.VMSSHUser != "" || c.SSHJumpHost.Addr != ""
+		c.ApiPath != "" || c.SSHUser != "" || c.VMSSHUser != "" ||
+		c.SSHKeyfile != "" || c.VMSSHKeyfile != "" || c.SSHJumpHost.Addr != ""
 
 	if !hasLegacyFields || len(c.Profiles) > 0 {
 		return false
@@ -107,17 +111,19 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 
 	// Create a "default" profile from legacy fields
 	c.Profiles["default"] = ProfileConfig{
-		Addr:        c.Addr,
-		User:        c.User,
-		Password:    c.Password,
-		TokenID:     c.TokenID,
-		TokenSecret: c.TokenSecret,
-		Realm:       c.Realm,
-		ApiPath:     c.ApiPath,
-		Insecure:    c.Insecure,
-		SSHUser:     c.SSHUser,
-		VMSSHUser:   c.VMSSHUser,
-		SSHJumpHost: c.SSHJumpHost,
+		Addr:         c.Addr,
+		User:         c.User,
+		Password:     c.Password,
+		TokenID:      c.TokenID,
+		TokenSecret:  c.TokenSecret,
+		Realm:        c.Realm,
+		ApiPath:      c.ApiPath,
+		Insecure:     c.Insecure,
+		SSHUser:      c.SSHUser,
+		VMSSHUser:    c.VMSSHUser,
+		SSHKeyfile:   c.SSHKeyfile,
+		VMSSHKeyfile: c.VMSSHKeyfile,
+		SSHJumpHost:  c.SSHJumpHost,
 	}
 
 	// Set default profile
@@ -134,6 +140,8 @@ func (c *Config) MigrateLegacyToProfiles() bool {
 	c.Insecure = false
 	c.SSHUser = ""
 	c.VMSSHUser = ""
+	c.SSHKeyfile = ""
+	c.VMSSHKeyfile = ""
 	c.SSHJumpHost = SSHJumpHost{}
 
 	return true

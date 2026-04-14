@@ -92,6 +92,8 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 	apiPath := viper.GetString("api_path")
 	sshUser := viper.GetString("ssh_user")
 	vmSSHUser := viper.GetString("vm_ssh_user")
+	sshKeyfile := viper.GetString("ssh_keyfile")
+	vmSSHKeyfile := viper.GetString("vm_ssh_keyfile")
 	sshJumpHostAddr := viper.GetString("ssh_jumphost_addr")
 	sshJumpHostUser := viper.GetString("ssh_jumphost_user")
 	sshJumpHostKeyfile := viper.GetString("ssh_jumphost_keyfile")
@@ -124,6 +126,8 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 		FlagApiPath:            apiPath,
 		FlagSSHUser:            sshUser,
 		FlagVMSSHUser:          vmSSHUser,
+		FlagSSHKeyfile:         sshKeyfile,
+		FlagVMSSHKeyfile:       vmSSHKeyfile,
 		FlagSSHJumpHostAddr:    sshJumpHostAddr,
 		FlagSSHJumpHostUser:    sshJumpHostUser,
 		FlagSSHJumpHostKeyfile: sshJumpHostKeyfile,
@@ -156,6 +160,8 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("api-path", "", "Proxmox API path")
 	cmd.PersistentFlags().String("ssh-user", "", "SSH username")
 	cmd.PersistentFlags().String("vm-ssh-user", "", "QEMU VM SSH username (defaults to ssh-user)")
+	cmd.PersistentFlags().String("ssh-keyfile", "", "SSH private key file path")
+	cmd.PersistentFlags().String("vm-ssh-keyfile", "", "SSH private key file path for QEMU VM connections (defaults to ssh-keyfile)")
 	cmd.PersistentFlags().String("ssh-jumphost-addr", "", "SSH jump host address")
 	cmd.PersistentFlags().String("ssh-jumphost-user", "", "SSH jump host user")
 	cmd.PersistentFlags().String("ssh-jumphost-keyfile", "", "SSH jump host identity file")
@@ -199,6 +205,12 @@ func addPersistentFlags(cmd *cobra.Command) {
 	}
 	if err := viper.BindPFlag("vm_ssh_user", cmd.PersistentFlags().Lookup("vm-ssh-user")); err != nil {
 		panic(fmt.Sprintf("failed to bind vm_ssh_user flag: %v", err))
+	}
+	if err := viper.BindPFlag("ssh_keyfile", cmd.PersistentFlags().Lookup("ssh-keyfile")); err != nil {
+		panic(fmt.Sprintf("failed to bind ssh_keyfile flag: %v", err))
+	}
+	if err := viper.BindPFlag("vm_ssh_keyfile", cmd.PersistentFlags().Lookup("vm-ssh-keyfile")); err != nil {
+		panic(fmt.Sprintf("failed to bind vm_ssh_keyfile flag: %v", err))
 	}
 	if err := viper.BindPFlag("ssh_jumphost_addr", cmd.PersistentFlags().Lookup("ssh-jumphost-addr")); err != nil {
 		panic(fmt.Sprintf("failed to bind ssh_jumphost_addr flag: %v", err))

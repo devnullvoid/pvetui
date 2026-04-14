@@ -44,6 +44,8 @@ type BootstrapOptions struct {
 	FlagApiPath            string
 	FlagSSHUser            string
 	FlagVMSSHUser          string
+	FlagSSHKeyfile         string
+	FlagVMSSHKeyfile       string
 	FlagSSHJumpHostAddr    string
 	FlagSSHJumpHostUser    string
 	FlagSSHJumpHostKeyfile string
@@ -352,6 +354,12 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			if opts.FlagVMSSHUser != "" {
 				profile.VMSSHUser = opts.FlagVMSSHUser
 			}
+			if opts.FlagSSHKeyfile != "" {
+				profile.SSHKeyfile = opts.FlagSSHKeyfile
+			}
+			if opts.FlagVMSSHKeyfile != "" {
+				profile.VMSSHKeyfile = opts.FlagVMSSHKeyfile
+			}
 			if opts.FlagSSHJumpHostAddr != "" {
 				profile.SSHJumpHost.Addr = opts.FlagSSHJumpHostAddr
 			}
@@ -422,6 +430,12 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 	}
 	if opts.FlagVMSSHUser != "" {
 		cfg.VMSSHUser = opts.FlagVMSSHUser
+	}
+	if opts.FlagSSHKeyfile != "" {
+		cfg.SSHKeyfile = opts.FlagSSHKeyfile
+	}
+	if opts.FlagVMSSHKeyfile != "" {
+		cfg.VMSSHKeyfile = opts.FlagVMSSHKeyfile
 	}
 	if opts.FlagSSHJumpHostAddr != "" {
 		cfg.SSHJumpHost.Addr = opts.FlagSSHJumpHostAddr

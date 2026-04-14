@@ -242,10 +242,12 @@ func buildSSHClient(appConfig *config.Config, node *api.Node, timeout time.Durat
 		sshUser = appConfig.GetUser()
 	}
 
+	keyfile := resolveSSHKeyfile(appConfig, node)
 	jumpHost := resolveJumpHost(appConfig, node)
 
 	return commandrunner.NewSSHClient(commandrunner.SSHClientConfig{
 		Username: sshUser,
+		KeyPath:  keyfile,
 		Timeout:  timeout,
 		Port:     22,
 		JumpHost: commandrunner.JumpHostConfig{
@@ -255,6 +257,26 @@ func buildSSHClient(appConfig *config.Config, node *api.Node, timeout time.Durat
 			Port:    jumpHost.Port,
 		},
 	})
+}
+
+func resolveSSHKeyfile(appConfig *config.Config, node *api.Node) string {
+	if appConfig == nil {
+		return ""
+	}
+
+	if node != nil && node.SourceProfile != "" {
+		if profile, ok := appConfig.Profiles[node.SourceProfile]; ok && profile.SSHKeyfile != "" {
+			return profile.SSHKeyfile
+		}
+	}
+
+	if appConfig.ActiveProfile != "" {
+		if profile, ok := appConfig.Profiles[appConfig.ActiveProfile]; ok && profile.SSHKeyfile != "" {
+			return profile.SSHKeyfile
+		}
+	}
+
+	return appConfig.SSHKeyfile
 }
 
 func resolveSSHUser(appConfig *config.Config, node *api.Node) string {

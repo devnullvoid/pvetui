@@ -316,15 +316,17 @@ func (s *cliSession) findNodeIP(ctx context.Context, nodeName string) (string, e
 	return "", fmt.Errorf("node %q not found", nodeName)
 }
 
-// resolveSSHCreds returns the SSH username and jump-host config to use for the
-// node that hosts vm, preferring the guest's source profile when available.
-func (s *cliSession) resolveSSHCreds(vm *api.VM) (sshUser string, jumpHost config.SSHJumpHost) {
+// resolveSSHCreds returns the SSH username, keyfile path, and jump-host config
+// to use for the node that hosts vm, preferring the guest's source profile when available.
+func (s *cliSession) resolveSSHCreds(vm *api.VM) (sshUser string, sshKeyfile string, jumpHost config.SSHJumpHost) {
 	if vm != nil && vm.SourceProfile != "" {
 		if p, ok := s.cfg.Profiles[vm.SourceProfile]; ok {
 			if p.SSHUser != "" {
 				sshUser = p.SSHUser
 			}
-
+			if p.SSHKeyfile != "" {
+				sshKeyfile = p.SSHKeyfile
+			}
 			if p.SSHJumpHost.Addr != "" {
 				jumpHost = p.SSHJumpHost
 			}
@@ -334,12 +336,14 @@ func (s *cliSession) resolveSSHCreds(vm *api.VM) (sshUser string, jumpHost confi
 	if sshUser == "" {
 		sshUser = s.cfg.SSHUser
 	}
-
+	if sshKeyfile == "" {
+		sshKeyfile = s.cfg.SSHKeyfile
+	}
 	if jumpHost.Addr == "" {
 		jumpHost = s.cfg.SSHJumpHost
 	}
 
-	return sshUser, jumpHost
+	return sshUser, sshKeyfile, jumpHost
 }
 
 // execLXC executes cmdParts inside an LXC container via SSH to its host node
@@ -350,10 +354,11 @@ func (s *cliSession) execLXC(ctx context.Context, vm *api.VM, cmdParts []string,
 		return "", "", 0, fmt.Errorf("cannot resolve node for guest %d: %w", vm.ID, err)
 	}
 
-	sshUser, jumpHost := s.resolveSSHCreds(vm)
+	sshUser, sshKeyfile, jumpHost := s.resolveSSHCreds(vm)
 
 	sshClient := commandrunner.NewSSHClient(commandrunner.SSHClientConfig{
 		Username: sshUser,
+		KeyPath:  sshKeyfile,
 		Timeout:  timeout,
 		Port:     22,
 		JumpHost: commandrunner.JumpHostConfig{
