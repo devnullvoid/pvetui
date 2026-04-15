@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Shell Completions**: `pvetui completion` now generates shell completion scripts for bash, zsh, fish, and PowerShell via Cobra's built-in completion support. Run `pvetui completion <shell> --help` for installation instructions.
-- **SSH Key Configuration**: Added `ssh_keyfile` and `vm_ssh_keyfile` per-profile config fields (and corresponding `--ssh-keyfile` / `--vm-ssh-keyfile` CLI flags and `PVETUI_SSH_KEYFILE` / `PVETUI_VM_SSH_KEYFILE` env vars) for specifying SSH private key paths explicitly. When no keyfile is configured, pvetui now also consults the running SSH agent (`SSH_AUTH_SOCK`) before falling back to standard key paths.
+- **SSH Key Configuration**: Added `ssh_keyfile` and `vm_ssh_keyfile` per-profile config fields (and corresponding `--ssh-keyfile` / `--vm-ssh-keyfile` CLI flags and `PVETUI_SSH_KEYFILE` / `PVETUI_VM_SSH_KEYFILE` env vars) for specifying SSH private key paths explicitly. When no keyfile is configured, pvetui now also consults the running SSH agent (`SSH_AUTH_SOCK`) before falling back to standard key paths (`~/.ssh/id_ed25519`, `id_rsa`, `id_ecdsa`).
 
 ### Fixed
 
