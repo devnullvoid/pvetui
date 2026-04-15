@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-04-14
+
 ### Added
 
 - **Shell Completions**: `pvetui completion` now generates shell completion scripts for bash, zsh, fish, and PowerShell via Cobra's built-in completion support. Run `pvetui completion <shell> --help` for installation instructions.
