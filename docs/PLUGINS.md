@@ -39,7 +39,8 @@ The `ansible` plugin adds an **Ansible Toolkit** entry to the global actions men
   - `compact`: shared ansible vars are lifted to `all:vars` / `all.vars`.
   - `expanded`: host-level vars are kept per-host.
 - **Inventory export**: Preview and save generated inventory to a user-selected path.
-- **Ad-hoc connectivity tests**: Run `ansible -m ping` with configurable scope, limit, target picker, extra args, and timeout.
+- **Ad-hoc commands**: Run `ansible` modules against the generated inventory with configurable module, module args, scope, limit, target picker, extra args, and timeout.
+- **Connectivity tests**: `Run Ping` remains available as a dedicated preset for `ansible -m ping`.
 - **Playbook execution**: Run `ansible-playbook` with configurable scope, limit, target picker, `--check`, extra args, and timeout.
 - **Limit UX**: Ping/Playbook/Bootstrap forms include:
   - `Scope` (`all`, `nodes`, `guests`)

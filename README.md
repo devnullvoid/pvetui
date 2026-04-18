@@ -195,7 +195,7 @@ pvetui includes an opt-in plugin system for optional features. Plugins are **dis
 
 #### Built-in Plugins
 
-- **`ansible`**: Global-menu Ansible toolkit with YAML/INI inventory generation, playbook execution, and SSH setup guidance
+- **`ansible`**: Global-menu Ansible toolkit with YAML/INI inventory generation, ad-hoc module execution, playbook execution, and SSH setup guidance
 - **`community-scripts`**: Adds the popular Community Scripts installer to node context menus
 - **`command-runner`**: Execute whitelisted commands on Proxmox hosts via SSH (requires SSH key setup)
 - **`guest-insights`** *(legacy alias: `demo-guest-list`)*: Full guest insights modal (filter/sort/jump-to-guest)

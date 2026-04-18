@@ -68,12 +68,49 @@ func (r *Runner) RunPingStream(
 	}
 	defer cleanup()
 
-	args := []string{"-i", inventoryPath, "all", "-m", "ping"}
-	if strings.TrimSpace(limit) != "" {
-		args = append(args, "--limit", strings.TrimSpace(limit))
-	}
-	args = append(args, extraArgs...)
+	args := buildAdhocArgs(inventoryPath, AdhocOptions{
+		Pattern:   "all",
+		Module:    "ping",
+		Limit:     limit,
+		ExtraArgs: extraArgs,
+	})
+	return runAnsibleCommand(ctx, args, handler)
+}
 
+// AdhocOptions describes ansible ad-hoc module invocation options.
+type AdhocOptions struct {
+	Pattern    string
+	Module     string
+	ModuleArgs string
+	Limit      string
+	ExtraArgs  []string
+}
+
+// RunAdhoc executes ansible ad-hoc commands with a generated temporary inventory.
+func (r *Runner) RunAdhoc(ctx context.Context, inventoryText, inventoryFormat string, opts AdhocOptions) CommandResult {
+	return r.RunAdhocStream(ctx, inventoryText, inventoryFormat, opts, nil)
+}
+
+// RunAdhocStream executes ansible ad-hoc commands and streams output lines when handler is provided.
+func (r *Runner) RunAdhocStream(
+	ctx context.Context,
+	inventoryText,
+	inventoryFormat string,
+	opts AdhocOptions,
+	handler OutputLineHandler,
+) CommandResult {
+	module := strings.TrimSpace(opts.Module)
+	if module == "" {
+		return CommandResult{Err: fmt.Errorf("module is required")}
+	}
+
+	inventoryPath, cleanup, err := writeTempInventory(inventoryText, inventoryFormat)
+	if err != nil {
+		return CommandResult{Err: fmt.Errorf("create temp inventory: %w", err)}
+	}
+	defer cleanup()
+
+	args := buildAdhocArgs(inventoryPath, opts)
 	return runAnsibleCommand(ctx, args, handler)
 }
 
@@ -109,6 +146,29 @@ func (r *Runner) RunPlaybookStream(
 	}
 	defer cleanup()
 
+	args := buildPlaybookArgs(inventoryPath, playbookPath, opts)
+	return runAnsiblePlaybookCommand(ctx, args, handler)
+}
+
+func buildAdhocArgs(inventoryPath string, opts AdhocOptions) []string {
+	pattern := strings.TrimSpace(opts.Pattern)
+	if pattern == "" {
+		pattern = "all"
+	}
+
+	args := []string{"-i", inventoryPath, pattern, "-m", strings.TrimSpace(opts.Module)}
+	if strings.TrimSpace(opts.ModuleArgs) != "" {
+		args = append(args, "-a", strings.TrimSpace(opts.ModuleArgs))
+	}
+	if strings.TrimSpace(opts.Limit) != "" {
+		args = append(args, "--limit", strings.TrimSpace(opts.Limit))
+	}
+	args = append(args, opts.ExtraArgs...)
+
+	return args
+}
+
+func buildPlaybookArgs(inventoryPath, playbookPath string, opts PlaybookOptions) []string {
 	args := []string{"-i", inventoryPath, playbookPath}
 	if strings.TrimSpace(opts.Limit) != "" {
 		args = append(args, "--limit", strings.TrimSpace(opts.Limit))
@@ -118,7 +178,7 @@ func (r *Runner) RunPlaybookStream(
 	}
 	args = append(args, opts.ExtraArgs...)
 
-	return runAnsiblePlaybookCommand(ctx, args, handler)
+	return args
 }
 
 func runAnsibleCommand(ctx context.Context, args []string, handler OutputLineHandler) CommandResult {

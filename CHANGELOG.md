@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Ansible Ad-Hoc Tasks**: Expanded the `ansible` plugin beyond the ping preset so the toolkit can run structured ad-hoc Ansible module invocations against generated inventory, using module/module-args plus the existing scope, limit, target, and timeout controls.
+
 ### Added
 
 - **CLI: `nodes shell` and `guests shell`**: New interactive shell subcommands that open a terminal session directly from the CLI, matching the TUI's `S` shortcut behaviour.
