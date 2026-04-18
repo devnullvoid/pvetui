@@ -78,6 +78,17 @@ type playbookFormState struct {
 	TimeoutRaw   string
 }
 
+type adhocFormState struct {
+	Title          string
+	Module         string
+	ModuleArgs     string
+	Scope          string
+	Limit          string
+	ExtraArgsRaw   string
+	TimeoutRaw     string
+	RunButtonLabel string
+}
+
 // New creates a fresh plugin instance.
 func New() *Plugin {
 	return &Plugin{runner: coreansible.NewRunner()}
@@ -173,7 +184,18 @@ func (p *Plugin) showMainMenu() {
 	})
 	list.AddItem("Run Ping", "Run ansible ping module against this inventory", 0, func() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
-		p.showAdhocForm(defaultLimit, inventory, p.showMainMenu)
+		p.showPingForm(defaultLimit, inventory, p.showMainMenu)
+	})
+	list.AddItem("Run Ad-Hoc Task", "Run an Ansible module against this inventory", 0, func() {
+		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
+		p.showAdhocForm(defaultLimit, inventory, p.showMainMenu, &adhocFormState{
+			Title:          " Run Ad-Hoc Task ",
+			Module:         "command",
+			Scope:          detectScopeFromLimit(defaultLimit),
+			Limit:          defaultLimit,
+			TimeoutRaw:     "5m",
+			RunButtonLabel: "Run",
+		})
 	})
 	list.AddItem("Run Playbook", "Execute ansible-playbook on generated inventory", 0, func() {
 		defaultLimit := p.defaultLimitForSelection(selectedNode, selectedGuest, inventory)
@@ -588,23 +610,67 @@ func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onD
 	p.app.SetFocus(form)
 }
 
-func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.InventoryResult, onDone func()) {
+func (p *Plugin) showPingForm(defaultLimit string, inventory coreansible.InventoryResult, onDone func()) {
+	p.showAdhocForm(defaultLimit, inventory, onDone, &adhocFormState{
+		Title:          " Run Ping ",
+		Module:         "ping",
+		Scope:          detectScopeFromLimit(defaultLimit),
+		Limit:          defaultLimit,
+		TimeoutRaw:     "5m",
+		RunButtonLabel: "Run",
+	})
+}
+
+func (p *Plugin) showAdhocForm(
+	defaultLimit string,
+	inventory coreansible.InventoryResult,
+	onDone func(),
+	state *adhocFormState,
+) {
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
 	form := components.NewStandardForm()
 	form.SetBorder(true)
 	form.SetBorderColor(theme.Colors.Border)
-	form.SetTitle(" Run Ping ")
+	title := " Run Ad-Hoc Task "
+	if state != nil && strings.TrimSpace(state.Title) != "" {
+		title = strings.TrimSpace(state.Title)
+	}
+	form.SetTitle(title)
 	form.SetTitleColor(theme.Colors.Primary)
 
 	limit := defaultLimit
 	scope := detectScopeFromLimit(defaultLimit)
+	module := "command"
+	moduleArgs := ""
 	limitPickerLabels, limitPickerValues := buildLimitPickerOptions(inventory)
 	extra := ""
 	timeout := "5m"
+	runButtonLabel := "Run"
 	var limitInput *tview.InputField
+	if state != nil {
+		if strings.TrimSpace(state.Scope) != "" {
+			scope = strings.TrimSpace(state.Scope)
+		}
+		if strings.TrimSpace(state.Module) != "" {
+			module = strings.TrimSpace(state.Module)
+		}
+		moduleArgs = state.ModuleArgs
+		if strings.TrimSpace(state.Limit) != "" {
+			limit = state.Limit
+		}
+		extra = state.ExtraArgsRaw
+		if strings.TrimSpace(state.TimeoutRaw) != "" {
+			timeout = state.TimeoutRaw
+		}
+		if strings.TrimSpace(state.RunButtonLabel) != "" {
+			runButtonLabel = strings.TrimSpace(state.RunButtonLabel)
+		}
+	}
 
+	form.AddInputField("Module", module, 40, nil, func(text string) { module = strings.TrimSpace(text) })
+	form.AddInputField("Module Args", moduleArgs, 60, nil, func(text string) { moduleArgs = text })
 	form.AddDropDown("Scope", []string{bootstrapScopeAll, bootstrapScopeNodes, bootstrapScopeGuests}, scopeToIndex(scope), func(option string, _ int) {
 		scope = option
 		resolved := resolveLimitForScope(scope, "")
@@ -640,7 +706,13 @@ func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.Invent
 		}
 	}
 
-	form.AddButton("Run", func() {
+	form.AddButton(runButtonLabel, func() {
+		module = strings.TrimSpace(module)
+		if module == "" {
+			p.app.ShowMessageSafe("Module is required.")
+			return
+		}
+
 		timeoutDuration, err := parseDuration(timeout, 5*time.Minute)
 		if err != nil {
 			p.app.ShowMessageSafe(fmt.Sprintf("Invalid timeout: %v", err))
@@ -652,7 +724,13 @@ func (p *Plugin) showAdhocForm(defaultLimit string, inventory coreansible.Invent
 		}
 		resolvedLimit := resolveLimitForScope(scope, currentLimit)
 		closeForm()
-		p.runPing(inventory, resolvedLimit, strings.Fields(extra), timeoutDuration)
+		p.runAdhoc(inventory, coreansible.AdhocOptions{
+			Pattern:    bootstrapScopeAll,
+			Module:     module,
+			ModuleArgs: moduleArgs,
+			Limit:      resolvedLimit,
+			ExtraArgs:  strings.Fields(extra),
+		}, timeoutDuration)
 	})
 	form.AddButton("Cancel", closeForm)
 
@@ -883,13 +961,13 @@ func buildLimitPickerOptions(inventory coreansible.InventoryResult) ([]string, [
 	return labels, values
 }
 
-func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, extraArgs []string, timeout time.Duration) {
+func (p *Plugin) runAdhoc(inventory coreansible.InventoryResult, opts coreansible.AdhocOptions, timeout time.Duration) {
 	if err := p.runner.CheckAvailability(); err != nil {
 		p.app.ShowMessageSafe(fmt.Sprintf("Ansible is not available: %v", err))
 		return
 	}
 
-	appendLiveLine, closeLive := p.showLiveOutputModal("Running ansible ping...")
+	appendLiveLine, closeLive := p.showLiveOutputModal("Running ansible ad-hoc task...")
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	p.setRunningCancel(cancel)
 
@@ -897,23 +975,23 @@ func (p *Plugin) runPing(inventory coreansible.InventoryResult, limit string, ex
 		defer cancel()
 		defer p.clearRunningCancel()
 
-		result := p.runner.RunPingStream(
+		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
+		result := p.runner.RunAdhocStream(
 			ctx,
 			inventory.Text,
 			inventory.Format,
-			limit,
-			p.mergeConfiguredAnsibleArgs(extraArgs),
+			opts,
 			func(line string) {
 				appendLiveLine(line)
-				ansibleLogger().Debug("ansible ping stream: %s", line)
+				ansibleLogger().Debug("ansible ad-hoc stream: %s", line)
 			},
 		)
 		p.app.QueueUpdateDraw(func() {
 			closeLive()
-			title := "Ping Result"
+			title := "Ad-Hoc Result"
 			body := formatCommandResult(result)
 			if result.Err != nil {
-				title = "Ping Failed"
+				title = "Ad-Hoc Failed"
 			}
 			p.showOutput(title, body, p.showMainMenu)
 		})
