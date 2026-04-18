@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLI: `nodes shell` and `guests shell`**: New interactive shell subcommands that open a terminal session directly from the CLI, matching the TUI's `S` shortcut behaviour.
+  - `pvetui nodes shell <node>` — SSHes to a Proxmox node.
+  - `pvetui guests shell <vmid>` — enters an LXC container via `pct enter` (or `pct exec` for NixOS containers) over SSH to the host node, or connects directly to a QEMU VM via SSH using the VM's IP address. Respects `vm_ssh_user` / `vm_ssh_keyfile` for QEMU VMs.
+  - Authentication follows the standard priority: SSH agent → configured keyfile → `~/.ssh` defaults.
+  - Unlike the TUI, no "Press Enter to return to TUI" prompt is shown on exit.
+- **CLI: Tab completion for nodes and guests**: All CLI subcommands that accept a `<node>` or `<vmid>` argument now provide dynamic tab completion by querying the Proxmox API. VM completions include the guest name and type as a description (visible in zsh and fish). Requires shell completions to be active (`pvetui completion <shell>`).
+
 ## [1.3.1] - 2026-04-14
 
 ### Added

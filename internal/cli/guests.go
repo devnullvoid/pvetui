@@ -3,12 +3,14 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/devnullvoid/pvetui/internal/ssh"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
@@ -79,6 +81,7 @@ func newGuestsCmd() *cobra.Command {
 	cmd.AddCommand(newGuestsShutdownCmd())
 	cmd.AddCommand(newGuestsRestartCmd())
 	cmd.AddCommand(newGuestsExecCmd())
+	cmd.AddCommand(newGuestsShellCmd())
 
 	return cmd
 }
@@ -190,8 +193,9 @@ func newGuestsShowCmd() *cobra.Command {
 		Long:  "Show detailed information for a guest identified by VMID.",
 		Example: `  pvetui guests show 100
   pvetui --profile prod guests show 100`,
-		Args: cobra.ExactArgs(1),
-		RunE: runGuestsShow,
+		Args:              cobra.ExactArgs(1),
+		RunE:              runGuestsShow,
+		ValidArgsFunction: completeVMIDs,
 	}
 }
 
@@ -247,7 +251,8 @@ func newGuestsStartCmd() *cobra.Command {
 		Long:  "Start a stopped VM or container.",
 		Example: `  pvetui guests start 100
   pvetui --profile prod guests start 100`,
-		Args: cobra.ExactArgs(1),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("start", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.StartVM(vm)
 		}),
@@ -262,8 +267,9 @@ func newGuestsStopCmd() *cobra.Command {
 
 This is equivalent to pulling the power cord and may cause data loss.
 For a graceful shutdown, use 'guests shutdown' instead.`,
-		Example: `  pvetui guests stop 100`,
-		Args:    cobra.ExactArgs(1),
+		Example:           `  pvetui guests stop 100`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("stop", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.StopVM(vm)
 		}),
@@ -272,11 +278,12 @@ For a graceful shutdown, use 'guests shutdown' instead.`,
 
 func newGuestsShutdownCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "shutdown <vmid>",
-		Short:   "Gracefully shut down a guest",
-		Long:    "Request a graceful ACPI shutdown of a running VM or container.",
-		Example: `  pvetui guests shutdown 100`,
-		Args:    cobra.ExactArgs(1),
+		Use:               "shutdown <vmid>",
+		Short:             "Gracefully shut down a guest",
+		Long:              "Request a graceful ACPI shutdown of a running VM or container.",
+		Example:           `  pvetui guests shutdown 100`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("shutdown", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.ShutdownVM(vm)
 		}),
@@ -285,11 +292,12 @@ func newGuestsShutdownCmd() *cobra.Command {
 
 func newGuestsRestartCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "restart <vmid>",
-		Short:   "Restart a guest",
-		Long:    "Request a graceful restart of a running VM or container.",
-		Example: `  pvetui guests restart 100`,
-		Args:    cobra.ExactArgs(1),
+		Use:               "restart <vmid>",
+		Short:             "Restart a guest",
+		Long:              "Request a graceful restart of a running VM or container.",
+		Example:           `  pvetui guests restart 100`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("restart", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.RestartVM(vm)
 		}),
@@ -384,8 +392,9 @@ Proxmox API token permissions and SSH access granted to this client.`,
 		Example: `  pvetui guests exec 100 "uptime"
   pvetui guests exec 200 "df -h"
   pvetui --profile prod guests exec 100 "systemctl status nginx"`,
-		Args: cobra.ExactArgs(2),
-		RunE: runGuestsExec,
+		Args:              cobra.ExactArgs(2),
+		ValidArgsFunction: completeVMIDs,
+		RunE:              runGuestsExec,
 	}
 
 	cmd.Flags().Duration("timeout", 30*time.Second, "Command execution timeout")
@@ -508,6 +517,157 @@ func buildExecCommand(osType, command string) []string {
 // internal/plugins/command-runner/os_detection.go.
 func isWindowsOSType(osType string) bool {
 	return strings.HasPrefix(strings.ToLower(osType), "win")
+}
+
+// ── guests shell ─────────────────────────────────────────────────────────────
+
+func newGuestsShellCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "shell <vmid>",
+		Short: "Open an interactive shell inside a guest",
+		Long: `Open an interactive shell inside a running guest.
+
+For LXC containers: SSHes to the Proxmox node and runs 'pct enter <vmid>'
+(NixOS containers are detected automatically and use 'pct exec' instead).
+Requires ssh_user to be configured.
+
+For QEMU VMs: opens a direct SSH connection to the VM's IP address.
+Requires the VM to have an IP address visible to pvetui (e.g. via QEMU guest
+agent) and vm_ssh_user (or ssh_user as fallback) to be configured.
+
+Authentication follows the standard SSH priority: agent > configured keyfile
+> ~/.ssh defaults.`,
+		Example: `  pvetui guests shell 100
+  pvetui --profile prod guests shell 200
+  pvetui --ssh-user root guests shell 100`,
+		Args:              cobra.ExactArgs(1),
+		RunE:              runGuestsShell,
+		ValidArgsFunction: completeVMIDs,
+	}
+}
+
+func runGuestsShell(cmd *cobra.Command, args []string) error {
+	vmid, err := parseVMID(args[0])
+	if err != nil {
+		return printError(err)
+	}
+
+	session, initErr := initCLISession(cmd)
+	if initErr != nil {
+		return printError(initErr)
+	}
+
+	if session == nil {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	vm, err := session.findVM(ctx, vmid)
+	if err != nil {
+		return printError(err)
+	}
+
+	if vm.Status != api.VMStatusRunning {
+		return printError(fmt.Errorf("guest %d is not running (status: %s)", vmid, vm.Status))
+	}
+
+	if vm.Template {
+		return printError(fmt.Errorf("guest %d is a template; shell is not supported", vmid))
+	}
+
+	switch vm.Type {
+	case api.VMTypeLXC:
+		return runLXCShell(cmd, session, vm)
+	case api.VMTypeQemu:
+		return runQEMUShell(cmd, session, vm)
+	default:
+		return printError(fmt.Errorf("unsupported guest type %q for guest %d", vm.Type, vmid))
+	}
+}
+
+func runLXCShell(_ *cobra.Command, session *cliSession, vm *api.VM) error {
+	ctx := context.Background()
+
+	nodeIP, err := session.findNodeIP(ctx, vm.Node)
+	if err != nil {
+		return printError(fmt.Errorf("cannot resolve node for guest %d: %w", vm.ID, err))
+	}
+
+	sshUser, jumpHost := session.resolveNodeSSHCreds(&api.Node{
+		Name:          vm.Node,
+		SourceProfile: vm.SourceProfile,
+	})
+	if sshUser == "" {
+		return printError(fmt.Errorf("SSH user not configured; set ssh_user in config or use --ssh-user"))
+	}
+
+	keyfile := session.resolveNodeSSHKeyfile(&api.Node{
+		Name:          vm.Node,
+		SourceProfile: vm.SourceProfile,
+	})
+
+	isNixOS := vm.OSType == "nixos" || vm.OSType == "nix"
+
+	var pctCmd string
+	if isNixOS {
+		pctCmd = fmt.Sprintf("pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vm.ID)
+	} else {
+		pctCmd = fmt.Sprintf("pct enter %d", vm.ID)
+	}
+
+	if !strings.EqualFold(sshUser, "root") {
+		pctCmd = "sudo " + pctCmd
+	}
+
+	sshArgs := ssh.BuildSSHArgs(sshUser, nodeIP, jumpHost)
+	sshArgs = append(sshArgs, "-t", pctCmd)
+
+	containerType := "LXC"
+	if isNixOS {
+		containerType = "NixOS LXC"
+	}
+
+	fmt.Fprintf(os.Stderr, "Connecting to %s container %s (ID: %d) on node %s (%s)...\n",
+		containerType, vm.Name, vm.ID, vm.Node, nodeIP)
+
+	if err := execInteractiveShell(sshArgs, keyfile); err != nil {
+		return printError(fmt.Errorf("shell session ended with error: %w", err))
+	}
+
+	return nil
+}
+
+func runQEMUShell(_ *cobra.Command, session *cliSession, vm *api.VM) error {
+	if vm.IP == "" {
+		return printError(fmt.Errorf(
+			"no IP address available for VM %d (%s); ensure QEMU guest agent is running and the VM has network connectivity",
+			vm.ID, vm.Name,
+		))
+	}
+
+	vmSSHUser := session.resolveVMSSHUser(vm)
+	if vmSSHUser == "" {
+		return printError(fmt.Errorf("VM SSH user not configured; set vm_ssh_user (or ssh_user) in config or use --vm-ssh-user"))
+	}
+
+	keyfile := session.resolveVMSSHKeyfile(vm)
+
+	_, jumpHost := session.resolveNodeSSHCreds(&api.Node{
+		Name:          vm.Node,
+		SourceProfile: vm.SourceProfile,
+	})
+
+	sshArgs := ssh.BuildSSHArgs(vmSSHUser, vm.IP, jumpHost)
+
+	fmt.Fprintf(os.Stderr, "Connecting to QEMU VM %s (ID: %d) at %s as %s...\n",
+		vm.Name, vm.ID, vm.IP, vmSSHUser)
+
+	if err := execInteractiveShell(sshArgs, keyfile); err != nil {
+		return printError(fmt.Errorf("SSH session ended with error: %w", err))
+	}
+
+	return nil
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

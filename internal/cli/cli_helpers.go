@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -370,6 +371,186 @@ func (s *cliSession) execLXC(ctx context.Context, vm *api.VM, cmdParts []string,
 	})
 
 	return sshClient.ExecuteContainerCommandDetailed(ctx, nodeIP, vm.ID, cmdParts)
+}
+
+// findNodeByName returns the node with the given name, or an error if not found.
+func (s *cliSession) findNodeByName(ctx context.Context, name string) (*api.Node, error) {
+	nodes, err := s.getNodes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch nodes: %w", err)
+	}
+
+	for _, n := range nodes {
+		if n != nil && n.Name == name {
+			return n, nil
+		}
+	}
+
+	return nil, fmt.Errorf("node %q not found", name)
+}
+
+// resolveNodeSSHCreds returns the SSH username and jump-host config for a node,
+// preferring the node's source profile when available.
+func (s *cliSession) resolveNodeSSHCreds(node *api.Node) (sshUser string, jumpHost config.SSHJumpHost) {
+	if node != nil && node.SourceProfile != "" {
+		if p, ok := s.cfg.Profiles[node.SourceProfile]; ok {
+			if p.SSHUser != "" {
+				sshUser = p.SSHUser
+			}
+			if p.SSHJumpHost.Addr != "" {
+				jumpHost = p.SSHJumpHost
+			}
+		}
+	}
+
+	if sshUser == "" {
+		sshUser = s.cfg.SSHUser
+	}
+
+	if jumpHost.Addr == "" {
+		jumpHost = s.cfg.SSHJumpHost
+	}
+
+	return sshUser, jumpHost
+}
+
+// resolveNodeSSHKeyfile returns the SSH keyfile to use when connecting to a node.
+func (s *cliSession) resolveNodeSSHKeyfile(node *api.Node) string {
+	if node != nil && node.SourceProfile != "" {
+		if p, ok := s.cfg.Profiles[node.SourceProfile]; ok && p.SSHKeyfile != "" {
+			return p.SSHKeyfile
+		}
+	}
+
+	return s.cfg.SSHKeyfile
+}
+
+// resolveVMSSHUser returns the SSH username to use when connecting directly to
+// a QEMU VM, falling back to the host SSH user if vm_ssh_user is not set.
+func (s *cliSession) resolveVMSSHUser(vm *api.VM) string {
+	var vmSSHUser string
+
+	if vm != nil && vm.SourceProfile != "" {
+		if p, ok := s.cfg.Profiles[vm.SourceProfile]; ok && p.VMSSHUser != "" {
+			vmSSHUser = p.VMSSHUser
+		}
+	}
+
+	if vmSSHUser == "" {
+		vmSSHUser = s.cfg.VMSSHUser
+	}
+
+	if vmSSHUser == "" {
+		// Fall back to host SSH user.
+		hostUser, _, _ := s.resolveSSHCreds(vm)
+		vmSSHUser = hostUser
+	}
+
+	return vmSSHUser
+}
+
+// resolveVMSSHKeyfile returns the SSH keyfile to use when connecting directly
+// to a QEMU VM. Prefers vm_ssh_keyfile, falls back to ssh_keyfile.
+func (s *cliSession) resolveVMSSHKeyfile(vm *api.VM) string {
+	if vm != nil && vm.SourceProfile != "" {
+		if p, ok := s.cfg.Profiles[vm.SourceProfile]; ok {
+			if p.VMSSHKeyfile != "" {
+				return p.VMSSHKeyfile
+			}
+			if p.SSHKeyfile != "" {
+				return p.SSHKeyfile
+			}
+		}
+	}
+
+	if s.cfg.VMSSHKeyfile != "" {
+		return s.cfg.VMSSHKeyfile
+	}
+
+	return s.cfg.SSHKeyfile
+}
+
+// execInteractiveShell runs the ssh binary interactively with the given
+// argument list, inheriting stdin/stdout/stderr. Unlike the TUI's ssh helpers
+// it does not display a "Press Enter to return to TUI" prompt on exit.
+func execInteractiveShell(sshArgs []string, keyfile string) error {
+	args := make([]string, 0, len(sshArgs)+2)
+	if keyfile != "" {
+		args = append(args, "-i", keyfile)
+	}
+
+	args = append(args, sshArgs...)
+
+	// #nosec G204 -- args are built from vetted internal call sites.
+	cmd := exec.Command("ssh", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
+	return cmd.Run()
+}
+
+// completeNodeNames is a Cobra ValidArgsFunction that returns node names for
+// tab completion. It requires no positional args already provided.
+func completeNodeNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	session, err := initCLISession(cmd)
+	if err != nil || session == nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	nodes, err := session.getNodes(context.Background())
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var names []string
+
+	for _, n := range nodes {
+		if n != nil && strings.HasPrefix(n.Name, toComplete) {
+			names = append(names, n.Name)
+		}
+	}
+
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeVMIDs is a Cobra ValidArgsFunction that returns VMID completions
+// with the guest name and type as description. Requires no positional args
+// already provided.
+func completeVMIDs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	session, err := initCLISession(cmd)
+	if err != nil || session == nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	vms, err := session.getVMs(context.Background())
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var completions []string
+
+	for _, vm := range vms {
+		if vm == nil {
+			continue
+		}
+
+		id := fmt.Sprintf("%d", vm.ID)
+		if strings.HasPrefix(id, toComplete) {
+			completions = append(completions, fmt.Sprintf("%s\t%s (%s)", id, vm.Name, vm.Type))
+		}
+	}
+
+	return completions, cobra.ShellCompDirectiveNoFileComp
 }
 
 // findGuestByVMID scans all nodes for a guest with the given VMID.

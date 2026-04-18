@@ -3,9 +3,11 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/devnullvoid/pvetui/internal/ssh"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
@@ -56,6 +58,7 @@ func newNodesCmd() *cobra.Command {
 
 	cmd.AddCommand(newNodesListCmd())
 	cmd.AddCommand(newNodesShowCmd())
+	cmd.AddCommand(newNodesShellCmd())
 
 	return cmd
 }
@@ -130,8 +133,9 @@ func newNodesShowCmd() *cobra.Command {
 		Long:  "Show detailed information for a named Proxmox node.",
 		Example: `  pvetui nodes show pve01
   pvetui --profile prod nodes show pve01`,
-		Args: cobra.ExactArgs(1),
-		RunE: runNodesShow,
+		Args:              cobra.ExactArgs(1),
+		RunE:              runNodesShow,
+		ValidArgsFunction: completeNodeNames,
 	}
 }
 
@@ -180,4 +184,70 @@ func runNodesShow(cmd *cobra.Command, args []string) error {
 	}
 
 	return printError(fmt.Errorf("node %q not found", nodeName))
+}
+
+// ── nodes shell ──────────────────────────────────────────────────────────────
+
+func newNodesShellCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "shell <node>",
+		Short: "Open an interactive SSH shell on a node",
+		Long: `Open an interactive SSH shell on a Proxmox node.
+
+The SSH user is resolved from the node's source profile (in group mode), the
+active profile, or the global ssh_user config / --ssh-user flag. Authentication
+follows the standard SSH priority: agent > configured keyfile > ~/.ssh defaults.`,
+		Example: `  pvetui nodes shell pve01
+  pvetui --profile prod nodes shell pve01
+  pvetui --ssh-user root nodes shell pve01`,
+		Args:              cobra.ExactArgs(1),
+		RunE:              runNodesShell,
+		ValidArgsFunction: completeNodeNames,
+	}
+}
+
+func runNodesShell(cmd *cobra.Command, args []string) error {
+	nodeName := args[0]
+
+	session, err := initCLISession(cmd)
+	if err != nil {
+		return printError(err)
+	}
+
+	if session == nil {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	node, err := session.findNodeByName(ctx, nodeName)
+	if err != nil {
+		return printError(err)
+	}
+
+	if !node.Online {
+		return printError(fmt.Errorf("node %q is offline", nodeName))
+	}
+
+	sshUser, jumpHost := session.resolveNodeSSHCreds(node)
+	if sshUser == "" {
+		return printError(fmt.Errorf("SSH user not configured; set ssh_user in config or use --ssh-user"))
+	}
+
+	keyfile := session.resolveNodeSSHKeyfile(node)
+
+	host := node.IP
+	if host == "" {
+		host = node.Name
+	}
+
+	sshArgs := ssh.BuildSSHArgs(sshUser, host, jumpHost)
+
+	fmt.Fprintf(os.Stderr, "Connecting to node %s (%s) as %s...\n", node.Name, host, sshUser)
+
+	if err := execInteractiveShell(sshArgs, keyfile); err != nil {
+		return printError(fmt.Errorf("SSH session ended with error: %w", err))
+	}
+
+	return nil
 }
