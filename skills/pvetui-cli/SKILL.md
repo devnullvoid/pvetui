@@ -95,8 +95,8 @@ pvetui nodes show pve01 --output table
     "ip": "10.0.0.10",
     "online": true,
     "cpu_usage": 0.12,
-    "memory_used": 8589934592,
-    "memory_total": 34359738368,
+    "memory_used": 7.238216400146484,
+    "memory_total": 31.174354553222656,
     "uptime": 864000,
     "version": "8.2.2",
     "kernel_version": "6.8.4-2-pve",
@@ -105,7 +105,7 @@ pvetui nodes show pve01 --output table
 ]
 ```
 
-`cpu_usage` is a fraction (0.0–1.0). Memory values are bytes. `uptime` is seconds. `source_profile` is populated in aggregate group mode.
+`cpu_usage` is a fraction (0.0–1.0). Memory values are in GiB. `uptime` is seconds. `source_profile` is populated in aggregate group mode.
 
 ## Guests (VMs and Containers)
 
@@ -189,7 +189,7 @@ pvetui guests exec 100 "df -h" --output table
 - LXC: guest must be running; `ssh_user` must be configured in the profile; the agent user needs permission to run `pct exec` (or be root).
 
 **OS detection (QEMU only):**
-- Windows guests (`ostype` starting with `win`): command is wrapped in `powershell.exe -NonInteractive -Command <cmd>`
+- Windows guests (`ostype` starting with `win`): command is wrapped in `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command <cmd>`
 - All other guests: command is wrapped in `/bin/sh -c <cmd>`
 - LXC always uses `/bin/sh -c <cmd>`
 

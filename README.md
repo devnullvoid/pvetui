@@ -514,9 +514,12 @@ See [docs/DOCKER.md](docs/DOCKER.md) for Docker/Podman details.
 Planned and actively prioritized:
 
 - **Role-aware operation mode**: Compatibility with non-admin Proxmox roles (for example, "operator"-style permissions) with clear capability detection and graceful UI fallback when actions are not allowed.
-- **Expanded guest configuration management**: Manage more guest settings directly in TUI, including common hardware and network options.
-- **Guest creation workflows**: Guided creation for VMs/LXCs with safe defaults and validation.
-- **Storage management basics**: Visibility and common actions for storage targets (capacity, content, and routine operations).
+
+Recently shipped (may receive further refinements):
+
+- **Expanded guest configuration management**: Edit guest CPU, memory, name/tags, start-at-boot, network interfaces (bridge, VLAN, MAC, rate limit, firewall, LXC IP config), and storage volume resizing — all from the guest context menu.
+- **Guest creation workflows**: Guided creation for both VMs and LXCs with node selection, auto-assigned VMID, storage/ISO/template discovery, network bridge, and safe defaults.
+- **Storage management**: Dedicated Storage page (Alt+4) with node–storage tree, content browser with type filtering (ISOs, templates, backups, snippets, disk images), URL download, OCI pull, backup restore, and content deletion.
 
 Under evaluation (higher complexity):
 
