@@ -386,20 +386,54 @@ func (m *GroupClientManager) GetVMFromGroup(
 
 // FindVMByIDInGroup searches for a VM with the given ID across all profiles.
 // Returns the VM and its source profile name, or an error if not found.
-// Note: VM IDs should be unique within a profile, but may overlap across profiles.
+// If the same VMID exists in more than one profile, ErrAmbiguousVMID is returned
+// so that callers can surface a disambiguation message to the user.
 func (m *GroupClientManager) FindVMByIDInGroup(ctx context.Context, vmID int) (*VM, string, error) {
 	vms, err := m.GetGroupVMs(ctx)
 	if err != nil {
 		return nil, "", err
 	}
 
+	var matches []*VM
+
 	for _, vm := range vms {
 		if vm.ID == vmID {
-			return vm, vm.SourceProfile, nil
+			matches = append(matches, vm)
 		}
 	}
 
-	return nil, "", fmt.Errorf("VM with ID %d not found in any profile", vmID)
+	switch len(matches) {
+	case 0:
+		return nil, "", fmt.Errorf("VM with ID %d not found in any profile", vmID)
+	case 1:
+		return matches[0], matches[0].SourceProfile, nil
+	default:
+		return nil, "", &AmbiguousVMIDError{VMID: vmID, Matches: matches}
+	}
+}
+
+// AmbiguousVMIDError is returned when a VMID matches guests in more than one
+// profile in an aggregate group. The caller should present Matches to the user
+// and ask them to re-run with --profile to disambiguate.
+type AmbiguousVMIDError struct {
+	VMID    int
+	Matches []*VM
+}
+
+func (e *AmbiguousVMIDError) Error() string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "VMID %d is ambiguous — it exists in multiple profiles:\n", e.VMID)
+
+	for _, vm := range e.Matches {
+		fmt.Fprintf(&b, "  %-12s → %s (%s, %s) on %s\n",
+			vm.SourceProfile, vm.Name, vm.Type, vm.Status, vm.Node)
+	}
+
+	fmt.Fprintf(&b, "\nRe-run with --profile to target one, e.g.:\n")
+	fmt.Fprintf(&b, "  pvetui --profile %s guests show %d", e.Matches[0].SourceProfile, e.VMID)
+
+	return b.String()
 }
 
 // FindNodeByNameInGroup searches for a node with the given name across all profiles.

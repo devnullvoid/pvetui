@@ -78,11 +78,9 @@ func (s *cliSession) getVMs(ctx context.Context) ([]*api.VM, error) {
 func (s *cliSession) findVM(ctx context.Context, vmid int) (*api.VM, error) {
 	if s.group != nil {
 		vm, _, err := s.group.FindVMByIDInGroup(ctx, vmid)
-		if err != nil {
-			return nil, fmt.Errorf("guest %d not found", vmid)
-		}
-
-		return vm, nil
+		// Propagate the error as-is: AmbiguousVMIDError carries a full
+		// disambiguation message; not-found errors are also meaningful.
+		return vm, err
 	}
 
 	return findGuestByVMID(s.single, vmid)

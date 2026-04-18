@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -234,6 +235,122 @@ func TestDeduplicateGroupNodes(t *testing.T) {
 
 	got := deduplicateGroupNodes(nodes)
 	require.Len(t, got, 4)
+}
+
+// newSingleNodeWithVMServer returns a test server that serves one node and one
+// QEMU VM with the given vmID and name under /cluster/resources.
+func newSingleNodeWithVMServer(ticket, nodeName string, vmID int, vmName, vmStatus string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testAPITicketPath:
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": map[string]interface{}{
+					"ticket": ticket, "CSRFPreventionToken": "csrf",
+				},
+			})
+		case testAPIClusterResourcesPath:
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": []interface{}{
+					map[string]interface{}{
+						"type": "node", "node": nodeName,
+						"cpu": 0.1, "maxcpu": 4,
+						"mem": 1024.0, "maxmem": 2048.0,
+						"disk": 1024.0, "maxdisk": 2048.0,
+						"uptime": 100,
+					},
+					map[string]interface{}{
+						"type": "qemu", "node": nodeName,
+						"vmid": vmID, "name": vmName, "status": vmStatus,
+					},
+				},
+			})
+		case testAPIClusterStatusPath:
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": []interface{}{
+					map[string]interface{}{
+						"id": "node/" + nodeName, "name": nodeName,
+						"type": "node", "online": 1,
+					},
+				},
+			})
+		case testAPINodesPath:
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": []interface{}{
+					map[string]interface{}{"node": nodeName, "status": "online"},
+				},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+}
+
+func TestFindVMByIDInGroup_Unique(t *testing.T) {
+	s1 := newSingleNodeWithVMServer("t1", "pve1", 100, "web", "running")
+	defer s1.Close()
+	s2 := newSingleNodeWithVMServer("t2", "pve2", 200, "db", "running")
+	defer s2.Close()
+
+	mgr := NewGroupClientManager("g", testutils.NewTestLogger(), &MockCache{})
+	err := mgr.Initialize(context.Background(), []ProfileEntry{
+		{Name: "prod", Config: &MockConfig{Addr: s1.URL, User: "u", Password: "p"}},
+		{Name: "dev", Config: &MockConfig{Addr: s2.URL, User: "u", Password: "p"}},
+	})
+	require.NoError(t, err)
+
+	vm, profile, err := mgr.FindVMByIDInGroup(context.Background(), 100)
+	require.NoError(t, err)
+	assert.Equal(t, 100, vm.ID)
+	assert.Equal(t, "prod", profile)
+}
+
+func TestFindVMByIDInGroup_Ambiguous(t *testing.T) {
+	// Both profiles serve VMID 100 — different names to confirm both are returned.
+	s1 := newSingleNodeWithVMServer("t1", "pve1", 100, "web-prod", "running")
+	defer s1.Close()
+	s2 := newSingleNodeWithVMServer("t2", "pve2", 100, "web-dev", "stopped")
+	defer s2.Close()
+
+	mgr := NewGroupClientManager("g", testutils.NewTestLogger(), &MockCache{})
+	err := mgr.Initialize(context.Background(), []ProfileEntry{
+		{Name: "prod", Config: &MockConfig{Addr: s1.URL, User: "u", Password: "p"}},
+		{Name: "dev", Config: &MockConfig{Addr: s2.URL, User: "u", Password: "p"}},
+	})
+	require.NoError(t, err)
+
+	vm, profile, err := mgr.FindVMByIDInGroup(context.Background(), 100)
+	require.Error(t, err)
+	assert.Nil(t, vm)
+	assert.Empty(t, profile)
+
+	var ambig *AmbiguousVMIDError
+	require.ErrorAs(t, err, &ambig)
+	assert.Equal(t, 100, ambig.VMID)
+	assert.Len(t, ambig.Matches, 2)
+
+	// Error message should contain the profile names and a --profile hint.
+	msg := err.Error()
+	assert.Contains(t, msg, "prod")
+	assert.Contains(t, msg, "dev")
+	assert.Contains(t, msg, "--profile")
+}
+
+func TestFindVMByIDInGroup_NotFound(t *testing.T) {
+	s1 := newSingleNodeWithVMServer("t1", "pve1", 100, "web", "running")
+	defer s1.Close()
+
+	mgr := NewGroupClientManager("g", testutils.NewTestLogger(), &MockCache{})
+	err := mgr.Initialize(context.Background(), []ProfileEntry{
+		{Name: "prod", Config: &MockConfig{Addr: s1.URL, User: "u", Password: "p"}},
+	})
+	require.NoError(t, err)
+
+	_, _, err = mgr.FindVMByIDInGroup(context.Background(), 999)
+	require.Error(t, err)
+
+	var ambig *AmbiguousVMIDError
+	assert.False(t, errors.As(err, &ambig), "not-found should not be AmbiguousVMIDError")
 }
 
 func TestDeduplicateGroupVMs(t *testing.T) {
