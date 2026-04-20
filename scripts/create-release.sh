@@ -83,7 +83,8 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 VERSION_NO_V="${VERSION#v}"
-RELEASE_DATE=$(date +%Y-%m-%d)
+RELEASE_DATE=$(date -u +%Y-%m-%d)
+RELEASE_DATE_RFC3339="${RELEASE_DATE}T00:00:00Z"
 
 # Helper functions
 log_info() {
@@ -245,11 +246,31 @@ update_changelog() {
     log_success "CHANGELOG.md updated with version $VERSION_NO_V"
 }
 
+update_release_go() {
+    local release_go="internal/version/release.go"
+    local short_commit
+    short_commit=$(git rev-parse --short HEAD)
+
+    log_info "Updating $release_go..."
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_warning "[DRY RUN] Would set releaseVersion=$VERSION_NO_V releaseCommit=$short_commit releaseDate=$RELEASE_DATE"
+        return 0
+    fi
+
+    sed -i "s/releaseVersion = \"[^\"]*\"/releaseVersion = \"$VERSION_NO_V\"/" "$release_go"
+    sed -i "s/releaseCommit  = \"[^\"]*\"/releaseCommit  = \"$short_commit\"/" "$release_go"
+    sed -i "s/releaseDate    = \"[^\"]*\"/releaseDate    = \"$RELEASE_DATE_RFC3339\"/" "$release_go"
+
+    log_success "$release_go updated (version=$VERSION_NO_V commit=$short_commit date=$RELEASE_DATE_RFC3339)"
+}
+
 commit_changelog() {
     run_command \
-        "git add CHANGELOG.md && git commit --no-verify -m '📝 Prepare $VERSION release
+        "git add CHANGELOG.md internal/version/release.go && git commit --no-verify -m '📝 Prepare $VERSION release
 
 - Update changelog with $VERSION release notes
+- Update release.go fallback constants for go install builds
 - Ready for release tagging and merge to master'" \
         "Committing changelog update"
 }
@@ -434,6 +455,7 @@ main() {
 
     # Execute release steps
     update_changelog
+    update_release_go
     commit_changelog
     merge_to_master
     create_and_push_tag

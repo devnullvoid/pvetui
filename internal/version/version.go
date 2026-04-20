@@ -21,9 +21,11 @@ type BuildInfo struct {
 	Arch      string
 }
 
+const devBuildVersion = "dev"
+
 // Global build info variables that will be set at build time via -ldflags
 var (
-	version   = "dev"
+	version   = devBuildVersion
 	buildDate = unknownBuildValue
 	commit    = unknownBuildValue
 )
@@ -44,7 +46,7 @@ func GetBuildInfo() *BuildInfo {
 	// Backfill missing metadata from build info (supports go install without ldflags).
 	if buildInfo, ok := debug.ReadBuildInfo(); ok {
 		// Populate version from module tag when not provided via ldflags.
-		if info.Version == "dev" && buildInfo.Main.Version != "" && buildInfo.Main.Version != "(devel)" {
+		if info.Version == devBuildVersion && buildInfo.Main.Version != "" && buildInfo.Main.Version != "(devel)" {
 			info.Version = strings.TrimPrefix(buildInfo.Main.Version, "v")
 		}
 
@@ -61,6 +63,20 @@ func GetBuildInfo() *BuildInfo {
 				}
 			}
 		}
+	}
+
+	// Final fallback: use constants embedded at release time (release.go).
+	// These are set by the release script and are the only source of truth
+	// when building via `go install` from the module proxy, where no VCS
+	// metadata is available.
+	if info.Version == devBuildVersion && releaseVersion != "" {
+		info.Version = releaseVersion
+	}
+	if info.Commit == unknownBuildValue && releaseCommit != "" {
+		info.Commit = releaseCommit
+	}
+	if info.BuildDate == unknownBuildValue && releaseDate != "" {
+		info.BuildDate = releaseDate
 	}
 
 	return info
@@ -89,7 +105,7 @@ func GetBuildDate() (time.Time, error) {
 
 // IsDevBuild returns true if this is a development build
 func IsDevBuild() bool {
-	return version == "dev"
+	return version == devBuildVersion
 }
 
 // GetGitHubURL returns the GitHub repository URL
