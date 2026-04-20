@@ -177,6 +177,23 @@ check_version_not_exists() {
     return 0
 }
 
+check_master_in_sync() {
+    # Fetch quietly so we have an up-to-date picture of origin/master.
+    if ! git fetch origin master --quiet 2>/dev/null; then
+        log_warning "Could not fetch origin/master — proceeding without remote sync check"
+        return 0
+    fi
+
+    local behind
+    behind=$(git rev-list --count master..origin/master 2>/dev/null || echo 0)
+
+    if [[ "$behind" -gt 0 ]]; then
+        log_warning "Local master is $behind commit(s) behind origin/master."
+        log_info  "The script will fast-forward master before merging develop."
+    fi
+    return 0
+}
+
 check_github_cli() {
     if [[ "$NO_GITHUB" == "false" ]] && ! command -v gh &> /dev/null; then
         log_error "GitHub CLI (gh) is required for GitHub release creation"
@@ -239,6 +256,10 @@ commit_changelog() {
 
 merge_to_master() {
     run_command "git checkout master" "Switching to master branch"
+    # Sync with origin/master first so automated commits (e.g. Nix vendorHash)
+    # that CI may have pushed after the last release are absorbed before we merge
+    # develop. --ff-only ensures we never silently create a merge commit here.
+    run_command "git merge --ff-only origin/master" "Fast-forwarding master to origin/master"
     run_command "git merge develop" "Merging develop into master"
 }
 
@@ -341,6 +362,7 @@ main() {
     local check_failed=false
     check_git_status || check_failed=true
     check_branch || check_failed=true
+    check_master_in_sync || check_failed=true
     check_unreleased_content || check_failed=true
     check_version_not_exists || check_failed=true
     check_github_cli || check_failed=true
