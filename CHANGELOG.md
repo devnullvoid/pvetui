@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-04-20
+
 ### Added
 
 - **Ansible Ad-Hoc Tasks**: Expanded the `ansible` plugin beyond the ping preset so the toolkit can run structured ad-hoc Ansible module invocations against generated inventory, using module/module-args plus the existing scope, limit, target, and timeout controls.
