@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **Ansible Ad-Hoc Tasks**: Expanded the `ansible` plugin beyond the ping preset so the toolkit can run structured ad-hoc Ansible module invocations against generated inventory, using module/module-args plus the existing scope, limit, target, and timeout controls.
-
 ### Added
 
+- **Ansible Ad-Hoc Tasks**: Expanded the `ansible` plugin beyond the ping preset so the toolkit can run structured ad-hoc Ansible module invocations against generated inventory, using module/module-args plus the existing scope, limit, target, and timeout controls.
 - **CLI: `nodes shell` and `guests shell`**: New interactive shell subcommands that open a terminal session directly from the CLI, matching the TUI's `S` shortcut behaviour.
   - `pvetui nodes shell <node>` — SSHes to a Proxmox node.
   - `pvetui guests shell <vmid>` — enters an LXC container via `pct enter` (or `pct exec` for NixOS containers) over SSH to the host node, or connects directly to a QEMU VM via SSH using the VM's IP address. Respects `vm_ssh_user` / `vm_ssh_keyfile` for QEMU VMs.
@@ -179,10 +178,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
- - **Config Wizard Auth Validation**: Read live form values at save time and validate the profile being edited to avoid stale auth errors across platforms. (#69, #70)
- - **Config Wizard Token Validation**: Warn when only one of token ID/secret is provided so partial token input isn't silently discarded.
- - **Config Wizard Defaults**: When launched via `--config-wizard` without an existing config, the wizard now seeds from the default template to match onboarding behavior. (#69, #70)
- - **Windows Config Path Handling**: Default to the standard config path when launching the wizard without an existing config, and also probe XDG locations so legacy `~/.config/pvetui` setups are discovered. (#69, #70)
+- **Config Wizard Auth Validation**: Read live form values at save time and validate the profile being edited to avoid stale auth errors across platforms. (#69, #70)
+- **Config Wizard Token Validation**: Warn when only one of token ID/secret is provided so partial token input isn't silently discarded.
+- **Config Wizard Defaults**: When launched via `--config-wizard` without an existing config, the wizard now seeds from the default template to match onboarding behavior. (#69, #70)
+- **Windows Config Path Handling**: Default to the standard config path when launching the wizard without an existing config, and also probe XDG locations so legacy `~/.config/pvetui` setups are discovered. (#69, #70)
 
 ## [1.0.15] - 2025-12-21
 
@@ -225,8 +224,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - View aggregated CPU, memory, storage, and task information across all connected clusters.
   - Perform VM operations (start, stop, migration, etc.) on individual VMs within the aggregate view, with operations correctly routed to the respective source cluster.
   - Utilize VNC and SSH shell access for VMs and nodes across aggregated clusters.
-
-
 
 - **API spec generation**: New `gen-openapi` Make target and `pve-openapi-gen` tool generate an OpenAPI 3 spec from `docs/local/apidoc.js`, making Proxmox endpoints easier to consume and keep in sync.
 
