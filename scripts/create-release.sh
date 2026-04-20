@@ -390,21 +390,20 @@ main() {
     fi
     echo ""
 
-    # Always show confirmation prompt (for both normal and dry run modes)
+    # Always show confirmation prompt (for both normal and dry run modes).
+    # All output here goes to stderr (>&2) so it shares the same unbuffered
+    # stream as the read -p prompt — prevents make's stdout buffering from
+    # rendering the prompt before the confirmation text.
     if [[ "$DRY_RUN" == "false" ]]; then
-        # Force output flush and add delay to prevent race condition/buffering issues
-        echo "" >&2  # Force stderr flush
-        sleep 0.3
-
-        echo -e "${YELLOW}⚠️  CONFIRMATION REQUIRED${NC}"
-        echo "This will:"
-        echo "  • Update CHANGELOG.md and commit changes"
-        echo "  • Merge develop branch to master"
-        echo "  • Create and push release tag $VERSION"
+        echo -e "${YELLOW}⚠️  CONFIRMATION REQUIRED${NC}" >&2
+        echo "This will:" >&2
+        echo "  • Update CHANGELOG.md and commit changes" >&2
+        echo "  • Merge develop branch to master" >&2
+        echo "  • Create and push release tag $VERSION" >&2
         if [[ "$NO_GITHUB" == "false" ]]; then
-            echo "  • Create GitHub release draft"
+            echo "  • Create GitHub release draft" >&2
         fi
-        echo ""
+        echo "" >&2
         read -r -p "Proceed with release? (y/N): " REPLY
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Release cancelled by user"
@@ -413,21 +412,17 @@ main() {
         log_success "Release confirmed, proceeding..."
         echo ""
     else
-        # Force output flush and add delay to prevent race condition/buffering issues
-        echo "" >&2  # Force stderr flush
-        sleep 0.3
-
-        echo -e "${YELLOW}⚠️  DRY RUN CONFIRMATION (Testing Only)${NC}"
-        echo "This would:"
-        echo "  • Update CHANGELOG.md and commit changes"
-        echo "  • Merge develop branch to master"
-        echo "  • Create and push release tag $VERSION"
+        echo -e "${YELLOW}⚠️  DRY RUN CONFIRMATION (Testing Only)${NC}" >&2
+        echo "This would:" >&2
+        echo "  • Update CHANGELOG.md and commit changes" >&2
+        echo "  • Merge develop branch to master" >&2
+        echo "  • Create and push release tag $VERSION" >&2
         if [[ "$NO_GITHUB" == "false" ]]; then
-            echo "  • Create GitHub release draft"
+            echo "  • Create GitHub release draft" >&2
         fi
-        echo ""
-        echo -e "${BLUE}Note: This is a dry run - no actual changes will be made${NC}"
-        echo ""
+        echo "" >&2
+        echo -e "${BLUE}Note: This is a dry run - no actual changes will be made${NC}" >&2
+        echo "" >&2
         read -r -p "Proceed with dry run? (y/N): " REPLY
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Dry run cancelled by user"
