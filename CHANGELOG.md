@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`go install` version info**: Build date and commit hash now show correctly in the About modal when installed via `go install`. Release constants are embedded in `internal/version/release.go` and updated automatically by the release script, serving as a fallback when ldflags and VCS metadata are unavailable.
+- **Release script: `make release` prompt ordering**: The confirmation block now renders before the `y/N` prompt when running under `make`. Previously stdout buffering caused the prompt to appear ahead of the confirmation text.
+- **Release script: master sync before merge**: `make release` now fast-forwards local master to `origin/master` before merging develop, preventing push rejection when CI has auto-committed to master (e.g. Nix vendorHash update) since the previous release.
+
 ## [1.3.2] - 2026-04-20
 
 ### Added
