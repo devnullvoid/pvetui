@@ -197,6 +197,7 @@ type AnsiblePluginConfig struct {
 	AskPass           bool                   `yaml:"ask_pass,omitempty"`
 	AskBecomePass     bool                   `yaml:"ask_become_pass,omitempty"`
 	ExtraArgs         []string               `yaml:"extra_args,omitempty"`
+	Env               map[string]string      `yaml:"env,omitempty"`
 	Bootstrap         AnsibleBootstrapConfig `yaml:"bootstrap,omitempty"`
 }
 
@@ -468,6 +469,7 @@ func (c *Config) MergeWithFile(path string) error {
 				AskPass           *bool             `yaml:"ask_pass"`
 				AskBecomePass     *bool             `yaml:"ask_become_pass"`
 				ExtraArgs         []string          `yaml:"extra_args"`
+				Env               map[string]string `yaml:"env"`
 				Bootstrap         struct {
 					Enabled              *bool  `yaml:"enabled"`
 					Username             string `yaml:"username"`
@@ -793,6 +795,12 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.Plugins.Ansible.ExtraArgs != nil {
 		c.Plugins.Ansible.ExtraArgs = append([]string{}, fileConfig.Plugins.Ansible.ExtraArgs...)
+	}
+	if fileConfig.Plugins.Ansible.Env != nil {
+		c.Plugins.Ansible.Env = make(map[string]string, len(fileConfig.Plugins.Ansible.Env))
+		for k, v := range fileConfig.Plugins.Ansible.Env {
+			c.Plugins.Ansible.Env[k] = v
+		}
 	}
 	if fileConfig.Plugins.Ansible.Bootstrap.Enabled != nil {
 		c.Plugins.Ansible.Bootstrap.Enabled = *fileConfig.Plugins.Ansible.Bootstrap.Enabled

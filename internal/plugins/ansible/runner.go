@@ -26,11 +26,29 @@ type CommandResult struct {
 type OutputLineHandler func(line string)
 
 // Runner executes local ansible commands.
-type Runner struct{}
+type Runner struct {
+	env []string // os.Environ() merged with user-configured extras
+}
 
 // NewRunner creates a new command runner.
 func NewRunner() *Runner {
 	return &Runner{}
+}
+
+// SetEnv merges the provided key/value pairs on top of os.Environ and stores
+// the result so every subsequent ansible invocation inherits them.
+func (r *Runner) SetEnv(env map[string]string) {
+	if len(env) == 0 {
+		r.env = nil
+		return
+	}
+	base := os.Environ()
+	merged := make([]string, 0, len(base)+len(env))
+	merged = append(merged, base...)
+	for k, v := range env {
+		merged = append(merged, k+"="+v)
+	}
+	r.env = merged
 }
 
 // CheckAvailability verifies that required ansible binaries are available in PATH.
@@ -74,7 +92,7 @@ func (r *Runner) RunPingStream(
 		Limit:     limit,
 		ExtraArgs: extraArgs,
 	})
-	return runAnsibleCommand(ctx, args, handler)
+	return runAnsibleCommand(ctx, r.env, args, handler)
 }
 
 // AdhocOptions describes ansible ad-hoc module invocation options.
@@ -111,7 +129,7 @@ func (r *Runner) RunAdhocStream(
 	defer cleanup()
 
 	args := buildAdhocArgs(inventoryPath, opts)
-	return runAnsibleCommand(ctx, args, handler)
+	return runAnsibleCommand(ctx, r.env, args, handler)
 }
 
 // PlaybookOptions describes ansible-playbook invocation options.
@@ -147,7 +165,7 @@ func (r *Runner) RunPlaybookStream(
 	defer cleanup()
 
 	args := buildPlaybookArgs(inventoryPath, playbookPath, opts)
-	return runAnsiblePlaybookCommand(ctx, args, handler)
+	return runAnsiblePlaybookCommand(ctx, r.env, args, handler)
 }
 
 func buildAdhocArgs(inventoryPath string, opts AdhocOptions) []string {
@@ -181,17 +199,19 @@ func buildPlaybookArgs(inventoryPath, playbookPath string, opts PlaybookOptions)
 	return args
 }
 
-func runAnsibleCommand(ctx context.Context, args []string, handler OutputLineHandler) CommandResult {
+func runAnsibleCommand(ctx context.Context, env, args []string, handler OutputLineHandler) CommandResult {
 	started := time.Now()
 	// #nosec G204 -- binary path is fixed to ansible; args are passed without shell interpolation.
 	cmd := exec.CommandContext(ctx, "ansible", args...)
+	cmd.Env = env
 	return runCommandStreaming(cmd, "ansible "+strings.Join(args, " "), started, handler)
 }
 
-func runAnsiblePlaybookCommand(ctx context.Context, args []string, handler OutputLineHandler) CommandResult {
+func runAnsiblePlaybookCommand(ctx context.Context, env, args []string, handler OutputLineHandler) CommandResult {
 	started := time.Now()
 	// #nosec G204 -- binary path is fixed to ansible-playbook; args are passed without shell interpolation.
 	cmd := exec.CommandContext(ctx, "ansible-playbook", args...)
+	cmd.Env = env
 	return runCommandStreaming(cmd, "ansible-playbook "+strings.Join(args, " "), started, handler)
 }
 

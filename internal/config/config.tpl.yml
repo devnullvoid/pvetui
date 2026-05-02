@@ -91,6 +91,10 @@ plugins:
   #   ask_pass: false                 # Add --ask-pass by default
   #   ask_become_pass: false          # Add --ask-become-pass by default
   #   extra_args: []                  # Extra args appended to ansible/ansible-playbook
+  #   env: {}                         # Extra environment variables for all ansible commands
+  #     # ANSIBLE_CONFIG: "/path/to/ansible.cfg"
+  #     # ANSIBLE_ROLES_PATH: "/path/to/roles"
+  #     # ANSIBLE_HOST_KEY_CHECKING: "False"
   #   bootstrap:
   #     enabled: false
   #     username: "ansible"

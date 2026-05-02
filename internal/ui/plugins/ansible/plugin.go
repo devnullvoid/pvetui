@@ -976,6 +976,7 @@ func (p *Plugin) runAdhoc(inventory coreansible.InventoryResult, opts coreansibl
 		defer p.clearRunningCancel()
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
+		p.runner.SetEnv(p.ansiblePluginConfig().Env)
 		result := p.runner.RunAdhocStream(
 			ctx,
 			inventory.Text,
@@ -1018,6 +1019,7 @@ func (p *Plugin) runPlaybook(
 		defer p.clearRunningCancel()
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
+		p.runner.SetEnv(p.ansiblePluginConfig().Env)
 		result := p.runner.RunPlaybookStream(
 			ctx,
 			inventory.Text,
@@ -1090,6 +1092,7 @@ func (p *Plugin) runBootstrapAccess(
 		}
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
+		p.runner.SetEnv(p.ansiblePluginConfig().Env)
 		result := p.runner.RunPlaybookStream(
 			ctx,
 			inventory.Text,
