@@ -269,6 +269,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	defaultPassword := strings.TrimSpace(ansibleCfg.DefaultPassword)
 	sshPrivateKeyFile := strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile)
 	extraArgs := strings.Join(ansibleCfg.ExtraArgs, " ")
+	envVarsYAML := formatInventoryVarsYAML(ansibleCfg.Env)
 	inventoryVarsYAML := formatInventoryVarsYAML(ansibleCfg.InventoryVars)
 	inventoryFormat := coreansible.NormalizeInventoryFormat(ansibleCfg.InventoryFormat)
 	inventoryStyle := coreansible.NormalizeInventoryStyle(ansibleCfg.InventoryStyle)
@@ -318,6 +319,9 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	form.AddInputField("Extra Args", extraArgs, 80, nil, func(text string) {
 		extraArgs = strings.TrimSpace(text)
 	})
+	form.AddTextArea("Env Vars (YAML)", envVarsYAML, 0, 4, 0, func(text string) {
+		envVarsYAML = text
+	})
 
 	closeForm := func() {
 		pages.RemovePage(settingsPageName)
@@ -342,6 +346,12 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 		cfg.Plugins.Ansible.AskPass = askPass
 		cfg.Plugins.Ansible.AskBecomePass = askBecomePass
 		cfg.Plugins.Ansible.ExtraArgs = strings.Fields(extraArgs)
+		envVars, err := parseInventoryVarsYAML(envVarsYAML)
+		if err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Invalid env vars: %v", err))
+			return
+		}
+		cfg.Plugins.Ansible.Env = envVars
 
 		if err := p.app.SaveConfigPreservingSOPS(); err != nil {
 			p.app.ShowMessageSafe(fmt.Sprintf("Failed to save settings: %v", err))
@@ -361,7 +371,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 		return event
 	})
 
-	pages.AddPage(settingsPageName, p.centerModal(form, 100, 28), true, true)
+	pages.AddPage(settingsPageName, p.centerModal(form, 100, 34), true, true)
 	p.app.SetFocus(form)
 }
 
