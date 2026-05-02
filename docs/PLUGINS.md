@@ -84,6 +84,10 @@ plugins:
     ask_pass: false
     ask_become_pass: false
     extra_args: []                      # appended to ansible and ansible-playbook
+    env: {}                             # extra environment variables for all ansible commands
+      # ANSIBLE_CONFIG: "/path/to/ansible.cfg"
+      # ANSIBLE_ROLES_PATH: "/path/to/roles"
+      # ANSIBLE_HOST_KEY_CHECKING: "False"
     bootstrap:
       enabled: true
       username: "ansible"
@@ -105,6 +109,7 @@ plugins:
 Notes:
 - `default_password` and `bootstrap.password` are treated as sensitive fields and follow the same encryption/decryption handling as other secrets.
 - `default_limit_mode: selection` keeps node/guest selection behavior for prefilled form limits.
+- `env` vars are merged on top of the process environment, so existing `PATH` and other variables are preserved.
 - Bootstrap settings are edited in **Bootstrap Settings** from the toolkit.
 
 ### Notes

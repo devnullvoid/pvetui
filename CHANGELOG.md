@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Ansible plugin: `env` setting**: New `plugins.ansible.env` config map for passing arbitrary environment variables (e.g. `ANSIBLE_CONFIG`, `ANSIBLE_ROLES_PATH`, `ANSIBLE_HOST_KEY_CHECKING`) to all ansible and ansible-playbook invocations. Configurable via General Settings in the toolkit or directly in config YAML.
+
 ### Fixed
 
 - **`go install` version info**: Build date and commit hash now show correctly in the About modal when installed via `go install`. Release constants are embedded in `internal/version/release.go` and updated automatically by the release script, serving as a fallback when ldflags and VCS metadata are unavailable.
