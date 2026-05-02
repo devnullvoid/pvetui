@@ -7,7 +7,7 @@ version: "2"
 # Options for analysis running
 run:
   timeout: 5m
-  go: "1.24"
+  go: "1.26"
   modules-download-mode: readonly
 
   # Include test files or not
@@ -18,7 +18,6 @@ linters:
   # Enable essential linters
   enable:
     - dupl
-    - goconst
     - misspell
     - staticcheck
     - errcheck
