@@ -557,7 +557,7 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig, 
 	}
 	originalWorking := make(map[string]string, len(config.NetworkInterfaces))
 	for k, v := range config.NetworkInterfaces {
-		originalWorking[k] = v
+		originalWorking[k] = buildEditableNetworkRaw(vm.Type, parseEditableNetworkConfig(vm.Type, v))
 	}
 
 	form := newStandardForm()
