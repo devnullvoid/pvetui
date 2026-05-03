@@ -78,7 +78,10 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 			app.showMessageSafe(fmt.Sprintf("Cannot edit network config while '%s' is in progress", pendingOperation))
 			return
 		}
-		showEditNetworkInterfacesModal(app, vm, page.config)
+		showEditNetworkInterfacesModal(app, vm, page.config, func() {
+			title := strings.TrimSuffix(form.GetTitle(), " *")
+			form.SetTitle(title + " *")
+		})
 	}).SetAlignment(AlignLeft)
 	form.AddFormItem(networkBtn)
 
@@ -525,7 +528,7 @@ func buildEditableNetworkRaw(vmType string, cfg editableNetworkConfig) string {
 	return strings.Join(parts, ",")
 }
 
-func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) {
+func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig, onApply func()) {
 	if config == nil {
 		app.showMessageSafe("No configuration loaded")
 		return
@@ -759,10 +762,18 @@ func showEditNetworkInterfacesModal(app *App, vm *api.VM, config *api.VMConfig) 
 				return
 			}
 		}
-		config.NetworkInterfacesExplicit = !networkConfigMapsEqual(originalWorking, working)
+		changed := !networkConfigMapsEqual(originalWorking, working)
+		config.NetworkInterfacesExplicit = changed
 		config.NetworkInterfaces = working
 		app.removePageIfPresent("editNetworkConfig")
-		app.header.ShowSuccess("Updated network interface settings")
+		if changed {
+			app.header.ShowSuccess("Network settings updated — press Save to apply")
+			if onApply != nil {
+				onApply()
+			}
+		} else {
+			app.header.ShowSuccess("Network settings unchanged")
+		}
 	})
 	form.AddButton("Cancel", func() {
 		app.removePageIfPresent("editNetworkConfig")

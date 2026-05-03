@@ -20,21 +20,21 @@ type CPUInfo struct {
 
 // Node represents a Proxmox cluster node.
 type Node struct {
-	ID            string     `json:"id"`
-	Name          string     `json:"name"`
-	IP            string     `json:"ip"`
-	CPUCount      float64    `json:"cpus"`
-	CPUUsage      float64    `json:"cpu"`
-	MemoryTotal   float64    `json:"memory_total"`
-	MemoryUsed    float64    `json:"memory_used"`
-	TotalStorage  int64      `json:"rootfs_total"`
-	UsedStorage   int64      `json:"rootfs_used"`
-	Uptime        int64      `json:"uptime"`
-	Version       string     `json:"pveversion"`
-	KernelVersion string     `json:"kversion"`
-	Online        bool       `json:"-"`
-	CGroupMode    int        `json:"cgroup_mode,omitempty"`
-	Level         string     `json:"level,omitempty"`
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	IP            string       `json:"ip"`
+	CPUCount      float64      `json:"cpus"`
+	CPUUsage      float64      `json:"cpu"`
+	MemoryTotal   float64      `json:"memory_total"`
+	MemoryUsed    float64      `json:"memory_used"`
+	TotalStorage  int64        `json:"rootfs_total"`
+	UsedStorage   int64        `json:"rootfs_used"`
+	Uptime        int64        `json:"uptime"`
+	Version       string       `json:"pveversion"`
+	KernelVersion string       `json:"kversion"`
+	Online        bool         `json:"-"`
+	CGroupMode    int          `json:"cgroup_mode,omitempty"`
+	Level         string       `json:"level,omitempty"`
 	Storage       []*Storage   `json:"storage,omitempty"`
 	VMs           []*VM        `json:"vms,omitempty"`
 	CPUInfo       *CPUInfo     `json:"cpuinfo,omitempty"`
@@ -390,6 +390,12 @@ func (c *Client) GetNodeStorages(nodeName string) ([]*Storage, error) {
 	var storages []*Storage
 	for _, item := range data {
 		if sData, ok := item.(map[string]interface{}); ok {
+			// Skip storages not active on this node. Proxmox returns all cluster-
+			// configured storages but marks inaccessible ones (e.g., local storage
+			// belonging to a different cluster node) with active=0.
+			if _, exists := sData["active"]; exists && !getBool(sData, "active") {
+				continue
+			}
 			storage := &Storage{
 				Name:       getString(sData, "storage"),
 				Content:    getString(sData, "content"),
