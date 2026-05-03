@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"net/url"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -265,6 +266,14 @@ func (a *App) showStorageDownloadMenu(selection storageSelection, anchor tview.P
 		{label: "OCI Pull", shortcut: 'o', handler: func() {
 			a.showStorageOCIPullForm(selection)
 		}},
+	}
+
+	if storageSupportsContent(selection.Storage, storageFilterTemplates) {
+		entries = append(entries, storageMenuEntry{
+			label: "Template Catalog", shortcut: 't', handler: func() {
+				a.showTemplateCatalogForm(selection)
+			},
+		})
 	}
 
 	a.showStorageMenu(" Download Content ", entries, anchor)
@@ -601,6 +610,153 @@ func (a *App) enqueueStorageBackupRestore(selection storageSelection, item api.S
 
 	a.taskManager.Enqueue(task)
 	a.header.ShowSuccess(fmt.Sprintf("Queued restore of %s", item.VolID))
+}
+
+func (a *App) showTemplateCatalogForm(selection storageSelection) {
+	if selection.Node == nil || selection.Storage == nil {
+		a.showMessageSafe("Select a storage first")
+		return
+	}
+	if !storageSupportsContent(selection.Storage, storageFilterTemplates) {
+		a.showMessageSafe("Selected storage does not support container templates")
+		return
+	}
+
+	pageName := "modal:templateCatalog"
+
+	form := newStandardForm()
+	form.SetBorder(true)
+	form.SetTitle(" Template Catalog ")
+
+	sectionOptions := []string{"All", "system", "mail", "turnkeylinux"}
+
+	var allTemplates []api.ApplianceTemplate
+	var filteredTemplates []api.ApplianceTemplate
+
+	sectionDropdown := tview.NewDropDown().
+		SetLabel("Section").
+		SetOptions(sectionOptions, nil).
+		SetCurrentOption(0).
+		SetFieldWidth(18)
+
+	templateDropdown := tview.NewDropDown().
+		SetLabel("Template").
+		SetOptions([]string{"Loading..."}, nil).
+		SetCurrentOption(0).
+		SetFieldWidth(60)
+
+	form.AddFormItem(sectionDropdown)
+	form.AddFormItem(templateDropdown)
+
+	closeForm := func() {
+		a.removePageIfPresent(pageName)
+		if a.lastFocus != nil {
+			a.SetFocus(a.lastFocus)
+		}
+	}
+
+	refreshTemplateDropdown := func(section string) {
+		filteredTemplates = filterTemplates(allTemplates, section)
+		options := make([]string, len(filteredTemplates))
+		for i, t := range filteredTemplates {
+			options[i] = templateDropdownLabel(t)
+		}
+		if len(options) == 0 {
+			options = []string{"No templates in this section"}
+			filteredTemplates = nil
+		}
+		templateDropdown.SetOptions(options, nil)
+		templateDropdown.SetCurrentOption(0)
+	}
+
+	sectionDropdown.SetSelectedFunc(func(option string, _ int) {
+		if len(allTemplates) > 0 {
+			refreshTemplateDropdown(option)
+		}
+	})
+
+	form.AddButton("Download", func() {
+		idx, _ := templateDropdown.GetCurrentOption()
+		if idx < 0 || idx >= len(filteredTemplates) {
+			a.showMessageSafe("No template selected")
+			return
+		}
+		tmpl := filteredTemplates[idx]
+		closeForm()
+		a.enqueueTemplateDownload(selection, tmpl)
+	})
+	form.AddButton("Cancel", closeForm)
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			closeForm()
+			return nil
+		}
+		return event
+	})
+
+	a.pages.AddPage(pageName, form, true, true)
+	a.SetFocus(form)
+
+	go func() {
+		client, err := a.getClientForNode(selection.Node)
+		if err != nil {
+			a.QueueUpdateDraw(func() {
+				templateDropdown.SetOptions([]string{"Error: " + err.Error()}, nil)
+				templateDropdown.SetCurrentOption(0)
+			})
+			return
+		}
+		templates, err := client.GetAvailableTemplates(selection.Node.Name)
+		a.QueueUpdateDraw(func() {
+			if err != nil {
+				templateDropdown.SetOptions([]string{"Failed to load templates"}, nil)
+				templateDropdown.SetCurrentOption(0)
+				return
+			}
+			allTemplates = templates
+			sectionIdx, _ := sectionDropdown.GetCurrentOption()
+			section := "All"
+			if sectionIdx >= 0 && sectionIdx < len(sectionOptions) {
+				section = sectionOptions[sectionIdx]
+			}
+			refreshTemplateDropdown(section)
+		})
+	}()
+}
+
+func (a *App) enqueueTemplateDownload(selection storageSelection, tmpl api.ApplianceTemplate) {
+	a.enqueueStorageImportTask(selection, storageImportTaskSpec{
+		taskType:        "Download",
+		descriptionVerb: "Download template",
+		successVerb:     "Downloaded template",
+		errorPrefix:     "Template download failed",
+		targetName:      tmpl.Filename,
+		operation: func(client *api.Client) (string, error) {
+			return client.DownloadApplianceTemplate(selection.Node.Name, selection.Storage.Name, tmpl.Filename)
+		},
+	})
+}
+
+func filterTemplates(templates []api.ApplianceTemplate, section string) []api.ApplianceTemplate {
+	var filtered []api.ApplianceTemplate
+	if strings.EqualFold(section, "all") || strings.TrimSpace(section) == "" {
+		filtered = append([]api.ApplianceTemplate(nil), templates...)
+	} else {
+		filtered = make([]api.ApplianceTemplate, 0, len(templates))
+		for _, t := range templates {
+			if strings.EqualFold(t.Section, section) {
+				filtered = append(filtered, t)
+			}
+		}
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].Filename < filtered[j].Filename
+	})
+	return filtered
+}
+
+func templateDropdownLabel(t api.ApplianceTemplate) string {
+	return t.Filename
 }
 
 func storageContentLabel(item api.StorageContentItem) string {

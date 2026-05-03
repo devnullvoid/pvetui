@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	stdpath "path"
 	"strconv"
 	"strings"
 	"time"
@@ -174,6 +175,103 @@ func (c *Client) PullStorageOCIImage(nodeName, storageName string, options Stora
 	upid, ok := res["data"].(string)
 	if !ok || !strings.HasPrefix(upid, "UPID:") {
 		return "", fmt.Errorf("failed to get OCI pull task ID")
+	}
+
+	c.ClearAPICache()
+
+	return upid, nil
+}
+
+// ApplianceTemplate represents an available appliance template from the Proxmox catalog.
+type ApplianceTemplate struct {
+	Package     string // Package base name, e.g. debian-12-standard (without version/arch/extension)
+	Filename    string // Full filename for download, e.g. debian-12-standard_12.12-1_amd64.tar.zst (path.Base of Location)
+	Section     string // system, mail, or turnkeylinux
+	Version     string
+	OS          string
+	Description string
+	InfoPage    string
+	Location    string
+	SHA512Sum   string
+	MD5Sum      string
+	Type        string
+}
+
+// GetAvailableTemplates returns the Proxmox appliance template catalog for the given node.
+// This is equivalent to `pveam available` on the node.
+func (c *Client) GetAvailableTemplates(nodeName string) ([]ApplianceTemplate, error) {
+	if strings.TrimSpace(nodeName) == "" {
+		return nil, fmt.Errorf("node name is required")
+	}
+
+	path := fmt.Sprintf("/nodes/%s/aplinfo", nodeName)
+
+	var res map[string]interface{}
+	if err := c.Get(path, &res); err != nil {
+		return nil, fmt.Errorf("failed to get available templates on %s: %w", nodeName, err)
+	}
+
+	data, ok := res["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid template list response format")
+	}
+
+	templates := make([]ApplianceTemplate, 0, len(data))
+	for _, raw := range data {
+		itemMap, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		location := getString(itemMap, "location")
+		templates = append(templates, ApplianceTemplate{
+			Package:     getString(itemMap, "package"),
+			Filename:    stdpath.Base(location),
+			Section:     getString(itemMap, "section"),
+			Version:     getString(itemMap, "version"),
+			OS:          getString(itemMap, "os"),
+			Description: getString(itemMap, "description"),
+			InfoPage:    getString(itemMap, "infopage"),
+			Location:    location,
+			SHA512Sum:   getString(itemMap, "sha512sum"),
+			MD5Sum:      getString(itemMap, "md5sum"),
+			Type:        getString(itemMap, "type"),
+		})
+	}
+
+	return templates, nil
+}
+
+// DownloadApplianceTemplate queues a download of an appliance template to the given storage
+// and returns the task UPID. This is equivalent to `pveam download <storage> <template>`.
+func (c *Client) DownloadApplianceTemplate(nodeName, storageName, templateName string) (string, error) {
+	if strings.TrimSpace(nodeName) == "" {
+		return "", fmt.Errorf("node name is required")
+	}
+	if strings.TrimSpace(storageName) == "" {
+		return "", fmt.Errorf("storage name is required")
+	}
+	if strings.TrimSpace(templateName) == "" {
+		return "", fmt.Errorf("template name is required")
+	}
+
+	path := fmt.Sprintf("/nodes/%s/aplinfo", nodeName)
+	data := map[string]interface{}{
+		"storage":  strings.TrimSpace(storageName),
+		"template": strings.TrimSpace(templateName),
+	}
+
+	var res map[string]interface{}
+	if err := c.PostWithResponse(path, data, &res); err != nil {
+		return "", fmt.Errorf("failed to download template %s on %s: %w", templateName, nodeName, err)
+	}
+
+	if errMsg, ok := res["error"].(string); ok && errMsg != "" {
+		return "", fmt.Errorf("template download failed: %s", errMsg)
+	}
+
+	upid, ok := res["data"].(string)
+	if !ok || !strings.HasPrefix(upid, "UPID:") {
+		return "", fmt.Errorf("failed to get template download task ID")
 	}
 
 	c.ClearAPICache()
