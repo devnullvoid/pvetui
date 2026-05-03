@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LXC create: Nesting toggle**: New "Nesting" checkbox in the LXC creation form (enabled by default) that sets `features=nesting=1` on the container, allowing Docker and nested containers.
+
+- **Storage: Template Catalog download**: New "Template Catalog" option in the storage Download Content menu (available when the storage supports `vztmpl`). Fetches the Proxmox appliance template list (`pveam available`) and lets you pick a template by section (All / system / mail / turnkeylinux) and download it directly to the selected storage — equivalent to `pveam download <storage> <template>`.
+
 - **Ansible plugin: `env` setting**: New `plugins.ansible.env` config map for passing arbitrary environment variables (e.g. `ANSIBLE_CONFIG`, `ANSIBLE_ROLES_PATH`, `ANSIBLE_HOST_KEY_CHECKING`) to all ansible and ansible-playbook invocations. Configurable via General Settings in the toolkit or directly in config YAML.
 
 ### Fixed
 
+- **LXC create: privileged container creation**: The `unprivileged` field was being sent as a JSON boolean (`false`), which Proxmox does not reliably accept. It is now sent as an integer (`0`/`1`) consistent with how Proxmox represents boolean-like fields internally. This fixes creation of privileged containers.
 - **`go install` version info**: Build date and commit hash now show correctly in the About modal when installed via `go install`. Release constants are embedded in `internal/version/release.go` and updated automatically by the release script, serving as a fallback when ldflags and VCS metadata are unavailable.
 - **Release script: `make release` prompt ordering**: The confirmation block now renders before the `y/N` prompt when running under `make`. Previously stdout buffering caused the prompt to appear ahead of the confirmation text.
 - **Release script: master sync before merge**: `make release` now fast-forwards local master to `origin/master` before merging develop, preventing push rejection when CI has auto-committed to master (e.g. Nix vendorHash update) since the previous release.

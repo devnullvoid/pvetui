@@ -33,6 +33,7 @@ type LXCCreateOptions struct {
 	OSTemplate    string
 	Bridge        string
 	Unprivileged  bool
+	Nesting       bool
 	Start         bool
 }
 
@@ -165,6 +166,11 @@ func (c *Client) CreateLXC(nodeName string, options LXCCreateOptions) (string, e
 		options.Bridge = "vmbr0"
 	}
 
+	unprivileged := 0
+	if options.Unprivileged {
+		unprivileged = 1
+	}
+
 	data := map[string]interface{}{
 		"vmid":         options.VMID,
 		"hostname":     strings.TrimSpace(options.Hostname),
@@ -174,10 +180,13 @@ func (c *Client) CreateLXC(nodeName string, options LXCCreateOptions) (string, e
 		"ostemplate":   strings.TrimSpace(options.OSTemplate),
 		"rootfs":       fmt.Sprintf("%s:%d", strings.TrimSpace(options.RootFSStorage), options.RootFSSizeGB),
 		"net0":         fmt.Sprintf("name=eth0,bridge=%s,ip=dhcp", strings.TrimSpace(options.Bridge)),
-		"unprivileged": options.Unprivileged,
+		"unprivileged": unprivileged,
+	}
+	if options.Nesting {
+		data["features"] = "nesting=1"
 	}
 	if options.Start {
-		data["start"] = true
+		data["start"] = 1
 	}
 
 	var res map[string]interface{}

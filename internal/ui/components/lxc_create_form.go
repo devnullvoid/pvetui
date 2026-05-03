@@ -105,6 +105,9 @@ func (a *App) displayLXCCreateForm(choices []lxcCreateNodeChoice, selectedIndex 
 	unprivilegedCheckbox := tview.NewCheckbox().
 		SetLabel("Unprivileged").
 		SetChecked(true)
+	nestingCheckbox := tview.NewCheckbox().
+		SetLabel("Nesting").
+		SetChecked(true)
 	startCheckbox := tview.NewCheckbox().
 		SetLabel("Start After Create").
 		SetChecked(true)
@@ -121,6 +124,7 @@ func (a *App) displayLXCCreateForm(choices []lxcCreateNodeChoice, selectedIndex 
 	form.AddFormItem(templateDropdown)
 	form.AddFormItem(bridgeField)
 	form.AddFormItem(unprivilegedCheckbox)
+	form.AddFormItem(nestingCheckbox)
 	form.AddFormItem(startCheckbox)
 
 	currentData := initialData
@@ -252,6 +256,7 @@ func (a *App) displayLXCCreateForm(choices []lxcCreateNodeChoice, selectedIndex 
 			OSTemplate:    templateValue,
 			Bridge:        bridge,
 			Unprivileged:  unprivilegedCheckbox.IsChecked(),
+			Nesting:       nestingCheckbox.IsChecked(),
 			Start:         startCheckbox.IsChecked(),
 		}
 
