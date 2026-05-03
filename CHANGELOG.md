@@ -15,8 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Ansible plugin: `env` setting**: New `plugins.ansible.env` config map for passing arbitrary environment variables (e.g. `ANSIBLE_CONFIG`, `ANSIBLE_ROLES_PATH`, `ANSIBLE_HOST_KEY_CHECKING`) to all ansible and ansible-playbook invocations. Configurable via General Settings in the toolkit or directly in config YAML.
 
+### Added
+
+- **LXC Edit Configuration: Swap field**: New "Swap (MB)" input in the Edit Configuration modal for LXC containers, positioned below Memory. Setting swap to `0` is now correctly sent to the API (disabling swap), which the previous save path silently skipped.
+
 ### Fixed
 
+- **LXC Edit Configuration: false-positive `*` marker on network modal**: Opening and closing the "Edit Network Interfaces" sub-form without making any changes no longer marks the parent form title with `*`. The comparison baseline is now normalized through the same parse→rebuild round-trip used when saving, eliminating spurious change detection caused by key-order differences in the raw API strings.
 - **LXC create: privileged container creation**: The `unprivileged` field was being sent as a JSON boolean (`false`), which Proxmox does not reliably accept. It is now sent as an integer (`0`/`1`) consistent with how Proxmox represents boolean-like fields internally. This fixes creation of privileged containers.
 - **LXC/VM create: rootfs storage dropdown shows storages from other cluster nodes**: `GetNodeStorages` now filters out storages not active on the queried node. Proxmox returns all cluster-configured storages from `/nodes/{node}/storage` but marks inaccessible ones with `active=0`; previously non-shared local storages from other nodes were shown in the rootfs dropdown.
 - **Edit Configuration: network changes now prompt to Save**: After applying changes in the "Edit Network Interfaces" sub-form, the header shows "Network settings updated — press Save to apply" and the parent form title gains a `*` marker as a persistent reminder that the changes are staged in memory and require pressing Save to persist to Proxmox.

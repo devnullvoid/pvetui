@@ -148,6 +148,16 @@ func NewVMConfigPage(app *App, vm *api.VM, config *api.VMConfig, saveFn func(*ap
 		}
 	})
 
+	if vm.Type == api.VMTypeLXC {
+		form.AddInputField("Swap (MB)", strconv.FormatInt(config.Swap/1024/1024, 10), 8, func(textToCheck string, lastChar rune) bool {
+			return lastChar >= '0' && lastChar <= '9'
+		}, func(text string) {
+			if v, err := strconv.ParseInt(text, 10, 64); err == nil {
+				page.config.Swap = v * 1024 * 1024
+			}
+		})
+	}
+
 	// Description
 	initialDesc := utils.TrimTrailingWhitespace(config.Description)
 	form.AddTextArea("Description", initialDesc, 0, 3, 0, func(text string) {

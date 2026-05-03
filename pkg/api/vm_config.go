@@ -336,7 +336,7 @@ func buildConfigPayload(vmType string, config *VMConfig) map[string]interface{} 
 	}
 
 	if vmType == VMTypeLXC {
-		if config.Swap > 0 {
+		if config.Swap >= 0 {
 			data["swap"] = config.Swap / 1024 / 1024 // MB
 		}
 		if strings.TrimSpace(config.Nameserver) != "" {
