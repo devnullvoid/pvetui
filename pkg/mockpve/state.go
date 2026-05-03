@@ -1539,6 +1539,10 @@ func getBoolParam(params map[string]interface{}, key string, fallback bool) bool
 	switch v := value.(type) {
 	case bool:
 		return v
+	case float64:
+		return v != 0
+	case int:
+		return v != 0
 	case string:
 		switch strings.ToLower(v) {
 		case "1", "true", "yes", "on":
