@@ -9,15 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **LXC create: Nesting toggle**: New "Nesting" checkbox in the LXC creation form (enabled by default) that sets `features=nesting=1` on the container, allowing Docker and nested containers.
-
-- **Storage: Template Catalog download**: New "Template Catalog" option in the storage Download Content menu (available when the storage supports `vztmpl`). Fetches the Proxmox appliance template list (`pveam available`) and lets you pick a template by section (All / system / mail / turnkeylinux) and download it directly to the selected storage — equivalent to `pveam download <storage> <template>`.
-
-- **Ansible plugin: `env` setting**: New `plugins.ansible.env` config map for passing arbitrary environment variables (e.g. `ANSIBLE_CONFIG`, `ANSIBLE_ROLES_PATH`, `ANSIBLE_HOST_KEY_CHECKING`) to all ansible and ansible-playbook invocations. Configurable via General Settings in the toolkit or directly in config YAML.
-
-### Added
-
+- **LXC/VM create: moved to node context menu**: "Create VM" and "Create LXC" are no longer in the global menu. They are now only accessible from the node context menu, where the target node is already in scope.
 - **LXC Edit Configuration: Swap field**: New "Swap (MB)" input in the Edit Configuration modal for LXC containers, positioned below Memory. Setting swap to `0` is now correctly sent to the API (disabling swap), which the previous save path silently skipped.
+- **LXC create: Nesting toggle**: New "Nesting" checkbox in the LXC creation form (enabled by default) that sets `features=nesting=1` on the container, allowing Docker and nested containers.
+- **Storage: Template Catalog download**: New "Template Catalog" option in the storage Download Content menu (available when the storage supports `vztmpl`). Fetches the Proxmox appliance template list (`pveam available`) and lets you pick a template by section (All / system / mail / turnkeylinux) and download it directly to the selected storage — equivalent to `pveam download <storage> <template>`.
+- **Ansible plugin: `env` setting**: New `plugins.ansible.env` config map for passing arbitrary environment variables (e.g. `ANSIBLE_CONFIG`, `ANSIBLE_ROLES_PATH`, `ANSIBLE_HOST_KEY_CHECKING`) to all ansible and ansible-playbook invocations. Configurable via General Settings in the toolkit or directly in config YAML.
 
 ### Fixed
 
