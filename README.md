@@ -517,7 +517,9 @@ Planned and actively prioritized:
 
 Recently shipped (may receive further refinements):
 
-- **Expanded guest configuration management**: Edit guest CPU, memory, name/tags, start-at-boot, network interfaces (bridge, VLAN, MAC, rate limit, firewall, LXC IP config), and storage volume resizing — all from the guest context menu.
+- **Template Catalog download**: Browse and download Proxmox appliance templates directly from the storage browser — equivalent to `pveam available` + `pveam download`. Filter by section (system / mail / turnkeylinux) and download to any `vztmpl`-capable storage.
+- **LXC improvements**: Nesting toggle (default on) and Swap field in the Edit Configuration modal; privileged container creation fixed; guest creation moved to the node context menu where the target node is already in scope.
+- **Expanded guest configuration management**: Edit guest CPU, memory, swap (LXC), name/tags, start-at-boot, network interfaces (bridge, VLAN, MAC, rate limit, firewall, LXC IP config), and storage volume resizing — all from the guest context menu.
 - **Guest creation workflows**: Guided creation for both VMs and LXCs with node selection, auto-assigned VMID, storage/ISO/template discovery, network bridge, and safe defaults.
 - **Storage management**: Dedicated Storage page (Alt+4) with node–storage tree, content browser with type filtering (ISOs, templates, backups, snippets, disk images), URL download, OCI pull, backup restore, and content deletion.
 
