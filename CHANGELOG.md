@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-05-09
+
 ### Added
 
 - **LXC/VM create: moved to node context menu**: "Create VM" and "Create LXC" are no longer in the global menu. They are now only accessible from the node context menu, where the target node is already in scope.
