@@ -13,6 +13,14 @@ jobs:
       - name: Checkout pvetui
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: .go-version
+
+      - name: Generate OpenAPI spec
+        run: go run ./cmd/pve-openapi-gen -out docs/api/pve-openapi.yaml
+
       - name: Push spec to pvetui-openapi
         env:
           PAT: ${{ secrets.OPENAPI_REPO_PAT }}
