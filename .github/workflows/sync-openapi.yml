@@ -1,0 +1,38 @@
+name: Sync OpenAPI spec
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pvetui
+        uses: actions/checkout@v4
+
+      - name: Push spec to pvetui-openapi
+        env:
+          PAT: ${{ secrets.OPENAPI_REPO_PAT }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git clone "https://x-access-token:${PAT}@github.com/devnullvoid/pvetui-openapi.git" /tmp/pvetui-openapi
+
+          cp docs/api/pve-openapi.yaml /tmp/pvetui-openapi/pve-openapi.yaml
+          cp docs/api/index.html /tmp/pvetui-openapi/index.html
+
+          cd /tmp/pvetui-openapi
+          git add pve-openapi.yaml index.html
+
+          if git diff --cached --quiet; then
+            echo "No changes to spec, skipping push."
+            exit 0
+          fi
+
+          VERSION="${GITHUB_REF_NAME}"
+          git commit -m "chore: sync spec from pvetui ${VERSION}"
+          git push
