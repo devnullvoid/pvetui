@@ -40,6 +40,7 @@
 - **Modern Interface**: Vim-style navigation with customizable key bindings
 - **Flexible Theming**: Automatic adaptation to terminal emulator color schemes
 - **Comprehensive Documentation**: Detailed guides for configuration, theming, and development
+- **Proxmox API Browser**: Interactive Proxmox VE API reference at [devnullvoid.github.io/pvetui-openapi](https://devnullvoid.github.io/pvetui-openapi/)
 - **Group Mode (multi-cluster)**: Combine multiple Proxmox profiles into one unified view with routed actions per cluster
 - **CLI Subcommands**: Use `pvetui` non-interactively from scripts or AI agent workflows — list/show nodes, guests, and tasks; start/stop/restart guests; execute commands in QEMU VMs via the guest agent or in LXC containers via `pct exec`
 
