@@ -1,10 +1,10 @@
 ---
 name: pvetui-cli
-description: Use when querying or managing a Proxmox VE cluster via the pvetui CLI — listing nodes, guests, and tasks; starting/stopping/restarting guests; executing commands inside VMs (QEMU guest agent) or LXC containers (pct exec over SSH). Requires pvetui to be installed and configured.
+description: Use when querying or managing a Proxmox VE cluster via the pvetui CLI — listing nodes, guests, and tasks; creating and migrating VMs and LXC containers; managing storage content, downloading templates and OCI images, and restoring backups. Requires pvetui to be installed and configured.
 license: MIT
 metadata:
   author: github.com/devnullvoid/pvetui
-  version: "1.0"
+  version: "1.1"
 ---
 
 # pvetui CLI
@@ -26,18 +26,23 @@ npx skills add devnullvoid/pvetui
 - Querying node status, resource usage, or uptime
 - Listing, filtering, or inspecting VMs and LXC containers
 - Starting, stopping, shutting down, or restarting guests
+- Creating VMs and LXC containers
+- Migrating guests between nodes
 - Executing commands inside a running guest without needing SSH to it
+- Opening interactive shells on nodes or inside guests
+- Listing and managing storage content (ISOs, templates, backups, disk images)
+- Downloading ISOs, appliance templates, or OCI images into storage
+- Restoring guests from vzdump backups
 - Listing recent cluster task history
 - Scripting or automating Proxmox operations without root access to a node
-
-**Not for:** Storage management, VM creation, networking changes, or anything requiring the Proxmox web UI — use the `proxmox-admin` skill (requires node SSH/root access) for those.
 
 ## Prerequisites
 
 - `pvetui` installed and on `$PATH`
 - Config at `~/.config/pvetui/config.yml` with at least one profile
 - API token or password auth configured in the profile
-- For `guests exec` on LXC containers: `ssh_user` configured in the profile
+- For `guests exec` / `guests shell` on LXC containers: `ssh_user` configured in the profile
+- For `guests shell` on QEMU VMs: `ssh_user` (and optionally `vm_ssh_user`) configured
 
 ## Quick Reference
 
@@ -45,6 +50,7 @@ npx skills add devnullvoid/pvetui
 |---------|---------|
 | `pvetui nodes list` | List all cluster nodes |
 | `pvetui nodes show <node>` | Show details for one node |
+| `pvetui nodes shell <node>` | Open an interactive SSH shell on a node |
 | `pvetui guests list` | List all VMs and containers |
 | `pvetui guests show <vmid>` | Show details for one guest |
 | `pvetui guests start <vmid>` | Start a guest |
@@ -52,7 +58,19 @@ npx skills add devnullvoid/pvetui
 | `pvetui guests shutdown <vmid>` | Graceful ACPI shutdown |
 | `pvetui guests restart <vmid>` | Graceful restart |
 | `pvetui guests exec <vmid> <cmd>` | Run a command inside a guest |
+| `pvetui guests shell <vmid>` | Open an interactive shell inside a guest |
+| `pvetui guests create vm` | Create a QEMU VM |
+| `pvetui guests create lxc` | Create an LXC container |
+| `pvetui guests migrate <vmid> <node>` | Migrate a guest to another node |
 | `pvetui tasks list` | List recent cluster tasks |
+| `pvetui storage list` | List storages across the cluster |
+| `pvetui storage show <node> <storage>` | Show details for a storage |
+| `pvetui storage content list <node> <storage>` | List content in a storage |
+| `pvetui storage content delete <node> <storage> <volid>` | Delete a content item |
+| `pvetui storage download url <node> <storage> <url>` | Download from a URL |
+| `pvetui storage download template <node> <storage> <template>` | Download an appliance template |
+| `pvetui storage download oci <node> <storage> <reference>` | Pull an OCI image |
+| `pvetui storage restore <node> <storage> <volid> <vmid>` | Restore a guest from backup |
 
 ## Global Flags
 
@@ -73,6 +91,22 @@ These flags work with every subcommand:
 
 All commands default to JSON — prefer JSON when parsing output in scripts or agents.
 
+## Task-Producing Commands
+
+Commands that trigger a Proxmox task (`guests create`, `guests migrate`, `storage content delete`, `storage download *`, `storage restore`) block until the task completes by default, then include `status` and `exit_status` in the output. Pass `--no-wait` to return the task UPID immediately without waiting.
+
+```json
+{
+  "vmid": 105,
+  "node": "pve01",
+  "upid": "UPID:pve01:...",
+  "status": "complete",
+  "exit_status": "OK"
+}
+```
+
+A non-`"OK"` `exit_status` causes a non-zero process exit.
+
 ## Nodes
 
 ```bash
@@ -85,6 +119,9 @@ pvetui nodes list --output table
 # Show a specific node
 pvetui nodes show pve01
 pvetui nodes show pve01 --output table
+
+# Open an interactive SSH shell on a node
+pvetui nodes shell pve01
 ```
 
 **JSON shape — nodes list:**
@@ -163,6 +200,135 @@ pvetui guests restart 100     # graceful restart
 
 The `upid` is a Proxmox task ID. Use `pvetui tasks list` to monitor task completion.
 
+### Guest Create
+
+```bash
+# Create a VM (VMID auto-assigned if omitted)
+pvetui guests create vm \
+  --node pve01 \
+  --name myvm \
+  --disk-storage local-zfs \
+  --disk-size 32
+
+# With full options
+pvetui guests create vm \
+  --node pve01 \
+  --name myvm \
+  --vmid 105 \
+  --memory 4096 \
+  --cores 4 \
+  --disk-storage local-zfs \
+  --disk-size 32 \
+  --iso local:iso/debian-12.iso \
+  --bridge vmbr0 \
+  --start
+
+# Create an LXC container (package name resolved to latest template automatically)
+pvetui guests create lxc \
+  --node pve01 \
+  --hostname myct \
+  --rootfs-storage local-zfs \
+  --template debian-12-standard
+
+# LXC with full options
+pvetui guests create lxc \
+  --node pve01 \
+  --hostname myct \
+  --rootfs-storage local-zfs \
+  --template debian-12-standard \
+  --memory 1024 \
+  --swap 512 \
+  --cores 2 \
+  --rootfs-size 16 \
+  --bridge vmbr0 \
+  --start
+
+# Return the task UPID immediately without waiting
+pvetui guests create vm --node pve01 --name myvm --disk-storage local-zfs --disk-size 32 --no-wait
+```
+
+**Key flags — `guests create vm`:**
+
+| Flag | Required | Default | Notes |
+|------|----------|---------|-------|
+| `--node` | yes | — | Target node |
+| `--name` | yes | — | VM name |
+| `--disk-storage` | yes | — | Storage for the boot disk |
+| `--disk-size` | yes* | — | Disk size in GB; required unless `--import-from` |
+| `--vmid` | no | auto | Auto-assigned via GetNextID if omitted |
+| `--memory` | no | 2048 | MB |
+| `--cores` | no | 2 | vCPU cores |
+| `--iso` | no | — | ISO volid for CD-ROM |
+| `--bridge` | no | vmbr0 | Network bridge |
+| `--start` | no | false | Start after create |
+| `--import-from` | no | — | Import disk from volid instead of creating |
+| `--no-wait` | no | false | Return UPID immediately |
+
+**Key flags — `guests create lxc`:**
+
+| Flag | Required | Default | Notes |
+|------|----------|---------|-------|
+| `--node` | yes | — | Target node |
+| `--hostname` | yes | — | Container hostname |
+| `--rootfs-storage` | yes | — | Storage for root filesystem |
+| `--template` | yes | — | Full filename or package name (e.g. `debian-12-standard`) |
+| `--vmid` | no | auto | |
+| `--memory` | no | 512 | MB |
+| `--swap` | no | 512 | MB (0 = no swap) |
+| `--cores` | no | 1 | |
+| `--rootfs-size` | no | 8 | GB |
+| `--bridge` | no | vmbr0 | |
+| `--unprivileged` | no | true | |
+| `--nesting` | no | true | Enable Docker/nested containers |
+| `--start` | no | false | Start after create |
+| `--no-wait` | no | false | Return UPID immediately |
+
+**JSON shape — guests create:**
+```json
+{
+  "vmid": 105,
+  "name": "myvm",
+  "node": "pve01",
+  "type": "qemu",
+  "upid": "UPID:pve01:...",
+  "status": "complete",
+  "exit_status": "OK"
+}
+```
+
+### Guest Migrate
+
+```bash
+# Migrate a guest (mode selected automatically)
+pvetui guests migrate 100 pve02
+
+# Force online/offline mode for QEMU (not valid for LXC)
+pvetui guests migrate 100 pve02 --online
+pvetui guests migrate 100 pve02 --offline
+
+# Return task UPID immediately
+pvetui guests migrate 100 pve02 --no-wait
+```
+
+Migration mode is selected automatically:
+- QEMU running → online migration
+- QEMU stopped → offline migration
+- LXC (any state) → restart migration
+
+**JSON shape — guests migrate:**
+```json
+{
+  "vmid": 100,
+  "name": "web-server",
+  "source_node": "pve01",
+  "target_node": "pve02",
+  "mode": "online",
+  "upid": "UPID:pve01:...",
+  "status": "complete",
+  "exit_status": "OK"
+}
+```
+
 ## Guest Exec
 
 Execute a command inside a running guest without SSH access to the guest itself.
@@ -205,7 +371,16 @@ pvetui guests exec 100 "df -h" --output table
 }
 ```
 
-A non-zero `exit_code` means the command ran but failed (e.g., the program returned non-zero). A transport/SSH error causes a non-zero process exit with a JSON error on stderr instead.
+A non-zero `exit_code` means the command ran but failed. A transport/SSH error causes a non-zero process exit with a JSON error on stderr instead.
+
+### Guest and Node Shell
+
+Opens an interactive terminal session. These commands take over stdin/stdout and are not suitable for scripting — use `exec` for non-interactive commands in agents.
+
+```bash
+pvetui nodes shell pve01          # SSH to a Proxmox node
+pvetui guests shell 100           # shell inside a guest (LXC: pct enter; QEMU: SSH to VM IP)
+```
 
 ## Tasks
 
@@ -238,6 +413,145 @@ pvetui tasks list --output table
 
 `starttime` and `endtime` are Unix timestamps. `status` is `"OK"` on success or an error string on failure. A task with no `endtime` is still running.
 
+## Storage
+
+```bash
+# List all storages (one row per node/storage pair)
+pvetui storage list
+pvetui storage list --node pve01
+pvetui storage list --output table
+
+# Show a specific storage
+pvetui storage show pve01 local-zfs
+```
+
+**JSON shape — storage list:**
+```json
+[
+  {
+    "name": "local-zfs",
+    "node": "pve01",
+    "type": "zfspool",
+    "content": "images,rootdir",
+    "used": 53687091200,
+    "total": 214748364800,
+    "active": true
+  }
+]
+```
+
+### Storage Content
+
+```bash
+# List all content in a storage
+pvetui storage content list pve01 local
+
+# Filter by content type: iso, vztmpl, backup, snippets, images
+pvetui storage content list pve01 local --type iso
+pvetui storage content list pve01 local --type backup
+
+# Delete a content item (explicit volid required)
+pvetui storage content delete pve01 local local:iso/old-debian.iso
+pvetui storage content delete pve01 local local:iso/old-debian.iso --no-wait
+```
+
+**JSON shape — storage content list:**
+```json
+[
+  {
+    "volid": "local:iso/debian-12.iso",
+    "name": "debian-12.iso",
+    "type": "iso",
+    "size": 658505728,
+    "ctime": 1700000000,
+    "vmid": 0
+  }
+]
+```
+
+### Storage Download
+
+```bash
+# Download an ISO from a URL (content type inferred from extension)
+pvetui storage download url pve01 local https://example.com/debian-12.iso
+
+# Override filename or content type
+pvetui storage download url pve01 local https://example.com/image.bin \
+  --filename my-image.iso \
+  --content-type iso
+
+# Download an appliance template by package name (latest version resolved automatically)
+pvetui storage download template pve01 local debian-12-standard
+
+# Or use a full filename to pin a specific version
+pvetui storage download template pve01 local debian-12-standard_12.7-1_amd64.tar.zst
+
+# Narrow resolution by section when multiple templates match
+pvetui storage download template pve01 local myapp --section turnkeylinux
+
+# Pull an OCI image
+pvetui storage download oci pve01 local registry.example.com/myimage:latest
+
+# Any download can return UPID immediately
+pvetui storage download url pve01 local https://example.com/debian-12.iso --no-wait
+```
+
+**Content type inference from URL extension:**
+
+| Extension | Inferred type |
+|-----------|--------------|
+| `.iso` | `iso` |
+| `.tar.*` (`.tar.zst`, `.tar.gz`, etc.) | `vztmpl` |
+| `.img` | `import` |
+| other | must supply `--content-type` |
+
+**JSON shape — storage download:**
+```json
+{
+  "node": "pve01",
+  "storage": "local",
+  "url": "https://example.com/debian-12.iso",
+  "filename": "debian-12.iso",
+  "upid": "UPID:pve01:...",
+  "status": "complete",
+  "exit_status": "OK"
+}
+```
+
+### Storage Restore
+
+Restore a guest from a vzdump backup. **Destructive** — overwrites the target VMID's config and disks.
+
+```bash
+# Dry-run: print what would be restored, exit without making changes
+pvetui storage restore pve01 local local:backup/vzdump-qemu-100-2024.tar.zst 100
+
+# Actually restore (requires --confirm)
+pvetui storage restore pve01 local local:backup/vzdump-qemu-100-2024.tar.zst 100 --confirm
+
+# Override inferred guest type (normally inferred from volid prefix)
+pvetui storage restore pve01 local local:backup/unknown.tar.zst 101 --confirm --type lxc
+
+# Return UPID immediately
+pvetui storage restore pve01 local local:backup/vzdump-qemu-100.tar.zst 100 --confirm --no-wait
+```
+
+Guest type is inferred from the volid prefix: `vzdump-qemu-*` → `qemu`, `vzdump-lxc-*` → `lxc`. Use `--type` to override when inference fails.
+
+**JSON shape — storage restore:**
+```json
+{
+  "node": "pve01",
+  "storage": "local",
+  "volid": "local:backup/vzdump-qemu-100-2024.tar.zst",
+  "vmid": 100,
+  "type": "qemu",
+  "upid": "UPID:pve01:...",
+  "status": "complete",
+  "exit_status": "OK"
+}
+```
+
 ## Profiles and Multi-Cluster
 
 All subcommands respect `--profile`. The profile can be a single connection profile or an aggregate group name.
@@ -253,7 +567,7 @@ pvetui --profile all-clusters guests list --status running
 pvetui --list-profiles
 ```
 
-In aggregate group mode, `source_profile` in JSON output identifies which cluster each resource belongs to. All reads fan out concurrently; write operations (lifecycle, exec) are routed to the correct cluster automatically.
+In aggregate group mode, `source_profile` in JSON output identifies which cluster each resource belongs to. All reads fan out concurrently; write operations (lifecycle, exec, create, migrate) are routed to the correct cluster automatically.
 
 ## Error Handling
 
@@ -287,6 +601,24 @@ pvetui guests list --status running | jq '.[].ip'
 # Check if a specific guest is running
 pvetui guests show 100 | jq -r '.status'
 
+# Create an LXC and wait for it to finish, then get its VMID
+result=$(pvetui guests create lxc --node pve01 --hostname myct --rootfs-storage local-zfs --template debian-12-standard)
+vmid=$(echo "$result" | jq -r '.vmid')
+
+# Migrate a guest and verify it landed on the target
+pvetui guests migrate 100 pve02
+pvetui guests show 100 | jq -r '.node'   # should now be "pve02"
+
+# Download a template and create a container from it in sequence
+pvetui storage download template pve01 local debian-12-standard
+pvetui guests create lxc --node pve01 --hostname newct --rootfs-storage local-zfs --template debian-12-standard --start
+
+# List all ISO files available on a node
+pvetui storage content list pve01 local --type iso | jq '.[].volid'
+
+# Find all backup files for a specific VM
+pvetui storage content list pve01 local --type backup | jq '[.[] | select(.volid | contains("vzdump-qemu-100-"))]'
+
 # Run a health check across multiple guests
 for vmid in 100 101 102; do
   echo "=== $vmid ==="
@@ -299,8 +631,8 @@ pvetui guests list | jq '[.[] | select(.tags | contains("prod"))]'
 # Get total memory across all nodes
 pvetui nodes list | jq '[.[].memory_total] | add'
 
-# Monitor a task until completion (poll tasks list)
-pvetui tasks list --recent 5 | jq '.[] | select(.upid == "UPID:...")'
+# Check storage usage across the cluster
+pvetui storage list | jq '[.[] | {name, node, used_pct: (.used / .total * 100 | round)}]'
 ```
 
 ## Troubleshooting
@@ -311,5 +643,8 @@ pvetui tasks list --recent 5 | jq '.[] | select(.upid == "UPID:...")'
 | `{"error": "guest agent is not available"}` | Agent not running in VM | Install/start `qemu-guest-agent` inside the VM |
 | `{"error": "exec failed on LXC ..."}` | SSH to node failed | Verify `ssh_user` is set and SSH key auth works to the node |
 | `{"error": "multiple profiles configured; use --profile"}` | No default profile set | Pass `--profile <name>` or set `default_profile` in config |
+| `{"error": "cannot infer guest type from volid ..."}` | Backup filename not standard | Pass `--type qemu` or `--type lxc` explicitly |
+| `{"error": "cannot infer content type from URL ..."}` | URL extension not recognised | Pass `--content-type iso` (or `vztmpl`/`import`) |
 | `ip` field empty in guest list | Agent not running or no IP yet | Check guest agent; `ip` populates only for running QEMU VMs with agent |
 | LXC exec fails with permission denied | Non-root user needs sudo | Add `NOPASSWD: /usr/sbin/pct exec *` to sudoers on node |
+| Template name not resolved | Package not in aplinfo catalog | Use the full filename from `pvetui storage content list` |
