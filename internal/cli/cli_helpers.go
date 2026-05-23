@@ -86,6 +86,27 @@ func (s *cliSession) findVM(ctx context.Context, vmid int) (*api.VM, error) {
 	return findGuestByVMID(s.single, vmid)
 }
 
+// clientForNode returns the API client for the cluster that hosts nodeName.
+// In single mode it returns the single client; in group mode it resolves via
+// FindNodeByNameInGroup.
+func (s *cliSession) clientForNode(ctx context.Context, nodeName string) (*api.Client, error) {
+	if s.group != nil {
+		_, profileName, err := s.group.FindNodeByNameInGroup(ctx, nodeName)
+		if err != nil {
+			return nil, err
+		}
+
+		pc, exists := s.group.GetClient(profileName)
+		if !exists || pc == nil {
+			return nil, fmt.Errorf("no client for profile %q", profileName)
+		}
+
+		return pc.Client, nil
+	}
+
+	return s.single, nil
+}
+
 // clientForVM returns the API client responsible for the given guest. In group
 // mode it resolves via SourceProfile; in single mode it returns the single client.
 func (s *cliSession) clientForVM(vm *api.VM) (*api.Client, error) {
@@ -549,6 +570,79 @@ func completeVMIDs(cmd *cobra.Command, args []string, toComplete string) ([]stri
 	}
 
 	return completions, cobra.ShellCompDirectiveNoFileComp
+}
+
+// addNoWaitFlag adds a --no-wait flag to cmd for task-producing commands.
+func addNoWaitFlag(cmd *cobra.Command) {
+	cmd.Flags().Bool("no-wait", false, "Return the task UPID immediately without waiting for completion")
+}
+
+// getNoWait reads the --no-wait flag from cmd.
+func getNoWait(cmd *cobra.Command) bool {
+	v, _ := cmd.Flags().GetBool("no-wait")
+	return v
+}
+
+// waitForTask polls a Proxmox task to completion using the existing
+// WaitForTaskCompletion method and returns the final exit status string.
+// It respects ctx cancellation (e.g. Ctrl-C).
+func waitForTask(ctx context.Context, client *api.Client, node, upid, operationName string) (exitStatus string, err error) {
+	const defaultTimeout = 10 * time.Minute
+
+	done := make(chan error, 1)
+	go func() {
+		done <- client.WaitForTaskCompletion(upid, operationName, defaultTimeout)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", fmt.Errorf("%s cancelled", operationName)
+	case err = <-done:
+		if err != nil {
+			return "ERROR", err
+		}
+	}
+
+	// Fetch final status for structured output.
+	status, fetchErr := client.GetTaskStatus(node, upid)
+	if fetchErr != nil || status == nil {
+		return "OK", nil
+	}
+
+	return status.ExitStatus, nil
+}
+
+// inferGuestTypeFromVolID returns "qemu" or "lxc" based on the vzdump volid prefix.
+func inferGuestTypeFromVolID(volID string) (string, error) {
+	lower := strings.ToLower(volID)
+	switch {
+	case strings.Contains(lower, "vzdump-qemu-"):
+		return "qemu", nil
+	case strings.Contains(lower, "vzdump-lxc-"):
+		return "lxc", nil
+	default:
+		return "", fmt.Errorf("cannot infer guest type from volid %q — use --type qemu|lxc", volID)
+	}
+}
+
+// inferContentTypeFromURL guesses a Proxmox content type from a URL's filename extension.
+func inferContentTypeFromURL(rawURL string) string {
+	lower := strings.ToLower(rawURL)
+	// Strip query string for extension matching.
+	if idx := strings.Index(lower, "?"); idx != -1 {
+		lower = lower[:idx]
+	}
+
+	switch {
+	case strings.HasSuffix(lower, ".iso"):
+		return "iso"
+	case strings.Contains(lower, ".tar."):
+		return "vztmpl"
+	case strings.HasSuffix(lower, ".img"):
+		return "import"
+	default:
+		return ""
+	}
 }
 
 // findGuestByVMID scans all nodes for a guest with the given VMID.

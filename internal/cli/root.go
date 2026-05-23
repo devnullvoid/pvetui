@@ -42,6 +42,7 @@ func init() {
 	RootCmd.AddCommand(newNodesCmd())
 	RootCmd.AddCommand(newGuestsCmd())
 	RootCmd.AddCommand(newTasksCmd())
+	RootCmd.AddCommand(newStorageCmd())
 
 	// Output format flag (inherited by all subcommands)
 	RootCmd.PersistentFlags().StringP("output", "o", outputJSON, "Output format: json, table")

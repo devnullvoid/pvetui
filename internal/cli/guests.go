@@ -82,6 +82,8 @@ func newGuestsCmd() *cobra.Command {
 	cmd.AddCommand(newGuestsRestartCmd())
 	cmd.AddCommand(newGuestsExecCmd())
 	cmd.AddCommand(newGuestsShellCmd())
+	cmd.AddCommand(newGuestsCreateCmd())
+	cmd.AddCommand(newGuestsMigrateCmd())
 
 	return cmd
 }
@@ -668,6 +670,491 @@ func runQEMUShell(_ *cobra.Command, session *cliSession, vm *api.VM) error {
 	}
 
 	return nil
+}
+
+// ── guests create ────────────────────────────────────────────────────────────
+
+func newGuestsCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a new guest (VM or LXC container)",
+	}
+	cmd.AddCommand(newGuestsCreateVMCmd())
+	cmd.AddCommand(newGuestsCreateLXCCmd())
+	return cmd
+}
+
+type guestCreateOutput struct {
+	VMID       int    `json:"vmid"`
+	Name       string `json:"name"`
+	Node       string `json:"node"`
+	Type       string `json:"type"`
+	UPID       string `json:"upid"`
+	Status     string `json:"status"`
+	ExitStatus string `json:"exit_status,omitempty"`
+}
+
+func newGuestsCreateVMCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "vm",
+		Short: "Create a new QEMU VM",
+		Long:  "Create a new QEMU VM on a Proxmox node.",
+		Example: `  # Minimal VM with a new disk
+  pvetui guests create vm --node pve --name myvm --disk-storage local-zfs --disk-size 32
+
+  # Import an existing volume
+  pvetui guests create vm --node pve --name myvm --disk-storage local-zfs --import-from local:import/disk.img
+
+  # With ISO, custom resources, start after create
+  pvetui guests create vm --node pve --name myvm --disk-storage local-zfs --disk-size 32 \
+    --iso local:iso/debian-12.iso --memory 4096 --cores 4 --start
+
+  # Return UPID immediately without waiting
+  pvetui guests create vm --node pve --name myvm --disk-storage local-zfs --disk-size 32 --no-wait`,
+		RunE: runGuestsCreateVM,
+	}
+
+	cmd.Flags().String("node", "", "Target node name (required)")
+	cmd.Flags().String("name", "", "VM name (required)")
+	cmd.Flags().Int("vmid", 0, "VM ID (auto-assigned if omitted)")
+	cmd.Flags().Int("memory", 2048, "Memory in MB")
+	cmd.Flags().Int("cores", 2, "Number of CPU cores")
+	cmd.Flags().Int("sockets", 1, "Number of CPU sockets")
+	cmd.Flags().String("disk-storage", "", "Storage name for the primary disk (required)")
+	cmd.Flags().Int("disk-size", 0, "Primary disk size in GB (required unless --import-from)")
+	cmd.Flags().String("import-from", "", "Volume to import as primary disk (replaces --disk-size)")
+	cmd.Flags().String("iso", "", "ISO volume for CD-ROM (e.g. local:iso/debian-12.iso)")
+	cmd.Flags().String("bridge", "vmbr0", "Network bridge")
+	cmd.Flags().Bool("start", false, "Start VM after creation")
+	addNoWaitFlag(cmd)
+
+	_ = cmd.MarkFlagRequired("node")
+	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("disk-storage")
+
+	cmd.ValidArgsFunction = cobra.NoFileCompletions
+
+	return cmd
+}
+
+func runGuestsCreateVM(cmd *cobra.Command, _ []string) error {
+	session, err := initCLISession(cmd)
+	if err != nil {
+		return printError(err)
+	}
+	if session == nil {
+		return nil
+	}
+
+	nodeName, _ := cmd.Flags().GetString("node")
+	name, _ := cmd.Flags().GetString("name")
+	vmid, _ := cmd.Flags().GetInt("vmid")
+	memoryMB, _ := cmd.Flags().GetInt("memory")
+	cores, _ := cmd.Flags().GetInt("cores")
+	sockets, _ := cmd.Flags().GetInt("sockets")
+	diskStorage, _ := cmd.Flags().GetString("disk-storage")
+	diskSize, _ := cmd.Flags().GetInt("disk-size")
+	importFrom, _ := cmd.Flags().GetString("import-from")
+	iso, _ := cmd.Flags().GetString("iso")
+	bridge, _ := cmd.Flags().GetString("bridge")
+	start, _ := cmd.Flags().GetBool("start")
+
+	if importFrom == "" && diskSize <= 0 {
+		return printError(fmt.Errorf("--disk-size is required unless --import-from is specified"))
+	}
+
+	ctx := context.Background()
+
+	node, err := session.findNodeByName(ctx, nodeName)
+	if err != nil {
+		return printError(err)
+	}
+	if !node.Online {
+		return printError(fmt.Errorf("node %q is offline", nodeName))
+	}
+
+	client, err := session.clientForNode(ctx, nodeName)
+	if err != nil {
+		return printError(err)
+	}
+
+	if vmid == 0 {
+		vmid, err = client.GetNextID(0)
+		if err != nil {
+			return printError(fmt.Errorf("failed to get next VMID: %w", err))
+		}
+	}
+
+	options := api.VMCreateOptions{
+		VMID:        vmid,
+		Name:        name,
+		MemoryMB:    memoryMB,
+		Cores:       cores,
+		Sockets:     sockets,
+		DiskStorage: diskStorage,
+		DiskSizeGB:  diskSize,
+		ImportFrom:  importFrom,
+		ISOVolume:   iso,
+		Bridge:      bridge,
+		Start:       start,
+	}
+
+	upid, err := client.CreateVM(nodeName, options)
+	if err != nil {
+		return printError(fmt.Errorf("failed to create VM: %w", err))
+	}
+
+	out := guestCreateOutput{
+		VMID:   vmid,
+		Name:   name,
+		Node:   nodeName,
+		Type:   "qemu",
+		UPID:   upid,
+		Status: "queued",
+	}
+
+	if getNoWait(cmd) {
+		return printJSON(out)
+	}
+
+	exitStatus, waitErr := waitForTask(ctx, client, nodeName, upid, "create VM")
+	out.Status = "completed"
+	out.ExitStatus = exitStatus
+	if waitErr != nil {
+		out.Status = "failed"
+		_ = printJSON(out)
+		return printError(waitErr)
+	}
+
+	return printJSON(out)
+}
+
+func newGuestsCreateLXCCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "lxc",
+		Short: "Create a new LXC container",
+		Long:  "Create a new LXC container on a Proxmox node.",
+		Example: `  # Basic container
+  pvetui guests create lxc --node pve --hostname myct --rootfs-storage local-zfs \
+    --template local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst
+
+  # Using package name (auto-resolves to latest version)
+  pvetui guests create lxc --node pve --hostname myct --rootfs-storage local-zfs \
+    --template debian-12-standard
+
+  # Custom resources, privileged, start after create
+  pvetui guests create lxc --node pve --hostname myct --rootfs-storage local-zfs \
+    --template debian-12-standard --memory 2048 --cores 2 --unprivileged=false --start`,
+		RunE: runGuestsCreateLXC,
+	}
+
+	cmd.Flags().String("node", "", "Target node name (required)")
+	cmd.Flags().String("hostname", "", "Container hostname (required)")
+	cmd.Flags().Int("vmid", 0, "Container ID (auto-assigned if omitted)")
+	cmd.Flags().Int("memory", 512, "Memory in MB")
+	cmd.Flags().Int("swap", 512, "Swap in MB (0 to disable)")
+	cmd.Flags().Int("cores", 1, "Number of CPU cores")
+	cmd.Flags().String("rootfs-storage", "", "Storage for root filesystem (required)")
+	cmd.Flags().Int("rootfs-size", 8, "Root filesystem size in GB")
+	cmd.Flags().String("template", "", "OS template volid or package name (required)")
+	cmd.Flags().String("bridge", "vmbr0", "Network bridge")
+	cmd.Flags().Bool("unprivileged", true, "Run as unprivileged container")
+	cmd.Flags().Bool("nesting", true, "Enable nesting (allows Docker inside container)")
+	cmd.Flags().Bool("start", false, "Start container after creation")
+	addNoWaitFlag(cmd)
+
+	_ = cmd.MarkFlagRequired("node")
+	_ = cmd.MarkFlagRequired("hostname")
+	_ = cmd.MarkFlagRequired("rootfs-storage")
+	_ = cmd.MarkFlagRequired("template")
+
+	cmd.ValidArgsFunction = cobra.NoFileCompletions
+
+	return cmd
+}
+
+func runGuestsCreateLXC(cmd *cobra.Command, _ []string) error {
+	session, err := initCLISession(cmd)
+	if err != nil {
+		return printError(err)
+	}
+	if session == nil {
+		return nil
+	}
+
+	nodeName, _ := cmd.Flags().GetString("node")
+	hostname, _ := cmd.Flags().GetString("hostname")
+	vmid, _ := cmd.Flags().GetInt("vmid")
+	memoryMB, _ := cmd.Flags().GetInt("memory")
+	swapMB, _ := cmd.Flags().GetInt("swap")
+	cores, _ := cmd.Flags().GetInt("cores")
+	rootfsStorage, _ := cmd.Flags().GetString("rootfs-storage")
+	rootfsSize, _ := cmd.Flags().GetInt("rootfs-size")
+	templateArg, _ := cmd.Flags().GetString("template")
+	bridge, _ := cmd.Flags().GetString("bridge")
+	unprivileged, _ := cmd.Flags().GetBool("unprivileged")
+	nesting, _ := cmd.Flags().GetBool("nesting")
+	start, _ := cmd.Flags().GetBool("start")
+
+	if swapMB < 0 {
+		return printError(fmt.Errorf("--swap must be >= 0"))
+	}
+
+	ctx := context.Background()
+
+	node, err := session.findNodeByName(ctx, nodeName)
+	if err != nil {
+		return printError(err)
+	}
+	if !node.Online {
+		return printError(fmt.Errorf("node %q is offline", nodeName))
+	}
+
+	client, err := session.clientForNode(ctx, nodeName)
+	if err != nil {
+		return printError(err)
+	}
+
+	// Resolve template: if it looks like a package name (no extension), query aplinfo.
+	template := templateArg
+	if !strings.Contains(templateArg, ".") {
+		template, err = resolveTemplateName(client, nodeName, templateArg, "")
+		if err != nil {
+			return printError(err)
+		}
+	}
+
+	if vmid == 0 {
+		vmid, err = client.GetNextID(0)
+		if err != nil {
+			return printError(fmt.Errorf("failed to get next VMID: %w", err))
+		}
+	}
+
+	options := api.LXCCreateOptions{
+		VMID:          vmid,
+		Hostname:      hostname,
+		MemoryMB:      memoryMB,
+		SwapMB:        swapMB,
+		Cores:         cores,
+		RootFSStorage: rootfsStorage,
+		RootFSSizeGB:  rootfsSize,
+		OSTemplate:    template,
+		Bridge:        bridge,
+		Unprivileged:  unprivileged,
+		Nesting:       nesting,
+		Start:         start,
+	}
+
+	upid, err := client.CreateLXC(nodeName, options)
+	if err != nil {
+		return printError(fmt.Errorf("failed to create LXC: %w", err))
+	}
+
+	out := guestCreateOutput{
+		VMID:   vmid,
+		Name:   hostname,
+		Node:   nodeName,
+		Type:   "lxc",
+		UPID:   upid,
+		Status: "queued",
+	}
+
+	if getNoWait(cmd) {
+		return printJSON(out)
+	}
+
+	exitStatus, waitErr := waitForTask(ctx, client, nodeName, upid, "create LXC")
+	out.Status = "completed"
+	out.ExitStatus = exitStatus
+	if waitErr != nil {
+		out.Status = "failed"
+		_ = printJSON(out)
+		return printError(waitErr)
+	}
+
+	return printJSON(out)
+}
+
+// resolveTemplateName resolves a package name (e.g. "debian-12-standard") to a
+// full template filename by querying aplinfo. If section is non-empty, only
+// templates in that section are considered. Returns the alphabetically last
+// (latest) match.
+func resolveTemplateName(client *api.Client, nodeName, packageName, section string) (string, error) {
+	templates, err := client.GetAvailableTemplates(nodeName)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch template list: %w", err)
+	}
+
+	var matches []string
+	for _, t := range templates {
+		if t.Package != packageName {
+			continue
+		}
+		if section != "" && !strings.EqualFold(t.Section, section) {
+			continue
+		}
+		matches = append(matches, t.Filename)
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no template found matching package name %q", packageName)
+	}
+
+	// Sort and pick the last (latest) version.
+	for i := 0; i < len(matches)-1; i++ {
+		for j := i + 1; j < len(matches); j++ {
+			if matches[j] > matches[i] {
+				matches[i], matches[j] = matches[j], matches[i]
+			}
+		}
+	}
+	resolved := matches[0]
+	fmt.Fprintf(os.Stderr, "resolved template %q → %q\n", packageName, resolved)
+	return resolved, nil
+}
+
+// ── guests migrate ───────────────────────────────────────────────────────────
+
+type guestMigrateOutput struct {
+	VMID       int    `json:"vmid"`
+	Name       string `json:"name"`
+	SourceNode string `json:"source_node"`
+	TargetNode string `json:"target_node"`
+	Mode       string `json:"mode"`
+	UPID       string `json:"upid"`
+	Status     string `json:"status"`
+	ExitStatus string `json:"exit_status,omitempty"`
+}
+
+func newGuestsMigrateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "migrate <vmid> <target-node>",
+		Short: "Migrate a guest to another node",
+		Long: `Migrate a VM or LXC container to another node in the same cluster.
+
+Migration mode is selected automatically:
+  - QEMU running  → online migration
+  - QEMU stopped  → offline migration
+  - LXC           → restart migration`,
+		Example: `  # Migrate guest 100 to pve02 (auto mode)
+  pvetui guests migrate 100 pve02
+
+  # Force offline migration for a running QEMU VM
+  pvetui guests migrate 100 pve02 --offline
+
+  # Return UPID immediately
+  pvetui guests migrate 100 pve02 --no-wait`,
+		Args:              cobra.ExactArgs(2),
+		RunE:              runGuestsMigrate,
+		ValidArgsFunction: completeVMIDs,
+	}
+
+	cmd.Flags().Bool("online", false, "Force online migration (QEMU only)")
+	cmd.Flags().Bool("offline", false, "Force offline migration (QEMU only)")
+	addNoWaitFlag(cmd)
+
+	return cmd
+}
+
+func runGuestsMigrate(cmd *cobra.Command, args []string) error {
+	vmid, err := parseVMID(args[0])
+	if err != nil {
+		return printError(err)
+	}
+	targetNode := args[1]
+
+	session, err := initCLISession(cmd)
+	if err != nil {
+		return printError(err)
+	}
+	if session == nil {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	vm, err := session.findVM(ctx, vmid)
+	if err != nil {
+		return printError(err)
+	}
+
+	// Validate target node exists and is online.
+	target, err := session.findNodeByName(ctx, targetNode)
+	if err != nil {
+		return printError(err)
+	}
+	if !target.Online {
+		return printError(fmt.Errorf("target node %q is offline", targetNode))
+	}
+	if target.Name == vm.Node {
+		return printError(fmt.Errorf("guest %d is already on node %q", vmid, targetNode))
+	}
+
+	forceOnline, _ := cmd.Flags().GetBool("online")
+	forceOffline, _ := cmd.Flags().GetBool("offline")
+
+	if vm.Type == api.VMTypeLXC && (forceOnline || forceOffline) {
+		return printError(fmt.Errorf("--online/--offline are not applicable to LXC containers"))
+	}
+	if forceOnline && forceOffline {
+		return printError(fmt.Errorf("--online and --offline are mutually exclusive"))
+	}
+
+	// Build migration options with auto mode selection.
+	options := &api.MigrationOptions{Target: targetNode}
+	mode := "offline"
+	switch vm.Type {
+	case api.VMTypeLXC:
+		mode = "restart"
+	case api.VMTypeQemu:
+		online := vm.Status == api.VMStatusRunning
+		if forceOnline {
+			online = true
+		}
+		if forceOffline {
+			online = false
+		}
+		options.Online = &online
+		if online {
+			mode = "online"
+		}
+	}
+
+	client, err := session.clientForVM(vm)
+	if err != nil {
+		return printError(err)
+	}
+
+	upid, err := client.MigrateVM(vm, options)
+	if err != nil {
+		return printError(fmt.Errorf("migration failed: %w", err))
+	}
+
+	out := guestMigrateOutput{
+		VMID:       vm.ID,
+		Name:       vm.Name,
+		SourceNode: vm.Node,
+		TargetNode: targetNode,
+		Mode:       mode,
+		UPID:       upid,
+		Status:     "queued",
+	}
+
+	if getNoWait(cmd) {
+		return printJSON(out)
+	}
+
+	exitStatus, waitErr := waitForTask(ctx, client, vm.Node, upid, "migrate")
+	out.Status = "completed"
+	out.ExitStatus = exitStatus
+	if waitErr != nil {
+		out.Status = "failed"
+		_ = printJSON(out)
+		return printError(waitErr)
+	}
+
+	return printJSON(out)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
