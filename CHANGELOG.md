@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLI: `guests create vm` / `guests create lxc`**: Create QEMU VMs and LXC containers from the CLI with the same field coverage as the TUI forms. Supports memory, cores, disk storage, ISO attachment, network bridge, start-after-create, and auto-assigned VMIDs (via `GetNextID`). For LXC, accepts a package name (e.g. `debian-12-standard`) and resolves it to the latest full template filename via the aplinfo catalog. Commands block until the Proxmox task completes by default; `--no-wait` returns the task UPID immediately.
+
+- **CLI: `guests migrate <vmid> <target-node>`**: Migrate a guest to another node. Mode is selected automatically (QEMU running → online, QEMU stopped → offline, LXC → restart) matching TUI behaviour; `--online` / `--offline` override for QEMU. `--no-wait` supported.
+
+- **CLI: `storage` command group**: New top-level command group for storage and content management:
+  - `storage list [--node]` — list all storages across the cluster; shows per-node rows for shared storages.
+  - `storage show <node> <storage>` — show details for a specific storage.
+  - `storage content list <node> <storage> [--type]` — list content items with optional type filter.
+  - `storage content delete <node> <storage> <volid> [--no-wait]` — delete a content item.
+  - `storage download url <node> <storage> <url> [--filename] [--content-type] [--no-wait]` — download from a URL; content type inferred from extension (`.iso` → `iso`, `.tar.*` → `vztmpl`, `.img` → `import`).
+  - `storage download template <node> <storage> <template> [--section] [--no-wait]` — download an appliance template; accepts full filename or package name with auto-resolution.
+  - `storage download oci <node> <storage> <reference> [--no-wait]` — pull an OCI image.
+  - `storage restore <node> <storage> <volid> <vmid> [--confirm] [--type] [--no-wait]` — restore a guest from a vzdump backup. Prints a dry-run summary without `--confirm`; guest type inferred from volid prefix.
+  - Tab completions for `<node>`, `<storage>`, and `<template>` positional arguments.
+
 ## [1.3.3] - 2026-05-09
 
 ### Added
