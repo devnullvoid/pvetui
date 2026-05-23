@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CLI: `guests migrate <vmid> <target-node>`**: Migrate a guest to another node. Mode is selected automatically (QEMU running → online, QEMU stopped → offline, LXC → restart) matching TUI behaviour; `--online` / `--offline` override for QEMU. `--no-wait` supported.
 
+- **CLI: `guests delete <vmid>`**: Delete a VM or LXC container from the CLI. Supports `--purge` (remove all associated storage volumes) and `--force` (delete even if the guest is running). Blocks until the Proxmox task completes by default; `--no-wait` returns the task UPID immediately.
+
 - **CLI: `storage` command group**: New top-level command group for storage and content management:
   - `storage list [--node]` — list all storages across the cluster; shows per-node rows for shared storages.
   - `storage show <node> <storage>` — show details for a specific storage.
