@@ -42,7 +42,7 @@
 - **Comprehensive Documentation**: Detailed guides for configuration, theming, and development
 - **Proxmox API Browser**: Interactive Proxmox VE API reference at [devnullvoid.github.io/pvetui-openapi](https://devnullvoid.github.io/pvetui-openapi/)
 - **Group Mode (multi-cluster)**: Combine multiple Proxmox profiles into one unified view with routed actions per cluster
-- **CLI Subcommands**: Use `pvetui` non-interactively from scripts or AI agent workflows — list/show nodes, guests, and tasks; start/stop/restart guests; execute commands in QEMU VMs via the guest agent or in LXC containers via `pct exec`
+- **CLI Subcommands**: Use `pvetui` non-interactively from scripts or AI agent workflows — list/show nodes, guests, and tasks; create and migrate VMs/LXCs; manage storage content, download templates and OCI images, and restore backups
 
 ## 📸 Screenshots
 
@@ -411,9 +411,62 @@ pvetui guests restart 100
 pvetui guests exec 100 "uptime"
 # Execute a command in an LXC container via pct exec over SSH to the node
 pvetui guests exec 200 "df -h" --timeout 60s
+
+# Open an interactive shell (node SSH or container/VM shell)
+pvetui nodes shell pve01
+pvetui guests shell 100
+
+# Create a VM (auto-assigns VMID if omitted)
+pvetui guests create vm --node pve01 --name myvm --disk-storage local-zfs --disk-size 32
+pvetui guests create vm --node pve01 --name myvm --disk-storage local-zfs --disk-size 32 \
+  --memory 4096 --cores 4 --iso local:iso/debian-12.iso --start
+
+# Create an LXC container (accepts package name or full template filename)
+pvetui guests create lxc --node pve01 --hostname myct --rootfs-storage local-zfs \
+  --template debian-12-standard
+pvetui guests create lxc --node pve01 --hostname myct --rootfs-storage local-zfs \
+  --template debian-12-standard --memory 1024 --swap 512 --start
+
+# Migrate a guest to another node (mode selected automatically)
+pvetui guests migrate 100 pve02
+pvetui guests migrate 100 pve02 --no-wait   # return UPID immediately
 ```
 
 `exec` automatically wraps commands in `/bin/sh -c` on Linux guests and `powershell.exe` on Windows guests. The guest must be running with the QEMU guest agent active.
+
+Commands that produce Proxmox tasks (`create`, `migrate`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
+
+### Storage
+
+```bash
+# List storages (all nodes, or filter to one)
+pvetui storage list
+pvetui storage list --node pve01 --output table
+
+# Show a specific storage
+pvetui storage show pve01 local-zfs
+
+# List content in a storage (optional type filter: iso, vztmpl, backup, images)
+pvetui storage content list pve01 local
+pvetui storage content list pve01 local --type iso
+
+# Delete a content item
+pvetui storage content delete pve01 local local:iso/old-image.iso
+
+# Download an ISO from a URL
+pvetui storage download url pve01 local https://example.com/debian-12.iso
+
+# Download an appliance template (package name or full filename)
+pvetui storage download template pve01 local debian-12-standard
+pvetui storage download template pve01 local debian-12-standard_12.7-1_amd64.tar.zst
+
+# Pull an OCI image
+pvetui storage download oci pve01 local registry.example.com/myimage:latest
+
+# Restore a guest from a vzdump backup (dry-run without --confirm)
+pvetui storage restore pve01 local local:backup/vzdump-qemu-100-2024.tar.zst 100
+pvetui storage restore pve01 local local:backup/vzdump-qemu-100-2024.tar.zst 100 --confirm
+```
 
 ### Tasks
 

@@ -170,11 +170,12 @@ The following conventions must be followed for any changes in this repository.
   - CacheItem stores data as `json.RawMessage` to avoid double marshaling
   - Supports configurable size limits for memory management
 
-- **`internal/cli/`** - Non-interactive CLI subcommands (nodes, guests, tasks)
-  - `cli_helpers.go` - `cliSession` abstraction, SSH helpers, output utilities
-  - `guests.go` - Guest list/show/lifecycle/exec (QEMU guest agent + LXC pct exec)
-  - `nodes.go` - Node list/show
+- **`internal/cli/`** - Non-interactive CLI subcommands (nodes, guests, tasks, storage)
+  - `cli_helpers.go` - `cliSession` abstraction, SSH helpers, output utilities, task polling (`waitForTask`), `--no-wait` pattern, content-type inference helpers
+  - `guests.go` - Guest list/show/lifecycle/exec/shell/create (VM+LXC)/migrate
+  - `nodes.go` - Node list/show/shell
   - `tasks.go` - Task list
+  - `storage.go` - Storage list/show, content list/delete, download (url/template/oci), restore
   - All subcommands work with single-profile and aggregate group profiles transparently
 
 - **`internal/ui/`** - TUI components using tview library
