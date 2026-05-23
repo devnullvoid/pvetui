@@ -3,10 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -174,7 +174,7 @@ func fetchStorageRows(client *api.Client, nodeName string) ([]storageListRow, er
 			Content: s.Content,
 			Used:    s.Disk,
 			Total:   s.MaxDisk,
-			Active:  s.Status == "available",
+			Active:  true, // GetNodeStorages already filters out inactive storages
 		})
 	}
 
@@ -235,7 +235,7 @@ func runStorageShow(cmd *cobra.Command, args []string) error {
 			Content: s.Content,
 			Used:    s.Disk,
 			Total:   s.MaxDisk,
-			Active:  s.Status == "available",
+			Active:  true,
 		}
 
 		format := getOutputFormat(cmd)
@@ -341,7 +341,7 @@ func runStorageContentList(cmd *cobra.Command, args []string) error {
 		for _, r := range rows {
 			date := ""
 			if r.CTime > 0 {
-				date = strconv.FormatInt(r.CTime, 10)
+				date = time.Unix(r.CTime, 0).Format("2006-01-02")
 			}
 			tableRows = append(tableRows, []string{r.VolID, r.Type, formatBytes(r.Size), date})
 		}
@@ -589,8 +589,6 @@ func runStorageDownloadTemplate(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return printError(err)
 		}
-
-		fmt.Fprintf(os.Stderr, "resolved template: %s\n", resolvedFilename)
 	}
 
 	upid, err := client.DownloadApplianceTemplate(nodeName, storageName, resolvedFilename)

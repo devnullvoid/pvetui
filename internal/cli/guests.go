@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -915,10 +916,21 @@ func runGuestsCreateLXC(cmd *cobra.Command, _ []string) error {
 		return printError(err)
 	}
 
-	// Resolve template: if it looks like a package name (no extension), query aplinfo.
+	// Resolve template to a full storage volid.
+	// Accepted forms (in priority order):
+	//   "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"  → full volid, use as-is
+	//   "debian-13-standard_13.1-2_amd64.tar.zst"               → filename, prepend storage:vztmpl/
+	//   "debian-13-standard"                                     → package name, search storage content
 	template := templateArg
-	if !strings.Contains(templateArg, ".") {
-		template, err = resolveTemplateName(client, nodeName, templateArg, "")
+	switch {
+	case strings.Contains(templateArg, ":"):
+		// Already a full volid — use as-is.
+	case strings.Contains(templateArg, "."):
+		// Bare filename — prepend the rootfs storage prefix.
+		template = rootfsStorage + ":vztmpl/" + templateArg
+	default:
+		// Package name — search vztmpl content already on the node's storages.
+		template, err = resolveLXCTemplateFromStorage(client, nodeName, templateArg)
 		if err != nil {
 			return printError(err)
 		}
@@ -974,6 +986,53 @@ func runGuestsCreateLXC(cmd *cobra.Command, _ []string) error {
 	}
 
 	return printJSON(out)
+}
+
+// resolveLXCTemplateFromStorage resolves a package name to a storage volid by
+// scanning the vztmpl content already downloaded on the node. It searches all
+// storages on the node for a file whose name starts with "{packageName}_" or
+// equals "{packageName}.*", then returns the alphabetically last (latest) volid.
+func resolveLXCTemplateFromStorage(client *api.Client, nodeName, packageName string) (string, error) {
+	storages, err := client.GetNodeStorages(nodeName)
+	if err != nil {
+		return "", fmt.Errorf("failed to list storages: %w", err)
+	}
+
+	var matches []string
+
+	for _, s := range storages {
+		if s == nil || !strings.Contains(s.Content, "vztmpl") {
+			continue
+		}
+
+		items, err := client.GetStorageContent(nodeName, s.Name, "vztmpl")
+		if err != nil {
+			continue
+		}
+
+		for _, item := range items {
+			// Extract filename after the last '/'.
+			filename := item.VolID
+			if idx := strings.LastIndex(filename, "/"); idx >= 0 {
+				filename = filename[idx+1:]
+			}
+
+			if strings.HasPrefix(filename, packageName+"_") || strings.HasPrefix(filename, packageName+".") {
+				matches = append(matches, item.VolID)
+			}
+		}
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no downloaded template found matching %q — download it first with `pvetui storage download template`", packageName)
+	}
+
+	// Pick the alphabetically last volid (latest version).
+	sort.Strings(matches)
+	resolved := matches[len(matches)-1]
+	fmt.Fprintf(os.Stderr, "resolved template %q → %q\n", packageName, resolved)
+
+	return resolved, nil
 }
 
 // resolveTemplateName resolves a package name (e.g. "debian-12-standard") to a
