@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-05-23
+
 ### Added
 
 - **CLI: `guests create vm` / `guests create lxc`**: Create QEMU VMs and LXC containers from the CLI with the same field coverage as the TUI forms. Supports memory, cores, disk storage, ISO attachment, network bridge, start-after-create, and auto-assigned VMIDs (via `GetNextID`). For LXC, accepts a package name (e.g. `debian-12-standard`) and resolves it to the latest full template filename via the aplinfo catalog. Commands block until the Proxmox task completes by default; `--no-wait` returns the task UPID immediately.
