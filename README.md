@@ -406,6 +406,8 @@ pvetui guests start 100
 pvetui guests shutdown 100   # graceful ACPI shutdown
 pvetui guests stop 100       # force power-off
 pvetui guests restart 100
+pvetui guests delete 100     # permanently delete (guest must be stopped)
+pvetui guests delete 100 --purge   # also remove from backup/replication jobs
 
 # Execute a command in a QEMU VM via the guest agent (no SSH to the guest needed)
 pvetui guests exec 100 "uptime"

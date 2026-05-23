@@ -57,6 +57,7 @@ npx skills add devnullvoid/pvetui
 | `pvetui guests stop <vmid>` | Force stop a guest (power off) |
 | `pvetui guests shutdown <vmid>` | Graceful ACPI shutdown |
 | `pvetui guests restart <vmid>` | Graceful restart |
+| `pvetui guests delete <vmid>` | Permanently delete a guest and its disks |
 | `pvetui guests exec <vmid> <cmd>` | Run a command inside a guest |
 | `pvetui guests shell <vmid>` | Open an interactive shell inside a guest |
 | `pvetui guests create vm` | Create a QEMU VM |
@@ -199,6 +200,35 @@ pvetui guests restart 100     # graceful restart
 ```
 
 The `upid` is a Proxmox task ID. Use `pvetui tasks list` to monitor task completion.
+
+### Guest Delete
+
+Permanently deletes a guest and all its associated disks. The guest must be stopped first unless `--force` is passed.
+
+```bash
+# Delete a stopped guest (waits for completion)
+pvetui guests delete 108
+
+# Also remove the VMID from backup and replication job configs
+pvetui guests delete 108 --purge
+
+# Force-delete a running guest (data loss risk)
+pvetui guests delete 108 --force
+
+# Return the task UPID immediately without waiting
+pvetui guests delete 108 --no-wait
+```
+
+**JSON shape — delete:**
+```json
+{
+  "vmid": 108,
+  "node": "pve01",
+  "upid": "UPID:pve01:...",
+  "status": "complete",
+  "exit_status": "OK"
+}
+```
 
 ### Guest Create
 
@@ -643,6 +673,7 @@ pvetui storage list | jq '[.[] | {name, node, used_pct: (.used / .total * 100 | 
 | `{"error": "guest agent is not available"}` | Agent not running in VM | Install/start `qemu-guest-agent` inside the VM |
 | `{"error": "exec failed on LXC ..."}` | SSH to node failed | Verify `ssh_user` is set and SSH key auth works to the node |
 | `{"error": "multiple profiles configured; use --profile"}` | No default profile set | Pass `--profile <name>` or set `default_profile` in config |
+| `{"error": "failed to delete guest ... locked"}` | Guest is running or locked | Stop the guest first, or pass `--force` |
 | `{"error": "cannot infer guest type from volid ..."}` | Backup filename not standard | Pass `--type qemu` or `--type lxc` explicitly |
 | `{"error": "cannot infer content type from URL ..."}` | URL extension not recognised | Pass `--content-type iso` (or `vztmpl`/`import`) |
 | `ip` field empty in guest list | Agent not running or no IP yet | Check guest agent; `ip` populates only for running QEMU VMs with agent |
