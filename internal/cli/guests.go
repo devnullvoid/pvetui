@@ -81,6 +81,7 @@ func newGuestsCmd() *cobra.Command {
 	cmd.AddCommand(newGuestsStopCmd())
 	cmd.AddCommand(newGuestsShutdownCmd())
 	cmd.AddCommand(newGuestsRestartCmd())
+	cmd.AddCommand(newGuestsDeleteCmd())
 	cmd.AddCommand(newGuestsExecCmd())
 	cmd.AddCommand(newGuestsShellCmd())
 	cmd.AddCommand(newGuestsCreateCmd())
@@ -305,6 +306,99 @@ func newGuestsRestartCmd() *cobra.Command {
 			return client.RestartVM(vm)
 		}),
 	}
+}
+
+func newGuestsDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete <vmid>",
+		Short: "Permanently delete a guest",
+		Long: `Permanently delete a VM or container and all its associated disks.
+
+WARNING: This operation is irreversible. The guest must be stopped before deletion
+unless --force is passed.`,
+		Example: `  pvetui guests delete 108
+  pvetui guests delete 108 --purge
+  pvetui guests delete 108 --force --no-wait`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeVMIDs,
+		RunE:              runGuestsDelete,
+	}
+
+	cmd.Flags().Bool("purge", false, "Remove VMID from backup and replication jobs")
+	cmd.Flags().Bool("force", false, "Force deletion even if the guest is running")
+	addNoWaitFlag(cmd)
+
+	return cmd
+}
+
+func runGuestsDelete(cmd *cobra.Command, args []string) error {
+	vmid, err := parseVMID(args[0])
+	if err != nil {
+		return printError(err)
+	}
+
+	purge, _ := cmd.Flags().GetBool("purge")
+	force, _ := cmd.Flags().GetBool("force")
+
+	session, err := initCLISession(cmd)
+	if err != nil {
+		return printError(err)
+	}
+
+	if session == nil {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	vm, err := session.findVM(ctx, vmid)
+	if err != nil {
+		return printError(err)
+	}
+
+	client, err := session.clientForVM(vm)
+	if err != nil {
+		return printError(err)
+	}
+
+	upid, err := client.DeleteVMWithOptions(vm, &api.DeleteVMOptions{
+		Purge: purge,
+		Force: force,
+	})
+	if err != nil {
+		return printError(fmt.Errorf("failed to delete guest %d: %w", vmid, err))
+	}
+
+	out := struct {
+		VMID       int    `json:"vmid"`
+		Node       string `json:"node"`
+		UPID       string `json:"upid"`
+		Status     string `json:"status"`
+		ExitStatus string `json:"exit_status,omitempty"`
+	}{
+		VMID:   vmid,
+		Node:   vm.Node,
+		UPID:   upid,
+		Status: "running",
+	}
+
+	if getNoWait(cmd) {
+		return printJSON(out)
+	}
+
+	exitStatus, waitErr := waitForTask(ctx, client, vm.Node, upid, "delete guest")
+	out.Status = "complete"
+	out.ExitStatus = exitStatus
+
+	if err := printJSON(out); err != nil {
+		return err
+	}
+
+	if waitErr != nil {
+		return waitErr
+	}
+
+	return nil
 }
 
 // makeLifecycleCmd returns a RunE handler for start/stop/shutdown/restart.
