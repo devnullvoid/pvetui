@@ -2,12 +2,20 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/devnullvoid/pvetui/internal/adapters"
+	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/pkg/api"
+	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
 
 // captureStdout replaces os.Stdout for the duration of fn and returns what was written.
@@ -152,6 +160,197 @@ func TestFormatUptime(t *testing.T) {
 		got := formatUptime(tc.input)
 		if got != tc.want {
 			t.Errorf("formatUptime(%d) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+// newTestClient creates an api.Client pointing at the given httptest server URL.
+// The server must respond to POST /api2/json/access/ticket with a valid auth response.
+func newTestClient(t *testing.T, serverURL string) *api.Client {
+	t.Helper()
+
+	cfg := &config.Config{
+		Addr:     serverURL,
+		User:     "user",
+		Password: "pass",
+		Realm:    "pam",
+		Insecure: true,
+	}
+
+	client, err := api.NewClient(
+		adapters.NewConfigAdapter(cfg),
+		api.WithCache(&interfaces.NoOpCache{}),
+	)
+	if err != nil {
+		t.Fatalf("api.NewClient: %v", err)
+	}
+
+	return client
+}
+
+// authResponse is the minimal ticket response the API client needs.
+const authResponse = `{"data":{"ticket":"t","CSRFPreventionToken":"c","username":"user@pam"}}`
+
+// taskStatusResponse returns a /nodes/{node}/tasks/{upid}/status JSON body.
+func taskStatusResponse(exitStatus string) string {
+	return `{"data":{"status":"stopped","exitstatus":"` + exitStatus + `","upid":"UPID:pve:test","node":"pve","starttime":1700000000,"endtime":1700000060}}`
+}
+
+func TestWaitForTaskSuccess(t *testing.T) {
+	const upid = "UPID:pve:00001234:00000000:test:qmcreate:100:user@pam:"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.URL.Path == "/api2/json/access/ticket":
+			_, _ = w.Write([]byte(authResponse))
+		case r.URL.Path == "/api2/json/cluster/tasks":
+			// Return the task as already complete with OK status.
+			body := `{"data":[{"upid":"` + upid + `","status":"OK","endtime":1700000060,"starttime":1700000000,"node":"pve","type":"qmcreate"}]}`
+			_, _ = w.Write([]byte(body))
+		case strings.Contains(r.URL.Path, "/tasks/") && strings.HasSuffix(r.URL.Path, "/status"):
+			_, _ = w.Write([]byte(taskStatusResponse("OK")))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+
+	exitStatus, err := waitForTask(context.Background(), client, "pve", upid, "test-op")
+	if err != nil {
+		t.Fatalf("waitForTask returned unexpected error: %v", err)
+	}
+
+	if exitStatus != "OK" {
+		t.Errorf("exitStatus = %q, want %q", exitStatus, "OK")
+	}
+}
+
+func TestWaitForTaskFailure(t *testing.T) {
+	const upid = "UPID:pve:00001234:00000000:test:qmcreate:100:user@pam:"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.URL.Path == "/api2/json/access/ticket":
+			_, _ = w.Write([]byte(authResponse))
+		case r.URL.Path == "/api2/json/cluster/tasks":
+			// Task finished with an error status.
+			body := `{"data":[{"upid":"` + upid + `","status":"disk full","endtime":1700000060,"starttime":1700000000,"node":"pve","type":"qmcreate"}]}`
+			_, _ = w.Write([]byte(body))
+		case strings.Contains(r.URL.Path, "/tasks/") && strings.HasSuffix(r.URL.Path, "/status"):
+			_, _ = w.Write([]byte(taskStatusResponse("disk full")))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+
+	exitStatus, err := waitForTask(context.Background(), client, "pve", upid, "test-op")
+	if err == nil {
+		t.Fatal("waitForTask returned nil error, expected non-nil for failed task")
+	}
+
+	if !strings.Contains(err.Error(), "disk full") {
+		t.Errorf("error message %q does not mention failure reason", err.Error())
+	}
+
+	if exitStatus != "ERROR" {
+		t.Errorf("exitStatus = %q, want %q", exitStatus, "ERROR")
+	}
+}
+
+func TestWaitForTaskCancelled(t *testing.T) {
+	const upid = "UPID:pve:00001234:00000000:test:qmcreate:100:user@pam:"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.URL.Path == "/api2/json/access/ticket" {
+			_, _ = w.Write([]byte(authResponse))
+			return
+		}
+
+		// Never complete the task — return an empty task list so
+		// WaitForTaskCompletion keeps polling.
+		if r.URL.Path == "/api2/json/cluster/tasks" {
+			_, _ = w.Write([]byte(`{"data":[]}`))
+			return
+		}
+
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancelled before waitForTask is called
+
+	_, err := waitForTask(ctx, client, "pve", upid, "test-op")
+	if err == nil {
+		t.Fatal("waitForTask returned nil error, expected cancellation error")
+	}
+
+	if !strings.Contains(err.Error(), "cancelled") {
+		t.Errorf("error %q does not mention cancellation", err.Error())
+	}
+}
+
+func TestInferGuestTypeFromVolID(t *testing.T) {
+	cases := []struct {
+		volid   string
+		want    string
+		wantErr bool
+	}{
+		{"local:backup/vzdump-qemu-100-2024_01_01-00_00_00.tar.zst", "qemu", false},
+		{"local:backup/vzdump-lxc-101-2024_01_01-00_00_00.tar.zst", "lxc", false},
+		{"VZDUMP-QEMU-100.tar.zst", "qemu", false}, // case-insensitive
+		{"local:iso/debian-12.iso", "", true},
+		{"", "", true},
+	}
+
+	for _, tc := range cases {
+		got, err := inferGuestTypeFromVolID(tc.volid)
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("inferGuestTypeFromVolID(%q) returned no error, want error", tc.volid)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("inferGuestTypeFromVolID(%q) returned error: %v", tc.volid, err)
+			}
+
+			if got != tc.want {
+				t.Errorf("inferGuestTypeFromVolID(%q) = %q, want %q", tc.volid, got, tc.want)
+			}
+		}
+	}
+}
+
+func TestInferContentTypeFromURL(t *testing.T) {
+	cases := []struct {
+		url  string
+		want string
+	}{
+		{"https://example.com/debian-12.iso", "iso"},
+		{"https://example.com/debian-12.iso?foo=bar", "iso"},
+		{"https://example.com/debian-12-standard_12.7-1_amd64.tar.zst", "vztmpl"},
+		{"https://example.com/disk.img", "import"},
+		{"https://example.com/ubuntu.qcow2", ""},
+		{"https://example.com/file.TAR.GZ", "vztmpl"}, // case-insensitive
+	}
+
+	for _, tc := range cases {
+		got := inferContentTypeFromURL(tc.url)
+		if got != tc.want {
+			t.Errorf("inferContentTypeFromURL(%q) = %q, want %q", tc.url, got, tc.want)
 		}
 	}
 }
