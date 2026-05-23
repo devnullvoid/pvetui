@@ -14,10 +14,6 @@ permissions:
 jobs:
   lint:
     name: Lint
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ['1.26']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -25,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: .go-version
           cache: true
           cache-dependency-path: go.sum
 
@@ -40,18 +36,14 @@ jobs:
 
   test:
     name: Test
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ['1.26']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Go ${{ matrix.go-version }}
+      - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: .go-version
           cache: true
           cache-dependency-path: go.sum
 
@@ -73,15 +65,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go-version: ['1.26']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Go ${{ matrix.go-version }}
+      - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: .go-version
           cache: true
           cache-dependency-path: go.sum
 
