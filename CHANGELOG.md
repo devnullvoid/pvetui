@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Settings persistence**: TUI configuration saves now preserve `show_icons` and apply settings/profile actions to the active custom config path when one is in use.
+- **Icon toggle coverage**: Startup progress, onboarding, and snapshot/backup message emoji prefixes now respect `show_icons`, while operational status indicators and spinners remain visible.
 
 ## [1.4.0] - 2026-05-23
 

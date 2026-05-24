@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/taskmanager"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 )
@@ -97,7 +98,7 @@ func (a *App) ShowVMContextMenu() {
 
 	if isPending {
 		// * Show pending operation info in menu
-		menuItems = append(menuItems, fmt.Sprintf("⚠️  %s in progress...", pendingOperation))
+		menuItems = append(menuItems, utils.GetIconLabel(fmt.Sprintf("%s in progress...", pendingOperation), "⚠️", a.config.ShowIcons))
 	}
 
 	// Generate letter shortcuts based on menu items
@@ -200,7 +201,7 @@ func (a *App) ShowVMContextMenu() {
 			)
 		case vmActionStop:
 			a.showConfirmationDialog(
-				fmt.Sprintf("⚠️  Force stop '%s' (ID: %d)?\n\nThis is equivalent to power off and may cause data loss.", vm.Name, vm.ID),
+				utils.GetIconLabel(fmt.Sprintf("Force stop '%s' (ID: %d)?\n\nThis is equivalent to power off and may cause data loss.", vm.Name, vm.ID), "⚠️", a.config.ShowIcons),
 				func() {
 					client, err := a.getClientForVM(vm)
 					if err != nil {
@@ -225,7 +226,7 @@ func (a *App) ShowVMContextMenu() {
 		case vmActionReset:
 			if vm.Type == api.VMTypeQemu {
 				a.showConfirmationDialog(
-					fmt.Sprintf("⚠️  Hard reset '%s' (ID: %d)?\n\nThis is an immediate reset (like pressing reset) and may cause data loss.", vm.Name, vm.ID),
+					utils.GetIconLabel(fmt.Sprintf("Hard reset '%s' (ID: %d)?\n\nThis is an immediate reset (like pressing reset) and may cause data loss.", vm.Name, vm.ID), "⚠️", a.config.ShowIcons),
 					func() {
 						client, err := a.getClientForVM(vm)
 						if err != nil {
@@ -243,7 +244,7 @@ func (a *App) ShowVMContextMenu() {
 				a.showDeleteRunningVMDialog(vm)
 			} else {
 				a.showConfirmationDialog(
-					fmt.Sprintf("⚠️  DANGER: Are you sure you want to permanently DELETE VM '%s' (ID: %d)?\n\nThis action is IRREVERSIBLE and will destroy all VM data including disks!", vm.Name, vm.ID),
+					utils.GetIconLabel(fmt.Sprintf("DANGER: Are you sure you want to permanently DELETE VM '%s' (ID: %d)?\n\nThis action is IRREVERSIBLE and will destroy all VM data including disks!", vm.Name, vm.ID), "⚠️", a.config.ShowIcons),
 					func() {
 						a.performVMDeleteOperation(vm, false)
 					},

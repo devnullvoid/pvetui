@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/display"
 	"github.com/devnullvoid/pvetui/internal/keys"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 	"github.com/gdamore/tcell/v2"
@@ -737,7 +738,7 @@ func SaveConfigToFile(cfg *config.Config, path string) error {
 			// Log warning but continue - allow saving even if encryption fails
 			// This allows users to save cleartext if they prefer
 			if config.DebugEnabled {
-				fmt.Printf("⚠️  Warning: Failed to encrypt some fields: %v\n", err)
+				fmt.Println(display.IconText("⚠️", fmt.Sprintf("Warning: Failed to encrypt some fields: %v", err), cfg.ShowIcons))
 			}
 		} else {
 			cfg = &cfgCopy

@@ -16,6 +16,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/taskmanager"
 	"github.com/devnullvoid/pvetui/internal/taskpoller"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/internal/vnc"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
@@ -219,6 +220,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 
 	// Initialize components
 	app.header = NewHeader()
+	utils.SetShowIcons(cfg.ShowIcons)
 	app.footer = NewFooter()
 	app.footer.UpdateKeybindings(FormatFooterText(cfg.KeyBindings))
 	app.nodeList = NewNodeList()

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/display"
 	"github.com/devnullvoid/pvetui/internal/ui/components"
 	"github.com/devnullvoid/pvetui/internal/ui/plugins"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -29,7 +30,7 @@ func RunApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 
 	pluginInstances, missing := plugins.EnabledFromConfig(cfg)
 	if len(missing) > 0 {
-		fmt.Printf("⚠️ Unknown plugins requested: %s\n", strings.Join(missing, ", "))
+		fmt.Println(display.IconText("⚠️", fmt.Sprintf("Unknown plugins requested: %s", strings.Join(missing, ", ")), cfg.ShowIcons))
 	}
 
 	if err := app.InitializePlugins(ctx, pluginInstances); err != nil {
@@ -40,7 +41,7 @@ func RunApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		if err := app.ShutdownPlugins(shutdownCtx); err != nil {
-			fmt.Printf("⚠️ Failed to shutdown plugins: %v\n", err)
+			fmt.Println(display.IconText("⚠️", fmt.Sprintf("Failed to shutdown plugins: %v", err), cfg.ShowIcons))
 		}
 	}()
 

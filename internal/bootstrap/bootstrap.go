@@ -17,6 +17,7 @@ import (
 
 	"github.com/devnullvoid/pvetui/internal/app"
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/display"
 	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/onboarding"
 	"github.com/devnullvoid/pvetui/internal/profile"
@@ -180,10 +181,6 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		return nil, nil
 	}
 
-	if !opts.Quiet {
-		fmt.Println("🚀 Starting pvetui...")
-	}
-
 	// Handle config wizard BEFORE config loading and profile resolution
 	// This allows the wizard to work even when no config file exists
 	if opts.ConfigWizard {
@@ -230,6 +227,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		}
 
 		// For config wizard, we don't need profile resolution
+		if !opts.Quiet {
+			fmt.Println(display.IconText("🚀", "Starting pvetui...", effectiveShowIcons(cfg, opts)))
+		}
 		if err := HandleConfigWizard(cfg, configPath, selectedProfile); err != nil {
 			return nil, fmt.Errorf("config wizard failed: %w", err)
 		}
@@ -241,6 +241,10 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		if err := cfg.MergeWithFile(configPath); err != nil {
 			return nil, fmt.Errorf("failed to load config file: %w", err)
 		}
+	}
+	showIcons := effectiveShowIcons(cfg, opts)
+	if !opts.Quiet {
+		fmt.Println(display.IconText("🚀", "Starting pvetui...", showIcons))
 	}
 
 	// Handle profile selection
@@ -257,7 +261,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 		isGroup := cfg.IsGroup(selectedProfile)
 		if !isProfile && !isGroup {
 			if !opts.Quiet {
-				fmt.Printf("⚠️  Profile/group '%s' not found — falling back to selection.\n", selectedProfile)
+				fmt.Println(display.IconText("⚠️", fmt.Sprintf("Profile/group '%s' not found - falling back to selection.", selectedProfile), showIcons))
 			}
 			selectedProfile = ""
 		}
@@ -301,7 +305,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			if len(members) > 0 {
 				startupProfile = members[0]
 				if !opts.Quiet {
-					fmt.Printf("🔄 Selected group '%s' (bootstrapping via '%s')\n", selectedProfile, startupProfile)
+					fmt.Println(display.IconText("🔄", fmt.Sprintf("Selected group '%s' (bootstrapping via '%s')", selectedProfile, startupProfile), showIcons))
 				}
 			} else {
 				return nil, fmt.Errorf("aggregate group '%s' has no members", selectedProfile)
@@ -466,6 +470,13 @@ func applyFlagsToConfig(cfg *config.Config, opts BootstrapOptions) {
 	}
 }
 
+func effectiveShowIcons(cfg *config.Config, opts BootstrapOptions) bool {
+	if opts.FlagShowIcons != nil {
+		return *opts.FlagShowIcons
+	}
+	return cfg.ShowIcons
+}
+
 // StartApplication starts the main application with the given configuration.
 func StartApplication(result *BootstrapResult) error {
 	if result == nil {
@@ -473,9 +484,9 @@ func StartApplication(result *BootstrapResult) error {
 	}
 
 	if result.ConfigPath != "" {
-		fmt.Printf("✅ Configuration loaded from %s\n", result.ConfigPath)
+		fmt.Println(display.IconText("✅", fmt.Sprintf("Configuration loaded from %s", result.ConfigPath), result.Config.ShowIcons))
 	} else {
-		fmt.Println("✅ Configuration loaded from environment variables")
+		fmt.Println(display.IconText("✅", "Configuration loaded from environment variables", result.Config.ShowIcons))
 	}
 
 	// Apply theme configuration
@@ -490,7 +501,7 @@ func StartApplication(result *BootstrapResult) error {
 		return handleStartupError(err, result.Config)
 	}
 
-	fmt.Println("🚪 Exiting.")
+	fmt.Println(display.IconText("🚪", "Exiting.", result.Config.ShowIcons))
 	return nil
 }
 
@@ -529,11 +540,11 @@ func HandleConfigWizard(cfg *config.Config, configPath string, activeProfile str
 
 	switch {
 	case res.SopsEncrypted:
-		fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", configPath)
+		fmt.Println(display.IconText("✅", fmt.Sprintf("Configuration saved and encrypted with SOPS: %s", configPath), cfg.ShowIcons))
 	case res.Saved:
-		fmt.Println("✅ Configuration saved.")
+		fmt.Println(display.IconText("✅", "Configuration saved.", cfg.ShowIcons))
 	case res.Canceled:
-		fmt.Println("🚪 Exiting.")
+		fmt.Println(display.IconText("🚪", "Exiting.", cfg.ShowIcons))
 	}
 
 	return nil
@@ -541,14 +552,14 @@ func HandleConfigWizard(cfg *config.Config, configPath string, activeProfile str
 
 // handleStartupError provides user-friendly error messages for startup failures.
 func handleStartupError(err error, cfg *config.Config) error {
-	fmt.Printf("❌ %v\n", err)
+	fmt.Println(display.IconText("❌", err.Error(), cfg.ShowIcons))
 	fmt.Println()
 
 	if strings.Contains(err.Error(), "authentication failed") {
-		fmt.Println("💡 Please check your credentials in the config file:")
+		fmt.Println(display.IconText("💡", "Please check your credentials in the config file:", cfg.ShowIcons))
 		fmt.Printf("   %s\n", config.GetDefaultConfigPath())
 	} else if strings.Contains(err.Error(), "connection") || strings.Contains(err.Error(), "timeout") {
-		fmt.Println("💡 Please check your Proxmox server address and network connectivity:")
+		fmt.Println(display.IconText("💡", "Please check your Proxmox server address and network connectivity:", cfg.ShowIcons))
 		fmt.Printf("   Current address: %s\n", cfg.Addr)
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -184,7 +185,7 @@ func (sm *SnapshotManager) loadSnapshots() {
 		sm.app.Application.QueueUpdateDraw(func() {
 			sm.loading = false
 			if err != nil {
-				sm.updateInfoText(fmt.Sprintf("❌ Error loading snapshots: %v", err))
+				sm.updateInfoText(utils.GetIconLabel(fmt.Sprintf("Error loading snapshots: %v", err), "❌", sm.app.config.ShowIcons))
 				return
 			}
 
@@ -204,7 +205,7 @@ func (sm *SnapshotManager) displaySnapshots(snapshots []api.Snapshot) {
 
 	// Count real snapshots (excluding "current")
 	realSnapshotCount := sm.snapshotTable.GetSnapshotCount()
-	sm.updateInfoText(fmt.Sprintf("✅ Loaded %d snapshots", realSnapshotCount))
+	sm.updateInfoText(utils.GetIconLabel(fmt.Sprintf("Loaded %d snapshots", realSnapshotCount), "✅", sm.app.config.ShowIcons))
 }
 
 // updateInfoText updates the info text at the bottom.
@@ -236,7 +237,7 @@ func (sm *SnapshotManager) deleteSnapshot() {
 
 	snapshot := sm.snapshotTable.GetSelectedSnapshot()
 	if snapshot == nil {
-		sm.updateInfoText("❌ No snapshot selected.")
+		sm.updateInfoText(utils.GetIconLabel("No snapshot selected.", "❌", sm.app.config.ShowIcons))
 		return
 	}
 
@@ -260,7 +261,7 @@ func (sm *SnapshotManager) rollbackSnapshot() {
 
 	snapshot := sm.snapshotTable.GetSelectedSnapshot()
 	if snapshot == nil {
-		sm.updateInfoText("❌ No snapshot selected.")
+		sm.updateInfoText(utils.GetIconLabel("No snapshot selected.", "❌", sm.app.config.ShowIcons))
 		return
 	}
 
@@ -283,7 +284,7 @@ func (sm *SnapshotManager) performSnapshotOperation(
 ) {
 	snapshot := sm.snapshotTable.GetSelectedSnapshot()
 	if snapshot == nil {
-		sm.app.showMessageSafe(fmt.Sprintf("❌ Please select a snapshot to %s", operationName))
+		sm.app.showMessageSafe(utils.GetIconLabel(fmt.Sprintf("Please select a snapshot to %s", operationName), "❌", sm.app.config.ShowIcons))
 		return
 	}
 

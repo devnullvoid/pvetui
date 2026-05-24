@@ -80,6 +80,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/devnullvoid/pvetui/internal/display"
 	"github.com/devnullvoid/pvetui/internal/keys"
 	"github.com/getsops/sops/v3/decrypt"
 	"gopkg.in/yaml.v3"
@@ -422,7 +423,7 @@ func (c *Config) MergeWithFile(path string) error {
 
 		data = decrypted
 
-		fmt.Printf("🔐 Decrypted config file: %s\n", path)
+		fmt.Printf("Decrypted config file: %s\n", path)
 	}
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values
@@ -662,7 +663,7 @@ func (c *Config) MergeWithFile(path string) error {
 
 	// Migrate legacy configuration to profile-based if needed
 	if migrated := c.MigrateLegacyToProfiles(); migrated {
-		fmt.Printf("🔄 Migrated legacy configuration to profile-based format\n")
+		fmt.Printf("Migrated legacy configuration to profile-based format\n")
 	}
 
 	// Merge key bindings if provided
@@ -879,7 +880,7 @@ func (c *Config) MergeWithFile(path string) error {
 		if err := DecryptConfigSensitiveFields(c); err != nil {
 			// Log error but don't fail - allow cleartext to work
 			if DebugEnabled {
-				fmt.Printf("⚠️  Warning: Failed to decrypt some fields: %v\n", err)
+				fmt.Println(display.IconText("⚠️", fmt.Sprintf("Warning: Failed to decrypt some fields: %v", err), c.ShowIcons))
 			}
 		}
 	}

@@ -12,12 +12,13 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/display"
 	"github.com/devnullvoid/pvetui/internal/ui/components"
 )
 
 // HandleValidationError handles configuration validation errors by guiding users through onboarding.
 func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bool, activeProfile string) error {
-	fmt.Println("🔧 Configuration Setup Required")
+	fmt.Println(display.IconText("🔧", "Configuration Setup Required", cfg.ShowIcons))
 	fmt.Println()
 	target, err := resolveOnboardingTarget(configPath)
 	if err != nil {
@@ -36,16 +37,16 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 	fmt.Println()
 
 	if target.exists {
-		fmt.Printf("✅ Found existing configuration at '%s'.\n", target.path)
+		fmt.Println(display.IconText("✅", fmt.Sprintf("Found existing configuration at '%s'.", target.path), cfg.ShowIcons))
 		if isKeyBindingValidationError(validationErr) {
-			fmt.Printf("💡 Key binding errors must be fixed directly in '%s' under key_bindings.\n", target.path)
-			fmt.Printf("💡 Please update the configuration file to resolve: %v\n", validationErr)
-			fmt.Println("🚪 Exiting.")
+			fmt.Println(display.IconText("💡", fmt.Sprintf("Key binding errors must be fixed directly in '%s' under key_bindings.", target.path), cfg.ShowIcons))
+			fmt.Println(display.IconText("💡", fmt.Sprintf("Please update the configuration file to resolve: %v", validationErr), cfg.ShowIcons))
+			fmt.Println(display.IconText("🚪", "Exiting.", cfg.ShowIcons))
 			os.Exit(0)
 		}
 		if !promptYesNo("Would you like to open the interactive editor to fix it?") {
-			fmt.Printf("💡 Please update the configuration file to resolve: %v\n", validationErr)
-			fmt.Println("🚪 Exiting.")
+			fmt.Println(display.IconText("💡", fmt.Sprintf("Please update the configuration file to resolve: %v", validationErr), cfg.ShowIcons))
+			fmt.Println(display.IconText("🚪", "Exiting.", cfg.ShowIcons))
 			os.Exit(0)
 		}
 
@@ -54,29 +55,29 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 		targetProfile := activeProfile
 		if conflicts := cfg.FindGroupProfileNameConflicts(); len(conflicts) > 0 {
 			targetProfile = conflicts[0]
-			fmt.Printf("💡 Opening the editor for profile '%s' so you can rename it (group name conflict).\n", targetProfile)
+			fmt.Println(display.IconText("💡", fmt.Sprintf("Opening the editor for profile '%s' so you can rename it (group name conflict).", targetProfile), cfg.ShowIcons))
 		}
 
 		res := launchConfigWizard(cfg, target.path, targetProfile)
 		if res.SopsEncrypted {
-			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", target.path)
+			fmt.Println(display.IconText("✅", fmt.Sprintf("Configuration saved and encrypted with SOPS: %s", target.path), cfg.ShowIcons))
 		} else if res.Saved {
-			fmt.Println("✅ Configuration saved.")
+			fmt.Println(display.IconText("✅", "Configuration saved.", cfg.ShowIcons))
 		} else if res.Canceled {
-			fmt.Println("ℹ️  No changes were saved.")
+			fmt.Println(display.IconText("ℹ️", "No changes were saved.", cfg.ShowIcons))
 		}
 
 		fmt.Println()
-		fmt.Println("✅ Configuration is ready!")
-		fmt.Println("🔄 Please re-run 'pvetui' to start the application with your updated configuration.")
-		fmt.Println("🚪 Exiting.")
+		fmt.Println(display.IconText("✅", "Configuration is ready!", cfg.ShowIcons))
+		fmt.Println(display.IconText("🔄", "Please re-run 'pvetui' to start the application with your updated configuration.", cfg.ShowIcons))
+		fmt.Println(display.IconText("🚪", "Exiting.", cfg.ShowIcons))
 		os.Exit(0)
 	}
 
 	defaultPath := target.path
 	if !promptYesNo(fmt.Sprintf("Would you like to create a default configuration file at '%s'?", defaultPath)) {
-		fmt.Println("❌ Configuration setup canceled. You can configure via flags or environment variables instead.")
-		fmt.Println("🚪 Exiting.")
+		fmt.Println(display.IconText("❌", "Configuration setup canceled. You can configure via flags or environment variables instead.", cfg.ShowIcons))
+		fmt.Println(display.IconText("🚪", "Exiting.", cfg.ShowIcons))
 		os.Exit(0)
 	}
 
@@ -84,10 +85,10 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 
 	path, createErr := config.CreateDefaultConfigFile()
 	if createErr != nil {
-		log.Fatalf("❌ Error creating config file: %v", createErr)
+		log.Fatal(display.IconText("❌", fmt.Sprintf("Error creating config file: %v", createErr), cfg.ShowIcons))
 	}
 
-	fmt.Printf("✅ Success! Configuration file created at %s\n", path)
+	fmt.Println(display.IconText("✅", fmt.Sprintf("Success! Configuration file created at %s", path), cfg.ShowIcons))
 	fmt.Println()
 
 	if promptYesNo("Would you like to edit the new config in the interactive editor?") {
@@ -96,18 +97,19 @@ func HandleValidationError(cfg *config.Config, configPath string, noCacheFlag bo
 
 		res := launchConfigWizard(newCfg, path, activeProfile)
 		if res.SopsEncrypted {
-			fmt.Printf("✅ Configuration saved and encrypted with SOPS: %s\n", path)
+			fmt.Println(display.IconText("✅", fmt.Sprintf("Configuration saved and encrypted with SOPS: %s", path), newCfg.ShowIcons))
 		} else if res.Saved {
-			fmt.Println("✅ Configuration saved.")
+			fmt.Println(display.IconText("✅", "Configuration saved.", newCfg.ShowIcons))
 		} else if res.Canceled {
-			fmt.Println("ℹ️  Using default configuration.")
+			fmt.Println(display.IconText("ℹ️", "Using default configuration.", newCfg.ShowIcons))
 		}
+		cfg.ShowIcons = newCfg.ShowIcons
 	}
 
 	fmt.Println()
-	fmt.Println("✅ Configuration is ready!")
-	fmt.Println("🔄 Please re-run 'pvetui' to start the application with your new configuration.")
-	fmt.Println("🚪 Exiting.")
+	fmt.Println(display.IconText("✅", "Configuration is ready!", cfg.ShowIcons))
+	fmt.Println(display.IconText("🔄", "Please re-run 'pvetui' to start the application with your new configuration.", cfg.ShowIcons))
+	fmt.Println(display.IconText("🚪", "Exiting.", cfg.ShowIcons))
 	os.Exit(0)
 	return nil
 }

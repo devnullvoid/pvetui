@@ -2,8 +2,22 @@ package utils
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
+
+	"github.com/devnullvoid/pvetui/internal/display"
 )
+
+var showIcons atomic.Bool
+
+func init() {
+	showIcons.Store(true)
+}
+
+// SetShowIcons controls icon prefixes used in terminal flows that suspend the TUI.
+func SetShowIcons(enabled bool) {
+	showIcons.Store(enabled)
+}
 
 // WaitForReturnWithCountdown waits for a specified number of seconds,
 // displaying a countdown, before returning to the TUI.
@@ -35,9 +49,9 @@ func WaitForEnter() {
 func WaitForEnterToReturn(err error, successMsg, failureMsg string) {
 	// Show completion status
 	if err != nil {
-		fmt.Printf("\n❌ %s: %v\n", failureMsg, err)
+		fmt.Printf("\n%s\n", display.IconText("❌", fmt.Sprintf("%s: %v", failureMsg, err), showIcons.Load()))
 	} else {
-		fmt.Printf("\n✅ %s\n", successMsg)
+		fmt.Printf("\n%s\n", display.IconText("✅", successMsg, showIcons.Load()))
 	}
 
 	fmt.Print("\nPress Enter to return to the TUI...")

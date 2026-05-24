@@ -183,7 +183,7 @@ group_settings:
   prod-ha:
     mode: cluster    # connect to one healthy profile with automatic failover
 debug: false
-show_icons: true
+show_icons: true # Controls decorative TUI and startup/status message emoji prefixes
 ```
 
 `vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_keyfile` is optional; when omitted, pvetui uses the running SSH agent (`SSH_AUTH_SOCK`) if available, then falls back to `~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, and `~/.ssh/id_ecdsa`. `vm_ssh_keyfile` follows the same logic and falls back to `ssh_keyfile`. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
@@ -352,7 +352,7 @@ Windows legacy fallback:
 | `--debug` | | `PVETUI_DEBUG` | Enable debug logging |
 | `--cache-dir` | | `PVETUI_CACHE_DIR` | Cache directory path |
 | `--age-dir` | | `PVETUI_AGE_DIR` | Age key directory path |
-| `--show-icons` | | `PVETUI_SHOW_ICONS` | Show icons/emojis in UI |
+| `--show-icons` | | `PVETUI_SHOW_ICONS` | Show decorative icons/emojis in UI and startup/status messages |
 
 **Environment Variables**: All flags can also be set via environment variables with `PVETUI_` prefix (e.g., `PVETUI_ADDR`, `PVETUI_USER`).
 

@@ -334,7 +334,7 @@ plugins:
 
 ### Icon Toggle
 
-Enable or disable icons/emojis in the UI:
+Enable or disable decorative icons/emojis in the UI and startup/status messages. Functional status indicators and loading spinners remain visible:
 
 ```yaml
 show_icons: false

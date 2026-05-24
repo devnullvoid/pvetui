@@ -278,7 +278,7 @@ func SaveConfigFile(cfg *Config, path string) error {
 		if err := EncryptConfigSensitiveFields(cfg); err != nil {
 			// Log warning but continue - allow saving even if encryption fails
 			if DebugEnabled {
-				fmt.Printf("⚠️  Warning: Failed to encrypt some fields: %v\n", err)
+				fmt.Printf("Warning: Failed to encrypt some fields: %v\n", err)
 			}
 		}
 	}

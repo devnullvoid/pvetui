@@ -11,6 +11,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
 )
 
 const (
@@ -105,6 +106,7 @@ func (a *App) showApplicationSettingsDialog() {
 		config.DebugEnabled = debug
 		logger.SetDebugEnabled(debug)
 		config.SetAgeDirOverride(a.config.AgeDir)
+		utils.SetShowIcons(showIcons)
 		a.footer.UpdateKeybindings(FormatFooterText(a.config.KeyBindings))
 		a.helpModal = NewHelpModal(a.config.KeyBindings)
 		a.helpModal.SetApp(a)

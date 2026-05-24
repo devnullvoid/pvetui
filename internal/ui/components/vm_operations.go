@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/taskmanager"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
@@ -90,7 +91,7 @@ func (a *App) performVMDeleteOperation(vm *api.VM, forced bool) {
 
 // showDeleteRunningVMDialog shows a dialog with options for deleting a running VM.
 func (a *App) showDeleteRunningVMDialog(vm *api.VM) {
-	message := fmt.Sprintf("⚠️  VM '%s' (ID: %d) is currently RUNNING\n\nProxmox can force delete running VMs.\n\nAre you sure you want to FORCE DELETE this running VM?\n\nThis will IMMEDIATELY DESTROY the VM and ALL its data!", vm.Name, vm.ID)
+	message := utils.GetIconLabel(fmt.Sprintf("VM '%s' (ID: %d) is currently RUNNING\n\nProxmox can force delete running VMs.\n\nAre you sure you want to FORCE DELETE this running VM?\n\nThis will IMMEDIATELY DESTROY the VM and ALL its data!", vm.Name, vm.ID), "⚠️", a.config.ShowIcons)
 	a.showConfirmationDialog(message, func() {
 		a.performVMDeleteOperation(vm, true)
 	})

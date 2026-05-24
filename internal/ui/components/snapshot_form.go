@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -51,7 +52,7 @@ func (sf *SnapshotForm) ShowCreateForm(onSuccess func()) {
 		}
 
 		if name == "" {
-			sf.app.showMessageSafe("❌ Snapshot name is required")
+			sf.app.showMessageSafe(utils.GetIconLabel("Snapshot name is required", "❌", sf.app.config.ShowIcons))
 			return
 		}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/devnullvoid/pvetui/internal/ui/models"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
+	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -184,7 +185,7 @@ func (bm *BackupManager) loadBackups() {
 		bm.app.Application.QueueUpdateDraw(func() {
 			bm.loading = false
 			if err != nil {
-				bm.updateInfoText(fmt.Sprintf("❌ Error loading backups: %v", err))
+				bm.updateInfoText(utils.GetIconLabel(fmt.Sprintf("Error loading backups: %v", err), "❌", bm.app.config.ShowIcons))
 				return
 			}
 			bm.displayBackups(backups)
@@ -199,7 +200,7 @@ func (bm *BackupManager) displayBackups(backups []api.Backup) {
 		// Create a fake backup entry for the running task
 		runningBackup := api.Backup{
 			VolID:   "TASK: " + task.UPID,
-			Name:    "⚠️  Backup in Progress...",
+			Name:    utils.GetIconLabel("Backup in Progress...", "⚠️", bm.app.config.ShowIcons),
 			Date:    task.StartTime,
 			Notes:   fmt.Sprintf("Status: %s", task.Status),
 			Size:    0,
@@ -217,7 +218,7 @@ func (bm *BackupManager) displayBackups(backups []api.Backup) {
 		return
 	}
 
-	bm.updateInfoText(fmt.Sprintf("✅ Loaded %d backups (Ctrl+R to refresh)", len(backups)))
+	bm.updateInfoText(utils.GetIconLabel(fmt.Sprintf("Loaded %d backups (Ctrl+R to refresh)", len(backups)), "✅", bm.app.config.ShowIcons))
 }
 
 func (bm *BackupManager) updateInfoText(text string) {
@@ -250,13 +251,13 @@ func (bm *BackupManager) restoreBackup() {
 
 	backup := bm.backupTable.GetSelectedBackup()
 	if backup == nil {
-		bm.updateInfoText("❌ No backup selected.")
+		bm.updateInfoText(utils.GetIconLabel("No backup selected.", "❌", bm.app.config.ShowIcons))
 		return
 	}
 
 	// Prevent restoring the "Running" fake backup
 	if strings.HasPrefix(backup.VolID, "TASK:") {
-		bm.updateInfoText("❌ Cannot restore an in-progress backup task.")
+		bm.updateInfoText(utils.GetIconLabel("Cannot restore an in-progress backup task.", "❌", bm.app.config.ShowIcons))
 		return
 	}
 
@@ -304,13 +305,13 @@ func (bm *BackupManager) deleteBackup() {
 
 	backup := bm.backupTable.GetSelectedBackup()
 	if backup == nil {
-		bm.updateInfoText("❌ No backup selected.")
+		bm.updateInfoText(utils.GetIconLabel("No backup selected.", "❌", bm.app.config.ShowIcons))
 		return
 	}
 
 	// Prevent deleting the "Running" fake backup
 	if strings.HasPrefix(backup.VolID, "TASK:") {
-		bm.updateInfoText("❌ Cannot delete an in-progress backup task.")
+		bm.updateInfoText(utils.GetIconLabel("Cannot delete an in-progress backup task.", "❌", bm.app.config.ShowIcons))
 		return
 	}
 

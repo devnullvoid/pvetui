@@ -9,6 +9,7 @@ import (
 	"github.com/devnullvoid/pvetui/internal/adapters"
 	"github.com/devnullvoid/pvetui/internal/cache"
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/devnullvoid/pvetui/internal/display"
 	"github.com/devnullvoid/pvetui/internal/logger"
 	"github.com/devnullvoid/pvetui/internal/ui"
 	"github.com/devnullvoid/pvetui/internal/ui/models"
@@ -64,7 +65,7 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 	cacheAdapter := adapters.NewCacheAdapter()
 
 	// Initialize API client (this just sets up the client, doesn't test connectivity)
-	fmt.Println("🔧 Initializing API client...")
+	fmt.Println(display.IconText("🔧", "Initializing API client...", cfg.ShowIcons))
 
 	var client *api.Client
 	var profilesToTry []string
@@ -108,9 +109,9 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 		}
 
 		if profileName != "" {
-			fmt.Printf("🔗 Testing connection to %s (%s)...\n", profileName, strings.TrimSuffix(cfg.Addr, "/api2/json"))
+			fmt.Println(display.IconText("🔗", fmt.Sprintf("Testing connection to %s (%s)...", profileName, strings.TrimSuffix(cfg.Addr, "/api2/json")), cfg.ShowIcons))
 		} else {
-			fmt.Printf("🔗 Testing connection to %s...\n", strings.TrimSuffix(cfg.Addr, "/api2/json"))
+			fmt.Println(display.IconText("🔗", fmt.Sprintf("Testing connection to %s...", strings.TrimSuffix(cfg.Addr, "/api2/json")), cfg.ShowIcons))
 		}
 
 		// Try a simple API call to verify connectivity and authentication
@@ -128,7 +129,7 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 		}
 
 		connected = true
-		fmt.Println("✅ API client initialized")
+		fmt.Println(display.IconText("✅", "API client initialized", cfg.ShowIcons))
 		break
 	}
 
@@ -142,14 +143,14 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 		return fmt.Errorf("failed to connect to any profile")
 	}
 
-	fmt.Println("✅ Connected successfully")
-	fmt.Println("✅ Authentication successful")
+	fmt.Println(display.IconText("✅", "Connected successfully", cfg.ShowIcons))
+	fmt.Println(display.IconText("✅", "Authentication successful", cfg.ShowIcons))
 
 	autoEncryptConfig(cfg, configPath)
 
-	fmt.Println("🖥️  Loading interface...")
+	fmt.Println(display.IconText("🖥️", "Loading interface...", cfg.ShowIcons))
 	if opts.InitialGroup != "" {
-		fmt.Printf("🔄 Will automatically switch to group mode: %s\n", opts.InitialGroup)
+		fmt.Println(display.IconText("🔄", fmt.Sprintf("Will automatically switch to group mode: %s", opts.InitialGroup), cfg.ShowIcons))
 	}
 	fmt.Println()
 
@@ -184,11 +185,11 @@ func autoEncryptConfig(cfg *config.Config, configPath string) {
 
 	if err := config.SaveConfigFile(&cfgCopy, configPath); err != nil {
 		if config.DebugEnabled {
-			fmt.Printf("⚠️  Warning: Failed to encrypt and save config: %v\n", err)
+			fmt.Println(display.IconText("⚠️", fmt.Sprintf("Warning: Failed to encrypt and save config: %v", err), cfg.ShowIcons))
 		}
 		return
 	}
 
-	fmt.Println("🔐 Encrypted sensitive fields in config file")
+	fmt.Println(display.IconText("🔐", "Encrypted sensitive fields in config file", cfg.ShowIcons))
 	cfg.MarkSensitiveDataEncrypted()
 }
