@@ -397,6 +397,10 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 
 	enabled := bootstrap.Enabled
 	username := strings.TrimSpace(bootstrap.Username)
+	uidRaw := ""
+	if bootstrap.UID > 0 {
+		uidRaw = strconv.Itoa(bootstrap.UID)
+	}
 	shell := strings.TrimSpace(bootstrap.Shell)
 	createHome := bootstrap.CreateHome
 	excludeWindowsGuests := bootstrap.ExcludeWindowsGuests
@@ -413,6 +417,7 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 
 	form.AddCheckbox("Enabled", enabled, func(checked bool) { enabled = checked })
 	form.AddInputField("Username", username, 32, nil, func(text string) { username = strings.TrimSpace(text) })
+	form.AddInputField("UID", uidRaw, 12, nil, func(text string) { uidRaw = strings.TrimSpace(text) })
 	form.AddInputField("Shell", shell, 32, nil, func(text string) { shell = strings.TrimSpace(text) })
 	form.AddCheckbox("Create Home", createHome, func(checked bool) { createHome = checked })
 	form.AddCheckbox("Exclude Windows Guests", excludeWindowsGuests, func(checked bool) {
@@ -443,6 +448,11 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 			p.app.ShowMessageSafe("Bootstrap username is required.")
 			return
 		}
+		uid, err := parseOptionalPositiveInt(uidRaw)
+		if err != nil {
+			p.app.ShowMessageSafe(fmt.Sprintf("Invalid UID: %v", err))
+			return
+		}
 		parallelism, err := strconv.Atoi(strings.TrimSpace(parallelismRaw))
 		if err != nil || parallelism <= 0 {
 			p.app.ShowMessageSafe("Parallelism must be a positive integer.")
@@ -459,6 +469,7 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 
 		cfg.Plugins.Ansible.Bootstrap.Enabled = enabled
 		cfg.Plugins.Ansible.Bootstrap.Username = username
+		cfg.Plugins.Ansible.Bootstrap.UID = uid
 		cfg.Plugins.Ansible.Bootstrap.Shell = shell
 		cfg.Plugins.Ansible.Bootstrap.CreateHome = createHome
 		cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests = excludeWindowsGuests
@@ -491,7 +502,7 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 		return event
 	})
 
-	pages.AddPage(bootstrapSettingsPageName, p.centerModal(form, 104, 31), true, true)
+	pages.AddPage(bootstrapSettingsPageName, p.centerModal(form, 104, 32), true, true)
 	p.app.SetFocus(form)
 }
 
@@ -927,6 +938,18 @@ func scopeToIndex(scope string) int {
 	}
 }
 
+func parseOptionalPositiveInt(raw string) (int, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return 0, nil
+	}
+	value, err := strconv.Atoi(trimmed)
+	if err != nil || value <= 0 {
+		return 0, fmt.Errorf("must be a positive integer or blank")
+	}
+	return value, nil
+}
+
 func buildLimitPickerOptions(inventory coreansible.InventoryResult) ([]string, []string) {
 	groupSet := make(map[string]struct{})
 	hosts := make([]string, 0, len(inventory.Hosts))
@@ -1317,6 +1340,11 @@ func (p *Plugin) runDirectBootstrapForHost(
 	}
 
 	script := buildDirectBootstrapScript(cfg, keyContent, dryRun)
+	if cfg.UID < 0 {
+		result.Status = statusFailed
+		result.Message = "bootstrap uid must be a positive integer or omitted"
+		return result
+	}
 	targetIsIP := net.ParseIP(target) != nil
 	attemptTimeout := directBootstrapAttemptTimeout(dryRun)
 	canAttemptSSH := targetIsIP && strings.TrimSpace(user) != ""
@@ -1717,6 +1745,7 @@ func finalizeDirectBootstrapResult(
 
 func buildDirectBootstrapScript(cfg cfgpkg.AnsibleBootstrapConfig, keyContent string, dryRun bool) string {
 	userQuoted := shellSingleQuote(strings.TrimSpace(cfg.Username))
+	uidQuoted := shellSingleQuote(formatBootstrapUID(cfg.UID))
 	shellQuoted := shellSingleQuote(strings.TrimSpace(cfg.Shell))
 	passQuoted := shellSingleQuote(strings.TrimSpace(cfg.Password))
 	keyQuoted := shellSingleQuote(strings.TrimSpace(keyContent))
@@ -1726,6 +1755,7 @@ func buildDirectBootstrapScript(cfg cfgpkg.AnsibleBootstrapConfig, keyContent st
 set -eu
 
 BOOTSTRAP_USER=%s
+BOOTSTRAP_UID=%s
 BOOTSTRAP_SHELL=%s
 BOOTSTRAP_PASS=%s
 BOOTSTRAP_KEY=%s
@@ -1748,10 +1778,24 @@ if [ "$DRY_RUN" = "true" ]; then
 
   if ! id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then
     echo "would_create_user=1"
-    echo "plan_useradd=useradd -s $BOOTSTRAP_SHELL $BOOTSTRAP_USER"
+    if [ -n "$BOOTSTRAP_UID" ]; then
+      echo "plan_useradd=useradd -u $BOOTSTRAP_UID -s $BOOTSTRAP_SHELL $BOOTSTRAP_USER"
+    else
+      echo "plan_useradd=useradd -s $BOOTSTRAP_SHELL $BOOTSTRAP_USER"
+    fi
     would_change=$((would_change+1))
   else
     echo "would_create_user=0"
+    if [ -n "$BOOTSTRAP_UID" ]; then
+      CURRENT_UID="$(id -u "$BOOTSTRAP_USER")"
+      if [ "$CURRENT_UID" != "$BOOTSTRAP_UID" ]; then
+        echo "would_update_uid=1"
+        echo "plan_usermod=usermod -u $BOOTSTRAP_UID $BOOTSTRAP_USER"
+        would_change=$((would_change+1))
+      else
+        echo "would_update_uid=0"
+      fi
+    fi
   fi
 
   if [ "$INSTALL_KEY" = "true" ] && [ -n "$BOOTSTRAP_KEY" ]; then
@@ -1794,12 +1838,30 @@ fi
 
 if ! id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then
   if [ "$CREATE_HOME" = "true" ]; then
-    useradd -m -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+    if [ -n "$BOOTSTRAP_UID" ]; then
+      useradd -m -u "$BOOTSTRAP_UID" -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+    else
+      useradd -m -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+    fi
   else
-    useradd -M -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+    if [ -n "$BOOTSTRAP_UID" ]; then
+      useradd -M -u "$BOOTSTRAP_UID" -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+    else
+      useradd -M -s "$BOOTSTRAP_SHELL" "$BOOTSTRAP_USER"
+    fi
   fi
   changed=1
   applied_create_user=1
+fi
+
+applied_update_uid=0
+if [ -n "$BOOTSTRAP_UID" ]; then
+  CURRENT_UID="$(id -u "$BOOTSTRAP_USER")"
+  if [ "$CURRENT_UID" != "$BOOTSTRAP_UID" ]; then
+    usermod -u "$BOOTSTRAP_UID" "$BOOTSTRAP_USER"
+    changed=1
+    applied_update_uid=1
+  fi
 fi
 
 # Update shell only if needed.
@@ -1845,12 +1907,13 @@ if [ "$GRANT_SUDO" = "true" ]; then
 fi
 
 echo "applied_create_user=$applied_create_user"
+echo "applied_update_uid=$applied_update_uid"
 echo "applied_update_shell=$applied_update_shell"
 echo "applied_install_authorized_key=$applied_install_authorized_key"
 echo "applied_set_password=$applied_set_password"
 echo "applied_create_sudoers=$applied_create_sudoers"
 echo "changed=$changed"
-`, userQuoted, shellQuoted, passQuoted, keyQuoted, modeQuoted, dryRun, cfg.CreateHome, cfg.InstallAuthorizedKey, cfg.SetPassword, cfg.GrantSudoNOPASSWD)
+`, userQuoted, uidQuoted, shellQuoted, passQuoted, keyQuoted, modeQuoted, dryRun, cfg.CreateHome, cfg.InstallAuthorizedKey, cfg.SetPassword, cfg.GrantSudoNOPASSWD)
 }
 
 func selectDirectBootstrapTargets(hosts []coreansible.InventoryHost, limit string) []coreansible.InventoryHost {
@@ -1988,10 +2051,20 @@ func shellSingleQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
 }
 
+func formatBootstrapUID(uid int) string {
+	if uid <= 0 {
+		return ""
+	}
+	return strconv.Itoa(uid)
+}
+
 func (p *Plugin) buildBootstrapPlaybook(cfg cfgpkg.AnsibleBootstrapConfig) (string, error) {
 	username := strings.TrimSpace(cfg.Username)
 	if username == "" {
 		return "", fmt.Errorf("bootstrap username is required")
+	}
+	if cfg.UID < 0 {
+		return "", fmt.Errorf("bootstrap uid must be a positive integer or omitted")
 	}
 
 	var keyContent string
@@ -2018,6 +2091,7 @@ func (p *Plugin) buildBootstrapPlaybook(cfg cfgpkg.AnsibleBootstrapConfig) (stri
 	quotedKey := strconv.Quote(keyContent)
 	quotedPassword := strconv.Quote(strings.TrimSpace(cfg.Password))
 	quotedUsername := strconv.Quote(username)
+	quotedUID := strconv.Quote(formatBootstrapUID(cfg.UID))
 	quotedShell := strconv.Quote(strings.TrimSpace(cfg.Shell))
 	quotedMode := strconv.Quote(strings.TrimSpace(cfg.SudoersFileMode))
 
@@ -2029,6 +2103,7 @@ func (p *Plugin) buildBootstrapPlaybook(cfg cfgpkg.AnsibleBootstrapConfig) (stri
   any_errors_fatal: %t
   vars:
     bootstrap_username: %s
+    bootstrap_uid: %s
     bootstrap_shell: %s
     bootstrap_create_home: %t
     bootstrap_install_authorized_key: %t
@@ -2043,6 +2118,7 @@ func (p *Plugin) buildBootstrapPlaybook(cfg cfgpkg.AnsibleBootstrapConfig) (stri
     - name: Ensure bootstrap user exists
       ansible.builtin.user:
         name: "{{ bootstrap_username }}"
+        uid: "{{ bootstrap_uid if bootstrap_uid | length > 0 else omit }}"
         shell: "{{ bootstrap_shell }}"
         create_home: "{{ bootstrap_create_home }}"
         state: present
@@ -2092,7 +2168,7 @@ func (p *Plugin) buildBootstrapPlaybook(cfg cfgpkg.AnsibleBootstrapConfig) (stri
       when:
         - bootstrap_grant_sudo_nopasswd
         - not bootstrap_sudoers_stat.stat.exists
-`, cfg.FailFast, quotedUsername, quotedShell, cfg.CreateHome, cfg.InstallAuthorizedKey, quotedKey, cfg.SetPassword, quotedPassword, cfg.GrantSudoNOPASSWD, quotedMode)
+`, cfg.FailFast, quotedUsername, quotedUID, quotedShell, cfg.CreateHome, cfg.InstallAuthorizedKey, quotedKey, cfg.SetPassword, quotedPassword, cfg.GrantSudoNOPASSWD, quotedMode)
 
 	return playbook, nil
 }

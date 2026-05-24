@@ -91,6 +91,7 @@ plugins:
     bootstrap:
       enabled: true
       username: "ansible"
+      uid: 1001                         # optional fixed UID for the bootstrap user
       shell: "/bin/bash"
       create_home: true
       exclude_windows_guests: true      # skip Windows guests in direct mode

@@ -205,6 +205,7 @@ type AnsiblePluginConfig struct {
 type AnsibleBootstrapConfig struct {
 	Enabled              bool   `yaml:"enabled,omitempty"`
 	Username             string `yaml:"username,omitempty"`
+	UID                  int    `yaml:"uid,omitempty"`
 	Shell                string `yaml:"shell,omitempty"`
 	CreateHome           bool   `yaml:"create_home,omitempty"`
 	ExcludeWindowsGuests bool   `yaml:"exclude_windows_guests,omitempty"`
@@ -473,6 +474,7 @@ func (c *Config) MergeWithFile(path string) error {
 				Bootstrap         struct {
 					Enabled              *bool  `yaml:"enabled"`
 					Username             string `yaml:"username"`
+					UID                  *int   `yaml:"uid"`
 					Shell                string `yaml:"shell"`
 					CreateHome           *bool  `yaml:"create_home"`
 					ExcludeWindowsGuests *bool  `yaml:"exclude_windows_guests"`
@@ -807,6 +809,9 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 	if fileConfig.Plugins.Ansible.Bootstrap.Username != "" {
 		c.Plugins.Ansible.Bootstrap.Username = fileConfig.Plugins.Ansible.Bootstrap.Username
+	}
+	if fileConfig.Plugins.Ansible.Bootstrap.UID != nil {
+		c.Plugins.Ansible.Bootstrap.UID = *fileConfig.Plugins.Ansible.Bootstrap.UID
 	}
 	if fileConfig.Plugins.Ansible.Bootstrap.Shell != "" {
 		c.Plugins.Ansible.Bootstrap.Shell = fileConfig.Plugins.Ansible.Bootstrap.Shell

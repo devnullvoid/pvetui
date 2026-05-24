@@ -98,6 +98,7 @@ plugins:
   #   bootstrap:
   #     enabled: false
   #     username: "ansible"
+  #     uid: 1001                    # Optional fixed UID for the bootstrap user
   #     shell: "/bin/bash"
   #     create_home: true
   #     ssh_public_key_file: "~/.ssh/id_ed25519.pub"

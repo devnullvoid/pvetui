@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Ansible bootstrap UID**: Bootstrap Access can now create or update the managed Ansible user with a configured numeric UID via `plugins.ansible.bootstrap.uid`.
+
 ## [1.4.0] - 2026-05-23
 
 ### Added

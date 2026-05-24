@@ -544,6 +544,7 @@ plugins:
     bootstrap:
       enabled: true
       username: ansible
+      uid: 1001
       shell: /bin/bash
       create_home: true
       exclude_windows_guests: true
@@ -581,6 +582,7 @@ plugins:
 	assert.Equal(t, []string{"--forks", "20"}, cfg.Plugins.Ansible.ExtraArgs)
 	assert.True(t, cfg.Plugins.Ansible.Bootstrap.Enabled)
 	assert.Equal(t, "ansible", cfg.Plugins.Ansible.Bootstrap.Username)
+	assert.Equal(t, 1001, cfg.Plugins.Ansible.Bootstrap.UID)
 	assert.Equal(t, "/bin/bash", cfg.Plugins.Ansible.Bootstrap.Shell)
 	assert.True(t, cfg.Plugins.Ansible.Bootstrap.CreateHome)
 	assert.True(t, cfg.Plugins.Ansible.Bootstrap.ExcludeWindowsGuests)
