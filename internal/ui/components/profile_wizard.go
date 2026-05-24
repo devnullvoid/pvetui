@@ -499,6 +499,8 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			return
 		}
 
+		editedActiveProfile := !isNewProfile && a.config.ActiveProfile == cfg.DefaultProfile
+
 		// Update main config with the edited profile and save that
 		if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
 			// Ensure main config has profiles map
@@ -533,6 +535,9 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			showWizardModal(pages, form, a.Application, "error", "Failed to save profile: "+err.Error(), nil)
 			return
 		}
+		if editedActiveProfile {
+			a.config.ActiveProfile = profileName
+		}
 
 		// If SOPS re-encryption is possible, prompt user
 		if wasSOPS && sopsRuleExists {
@@ -545,20 +550,12 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 				}
 
 				// showWizardModal(pages, form, a.Application, "info", "Profile saved and re-encrypted with SOPS!", func() {
-				if isNewProfile {
-					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
-				} else {
-					resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: cfg.DefaultProfile}
-				}
+				resultChan <- WizardResult{Saved: true, SopsEncrypted: true, ProfileName: profileName}
 				// })
 			}
 			onNo := func() {
 				// showWizardModal(pages, form, a.Application, "info", "Profile saved (unencrypted).", func() {
-				if isNewProfile {
-					resultChan <- WizardResult{Saved: true, ProfileName: profileName}
-				} else {
-					resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
-				}
+				resultChan <- WizardResult{Saved: true, ProfileName: profileName}
 				// })
 			}
 			confirm := CreateConfirmDialog("SOPS Re-encryption", "The original config was SOPS-encrypted. Re-encrypt the new config with SOPS?", onYes, onNo)
@@ -568,11 +565,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		}
 
 		// Send saved result
-		if isNewProfile {
-			resultChan <- WizardResult{Saved: true, ProfileName: profileName}
-		} else {
-			resultChan <- WizardResult{Saved: true, ProfileName: cfg.DefaultProfile}
-		}
+		resultChan <- WizardResult{Saved: true, ProfileName: profileName}
 	})
 
 	form.AddButton("Cancel", func() {

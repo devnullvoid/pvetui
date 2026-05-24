@@ -752,7 +752,6 @@ func (a *App) showAddProfileDialog() {
 			a.pages.RemovePage("profileWizard")
 
 			if result.Saved {
-
 				a.header.ShowSuccess("Profile '" + result.ProfileName + "' saved successfully!")
 
 			}
@@ -839,6 +838,9 @@ func (a *App) showEditProfileDialog(profileName string) {
 			a.pages.RemovePage("profileWizard")
 
 			if result.Saved {
+				if a.config.ActiveProfile == result.ProfileName && !a.isGroupMode && !a.isClusterMode {
+					a.header.ShowActiveProfile(result.ProfileName)
+				}
 
 				a.header.ShowSuccess("Profile '" + result.ProfileName + "' saved successfully!")
 

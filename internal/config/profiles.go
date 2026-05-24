@@ -18,6 +18,15 @@ type SSHJumpHost struct {
 	Port    int    `yaml:"port,omitempty"`
 }
 
+// SSHSettings contains profile-scoped settings used for new SSH operations.
+type SSHSettings struct {
+	SSHUser      string
+	VMSSHUser    string
+	SSHKeyfile   string
+	VMSSHKeyfile string
+	SSHJumpHost  SSHJumpHost
+}
+
 // ProfileConfig holds a single connection profile's settings.
 type ProfileConfig struct {
 	Addr         string      `yaml:"addr"`
@@ -90,6 +99,36 @@ func (c *Config) ApplyProfile(profileName string) error {
 	c.ActiveProfile = profileName
 
 	return nil
+}
+
+// ResolveSSHSettings returns the current SSH settings for a source profile, or
+// the active profile when sourceProfile is empty. Legacy top-level values are
+// used only when no matching runtime profile exists.
+func (c *Config) ResolveSSHSettings(sourceProfile string) SSHSettings {
+	settings := SSHSettings{
+		SSHUser:      c.SSHUser,
+		VMSSHUser:    c.VMSSHUser,
+		SSHKeyfile:   c.SSHKeyfile,
+		VMSSHKeyfile: c.VMSSHKeyfile,
+		SSHJumpHost:  c.SSHJumpHost,
+	}
+
+	profileName := sourceProfile
+	if profileName == "" {
+		profileName = c.ActiveProfile
+	}
+
+	if profile, exists := c.Profiles[profileName]; exists {
+		settings = SSHSettings{
+			SSHUser:      profile.SSHUser,
+			VMSSHUser:    profile.VMSSHUser,
+			SSHKeyfile:   profile.SSHKeyfile,
+			VMSSHKeyfile: profile.VMSSHKeyfile,
+			SSHJumpHost:  profile.SSHJumpHost,
+		}
+	}
+
+	return settings
 }
 
 // MigrateLegacyToProfiles migrates legacy configuration fields to the new profile system.

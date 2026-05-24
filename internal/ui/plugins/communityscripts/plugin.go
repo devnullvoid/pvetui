@@ -128,20 +128,10 @@ func resolveSSHUser(app *components.App, node *api.Node) string {
 		return ""
 	}
 
-	// If the node originated from a specific profile (e.g., group mode), honor that profile's ssh_user.
-	if node != nil && node.SourceProfile != "" {
-		if prof, ok := cfg.Profiles[node.SourceProfile]; ok && prof.SSHUser != "" {
-			return prof.SSHUser
-		}
+	sourceProfile := ""
+	if node != nil {
+		sourceProfile = node.SourceProfile
 	}
 
-	// Fall back to active profile's ssh_user
-	if cfg.ActiveProfile != "" {
-		if prof, ok := cfg.Profiles[cfg.ActiveProfile]; ok && prof.SSHUser != "" {
-			return prof.SSHUser
-		}
-	}
-
-	// Finally, use global ssh_user (legacy)
-	return cfg.SSHUser
+	return cfg.ResolveSSHSettings(sourceProfile).SSHUser
 }

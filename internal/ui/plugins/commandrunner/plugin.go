@@ -264,19 +264,7 @@ func resolveSSHKeyfile(appConfig *config.Config, node *api.Node) string {
 		return ""
 	}
 
-	if node != nil && node.SourceProfile != "" {
-		if profile, ok := appConfig.Profiles[node.SourceProfile]; ok && profile.SSHKeyfile != "" {
-			return profile.SSHKeyfile
-		}
-	}
-
-	if appConfig.ActiveProfile != "" {
-		if profile, ok := appConfig.Profiles[appConfig.ActiveProfile]; ok && profile.SSHKeyfile != "" {
-			return profile.SSHKeyfile
-		}
-	}
-
-	return appConfig.SSHKeyfile
+	return appConfig.ResolveSSHSettings(sourceProfileName(node)).SSHKeyfile
 }
 
 func resolveSSHUser(appConfig *config.Config, node *api.Node) string {
@@ -284,19 +272,7 @@ func resolveSSHUser(appConfig *config.Config, node *api.Node) string {
 		return ""
 	}
 
-	if node != nil && node.SourceProfile != "" {
-		if profile, ok := appConfig.Profiles[node.SourceProfile]; ok && profile.SSHUser != "" {
-			return profile.SSHUser
-		}
-	}
-
-	if appConfig.ActiveProfile != "" {
-		if profile, ok := appConfig.Profiles[appConfig.ActiveProfile]; ok && profile.SSHUser != "" {
-			return profile.SSHUser
-		}
-	}
-
-	return appConfig.SSHUser
+	return appConfig.ResolveSSHSettings(sourceProfileName(node)).SSHUser
 }
 
 func resolveJumpHost(appConfig *config.Config, node *api.Node) config.SSHJumpHost {
@@ -304,17 +280,13 @@ func resolveJumpHost(appConfig *config.Config, node *api.Node) config.SSHJumpHos
 		return config.SSHJumpHost{}
 	}
 
-	if node != nil && node.SourceProfile != "" {
-		if profile, ok := appConfig.Profiles[node.SourceProfile]; ok && profile.SSHJumpHost.Addr != "" {
-			return profile.SSHJumpHost
-		}
+	return appConfig.ResolveSSHSettings(sourceProfileName(node)).SSHJumpHost
+}
+
+func sourceProfileName(node *api.Node) string {
+	if node == nil {
+		return ""
 	}
 
-	if appConfig.ActiveProfile != "" {
-		if profile, ok := appConfig.Profiles[appConfig.ActiveProfile]; ok && profile.SSHJumpHost.Addr != "" {
-			return profile.SSHJumpHost
-		}
-	}
-
-	return appConfig.SSHJumpHost
+	return node.SourceProfile
 }

@@ -97,3 +97,59 @@ func TestValidateGroupsAcceptsClusterModeSettingForExistingGroup(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, cfg.IsClusterGroup("group1"))
 }
+
+func TestResolveSSHSettingsUsesCurrentActiveProfileValues(t *testing.T) {
+	cfg := &Config{
+		ActiveProfile: "lab",
+		SSHUser:       "stale-user",
+		SSHJumpHost:   SSHJumpHost{Addr: "stale-jump"},
+		Profiles: map[string]ProfileConfig{
+			"lab": {
+				SSHUser:      "updated-user",
+				VMSSHUser:    "vm-user",
+				SSHKeyfile:   "/tmp/id_host",
+				VMSSHKeyfile: "/tmp/id_vm",
+				SSHJumpHost:  SSHJumpHost{Addr: "jump.example", User: "jump-user", Port: 2222},
+			},
+		},
+	}
+
+	settings := cfg.ResolveSSHSettings("")
+
+	assert.Equal(t, "updated-user", settings.SSHUser)
+	assert.Equal(t, "vm-user", settings.VMSSHUser)
+	assert.Equal(t, "/tmp/id_host", settings.SSHKeyfile)
+	assert.Equal(t, "/tmp/id_vm", settings.VMSSHKeyfile)
+	assert.Equal(t, SSHJumpHost{Addr: "jump.example", User: "jump-user", Port: 2222}, settings.SSHJumpHost)
+}
+
+func TestResolveSSHSettingsDoesNotReuseFlattenedValuesWhenActiveProfileClearsSSH(t *testing.T) {
+	cfg := &Config{
+		ActiveProfile: "lab",
+		SSHUser:       "stale-user",
+		SSHJumpHost:   SSHJumpHost{Addr: "stale-jump"},
+		Profiles: map[string]ProfileConfig{
+			"lab": {},
+		},
+	}
+
+	settings := cfg.ResolveSSHSettings("")
+
+	assert.Empty(t, settings.SSHUser)
+	assert.Equal(t, SSHJumpHost{}, settings.SSHJumpHost)
+}
+
+func TestResolveSSHSettingsPrefersSourceProfile(t *testing.T) {
+	cfg := &Config{
+		ActiveProfile: "primary",
+		Profiles: map[string]ProfileConfig{
+			"primary": {SSHUser: "primary-user"},
+			"remote":  {SSHUser: "remote-user", SSHJumpHost: SSHJumpHost{Addr: "remote-jump"}},
+		},
+	}
+
+	settings := cfg.ResolveSSHSettings("remote")
+
+	assert.Equal(t, "remote-user", settings.SSHUser)
+	assert.Equal(t, "remote-jump", settings.SSHJumpHost.Addr)
+}

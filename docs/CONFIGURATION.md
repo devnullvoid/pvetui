@@ -418,6 +418,8 @@ profiles:
       port: 2222
 ```
 
+When an active profile is edited in the TUI, saved SSH user, key file, and jump host changes are used for new SSH and plugin operations immediately. Changes to API connection fields still require reconnecting or reactivating the profile because the current API session remains established with its original connection settings.
+
 You can also configure these via environment variables:
 `PVETUI_SSH_JUMPHOST_ADDR`, `PVETUI_SSH_JUMPHOST_USER`, `PVETUI_SSH_JUMPHOST_KEYFILE`, and `PVETUI_SSH_JUMPHOST_PORT`.
 ```

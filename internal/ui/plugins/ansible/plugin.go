@@ -2348,13 +2348,8 @@ func (p *Plugin) resolveNodeUser() string {
 		return "root"
 	}
 
-	if cfg.ActiveProfile != "" {
-		if profile, ok := cfg.Profiles[cfg.ActiveProfile]; ok && strings.TrimSpace(profile.SSHUser) != "" {
-			return strings.TrimSpace(profile.SSHUser)
-		}
-	}
-	if strings.TrimSpace(cfg.SSHUser) != "" {
-		return strings.TrimSpace(cfg.SSHUser)
+	if user := strings.TrimSpace(cfg.ResolveSSHSettings("").SSHUser); user != "" {
+		return user
 	}
 	if strings.TrimSpace(cfg.GetUser()) != "" {
 		return strings.TrimSpace(cfg.GetUser())
@@ -2369,19 +2364,12 @@ func (p *Plugin) resolveVMUser() string {
 		return p.resolveNodeUser()
 	}
 
-	if cfg.ActiveProfile != "" {
-		if profile, ok := cfg.Profiles[cfg.ActiveProfile]; ok {
-			if strings.TrimSpace(profile.VMSSHUser) != "" {
-				return strings.TrimSpace(profile.VMSSHUser)
-			}
-			if strings.TrimSpace(profile.SSHUser) != "" {
-				return strings.TrimSpace(profile.SSHUser)
-			}
-		}
+	settings := cfg.ResolveSSHSettings("")
+	if user := strings.TrimSpace(settings.VMSSHUser); user != "" {
+		return user
 	}
-
-	if strings.TrimSpace(cfg.VMSSHUser) != "" {
-		return strings.TrimSpace(cfg.VMSSHUser)
+	if user := strings.TrimSpace(settings.SSHUser); user != "" {
+		return user
 	}
 
 	return p.resolveNodeUser()

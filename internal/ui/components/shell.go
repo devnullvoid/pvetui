@@ -26,21 +26,9 @@ func (a *App) openNodeShell() {
 	shellLogger.Debug("Node shell for %s: IP from node object: '%s' (len=%d, bytes=%v)",
 		node.Name, node.IP, len(node.IP), []byte(node.IP))
 
-	// Determine SSH user
-	sshUser := a.config.SSHUser
-	jumpHost := a.config.SSHJumpHost
-
-	// In group mode, try to get the SSH user from the node's source profile
-	if a.isGroupMode && node.SourceProfile != "" {
-		if profile, exists := a.config.Profiles[node.SourceProfile]; exists {
-			if profile.SSHUser != "" {
-				sshUser = profile.SSHUser
-			}
-			if profile.SSHJumpHost.Addr != "" {
-				jumpHost = profile.SSHJumpHost
-			}
-		}
-	}
+	sshSettings := a.config.ResolveSSHSettings(node.SourceProfile)
+	sshUser := sshSettings.SSHUser
+	jumpHost := sshSettings.SSHJumpHost
 
 	if sshUser == "" {
 		a.showMessageSafe("SSH user not configured. Please set PROXMOX_SSH_USER environment variable or use --ssh-user flag.")
@@ -269,25 +257,10 @@ func (a *App) openVMShell() {
 		return
 	}
 
-	// Determine SSH users
-	hostShellUser := a.config.SSHUser
-	vmShellUser := a.config.VMSSHUser
-	jumpHost := a.config.SSHJumpHost
-
-	// In group mode, try to get users from the VM's source profile
-	if a.isGroupMode && vm.SourceProfile != "" {
-		if profile, exists := a.config.Profiles[vm.SourceProfile]; exists {
-			if profile.SSHUser != "" {
-				hostShellUser = profile.SSHUser
-			}
-			if profile.VMSSHUser != "" {
-				vmShellUser = profile.VMSSHUser
-			}
-			if profile.SSHJumpHost.Addr != "" {
-				jumpHost = profile.SSHJumpHost
-			}
-		}
-	}
+	sshSettings := a.config.ResolveSSHSettings(vm.SourceProfile)
+	hostShellUser := sshSettings.SSHUser
+	vmShellUser := sshSettings.VMSSHUser
+	jumpHost := sshSettings.SSHJumpHost
 
 	if vmShellUser == "" {
 		vmShellUser = hostShellUser
