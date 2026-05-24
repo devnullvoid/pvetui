@@ -1177,6 +1177,7 @@ func TestConfigMarshalYAMLOmitsLegacyFieldsForProfiles(t *testing.T) {
 			},
 		},
 		DefaultProfile: "default",
+		ShowIcons:      true,
 		Addr:           "https://legacy",
 		User:           "legacy",
 		Password:       "legacy-pass",
@@ -1194,6 +1195,7 @@ func TestConfigMarshalYAMLOmitsLegacyFieldsForProfiles(t *testing.T) {
 	if _, ok := decoded["user"]; ok {
 		t.Fatalf("expected legacy user field to be omitted when profiles exist")
 	}
+	assert.Equal(t, true, decoded["show_icons"])
 
 	profiles, ok := decoded["profiles"].(map[string]any)
 	require.True(t, ok, "profiles map should be present")
@@ -1206,9 +1208,11 @@ func TestConfigMarshalYAMLOmitsLegacyFieldsForProfiles(t *testing.T) {
 
 func TestConfigMarshalYAMLIncludesLegacyFieldsWithoutProfiles(t *testing.T) {
 	cfg := &Config{
-		Addr:     "https://legacy",
-		User:     "legacy",
-		Password: "legacy-pass",
+		Addr:         "https://legacy",
+		User:         "legacy",
+		Password:     "legacy-pass",
+		SSHKeyfile:   "~/.ssh/id_ed25519",
+		VMSSHKeyfile: "~/.ssh/id_vm",
 		SSHJumpHost: SSHJumpHost{
 			Addr: "jump.example.com",
 		},
@@ -1223,6 +1227,8 @@ func TestConfigMarshalYAMLIncludesLegacyFieldsWithoutProfiles(t *testing.T) {
 	if _, ok := decoded["addr"]; !ok {
 		t.Fatalf("expected legacy addr field to be serialized when no profiles exist")
 	}
+	assert.Equal(t, "~/.ssh/id_ed25519", decoded["ssh_keyfile"])
+	assert.Equal(t, "~/.ssh/id_vm", decoded["vm_ssh_keyfile"])
 	if _, ok := decoded["user"]; !ok {
 		t.Fatalf("expected legacy user field to be serialized when no profiles exist")
 	}

@@ -3,7 +3,6 @@ package components
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -498,29 +497,9 @@ func (a *App) showDeleteProfileDialog(profileName string) {
 				}
 			}
 
-			// Save the config
-			configPath, found := config.FindDefaultConfigPath()
-			if !found {
-				configPath = config.GetDefaultConfigPath()
-			}
-
-			// Check if the original config was SOPS encrypted BEFORE saving
-			wasSOPS := false
-			if data, err := os.ReadFile(configPath); err == nil {
-				wasSOPS = config.IsSOPSEncrypted(configPath, data)
-			}
-
-			if err := SaveConfigToFile(&a.config, configPath); err != nil {
+			if err := a.SaveConfigPreservingSOPS(); err != nil {
 				a.header.ShowError("Failed to save config after deletion: " + err.Error())
 				return
-			}
-
-			// Re-encrypt if the original was SOPS encrypted
-			if wasSOPS {
-				if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
-					a.header.ShowError("Failed to re-encrypt config after deletion: " + err.Error())
-					return
-				}
 			}
 
 			// Show success message
@@ -591,29 +570,9 @@ func (a *App) setDefaultProfile(profileName string) {
 		}
 	}
 
-	// Save the config
-	configPath, found := config.FindDefaultConfigPath()
-	if !found {
-		configPath = config.GetDefaultConfigPath()
-	}
-
-	// Check if the original config was SOPS encrypted BEFORE saving
-	wasSOPS := false
-	if data, err := os.ReadFile(configPath); err == nil {
-		wasSOPS = config.IsSOPSEncrypted(configPath, data)
-	}
-
-	if err := SaveConfigToFile(&a.config, configPath); err != nil {
+	if err := a.SaveConfigPreservingSOPS(); err != nil {
 		a.header.ShowError(fmt.Sprintf("Failed to save config: %v", err))
 		return
-	}
-
-	// Re-encrypt if the original was SOPS encrypted
-	if wasSOPS {
-		if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
-			a.header.ShowError(fmt.Sprintf("Failed to re-encrypt config: %v", err))
-			return
-		}
 	}
 
 	a.header.ShowSuccess(successMsg)

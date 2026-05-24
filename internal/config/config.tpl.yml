@@ -11,6 +11,8 @@ profiles:
     insecure: true
     ssh_user: root
     vm_ssh_user: root
+    # ssh_keyfile: "~/.ssh/id_ed25519"
+    # vm_ssh_keyfile: "~/.ssh/id_vm"
     # ssh_jump_host:
     #   addr: jump.example.com
     #   user: jumpuser

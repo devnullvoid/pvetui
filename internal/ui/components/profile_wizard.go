@@ -62,7 +62,7 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 	}
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, groupString string
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, sshKeyfile, vmSSHKeyfile, groupString string
 	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile, sshJumpHostPort string
 	var insecure, useJumpHost bool
 
@@ -93,6 +93,8 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
+			sshKeyfile = profile.SSHKeyfile
+			vmSSHKeyfile = profile.VMSSHKeyfile
 			sshJumpHostAddr = profile.SSHJumpHost.Addr
 			sshJumpHostUser = profile.SSHJumpHost.User
 			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
@@ -129,6 +131,8 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
+		sshKeyfile = cfg.SSHKeyfile
+		vmSSHKeyfile = cfg.VMSSHKeyfile
 		sshJumpHostAddr = cfg.SSHJumpHost.Addr
 		sshJumpHostUser = cfg.SSHJumpHost.User
 		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
@@ -270,6 +274,28 @@ func (a *App) createEmbeddedConfigWizard(cfg *config.Config, resultChan chan<- W
 			}
 		} else {
 			cfg.VMSSHUser = value
+		}
+	})
+	addInput("SSH Key File", sshKeyfile, 40, nil, func(text string) {
+		value := config.ExpandHomePath(text)
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.SSHKeyfile = value
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.SSHKeyfile = value
+		}
+	})
+	addInput("VM SSH Key File", vmSSHKeyfile, 40, nil, func(text string) {
+		value := config.ExpandHomePath(text)
+		if len(cfg.Profiles) > 0 && cfg.DefaultProfile != "" {
+			if profile, exists := cfg.Profiles[cfg.DefaultProfile]; exists {
+				profile.VMSSHKeyfile = value
+				cfg.Profiles[cfg.DefaultProfile] = profile
+			}
+		} else {
+			cfg.VMSSHKeyfile = value
 		}
 	})
 

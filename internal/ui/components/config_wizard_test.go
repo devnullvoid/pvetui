@@ -167,16 +167,18 @@ func TestValidateWizardAuth(t *testing.T) {
 
 func TestNormalizeWizardFormValues(t *testing.T) {
 	values := normalizeWizardFormValues(wizardFormValues{
-		ProfileName: " default ",
-		Addr:        " https://host ",
-		User:        " root ",
-		Password:    "  secret  ",
-		TokenID:     " token ",
-		TokenSecret: "  tokensecret  ",
-		Realm:       " pam ",
-		ApiPath:     " /api2/json ",
-		SSHUser:     " root ",
-		VMSSHUser:   " vmroot ",
+		ProfileName:  " default ",
+		Addr:         " https://host ",
+		User:         " root ",
+		Password:     "  secret  ",
+		TokenID:      " token ",
+		TokenSecret:  "  tokensecret  ",
+		Realm:        " pam ",
+		ApiPath:      " /api2/json ",
+		SSHUser:      " root ",
+		VMSSHUser:    " vmroot ",
+		SSHKeyfile:   " /tmp/id_host ",
+		VMSSHKeyfile: " /tmp/id_vm ",
 	})
 
 	if values.ProfileName != "default" {
@@ -208,6 +210,12 @@ func TestNormalizeWizardFormValues(t *testing.T) {
 	}
 	if values.VMSSHUser != "vmroot" {
 		t.Fatalf("expected VMSSHUser to be trimmed, got %q", values.VMSSHUser)
+	}
+	if values.SSHKeyfile != "/tmp/id_host" {
+		t.Fatalf("expected SSHKeyfile to be normalized, got %q", values.SSHKeyfile)
+	}
+	if values.VMSSHKeyfile != "/tmp/id_vm" {
+		t.Fatalf("expected VMSSHKeyfile to be normalized, got %q", values.VMSSHKeyfile)
 	}
 }
 

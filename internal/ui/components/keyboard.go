@@ -130,6 +130,7 @@ func (a *App) setupKeyboardHandlers() {
 			a.pages.HasPage("resizeStorage") ||
 			a.pages.HasPage("profileWizard") ||
 			a.pages.HasPage("profileName") ||
+			a.pages.HasPage("applicationSettings") ||
 			a.pages.HasPage("pluginsManager") ||
 			a.pages.HasPage("contextMenu") ||
 			a.pages.HasPage("about") ||

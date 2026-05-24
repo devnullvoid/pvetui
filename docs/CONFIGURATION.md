@@ -30,6 +30,8 @@ profiles:
     insecure: false
     ssh_user: "your-ssh-user"
     vm_ssh_user: "vm-login-user"   # Optional: overrides ssh_user for QEMU VMs
+    ssh_keyfile: "~/.ssh/id_ed25519"       # Optional: host SSH key
+    vm_ssh_keyfile: "~/.ssh/id_vm"         # Optional: QEMU VM SSH key override
     ssh_jump_host:                 # Optional: route SSH through a bastion host
       addr: "jump.example.com"
       user: "jumpuser"
@@ -114,6 +116,7 @@ The built-in profile manager allows you to:
 - **Set default profile or group** for automatic startup
 
 Access the profile manager through the global menu (`Esc`) or context menus.
+Application-wide options such as `show_icons`, debug logging, cache/age directories, themes, and key bindings can be edited from **Global Actions > Application Settings**.
 
 ## Group Settings
 

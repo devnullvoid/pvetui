@@ -20,9 +20,10 @@ func (a *App) ShowGlobalContextMenu() {
 	// Create menu items for global actions
 	menuItems := []string{
 		"Connection Profiles",
+		"Application Settings",
 		"Manage Plugins",
 	}
-	shortcuts := []rune{'p', 'm'}
+	shortcuts := []rune{'p', 's', 'm'}
 
 	if ansibleEnabled {
 		menuItems = append(menuItems, "Ansible Toolkit")
@@ -46,6 +47,8 @@ func (a *App) ShowGlobalContextMenu() {
 		switch action {
 		case "Connection Profiles":
 			a.showConnectionProfilesDialog()
+		case "Application Settings":
+			a.showApplicationSettingsDialog()
 		case "Manage Plugins":
 			a.showManagePluginsDialog()
 		case "Ansible Toolkit":

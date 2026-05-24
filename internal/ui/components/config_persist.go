@@ -10,9 +10,13 @@ import (
 // SaveConfigPreservingSOPS persists the current app config and re-encrypts with
 // SOPS when the source config file was originally SOPS-encrypted.
 func (a *App) SaveConfigPreservingSOPS() error {
-	configPath, found := config.FindDefaultConfigPath()
-	if !found {
-		configPath = config.GetDefaultConfigPath()
+	configPath := a.configPath
+	if configPath == "" {
+		var found bool
+		configPath, found = config.FindDefaultConfigPath()
+		if !found {
+			configPath = config.GetDefaultConfigPath()
+		}
 	}
 
 	wasSOPS := false

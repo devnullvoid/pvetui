@@ -1,14 +1,12 @@
 package components
 
 import (
-	"os"
 	"slices"
 	"sort"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/internal/ui/theme"
 )
 
@@ -102,26 +100,9 @@ func (a *App) showManagePluginsDialog() {
 
 		a.config.Plugins.Enabled = enabledIDs
 
-		configPath, found := config.FindDefaultConfigPath()
-		if !found {
-			configPath = config.GetDefaultConfigPath()
-		}
-
-		wasSOPS := false
-		if data, err := os.ReadFile(configPath); err == nil {
-			wasSOPS = config.IsSOPSEncrypted(configPath, data)
-		}
-
-		if err := SaveConfigToFile(&a.config, configPath); err != nil {
+		if err := a.SaveConfigPreservingSOPS(); err != nil {
 			a.header.ShowError("Failed to save plugin configuration: " + err.Error())
 			return
-		}
-
-		if wasSOPS {
-			if err := a.reEncryptConfigIfNeeded(configPath); err != nil {
-				a.header.ShowError("Failed to re-encrypt config: " + err.Error())
-				return
-			}
 		}
 
 		closeDialog()

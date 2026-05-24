@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Ansible bootstrap UID**: Bootstrap Access can now create or update the managed Ansible user with a configured numeric UID via `plugins.ansible.bootstrap.uid`.
+- **Application settings dialog**: Added in-app editing for icon display, debug logging, cache/age directories, theme configuration, and key bindings, plus SSH key path fields in profile editing.
+
+### Fixed
+
+- **Settings persistence**: TUI configuration saves now preserve `show_icons` and apply settings/profile actions to the active custom config path when one is in use.
 
 ## [1.4.0] - 2026-05-23
 

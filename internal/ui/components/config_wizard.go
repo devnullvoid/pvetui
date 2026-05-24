@@ -72,16 +72,18 @@ func validateWizardAuth(password, tokenID, tokenSecret string) (bool, bool, stri
 }
 
 type wizardFormValues struct {
-	ProfileName string
-	Addr        string
-	User        string
-	Password    string
-	TokenID     string
-	TokenSecret string
-	Realm       string
-	ApiPath     string
-	SSHUser     string
-	VMSSHUser   string
+	ProfileName  string
+	Addr         string
+	User         string
+	Password     string
+	TokenID      string
+	TokenSecret  string
+	Realm        string
+	ApiPath      string
+	SSHUser      string
+	VMSSHUser    string
+	SSHKeyfile   string
+	VMSSHKeyfile string
 }
 
 func normalizeWizardFormValues(values wizardFormValues) wizardFormValues {
@@ -93,6 +95,8 @@ func normalizeWizardFormValues(values wizardFormValues) wizardFormValues {
 	values.ApiPath = strings.TrimSpace(values.ApiPath)
 	values.SSHUser = strings.TrimSpace(values.SSHUser)
 	values.VMSSHUser = strings.TrimSpace(values.VMSSHUser)
+	values.SSHKeyfile = config.ExpandHomePath(values.SSHKeyfile)
+	values.VMSSHKeyfile = config.ExpandHomePath(values.VMSSHKeyfile)
 	return values
 }
 
@@ -182,7 +186,7 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	form.AddFormItem(defaultCheckbox)
 
 	// Determine which data to use for form fields
-	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser string
+	var addr, user, password, tokenID, tokenSecret, realm, apiPath, sshUser, vmSSHUser, sshKeyfile, vmSSHKeyfile string
 	var sshJumpHostAddr, sshJumpHostUser, sshJumpHostKeyfile, sshJumpHostPort string
 	var insecure, useJumpHost bool
 
@@ -213,6 +217,8 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 			insecure = profile.Insecure
 			sshUser = profile.SSHUser
 			vmSSHUser = profile.VMSSHUser
+			sshKeyfile = profile.SSHKeyfile
+			vmSSHKeyfile = profile.VMSSHKeyfile
 			sshJumpHostAddr = profile.SSHJumpHost.Addr
 			sshJumpHostUser = profile.SSHJumpHost.User
 			sshJumpHostKeyfile = profile.SSHJumpHost.Keyfile
@@ -246,6 +252,8 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		insecure = cfg.Insecure
 		sshUser = cfg.SSHUser
 		vmSSHUser = cfg.VMSSHUser
+		sshKeyfile = cfg.SSHKeyfile
+		vmSSHKeyfile = cfg.VMSSHKeyfile
 		sshJumpHostAddr = cfg.SSHJumpHost.Addr
 		sshJumpHostUser = cfg.SSHJumpHost.User
 		sshJumpHostKeyfile = cfg.SSHJumpHost.Keyfile
@@ -372,6 +380,30 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		})
 	form.AddFormItem(vmSSHUserField)
 
+	sshKeyfileField := tview.NewInputField().
+		SetLabel("SSH Key File").
+		SetText(sshKeyfile).
+		SetFieldWidth(40).
+		SetChangedFunc(func(text string) {
+			sshKeyfile = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.SSHKeyfile = config.ExpandHomePath(sshKeyfile)
+			}
+		})
+	form.AddFormItem(sshKeyfileField)
+
+	vmSSHKeyfileField := tview.NewInputField().
+		SetLabel("VM SSH Key File").
+		SetText(vmSSHKeyfile).
+		SetFieldWidth(40).
+		SetChangedFunc(func(text string) {
+			vmSSHKeyfile = strings.TrimSpace(text)
+			if !isEditing {
+				cfg.VMSSHKeyfile = config.ExpandHomePath(vmSSHKeyfile)
+			}
+		})
+	form.AddFormItem(vmSSHKeyfileField)
+
 	// SSH Jump Host configuration (Advanced)
 	showIcons := cfg.ShowIcons
 	jumpHostLabel := "Use SSH Jump Host (Advanced)"
@@ -430,16 +462,18 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 	form.AddInputField("Theme Name", cfg.Theme.Name, 20, nil, func(text string) { cfg.Theme.Name = strings.TrimSpace(text) })
 	form.AddButton("Save", func() {
 		values := normalizeWizardFormValues(wizardFormValues{
-			ProfileName: profileName,
-			Addr:        addrField.GetText(),
-			User:        userField.GetText(),
-			Password:    passwordField.GetText(),
-			TokenID:     tokenIDField.GetText(),
-			TokenSecret: tokenSecretField.GetText(),
-			Realm:       realmField.GetText(),
-			ApiPath:     apiPathField.GetText(),
-			SSHUser:     sshUserField.GetText(),
-			VMSSHUser:   vmSSHUserField.GetText(),
+			ProfileName:  profileName,
+			Addr:         addrField.GetText(),
+			User:         userField.GetText(),
+			Password:     passwordField.GetText(),
+			TokenID:      tokenIDField.GetText(),
+			TokenSecret:  tokenSecretField.GetText(),
+			Realm:        realmField.GetText(),
+			ApiPath:      apiPathField.GetText(),
+			SSHUser:      sshUserField.GetText(),
+			VMSSHUser:    vmSSHUserField.GetText(),
+			SSHKeyfile:   sshKeyfileField.GetText(),
+			VMSSHKeyfile: vmSSHKeyfileField.GetText(),
 		})
 
 		profileName = values.ProfileName
@@ -452,6 +486,8 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 		apiPath = values.ApiPath
 		sshUser = values.SSHUser
 		vmSSHUser = values.VMSSHUser
+		sshKeyfile = values.SSHKeyfile
+		vmSSHKeyfile = values.VMSSHKeyfile
 
 		// Validate profile name
 		if profileName == "" {
@@ -511,16 +547,18 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 			// Create profile from current form data
 			newProfile := config.ProfileConfig{
-				Addr:        strings.TrimSpace(addr),
-				User:        strings.TrimSpace(user),
-				Password:    password,
-				TokenID:     strings.TrimSpace(tokenID),
-				TokenSecret: tokenSecret,
-				Realm:       strings.TrimSpace(realm),
-				ApiPath:     strings.TrimSpace(apiPath),
-				Insecure:    insecure,
-				SSHUser:     strings.TrimSpace(sshUser),
-				VMSSHUser:   strings.TrimSpace(vmSSHUser),
+				Addr:         strings.TrimSpace(addr),
+				User:         strings.TrimSpace(user),
+				Password:     password,
+				TokenID:      strings.TrimSpace(tokenID),
+				TokenSecret:  tokenSecret,
+				Realm:        strings.TrimSpace(realm),
+				ApiPath:      strings.TrimSpace(apiPath),
+				Insecure:     insecure,
+				SSHUser:      strings.TrimSpace(sshUser),
+				VMSSHUser:    strings.TrimSpace(vmSSHUser),
+				SSHKeyfile:   sshKeyfile,
+				VMSSHKeyfile: vmSSHKeyfile,
 			}
 
 			// Add SSH jumphost if enabled
@@ -557,17 +595,19 @@ func NewConfigWizardPage(app *tview.Application, cfg *config.Config, configPath 
 
 			// Preserve group memberships (not editable in this wizard).
 			updated := config.ProfileConfig{
-				Addr:        strings.TrimSpace(addr),
-				User:        strings.TrimSpace(user),
-				Password:    password,
-				TokenID:     strings.TrimSpace(tokenID),
-				TokenSecret: tokenSecret,
-				Realm:       strings.TrimSpace(realm),
-				ApiPath:     strings.TrimSpace(apiPath),
-				Insecure:    insecure,
-				SSHUser:     strings.TrimSpace(sshUser),
-				VMSSHUser:   strings.TrimSpace(vmSSHUser),
-				Groups:      append([]string{}, profile.Groups...),
+				Addr:         strings.TrimSpace(addr),
+				User:         strings.TrimSpace(user),
+				Password:     password,
+				TokenID:      strings.TrimSpace(tokenID),
+				TokenSecret:  tokenSecret,
+				Realm:        strings.TrimSpace(realm),
+				ApiPath:      strings.TrimSpace(apiPath),
+				Insecure:     insecure,
+				SSHUser:      strings.TrimSpace(sshUser),
+				VMSSHUser:    strings.TrimSpace(vmSSHUser),
+				SSHKeyfile:   sshKeyfile,
+				VMSSHKeyfile: vmSSHKeyfile,
+				Groups:       append([]string{}, profile.Groups...),
 			}
 
 			// Add SSH jumphost if enabled
