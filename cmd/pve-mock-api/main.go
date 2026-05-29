@@ -20,9 +20,11 @@ import (
 func main() {
 	var specFile string
 	var port int
+	var fixtureFile string
 
 	flag.StringVar(&specFile, "spec", "docs/api/pve-openapi.yaml", "Path to OpenAPI spec file")
 	flag.IntVar(&port, "port", 8080, "Port to listen on")
+	flag.StringVar(&fixtureFile, "fixture", "", "Optional YAML fixture for mock state")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -45,14 +47,25 @@ func main() {
 
 	// Initialize State
 	state := mockpve.NewMockState()
+	if fixtureFile != "" {
+		fixture, err := mockpve.LoadFixture(fixtureFile)
+		if err != nil {
+			log.Fatalf("Failed to load fixture %s: %v", fixtureFile, err)
+		}
+		if err := state.ApplyFixture(fixture); err != nil {
+			log.Fatalf("Failed to apply fixture %s: %v", fixtureFile, err)
+		}
+	}
 
 	// Stateful Handlers (Priority)
 	r.HandleFunc("/cluster/resources", mockpve.HandleClusterResources(state)).Methods("GET")
 	r.HandleFunc("/cluster/status", mockpve.HandleClusterStatus(state)).Methods("GET")
 	r.HandleFunc("/cluster/nextid", mockpve.HandleClusterNextID(state)).Methods("GET")
+	r.HandleFunc("/cluster/tasks", mockpve.HandleClusterTasks(state)).Methods("GET")
 
 	// Node
 	r.HandleFunc("/nodes/{node}/status", mockpve.HandleNodeStatus(state)).Methods("GET")
+	r.HandleFunc("/nodes/{node}/disks/list", mockpve.HandleNodeDisks(state)).Methods("GET")
 	r.HandleFunc("/nodes/{node}/storage", mockpve.HandleNodeStorages(state)).Methods("GET")
 
 	// VM/CT

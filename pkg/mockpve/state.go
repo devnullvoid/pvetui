@@ -448,6 +448,37 @@ func (s *MockState) CompleteTask(upid, exitStatus string) {
 	}
 }
 
+func (s *MockState) ListClusterTasks() []map[string]interface{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rows := make([]map[string]interface{}, 0, len(s.Tasks))
+	for _, task := range s.Tasks {
+		row := map[string]interface{}{
+			"id":        task.ID,
+			"node":      task.Node,
+			"type":      task.Type,
+			"status":    task.ExitStatus,
+			"user":      task.User,
+			"upid":      task.UPID,
+			"starttime": task.StartTime,
+		}
+		if task.Status == taskStatusRunning {
+			row["status"] = "running"
+		}
+		if task.EndTime > 0 {
+			row["endtime"] = task.EndTime
+		}
+		rows = append(rows, row)
+	}
+
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i]["starttime"].(int64) > rows[j]["starttime"].(int64)
+	})
+
+	return rows
+}
+
 func (s *MockState) UpdateVMStatus(vmid string, action string) (string, error) {
 	s.mu.Lock()
 	// Check if VM exists

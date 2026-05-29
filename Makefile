@@ -31,7 +31,7 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: help build build-fast test test-quick clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update queuedraw-check
+.PHONY: help build build-fast test test-quick clean docker-build docker-run podman-build podman-run compose-up compose-down test-workflows test-workflow-lint test-workflow-test test-workflow-build test-workflow-integration workflow-list workflow-setup release release-github release-dry-run release-no-github release-dry-run-no-github release-build test-integration test-integration-real test-all test-coverage test-coverage-all media demo screenshots update-novnc gen-openapi openapi-serve openapi-serve-start openapi-serve-stop test-mock e2e-mock e2e-mock-update queuedraw-check
 
 # Default target
 help: ## Show this help message
@@ -427,13 +427,15 @@ version: ## Show version information
 	@printf "Go Version: $(GO_VERSION)\n"
 	@printf "Image: $(FULL_IMAGE_NAME):$(VERSION)\n"
 
+media: screenshots demo ## Regenerate all VHS media using the mock API
+
 demo: ## Run the VHS demo tape
 	@printf "$(GREEN)Running VHS demo...$(NC)\n"
-	vhs ./docs/demo.tape
+	@scripts/media/run-vhs.sh ./docs/demo.tape
 
 screenshots: ## Run the VHS screenshots tape
 	@printf "$(GREEN)Running VHS screenshots...$(NC)\n"
-	vhs ./docs/screenshots.tape
+	@scripts/media/run-vhs.sh ./docs/screenshots.tape
 
 .DEFAULT_GOAL := help
 
