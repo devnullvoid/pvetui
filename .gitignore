@@ -46,6 +46,7 @@ __pycache__/
 # /docs/*.svg
 # /docs/*.webm
 /scripts/e2e/output/
+/scripts/media/output/
 
 /docs/local
 .notes/

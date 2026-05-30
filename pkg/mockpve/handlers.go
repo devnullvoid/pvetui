@@ -27,9 +27,28 @@ func HandleClusterResources(state *MockState) http.HandlerFunc {
 
 func HandleClusterStatus(state *MockState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Mock cluster status
 		state.mu.RLock()
-		nodes := make([]map[string]interface{}, 0)
+		onlineNodes := 0
+		for _, n := range state.Nodes {
+			if n.Online == 1 {
+				onlineNodes++
+			}
+		}
+
+		quorate := 0
+		if onlineNodes > len(state.Nodes)/2 {
+			quorate = 1
+		}
+
+		nodes := make([]map[string]interface{}, 0, len(state.Nodes)+1)
+		nodes = append(nodes, map[string]interface{}{
+			"id":      "cluster/mock",
+			"name":    "mock",
+			"type":    "cluster",
+			"quorate": quorate,
+			"nodes":   len(state.Nodes),
+		})
+
 		for _, n := range state.Nodes {
 			nodes = append(nodes, map[string]interface{}{
 				"id":     n.ID,
@@ -70,6 +89,14 @@ func HandleClusterNextID(state *MockState) http.HandlerFunc {
 
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"data": nextID,
+		})
+	}
+}
+
+func HandleClusterTasks(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"data": state.ListClusterTasks(),
 		})
 	}
 }
@@ -116,6 +143,44 @@ func HandleNodeStatus(state *MockState) http.HandlerFunc {
 					"used":  node.MaxDisk / 4,
 				},
 				"loadavg": []string{"0.1", "0.2", "0.3"},
+			},
+		}
+
+		writeJSON(w, http.StatusOK, response)
+	}
+}
+
+func HandleNodeDisks(state *MockState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		nodeName := vars["node"]
+
+		state.mu.RLock()
+		var node *MockNode
+		for _, n := range state.Nodes {
+			if n.Name == nodeName {
+				node = n
+				break
+			}
+		}
+		state.mu.RUnlock()
+
+		if node == nil {
+			http.Error(w, "Node not found", http.StatusNotFound)
+			return
+		}
+
+		response := map[string]interface{}{
+			"data": []map[string]interface{}{
+				{
+					"devpath": fmt.Sprintf("/dev/disk/by-id/mock-%s-nvme0n1", node.Name),
+					"health":  "PASSED",
+					"model":   "Mock NVMe SSD",
+					"serial":  fmt.Sprintf("MOCK-%s-0001", strings.ToUpper(node.Name)),
+					"size":    node.MaxDisk,
+					"type":    "ssd",
+					"used":    "filesystem",
+				},
 			},
 		}
 

@@ -1,0 +1,369 @@
+replace: true
+next_id: 260
+task_delay_ms: 250
+
+nodes:
+  - name: pve
+    id: node/pve
+    online: 1
+    ip: 10.10.10.11
+    uptime: 1987200
+    maxcpu: 32
+    maxmem: 137438953472
+    maxdisk: 3298534883328
+    kernelversion: 6.8.12-11-pve
+    pveversion: 8.4.1
+    cpumodel: AMD EPYC 7443P 24-Core Processor
+    cpusockets: 1
+    cpucores: 32
+  - name: atlas
+    id: node/atlas
+    online: 1
+    ip: 10.10.10.12
+    uptime: 967200
+    maxcpu: 24
+    maxmem: 68719476736
+    maxdisk: 2199023255552
+    kernelversion: 6.8.12-11-pve
+    pveversion: 8.4.1
+    cpumodel: Intel(R) Xeon(R) Silver 4214
+    cpusockets: 2
+    cpucores: 12
+  - name: edge
+    id: node/edge
+    online: 1
+    ip: 10.10.10.13
+    uptime: 259200
+    maxcpu: 16
+    maxmem: 34359738368
+    maxdisk: 1099511627776
+    kernelversion: 6.8.12-11-pve
+    pveversion: 8.4.1
+    cpumodel: Intel(R) Core(TM) i7-10700
+    cpusockets: 1
+    cpucores: 8
+
+storage:
+  - id: local
+    node: pve
+    type: dir
+    content: iso,vztmpl,backup,snippets
+    disk: 0
+    maxdisk: 214748364800
+    status: active
+    shared: 0
+  - id: local-zfs
+    node: pve
+    type: zfspool
+    content: images,rootdir
+    disk: 0
+    maxdisk: 3078632557772
+    status: active
+    shared: 0
+  - id: ceph-vm
+    node: pve
+    type: rbd
+    content: images,rootdir
+    disk: 0
+    maxdisk: 6597069766656
+    status: active
+    shared: 1
+  - id: local
+    node: atlas
+    type: dir
+    content: iso,vztmpl,backup,snippets
+    disk: 0
+    maxdisk: 171798691840
+    status: active
+    shared: 0
+  - id: ceph-vm
+    node: atlas
+    type: rbd
+    content: images,rootdir
+    disk: 0
+    maxdisk: 6597069766656
+    status: active
+    shared: 1
+  - id: local
+    node: edge
+    type: dir
+    content: iso,vztmpl,backup,snippets,import
+    disk: 0
+    maxdisk: 107374182400
+    status: active
+    shared: 0
+
+vms:
+  - id: 100
+    name: router
+    node: pve
+    type: qemu
+    status: running
+    maxmem: 2147483648
+    maxdisk: 34359738368
+    cpus: 2
+    uptime: 803520
+    netin: 734003200
+    netout: 2147483648
+    diskread: 10737418240
+    diskwrite: 3221225472
+    config:
+      name: router
+      memory: "2048"
+      cores: "2"
+      sockets: "1"
+      net0: virtio=AA:BB:CC:DD:10:00,bridge=vmbr0
+      scsi0: ceph-vm:vm-100-disk-0,size=32G
+      ostype: l26
+      boot: order=scsi0
+  - id: 101
+    name: docker-01
+    node: pve
+    type: lxc
+    status: running
+    maxmem: 8589934592
+    maxdisk: 68719476736
+    cpus: 4
+    uptime: 604800
+    config:
+      hostname: docker-01
+      memory: "8192"
+      cores: "4"
+      net0: name=eth0,bridge=vmbr0,hwaddr=AA:BB:CC:DD:10:01,ip=dhcp
+      rootfs: ceph-vm:subvol-101-disk-0,size=64G
+      ostype: debian
+  - id: 102
+    name: postgres
+    node: atlas
+    type: qemu
+    status: running
+    maxmem: 17179869184
+    maxdisk: 137438953472
+    cpus: 8
+    uptime: 864000
+    config:
+      name: postgres
+      memory: "16384"
+      cores: "8"
+      sockets: "1"
+      net0: virtio=AA:BB:CC:DD:10:02,bridge=vmbr0
+      scsi0: ceph-vm:vm-102-disk-0,size=128G
+      ostype: l26
+  - id: 103
+    name: paperless
+    node: atlas
+    type: lxc
+    status: stopped
+    maxmem: 4294967296
+    maxdisk: 34359738368
+    cpus: 2
+    uptime: 0
+    config:
+      hostname: paperless
+      memory: "4096"
+      cores: "2"
+      net0: name=eth0,bridge=vmbr0,hwaddr=AA:BB:CC:DD:10:03,ip=dhcp
+      rootfs: ceph-vm:subvol-103-disk-0,size=32G
+      ostype: debian
+  - id: 104
+    name: win-build
+    node: pve
+    type: qemu
+    status: stopped
+    maxmem: 8589934592
+    maxdisk: 85899345920
+    cpus: 4
+    uptime: 0
+    config:
+      name: win-build
+      memory: "8192"
+      cores: "4"
+      sockets: "1"
+      net0: virtio=AA:BB:CC:DD:10:04,bridge=vmbr0
+      scsi0: local-zfs:vm-104-disk-0,size=80G
+      ostype: win11
+  - id: 105
+    name: uptime-kuma
+    node: edge
+    type: lxc
+    status: running
+    maxmem: 1073741824
+    maxdisk: 8589934592
+    cpus: 1
+    uptime: 172800
+    config:
+      hostname: uptime-kuma
+      memory: "1024"
+      cores: "1"
+      net0: name=eth0,bridge=vmbr0,hwaddr=AA:BB:CC:DD:10:05,ip=dhcp
+      rootfs: local:subvol-105-disk-0,size=8G
+      ostype: debian
+
+storage_content:
+  - volid: local:iso/debian-12.5.iso
+    node: pve
+    storage: local
+    content: iso
+    format: iso
+    size: 943718400
+    used: 943718400
+    createdat: 1711929600
+  - volid: local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst
+    node: pve
+    storage: local
+    content: vztmpl
+    format: tar.zst
+    size: 188743680
+    used: 188743680
+    createdat: 1714521600
+  - volid: local:snippets/cloud-init-user-data.yaml
+    node: pve
+    storage: local
+    content: snippets
+    format: yaml
+    size: 4096
+    used: 4096
+    createdat: 1717200000
+  - volid: ceph-vm:vm-100-disk-0
+    node: pve
+    storage: ceph-vm
+    content: images
+    format: raw
+    size: 34359738368
+    used: 25769803776
+    vmid: 100
+    createdat: 1717200000
+  - volid: ceph-vm:subvol-101-disk-0
+    node: pve
+    storage: ceph-vm
+    content: rootdir
+    format: subvol
+    size: 68719476736
+    used: 30064771072
+    vmid: 101
+    createdat: 1717286400
+  - volid: ceph-vm:vm-102-disk-0
+    node: atlas
+    storage: ceph-vm
+    content: images
+    format: raw
+    size: 137438953472
+    used: 90194313216
+    vmid: 102
+    createdat: 1717372800
+  - volid: ceph-vm:subvol-103-disk-0
+    node: atlas
+    storage: ceph-vm
+    content: rootdir
+    format: subvol
+    size: 34359738368
+    used: 16106127360
+    vmid: 103
+    createdat: 1717459200
+  - volid: local-zfs:vm-104-disk-0
+    node: pve
+    storage: local-zfs
+    content: images
+    format: raw
+    size: 85899345920
+    used: 53687091200
+    vmid: 104
+    createdat: 1717545600
+  - volid: local:subvol-105-disk-0
+    node: edge
+    storage: local
+    content: rootdir
+    format: subvol
+    size: 8589934592
+    used: 3221225472
+    vmid: 105
+    createdat: 1717632000
+  - volid: local:import/alpine-latest.oci
+    node: edge
+    storage: local
+    content: import
+    format: oci
+    size: 367001600
+    used: 367001600
+    createdat: 1717718400
+    notes: docker.io/library/alpine:latest
+  - volid: local:iso/ubuntu-24.04-live-server-amd64.iso
+    node: atlas
+    storage: local
+    content: iso
+    format: iso
+    size: 3103784960
+    used: 3103784960
+    createdat: 1717804800
+  - volid: local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst
+    node: atlas
+    storage: local
+    content: vztmpl
+    format: tar.zst
+    size: 267386880
+    used: 267386880
+    createdat: 1717891200
+  - volid: local:snippets/kubernetes-cloud-init.yaml
+    node: atlas
+    storage: local
+    content: snippets
+    format: yaml
+    size: 8192
+    used: 8192
+    createdat: 1717977600
+
+backups:
+  - volid: local:backup/vzdump-qemu-100-2026_05_21-02_00_00.vma.zst
+    vmid: 100
+    date: 1779338400
+    size: 5368709120
+    storage: local
+    format: vma.zst
+    notes: nightly router backup
+    content: backup
+  - volid: local:backup/vzdump-lxc-101-2026_05_22-02_00_00.tar.zst
+    vmid: 101
+    date: 1779424800
+    size: 3221225472
+    storage: local
+    format: tar.zst
+    notes: docker host backup
+    content: backup
+
+tasks:
+  - upid: "UPID:pve:6928E120:00000001:00000001:vzdump:100:root@pam:"
+    node: pve
+    type: vzdump
+    id: "100"
+    user: root@pam
+    starttime: 1779338400
+    endtime: 1779338580
+    status: stopped
+    exitstatus: OK
+  - upid: "UPID:atlas:692A32A0:00000002:00000002:qmstart:102:root@pam:"
+    node: atlas
+    type: qmstart
+    id: "102"
+    user: root@pam
+    starttime: 1779424920
+    endtime: 1779424945
+    status: stopped
+    exitstatus: OK
+  - upid: "UPID:pve:692B8420:00000003:00000003:qmigrate:104:root@pam:"
+    node: pve
+    type: qmigrate
+    id: "104"
+    user: root@pam
+    starttime: 1779511320
+    endtime: 1779511388
+    status: stopped
+    exitstatus: OK
+  - upid: "UPID:edge:692CD5A0:00000004:00000004:vzstart:105:root@pam:"
+    node: edge
+    type: vzstart
+    id: "105"
+    user: root@pam
+    starttime: 1779597720
+    endtime: 1779597730
+    status: stopped
+    exitstatus: OK

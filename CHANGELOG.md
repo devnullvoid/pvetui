@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Ansible bootstrap UID**: Bootstrap Access can now create or update the managed Ansible user with a configured numeric UID via `plugins.ansible.bootstrap.uid`.
 - **Application settings dialog**: Added in-app editing for icon display, debug logging, cache/age directories, theme configuration, and key bindings, plus SSH key path fields in profile editing.
+- **Mock-backed media generation**: `make screenshots`, `make demo`, and the mock VHS E2E runner now launch pvetui against the bundled Proxmox mock API with a generated config and media fixture, making screenshot and demo regeneration reproducible without a real cluster.
 
 ### Fixed
 
