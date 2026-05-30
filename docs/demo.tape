@@ -1,36 +1,36 @@
 Source ./docs/common.tape
-Sleep 4s
+Sleep 5s
 Type "m"
-Sleep 1s
+Sleep 2s
 Escape
-Sleep 700ms
+Sleep 1s
 Ctrl+g
-Sleep 1s
+Sleep 2s
 Escape
-Sleep 700ms
-Type "]"
 Sleep 1s
+Type "]"
+Sleep 2s
 Type "/docker"
-Sleep 500ms
+Sleep 800ms
 Enter
-Sleep 1s
+Sleep 2s
 Type "m"
-Sleep 1s
+Sleep 2s
 Escape
-Sleep 500ms
-Type "]"
 Sleep 1s
 Type "]"
-Sleep 1s
+Sleep 2s
+Type "]"
+Sleep 2s
+Type "["
+Sleep 1.5s
+Type "["
+Sleep 1.5s
 Type "["
 Sleep 1s
-Type "["
-Sleep 1s
-Type "["
-Sleep 500ms
 Type "q"
 Enter
-Sleep 200ms
+Sleep 500ms
 Output docs/demo.webm
 Output docs/demo.mp4
 Output docs/demo.gif
