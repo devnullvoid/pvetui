@@ -1,6 +1,7 @@
 package ansible
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -51,4 +52,17 @@ func TestBuildPlaybookArgs_IncludesCheckModeAndLimit(t *testing.T) {
 		"--check",
 		"-vv",
 	}, args)
+}
+
+func TestWriteTempInventoryResult_UsesProxmoxInventoryExtension(t *testing.T) {
+	path, cleanup, err := writeTempInventoryResult(InventoryResult{
+		Source: InventorySourceProxmox,
+		Format: InventoryFormatYAML,
+		Text:   "plugin: community.proxmox.proxmox\n",
+	})
+	require.NoError(t, err)
+	defer cleanup()
+
+	require.Equal(t, ".yml", filepath.Ext(path))
+	require.Contains(t, filepath.Base(path), ".proxmox.")
 }

@@ -189,6 +189,7 @@ type PluginConfig struct {
 // AnsiblePluginConfig holds configuration for the ansible plugin.
 type AnsiblePluginConfig struct {
 	InventoryFormat   string                 `yaml:"inventory_format,omitempty"`
+	InventorySource   string                 `yaml:"inventory_source,omitempty"`
 	InventoryStyle    string                 `yaml:"inventory_style,omitempty"`
 	InventoryVars     map[string]string      `yaml:"inventory_vars,omitempty"`
 	DefaultUser       string                 `yaml:"default_user,omitempty"`
@@ -199,7 +200,26 @@ type AnsiblePluginConfig struct {
 	AskBecomePass     bool                   `yaml:"ask_become_pass,omitempty"`
 	ExtraArgs         []string               `yaml:"extra_args,omitempty"`
 	Env               map[string]string      `yaml:"env,omitempty"`
+	CommunityProxmox  CommunityProxmoxConfig `yaml:"community_proxmox,omitempty"`
 	Bootstrap         AnsibleBootstrapConfig `yaml:"bootstrap,omitempty"`
+}
+
+// CommunityProxmoxConfig holds options for the community.proxmox.proxmox
+// dynamic inventory plugin. Authentication defaults to the active pvetui
+// profile and is passed through environment variables.
+type CommunityProxmoxConfig struct {
+	URL                         string              `yaml:"url,omitempty"`
+	User                        string              `yaml:"user,omitempty"`
+	TokenID                     string              `yaml:"token_id,omitempty"`
+	ValidateCerts               *bool               `yaml:"validate_certs,omitempty"`
+	WantFacts                   bool                `yaml:"want_facts,omitempty"`
+	WantPostFilterFacts         bool                `yaml:"want_post_filter_facts,omitempty"`
+	WantProxmoxNodesAnsibleHost *bool               `yaml:"want_proxmox_nodes_ansible_host,omitempty"`
+	ExcludeNodes                bool                `yaml:"exclude_nodes,omitempty"`
+	Filters                     []string            `yaml:"filters,omitempty"`
+	Compose                     map[string]string   `yaml:"compose,omitempty"`
+	Groups                      map[string]string   `yaml:"groups,omitempty"`
+	KeyedGroups                 []map[string]string `yaml:"keyed_groups,omitempty"`
 }
 
 // AnsibleBootstrapConfig holds bootstrap access workflow settings for ansible.
@@ -462,6 +482,7 @@ func (c *Config) MergeWithFile(path string) error {
 			Enabled []string `yaml:"enabled"`
 			Ansible struct {
 				InventoryFormat   string            `yaml:"inventory_format"`
+				InventorySource   string            `yaml:"inventory_source"`
 				InventoryStyle    string            `yaml:"inventory_style"`
 				InventoryVars     map[string]string `yaml:"inventory_vars"`
 				DefaultUser       string            `yaml:"default_user"`
@@ -472,7 +493,21 @@ func (c *Config) MergeWithFile(path string) error {
 				AskBecomePass     *bool             `yaml:"ask_become_pass"`
 				ExtraArgs         []string          `yaml:"extra_args"`
 				Env               map[string]string `yaml:"env"`
-				Bootstrap         struct {
+				CommunityProxmox  struct {
+					URL                         string              `yaml:"url"`
+					User                        string              `yaml:"user"`
+					TokenID                     string              `yaml:"token_id"`
+					ValidateCerts               *bool               `yaml:"validate_certs"`
+					WantFacts                   *bool               `yaml:"want_facts"`
+					WantPostFilterFacts         *bool               `yaml:"want_post_filter_facts"`
+					WantProxmoxNodesAnsibleHost *bool               `yaml:"want_proxmox_nodes_ansible_host"`
+					ExcludeNodes                *bool               `yaml:"exclude_nodes"`
+					Filters                     []string            `yaml:"filters"`
+					Compose                     map[string]string   `yaml:"compose"`
+					Groups                      map[string]string   `yaml:"groups"`
+					KeyedGroups                 []map[string]string `yaml:"keyed_groups"`
+				} `yaml:"community_proxmox"`
+				Bootstrap struct {
 					Enabled              *bool  `yaml:"enabled"`
 					Username             string `yaml:"username"`
 					UID                  *int   `yaml:"uid"`
@@ -769,6 +804,9 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.Plugins.Ansible.InventoryFormat != "" {
 		c.Plugins.Ansible.InventoryFormat = fileConfig.Plugins.Ansible.InventoryFormat
 	}
+	if fileConfig.Plugins.Ansible.InventorySource != "" {
+		c.Plugins.Ansible.InventorySource = fileConfig.Plugins.Ansible.InventorySource
+	}
 	if fileConfig.Plugins.Ansible.InventoryStyle != "" {
 		c.Plugins.Ansible.InventoryStyle = fileConfig.Plugins.Ansible.InventoryStyle
 	}
@@ -804,6 +842,48 @@ func (c *Config) MergeWithFile(path string) error {
 		for k, v := range fileConfig.Plugins.Ansible.Env {
 			c.Plugins.Ansible.Env[k] = v
 		}
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.URL != "" {
+		c.Plugins.Ansible.CommunityProxmox.URL = fileConfig.Plugins.Ansible.CommunityProxmox.URL
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.User != "" {
+		c.Plugins.Ansible.CommunityProxmox.User = fileConfig.Plugins.Ansible.CommunityProxmox.User
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.TokenID != "" {
+		c.Plugins.Ansible.CommunityProxmox.TokenID = fileConfig.Plugins.Ansible.CommunityProxmox.TokenID
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.ValidateCerts != nil {
+		c.Plugins.Ansible.CommunityProxmox.ValidateCerts = fileConfig.Plugins.Ansible.CommunityProxmox.ValidateCerts
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.WantFacts != nil {
+		c.Plugins.Ansible.CommunityProxmox.WantFacts = *fileConfig.Plugins.Ansible.CommunityProxmox.WantFacts
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.WantPostFilterFacts != nil {
+		c.Plugins.Ansible.CommunityProxmox.WantPostFilterFacts = *fileConfig.Plugins.Ansible.CommunityProxmox.WantPostFilterFacts
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.WantProxmoxNodesAnsibleHost != nil {
+		c.Plugins.Ansible.CommunityProxmox.WantProxmoxNodesAnsibleHost = fileConfig.Plugins.Ansible.CommunityProxmox.WantProxmoxNodesAnsibleHost
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.ExcludeNodes != nil {
+		c.Plugins.Ansible.CommunityProxmox.ExcludeNodes = *fileConfig.Plugins.Ansible.CommunityProxmox.ExcludeNodes
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.Filters != nil {
+		c.Plugins.Ansible.CommunityProxmox.Filters = append([]string{}, fileConfig.Plugins.Ansible.CommunityProxmox.Filters...)
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.Compose != nil {
+		c.Plugins.Ansible.CommunityProxmox.Compose = make(map[string]string, len(fileConfig.Plugins.Ansible.CommunityProxmox.Compose))
+		for k, v := range fileConfig.Plugins.Ansible.CommunityProxmox.Compose {
+			c.Plugins.Ansible.CommunityProxmox.Compose[k] = v
+		}
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.Groups != nil {
+		c.Plugins.Ansible.CommunityProxmox.Groups = make(map[string]string, len(fileConfig.Plugins.Ansible.CommunityProxmox.Groups))
+		for k, v := range fileConfig.Plugins.Ansible.CommunityProxmox.Groups {
+			c.Plugins.Ansible.CommunityProxmox.Groups[k] = v
+		}
+	}
+	if fileConfig.Plugins.Ansible.CommunityProxmox.KeyedGroups != nil {
+		c.Plugins.Ansible.CommunityProxmox.KeyedGroups = append([]map[string]string{}, fileConfig.Plugins.Ansible.CommunityProxmox.KeyedGroups...)
 	}
 	if fileConfig.Plugins.Ansible.Bootstrap.Enabled != nil {
 		c.Plugins.Ansible.Bootstrap.Enabled = *fileConfig.Plugins.Ansible.Bootstrap.Enabled
@@ -1257,6 +1337,9 @@ func (c *Config) SetDefaults() {
 	}
 	if c.Plugins.Ansible.InventoryFormat == "" {
 		c.Plugins.Ansible.InventoryFormat = "yaml"
+	}
+	if c.Plugins.Ansible.InventorySource == "" {
+		c.Plugins.Ansible.InventorySource = "pvetui"
 	}
 	if c.Plugins.Ansible.InventoryStyle == "" {
 		c.Plugins.Ansible.InventoryStyle = "compact"

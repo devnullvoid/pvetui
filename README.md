@@ -196,7 +196,7 @@ pvetui includes an opt-in plugin system for optional features. Plugins are **dis
 
 #### Built-in Plugins
 
-- **`ansible`**: Global-menu Ansible toolkit with YAML/INI inventory generation, ad-hoc module execution, playbook execution, and SSH setup guidance
+- **`ansible`**: Global-menu Ansible toolkit with pvetui YAML/INI inventory generation, optional `community.proxmox.proxmox` dynamic inventory support, ad-hoc module execution, playbook execution, and SSH setup guidance
 - **`community-scripts`**: Adds the popular Community Scripts installer to node context menus
 - **`command-runner`**: Execute whitelisted commands on Proxmox hosts via SSH (requires SSH key setup)
 - **`guest-insights`** *(legacy alias: `demo-guest-list`)*: Full guest insights modal (filter/sort/jump-to-guest)
@@ -224,6 +224,13 @@ plugins:
     - "command-runner"
     - "guest-insights"     # Guest Insights plugin (legacy alias: demo-guest-list)
 ```
+
+The Ansible plugin defaults to pvetui's generated inventory. Advanced users can set
+`plugins.ansible.inventory_source: community_proxmox` to generate a temporary
+`.proxmox.yml` source for the `community.proxmox.proxmox` inventory plugin. pvetui
+derives `PROXMOX_URL`, `PROXMOX_USER`, and password/token environment variables from
+the active profile when possible, so Proxmox secrets are not written into generated
+inventory files.
 
 **📖 For plugin development and advanced details, see [docs/PLUGINS.md](docs/PLUGINS.md)**
 

@@ -82,6 +82,7 @@ theme:
 plugins:
   enabled: []
   # ansible:
+  #   inventory_source: "pvetui"       # "pvetui" (default) or "community_proxmox"
   #   inventory_format: "yaml"        # "yaml" (default) or "ini"
   #   inventory_style: "compact"      # "compact" (default) or "expanded"
   #   inventory_vars:                 # Optional vars injected into all.vars / [all:vars]
@@ -97,6 +98,15 @@ plugins:
   #     # ANSIBLE_CONFIG: "/path/to/ansible.cfg"
   #     # ANSIBLE_ROLES_PATH: "/path/to/roles"
   #     # ANSIBLE_HOST_KEY_CHECKING: "False"
+  #   community_proxmox:              # Used when inventory_source is "community_proxmox"
+  #     want_facts: true
+  #     want_post_filter_facts: false
+  #     exclude_nodes: false
+  #     # url/user/token_id default to the active pvetui profile; password/token_secret are passed via env
+  #     # compose:
+  #     #   ansible_host: "proxmox_ipconfig0.ip | default(proxmox_net0.ip) | ipaddr('address')"
+  #     # groups:
+  #     #   webservers: "'web' in (proxmox_tags_parsed|default([])|list)"
   #   bootstrap:
   #     enabled: false
   #     username: "ansible"

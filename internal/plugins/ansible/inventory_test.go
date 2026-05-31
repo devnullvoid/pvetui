@@ -101,6 +101,46 @@ func TestNormalizeInventoryStyle(t *testing.T) {
 	require.Equal(t, InventoryStyleCompact, NormalizeInventoryStyle("unknown"))
 }
 
+func TestBuildCommunityProxmoxInventory_UsesEnvForSecrets(t *testing.T) {
+	wantNodesHost := false
+	result, err := BuildCommunityProxmoxInventory(CommunityProxmoxOptions{
+		URL:                         "https://pve.example.com:8006",
+		User:                        "root@pam",
+		TokenID:                     "pvetui",
+		TokenSecret:                 "token-secret",
+		Password:                    "password-secret",
+		ValidateCerts:               false,
+		WantFacts:                   true,
+		WantProxmoxNodesAnsibleHost: &wantNodesHost,
+		Compose: map[string]string{
+			"ansible_host": "proxmox_ipconfig0.ip | ipaddr('address')",
+		},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, InventorySourceProxmox, result.Source)
+	require.Equal(t, InventoryFormatYAML, result.Format)
+	require.Contains(t, result.Text, "plugin: community.proxmox.proxmox")
+	require.Contains(t, result.Text, "validate_certs: false")
+	require.Contains(t, result.Text, "want_facts: true")
+	require.Contains(t, result.Text, "want_proxmox_nodes_ansible_host: false")
+	require.Contains(t, result.Text, "compose:")
+	require.NotContains(t, result.Text, "token-secret")
+	require.NotContains(t, result.Text, "password-secret")
+	require.Equal(t, "https://pve.example.com:8006", result.Env["PROXMOX_URL"])
+	require.Equal(t, "root@pam", result.Env["PROXMOX_USER"])
+	require.Equal(t, "pvetui", result.Env["PROXMOX_TOKEN_ID"])
+	require.Equal(t, "token-secret", result.Env["PROXMOX_TOKEN_SECRET"])
+	require.Equal(t, "password-secret", result.Env["PROXMOX_PASSWORD"])
+}
+
+func TestNormalizeInventorySource(t *testing.T) {
+	require.Equal(t, InventorySourcePvetui, NormalizeInventorySource(""))
+	require.Equal(t, InventorySourcePvetui, NormalizeInventorySource("pvetui"))
+	require.Equal(t, InventorySourceProxmox, NormalizeInventorySource("COMMUNITY_PROXMOX"))
+	require.Equal(t, InventorySourcePvetui, NormalizeInventorySource("unknown"))
+}
+
 func TestBuildInventoryWithFormat_CompactYAMLMovesSharedVarsToAllVars(t *testing.T) {
 	nodes := []*api.Node{
 		{Name: "pve-a", IP: "10.0.0.10", Online: true},

@@ -12,6 +12,8 @@ import (
 const (
 	InventoryFormatINI     = "ini"
 	InventoryFormatYAML    = "yaml"
+	InventorySourcePvetui  = "pvetui"
+	InventorySourceProxmox = "community_proxmox"
 	InventoryStyleCompact  = "compact"
 	InventoryStyleExpanded = "expanded"
 )
@@ -36,9 +38,30 @@ type InventoryHost struct {
 
 // InventoryResult contains the final inventory text and generated host metadata.
 type InventoryResult struct {
+	Source string
 	Format string
 	Text   string
 	Hosts  []InventoryHost
+	Env    map[string]string
+}
+
+// CommunityProxmoxOptions describes a generated
+// community.proxmox.proxmox dynamic inventory source.
+type CommunityProxmoxOptions struct {
+	URL                         string
+	User                        string
+	TokenID                     string
+	Password                    string
+	TokenSecret                 string
+	ValidateCerts               bool
+	WantFacts                   bool
+	WantPostFilterFacts         bool
+	WantProxmoxNodesAnsibleHost *bool
+	ExcludeNodes                bool
+	Filters                     []string
+	Compose                     map[string]string
+	Groups                      map[string]string
+	KeyedGroups                 []map[string]string
 }
 
 // BuildInventory renders an INI-style Ansible inventory from Proxmox nodes and guests.
@@ -172,7 +195,82 @@ func BuildInventoryWithFormat(nodes []*api.Node, guests []*api.VM, defaults Inve
 		rendered = renderYAMLInventory(groups, hosts, style)
 	}
 
-	return InventoryResult{Format: format, Text: rendered, Hosts: hosts}
+	return InventoryResult{Source: InventorySourcePvetui, Format: format, Text: rendered, Hosts: hosts}
+}
+
+// BuildCommunityProxmoxInventory renders an Ansible dynamic inventory source
+// for the community.proxmox.proxmox collection. Authentication values are
+// returned as environment variables so secrets are not written to disk.
+func BuildCommunityProxmoxInventory(opts CommunityProxmoxOptions) (InventoryResult, error) {
+	source := map[string]interface{}{
+		"plugin":         "community.proxmox.proxmox",
+		"validate_certs": opts.ValidateCerts,
+	}
+	if opts.WantFacts {
+		source["want_facts"] = opts.WantFacts
+	}
+	if opts.WantPostFilterFacts {
+		source["want_post_filter_facts"] = opts.WantPostFilterFacts
+	}
+	if opts.WantProxmoxNodesAnsibleHost != nil {
+		source["want_proxmox_nodes_ansible_host"] = *opts.WantProxmoxNodesAnsibleHost
+	}
+	if opts.ExcludeNodes {
+		source["exclude_nodes"] = opts.ExcludeNodes
+	}
+	if len(opts.Filters) > 0 {
+		source["filters"] = opts.Filters
+	}
+	if len(opts.Compose) > 0 {
+		source["compose"] = opts.Compose
+	}
+	if len(opts.Groups) > 0 {
+		source["groups"] = opts.Groups
+	}
+	if len(opts.KeyedGroups) > 0 {
+		source["keyed_groups"] = opts.KeyedGroups
+	}
+
+	env := map[string]string{}
+	if value := strings.TrimSpace(opts.URL); value != "" {
+		env["PROXMOX_URL"] = value
+	}
+	if value := strings.TrimSpace(opts.User); value != "" {
+		env["PROXMOX_USER"] = value
+	}
+	if value := strings.TrimSpace(opts.TokenID); value != "" {
+		env["PROXMOX_TOKEN_ID"] = value
+	}
+	if value := strings.TrimSpace(opts.TokenSecret); value != "" {
+		env["PROXMOX_TOKEN_SECRET"] = value
+	}
+	if value := strings.TrimSpace(opts.Password); value != "" {
+		env["PROXMOX_PASSWORD"] = value
+	}
+
+	rendered, err := yaml.Marshal(source)
+	if err != nil {
+		return InventoryResult{}, fmt.Errorf("render community proxmox inventory source: %w", err)
+	}
+
+	return InventoryResult{
+		Source: InventorySourceProxmox,
+		Format: InventoryFormatYAML,
+		Text:   string(rendered),
+		Env:    env,
+	}, nil
+}
+
+// NormalizeInventorySource validates and canonicalizes an inventory source.
+func NormalizeInventorySource(source string) string {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case InventorySourceProxmox:
+		return InventorySourceProxmox
+	case InventorySourcePvetui:
+		return InventorySourcePvetui
+	default:
+		return InventorySourcePvetui
+	}
 }
 
 // NormalizeInventoryFormat validates and canonicalizes inventory format.

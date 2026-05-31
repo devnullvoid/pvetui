@@ -176,8 +176,7 @@ func (p *Plugin) showMainMenu() {
 	selectedNode, selectedGuest := p.currentSelectionForLimit()
 
 	list.AddItem("Preview Inventory", "Render inventory from current nodes and guests", 0, func() {
-		title := fmt.Sprintf("Generated Inventory (%s)", strings.ToUpper(inventory.Format))
-		p.showOutput(title, inventory.Text, p.showMainMenu)
+		p.previewInventory(inventory)
 	})
 	list.AddItem("Save Inventory", "Write generated inventory to a file", 0, func() {
 		p.showSaveInventoryForm(inventory, p.showMainMenu)
@@ -271,6 +270,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	extraArgs := strings.Join(ansibleCfg.ExtraArgs, " ")
 	envVarsYAML := formatInventoryVarsYAML(ansibleCfg.Env)
 	inventoryVarsYAML := formatInventoryVarsYAML(ansibleCfg.InventoryVars)
+	inventorySource := coreansible.NormalizeInventorySource(ansibleCfg.InventorySource)
 	inventoryFormat := coreansible.NormalizeInventoryFormat(ansibleCfg.InventoryFormat)
 	inventoryStyle := coreansible.NormalizeInventoryStyle(ansibleCfg.InventoryStyle)
 	defaultLimitMode := strings.TrimSpace(ansibleCfg.DefaultLimitMode)
@@ -280,6 +280,14 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	askPass := ansibleCfg.AskPass
 	askBecomePass := ansibleCfg.AskBecomePass
 
+	form.AddDropDown(
+		"Inventory Source",
+		[]string{coreansible.InventorySourcePvetui, coreansible.InventorySourceProxmox},
+		map[string]int{coreansible.InventorySourcePvetui: 0, coreansible.InventorySourceProxmox: 1}[inventorySource],
+		func(option string, _ int) {
+			inventorySource = option
+		},
+	)
 	form.AddDropDown(
 		"Inventory Format",
 		[]string{coreansible.InventoryFormatYAML, coreansible.InventoryFormatINI},
@@ -331,6 +339,7 @@ func (p *Plugin) showSettingsForm(onDone func()) {
 	}
 
 	form.AddButton("Save", func() {
+		cfg.Plugins.Ansible.InventorySource = coreansible.NormalizeInventorySource(inventorySource)
 		cfg.Plugins.Ansible.InventoryFormat = coreansible.NormalizeInventoryFormat(inventoryFormat)
 		cfg.Plugins.Ansible.InventoryStyle = coreansible.NormalizeInventoryStyle(inventoryStyle)
 		cfg.Plugins.Ansible.DefaultLimitMode = strings.TrimSpace(defaultLimitMode)
@@ -507,6 +516,14 @@ func (p *Plugin) showBootstrapSettingsForm(onDone func()) {
 }
 
 func (p *Plugin) showBootstrapRunForm(inventory coreansible.InventoryResult, onDone func()) {
+	if coreansible.NormalizeInventorySource(inventory.Source) == coreansible.InventorySourceProxmox {
+		p.app.ShowMessageSafe("Bootstrap Access currently requires the pvetui inventory source.")
+		if onDone != nil {
+			onDone()
+		}
+		return
+	}
+
 	pages := p.app.Pages()
 	pages.RemovePage(menuPageName)
 
@@ -1010,10 +1027,9 @@ func (p *Plugin) runAdhoc(inventory coreansible.InventoryResult, opts coreansibl
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
 		p.runner.SetEnv(p.ansiblePluginConfig().Env)
-		result := p.runner.RunAdhocStream(
+		result := p.runner.RunAdhocInventory(
 			ctx,
-			inventory.Text,
-			inventory.Format,
+			inventory,
 			opts,
 			func(line string) {
 				appendLiveLine(line)
@@ -1053,10 +1069,9 @@ func (p *Plugin) runPlaybook(
 
 		opts.ExtraArgs = p.mergeConfiguredAnsibleArgs(opts.ExtraArgs)
 		p.runner.SetEnv(p.ansiblePluginConfig().Env)
-		result := p.runner.RunPlaybookStream(
+		result := p.runner.RunPlaybookInventory(
 			ctx,
-			inventory.Text,
-			inventory.Format,
+			inventory,
 			opts,
 			func(line string) {
 				appendLiveLine(line)
@@ -2183,7 +2198,7 @@ func (p *Plugin) showSaveInventoryForm(inventory coreansible.InventoryResult, on
 	form.SetTitle(" Save Inventory ")
 	form.SetTitleColor(theme.Colors.Primary)
 
-	defaultPath := filepath.Join(defaultHomeDir(), "ansible", defaultInventoryFilename(inventory.Format))
+	defaultPath := filepath.Join(defaultHomeDir(), "ansible", defaultInventoryFilenameForResult(inventory))
 	targetPath := defaultPath
 
 	form.AddInputField("Path", defaultPath, 80, nil, func(text string) {
@@ -2297,10 +2312,57 @@ func (p *Plugin) showOutput(title, content string, onDone func()) {
 	p.app.SetFocus(output)
 }
 
+func (p *Plugin) previewInventory(inventory coreansible.InventoryResult) {
+	if coreansible.NormalizeInventorySource(inventory.Source) != coreansible.InventorySourceProxmox {
+		title := fmt.Sprintf("Generated Inventory (%s)", strings.ToUpper(inventory.Format))
+		p.showOutput(title, inventory.Text, p.showMainMenu)
+		return
+	}
+
+	if err := p.runner.CheckInventoryAvailability(); err != nil {
+		p.app.ShowMessageSafe(fmt.Sprintf("ansible-inventory is not available: %v", err))
+		return
+	}
+
+	appendLiveLine, closeLive := p.showLiveOutputModal("Resolving community.proxmox inventory...")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	p.setRunningCancel(cancel)
+
+	go func() {
+		defer cancel()
+		defer p.clearRunningCancel()
+
+		p.runner.SetEnv(p.ansiblePluginConfig().Env)
+		result := p.runner.RunInventoryList(ctx, inventory)
+		if result.Output != "" {
+			appendLiveLine(result.Output)
+		}
+		p.app.QueueUpdateDraw(func() {
+			closeLive()
+			title := "Resolved Proxmox Inventory"
+			if result.Err != nil {
+				title = "Inventory Preview Failed"
+			}
+			p.showOutput(title, formatCommandResult(result), p.showMainMenu)
+		})
+	}()
+}
+
 func (p *Plugin) currentInventory() coreansible.InventoryResult {
 	nodes := p.app.NodeList().GetNodes()
 	guests := p.app.VMList().GetVMs()
 	ansibleCfg := p.ansiblePluginConfig()
+	if coreansible.NormalizeInventorySource(ansibleCfg.InventorySource) == coreansible.InventorySourceProxmox {
+		inventory, err := coreansible.BuildCommunityProxmoxInventory(p.communityProxmoxOptions(ansibleCfg))
+		if err != nil {
+			return coreansible.InventoryResult{
+				Source: coreansible.InventorySourceProxmox,
+				Format: coreansible.InventoryFormatYAML,
+				Text:   fmt.Sprintf("# Failed to render community Proxmox inventory source: %v\n", err),
+			}
+		}
+		return inventory
+	}
 
 	defaults := coreansible.InventoryDefaults{
 		NodeSSHUser:       p.resolveNodeUser(),
@@ -2316,6 +2378,90 @@ func (p *Plugin) currentInventory() coreansible.InventoryResult {
 	}
 
 	return coreansible.BuildInventoryWithFormat(nodes, guests, defaults, ansibleCfg.InventoryFormat)
+}
+
+func (p *Plugin) communityProxmoxOptions(ansibleCfg cfgpkg.AnsiblePluginConfig) coreansible.CommunityProxmoxOptions {
+	cfg := p.app.Config()
+	community := ansibleCfg.CommunityProxmox
+
+	url := strings.TrimSpace(community.URL)
+	user := strings.TrimSpace(community.User)
+	tokenID := strings.TrimSpace(community.TokenID)
+	password := ""
+	tokenSecret := ""
+	validateCerts := true
+
+	if cfg != nil {
+		if url == "" {
+			url = proxmoxInventoryURL(cfg.GetAddr())
+		}
+		if user == "" {
+			user = proxmoxInventoryUser(cfg.GetUser(), cfg.GetRealm())
+		}
+		if tokenID == "" {
+			tokenID = strings.TrimSpace(cfg.GetTokenID())
+		}
+		if tokenID != "" {
+			tokenSecret = strings.TrimSpace(cfg.GetTokenSecret())
+		} else {
+			password = strings.TrimSpace(cfg.GetPassword())
+		}
+		validateCerts = !cfg.GetInsecure()
+	}
+	if community.ValidateCerts != nil {
+		validateCerts = *community.ValidateCerts
+	}
+	if _, ok := ansibleCfg.Env["PROXMOX_URL"]; ok {
+		url = ""
+	}
+	if _, ok := ansibleCfg.Env["PROXMOX_USER"]; ok {
+		user = ""
+	}
+	if _, ok := ansibleCfg.Env["PROXMOX_TOKEN_ID"]; ok {
+		tokenID = ""
+	}
+	if _, ok := ansibleCfg.Env["PROXMOX_TOKEN_SECRET"]; ok {
+		tokenSecret = ""
+	}
+	if _, ok := ansibleCfg.Env["PROXMOX_PASSWORD"]; ok {
+		password = ""
+	}
+
+	return coreansible.CommunityProxmoxOptions{
+		URL:                         url,
+		User:                        user,
+		TokenID:                     tokenID,
+		Password:                    password,
+		TokenSecret:                 tokenSecret,
+		ValidateCerts:               validateCerts,
+		WantFacts:                   community.WantFacts,
+		WantPostFilterFacts:         community.WantPostFilterFacts,
+		WantProxmoxNodesAnsibleHost: community.WantProxmoxNodesAnsibleHost,
+		ExcludeNodes:                community.ExcludeNodes,
+		Filters:                     append([]string{}, community.Filters...),
+		Compose:                     cloneStringMap(community.Compose),
+		Groups:                      cloneStringMap(community.Groups),
+		KeyedGroups:                 append([]map[string]string{}, community.KeyedGroups...),
+	}
+}
+
+func proxmoxInventoryURL(addr string) string {
+	addr = strings.TrimSpace(addr)
+	addr = strings.TrimRight(addr, "/")
+	addr = strings.TrimSuffix(addr, "/api2/json")
+	return addr
+}
+
+func proxmoxInventoryUser(user, realm string) string {
+	user = strings.TrimSpace(user)
+	if user == "" || strings.Contains(user, "@") {
+		return user
+	}
+	realm = strings.TrimSpace(realm)
+	if realm == "" {
+		realm = "pam"
+	}
+	return user + "@" + realm
 }
 
 func (p *Plugin) currentSelectionForLimit() (*api.Node, *api.VM) {
@@ -2425,6 +2571,7 @@ func (p *Plugin) ansiblePluginConfig() cfgpkg.AnsiblePluginConfig {
 	if cfg == nil {
 		return cfgpkg.AnsiblePluginConfig{
 			InventoryFormat:  coreansible.InventoryFormatYAML,
+			InventorySource:  coreansible.InventorySourcePvetui,
 			InventoryStyle:   coreansible.InventoryStyleCompact,
 			DefaultLimitMode: "selection",
 			Bootstrap: cfgpkg.AnsibleBootstrapConfig{
@@ -2450,6 +2597,13 @@ func defaultInventoryFilename(format string) string {
 	}
 
 	return "pvetui-inventory.ini"
+}
+
+func defaultInventoryFilenameForResult(inventory coreansible.InventoryResult) string {
+	if coreansible.NormalizeInventorySource(inventory.Source) == coreansible.InventorySourceProxmox {
+		return "pvetui.proxmox.yml"
+	}
+	return defaultInventoryFilename(inventory.Format)
 }
 
 func cloneStringMap(in map[string]string) map[string]string {
@@ -2529,7 +2683,7 @@ func parseDuration(value string, fallback time.Duration) (time.Duration, error) 
 
 func buildSetupGuide(inventory coreansible.InventoryResult) string {
 	var b strings.Builder
-	inventoryFile := defaultInventoryFilename(inventory.Format)
+	inventoryFile := defaultInventoryFilenameForResult(inventory)
 
 	b.WriteString("[primary]Ansible SSH Setup Guide[-]\n\n")
 	b.WriteString("1) Generate a dedicated SSH key (optional):\n")
@@ -2558,6 +2712,9 @@ func buildSetupGuide(inventory coreansible.InventoryResult) string {
 	b.WriteString("\n")
 
 	b.WriteString("4) Validate connectivity:\n")
+	if coreansible.NormalizeInventorySource(inventory.Source) == coreansible.InventorySourceProxmox {
+		b.WriteString("   export PROXMOX_PASSWORD=... # or PROXMOX_TOKEN_ID / PROXMOX_TOKEN_SECRET\n")
+	}
 	_, _ = fmt.Fprintf(&b, "   ansible -i ./%s all -m ping\n\n", inventoryFile)
 
 	b.WriteString("5) Example run:\n")

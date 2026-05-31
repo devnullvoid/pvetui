@@ -66,6 +66,15 @@ func (r *Runner) CheckAvailability() error {
 	return nil
 }
 
+// CheckInventoryAvailability verifies that ansible-inventory is available.
+func (r *Runner) CheckInventoryAvailability() error {
+	if _, err := exec.LookPath("ansible-inventory"); err != nil {
+		return fmt.Errorf("missing required binary in PATH: ansible-inventory")
+	}
+
+	return nil
+}
+
 // RunPing executes `ansible -m ping` using the generated inventory.
 func (r *Runner) RunPing(ctx context.Context, inventoryText, inventoryFormat, limit string, extraArgs []string) CommandResult {
 	return r.RunPingStream(ctx, inventoryText, inventoryFormat, limit, extraArgs, nil)
@@ -93,6 +102,67 @@ func (r *Runner) RunPingStream(
 		ExtraArgs: extraArgs,
 	})
 	return runAnsibleCommand(ctx, r.env, args, handler)
+}
+
+// RunInventoryList resolves an inventory source with ansible-inventory --list.
+func (r *Runner) RunInventoryList(ctx context.Context, inventory InventoryResult) CommandResult {
+	inventoryPath, cleanup, err := writeTempInventoryResult(inventory)
+	if err != nil {
+		return CommandResult{Err: fmt.Errorf("create temp inventory: %w", err)}
+	}
+	defer cleanup()
+
+	env := mergeEnvMap(r.env, inventory.Env)
+	args := []string{"-i", inventoryPath, "--list"}
+	started := time.Now()
+	// #nosec G204 -- binary path is fixed to ansible-inventory; args are passed without shell interpolation.
+	cmd := exec.CommandContext(ctx, "ansible-inventory", args...)
+	cmd.Env = env
+	return runCommandStreaming(cmd, "ansible-inventory "+strings.Join(args, " "), started, nil)
+}
+
+// RunAdhocInventory executes ansible ad-hoc commands with an inventory source.
+func (r *Runner) RunAdhocInventory(
+	ctx context.Context,
+	inventory InventoryResult,
+	opts AdhocOptions,
+	handler OutputLineHandler,
+) CommandResult {
+	module := strings.TrimSpace(opts.Module)
+	if module == "" {
+		return CommandResult{Err: fmt.Errorf("module is required")}
+	}
+
+	inventoryPath, cleanup, err := writeTempInventoryResult(inventory)
+	if err != nil {
+		return CommandResult{Err: fmt.Errorf("create temp inventory: %w", err)}
+	}
+	defer cleanup()
+
+	args := buildAdhocArgs(inventoryPath, opts)
+	return runAnsibleCommand(ctx, mergeEnvMap(r.env, inventory.Env), args, handler)
+}
+
+// RunPlaybookInventory executes ansible-playbook with an inventory source.
+func (r *Runner) RunPlaybookInventory(
+	ctx context.Context,
+	inventory InventoryResult,
+	opts PlaybookOptions,
+	handler OutputLineHandler,
+) CommandResult {
+	playbookPath := strings.TrimSpace(opts.PlaybookPath)
+	if playbookPath == "" {
+		return CommandResult{Err: fmt.Errorf("playbook path is required")}
+	}
+
+	inventoryPath, cleanup, err := writeTempInventoryResult(inventory)
+	if err != nil {
+		return CommandResult{Err: fmt.Errorf("create temp inventory: %w", err)}
+	}
+	defer cleanup()
+
+	args := buildPlaybookArgs(inventoryPath, playbookPath, opts)
+	return runAnsiblePlaybookCommand(ctx, mergeEnvMap(r.env, inventory.Env), args, handler)
 }
 
 // AdhocOptions describes ansible ad-hoc module invocation options.
@@ -280,8 +350,18 @@ func runCommandStreaming(cmd *exec.Cmd, command string, started time.Time, handl
 }
 
 func writeTempInventory(inventoryText, inventoryFormat string) (path string, cleanup func(), err error) {
+	return writeTempInventoryResult(InventoryResult{
+		Source: InventorySourcePvetui,
+		Format: inventoryFormat,
+		Text:   inventoryText,
+	})
+}
+
+func writeTempInventoryResult(inventory InventoryResult) (path string, cleanup func(), err error) {
 	ext := ".ini"
-	if NormalizeInventoryFormat(inventoryFormat) == InventoryFormatYAML {
+	if NormalizeInventorySource(inventory.Source) == InventorySourceProxmox {
+		ext = ".proxmox.yml"
+	} else if NormalizeInventoryFormat(inventory.Format) == InventoryFormatYAML {
 		ext = ".yml"
 	}
 
@@ -298,7 +378,7 @@ func writeTempInventory(inventoryText, inventoryFormat string) (path string, cle
 		}
 	}()
 
-	if _, err = tmpFile.WriteString(inventoryText); err != nil {
+	if _, err = tmpFile.WriteString(inventory.Text); err != nil {
 		return "", nil, err
 	}
 	if err = tmpFile.Close(); err != nil {
@@ -315,6 +395,21 @@ func writeTempInventory(inventoryText, inventoryFormat string) (path string, cle
 	}
 
 	return tmpFile.Name(), cleanup, nil
+}
+
+func mergeEnvMap(base []string, extra map[string]string) []string {
+	if len(extra) == 0 {
+		return base
+	}
+	if len(base) == 0 {
+		base = os.Environ()
+	}
+	merged := make([]string, 0, len(base)+len(extra))
+	merged = append(merged, base...)
+	for k, v := range extra {
+		merged = append(merged, k+"="+v)
+	}
+	return merged
 }
 
 // SaveInventory writes inventory text to a user-selected path.
