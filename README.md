@@ -228,9 +228,10 @@ plugins:
 The Ansible plugin defaults to pvetui's generated inventory. Advanced users can set
 `plugins.ansible.inventory_source: community_proxmox` to generate a temporary
 `.proxmox.yml` source for the `community.proxmox.proxmox` inventory plugin. pvetui
-derives `PROXMOX_URL`, `PROXMOX_USER`, and password/token environment variables from
-the active profile when possible, so Proxmox secrets are not written into generated
-inventory files.
+derives non-secret connection fields (`url`, `user`, `token_id`) and password/token
+secret environment variables from the active profile when possible, so saved
+community inventory files can be reused outside pvetui without writing Proxmox
+secrets into them.
 
 **📖 For plugin development and advanced details, see [docs/PLUGINS.md](docs/PLUGINS.md)**
 

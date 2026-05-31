@@ -2412,13 +2412,13 @@ func (p *Plugin) communityProxmoxOptions(ansibleCfg cfgpkg.AnsiblePluginConfig) 
 		validateCerts = *community.ValidateCerts
 	}
 	if _, ok := ansibleCfg.Env["PROXMOX_URL"]; ok {
-		url = ""
+		url = strings.TrimSpace(community.URL)
 	}
 	if _, ok := ansibleCfg.Env["PROXMOX_USER"]; ok {
-		user = ""
+		user = strings.TrimSpace(community.User)
 	}
 	if _, ok := ansibleCfg.Env["PROXMOX_TOKEN_ID"]; ok {
-		tokenID = ""
+		tokenID = strings.TrimSpace(community.TokenID)
 	}
 	if _, ok := ansibleCfg.Env["PROXMOX_TOKEN_SECRET"]; ok {
 		tokenSecret = ""

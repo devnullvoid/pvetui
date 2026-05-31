@@ -199,12 +199,22 @@ func BuildInventoryWithFormat(nodes []*api.Node, guests []*api.VM, defaults Inve
 }
 
 // BuildCommunityProxmoxInventory renders an Ansible dynamic inventory source
-// for the community.proxmox.proxmox collection. Authentication values are
-// returned as environment variables so secrets are not written to disk.
+// for the community.proxmox.proxmox collection. Non-secret connection values
+// are written to the source so it can be reused outside pvetui; secrets are
+// returned as environment variables so they are not written to disk.
 func BuildCommunityProxmoxInventory(opts CommunityProxmoxOptions) (InventoryResult, error) {
 	source := map[string]interface{}{
 		"plugin":         "community.proxmox.proxmox",
 		"validate_certs": opts.ValidateCerts,
+	}
+	if value := strings.TrimSpace(opts.URL); value != "" {
+		source["url"] = value
+	}
+	if value := strings.TrimSpace(opts.User); value != "" {
+		source["user"] = value
+	}
+	if value := strings.TrimSpace(opts.TokenID); value != "" {
+		source["token_id"] = value
 	}
 	if opts.WantFacts {
 		source["want_facts"] = opts.WantFacts
@@ -232,15 +242,6 @@ func BuildCommunityProxmoxInventory(opts CommunityProxmoxOptions) (InventoryResu
 	}
 
 	env := map[string]string{}
-	if value := strings.TrimSpace(opts.URL); value != "" {
-		env["PROXMOX_URL"] = value
-	}
-	if value := strings.TrimSpace(opts.User); value != "" {
-		env["PROXMOX_USER"] = value
-	}
-	if value := strings.TrimSpace(opts.TokenID); value != "" {
-		env["PROXMOX_TOKEN_ID"] = value
-	}
 	if value := strings.TrimSpace(opts.TokenSecret); value != "" {
 		env["PROXMOX_TOKEN_SECRET"] = value
 	}
