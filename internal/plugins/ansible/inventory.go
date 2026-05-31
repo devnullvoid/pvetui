@@ -53,6 +53,11 @@ type CommunityProxmoxOptions struct {
 	TokenID                     string
 	Password                    string
 	TokenSecret                 string
+	NodeSSHUser                 string
+	VMSSHUser                   string
+	SSHPrivateKeyFile           string
+	DefaultPassword             string
+	InventoryVars               map[string]string
 	ValidateCerts               bool
 	WantFacts                   bool
 	WantPostFilterFacts         bool
@@ -231,8 +236,8 @@ func BuildCommunityProxmoxInventory(opts CommunityProxmoxOptions) (InventoryResu
 	if len(opts.Filters) > 0 {
 		source["filters"] = opts.Filters
 	}
-	if len(opts.Compose) > 0 {
-		source["compose"] = opts.Compose
+	if compose := communityProxmoxCompose(opts); len(compose) > 0 {
+		source["compose"] = compose
 	}
 	if len(opts.Groups) > 0 {
 		source["groups"] = opts.Groups
@@ -260,6 +265,48 @@ func BuildCommunityProxmoxInventory(opts CommunityProxmoxOptions) (InventoryResu
 		Text:   string(rendered),
 		Env:    env,
 	}, nil
+}
+
+func communityProxmoxCompose(opts CommunityProxmoxOptions) map[string]string {
+	compose := make(map[string]string, len(opts.Compose)+len(opts.InventoryVars)+2)
+	for k, v := range opts.InventoryVars {
+		compose[k] = quoteJinjaString(v)
+	}
+	if user := communityProxmoxSSHUserExpression(opts.NodeSSHUser, opts.VMSSHUser); user != "" {
+		compose["ansible_user"] = user
+	}
+	if keyFile := strings.TrimSpace(opts.SSHPrivateKeyFile); keyFile != "" {
+		compose["ansible_ssh_private_key_file"] = quoteJinjaString(keyFile)
+	}
+	if password := strings.TrimSpace(opts.DefaultPassword); password != "" {
+		compose["ansible_password"] = quoteJinjaString(password)
+	}
+	for k, v := range opts.Compose {
+		compose[k] = v
+	}
+	return compose
+}
+
+func quoteJinjaString(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+	return `"` + replacer.Replace(value) + `"`
+}
+
+func communityProxmoxSSHUserExpression(nodeUser, vmUser string) string {
+	nodeUser = strings.TrimSpace(nodeUser)
+	vmUser = strings.TrimSpace(vmUser)
+	switch {
+	case nodeUser == "" && vmUser == "":
+		return ""
+	case nodeUser == "":
+		return quoteJinjaString(vmUser)
+	case vmUser == "":
+		return quoteJinjaString(nodeUser)
+	case nodeUser == vmUser:
+		return quoteJinjaString(nodeUser)
+	default:
+		return fmt.Sprintf("%s if proxmox_vmid is defined else %s", quoteJinjaString(vmUser), quoteJinjaString(nodeUser))
+	}
 }
 
 // NormalizeInventorySource validates and canonicalizes an inventory source.

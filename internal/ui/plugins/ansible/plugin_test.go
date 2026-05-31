@@ -54,3 +54,23 @@ func TestBuildDirectBootstrapScriptOmitsUIDWhenUnset(t *testing.T) {
 	require.Contains(t, script, "BOOTSTRAP_UID=''")
 	require.False(t, strings.Contains(script, "BOOTSTRAP_UID='0'"))
 }
+
+func TestResolveAnsibleInventoryUsersDefaultUserOverridesFallbacks(t *testing.T) {
+	t.Parallel()
+
+	nodeUser, vmUser := resolveAnsibleInventoryUsers(cfgpkg.AnsiblePluginConfig{
+		DefaultUser: "ansible",
+	}, "jon", "ubuntu")
+
+	require.Equal(t, "ansible", nodeUser)
+	require.Equal(t, "ansible", vmUser)
+}
+
+func TestResolveAnsibleInventoryUsersFallsBackToResolvedUsers(t *testing.T) {
+	t.Parallel()
+
+	nodeUser, vmUser := resolveAnsibleInventoryUsers(cfgpkg.AnsiblePluginConfig{}, "root", "ubuntu")
+
+	require.Equal(t, "root", nodeUser)
+	require.Equal(t, "ubuntu", vmUser)
+}

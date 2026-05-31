@@ -104,11 +104,18 @@ func TestNormalizeInventoryStyle(t *testing.T) {
 func TestBuildCommunityProxmoxInventory_UsesEnvForSecrets(t *testing.T) {
 	wantNodesHost := false
 	result, err := BuildCommunityProxmoxInventory(CommunityProxmoxOptions{
-		URL:                         "https://pve.example.com:8006",
-		User:                        "root@pam",
-		TokenID:                     "pvetui",
-		TokenSecret:                 "token-secret",
-		Password:                    "password-secret",
+		URL:               "https://pve.example.com:8006",
+		User:              "root@pam",
+		TokenID:           "pvetui",
+		TokenSecret:       "token-secret",
+		Password:          "password-secret",
+		NodeSSHUser:       "root",
+		VMSSHUser:         "ansible",
+		SSHPrivateKeyFile: "~/.ssh/id_ed25519",
+		DefaultPassword:   "ssh-secret",
+		InventoryVars: map[string]string{
+			"ansible_python_interpreter": "/usr/bin/python3",
+		},
 		ValidateCerts:               false,
 		WantFacts:                   true,
 		WantProxmoxNodesAnsibleHost: &wantNodesHost,
@@ -128,10 +135,27 @@ func TestBuildCommunityProxmoxInventory_UsesEnvForSecrets(t *testing.T) {
 	require.Contains(t, result.Text, "want_facts: true")
 	require.Contains(t, result.Text, "want_proxmox_nodes_ansible_host: false")
 	require.Contains(t, result.Text, "compose:")
+	require.Contains(t, result.Text, "ansible_user: '\"ansible\" if proxmox_vmid is defined else \"root\"'")
+	require.Contains(t, result.Text, "ansible_ssh_private_key_file: '\"~/.ssh/id_ed25519\"'")
+	require.Contains(t, result.Text, "ansible_password: '\"ssh-secret\"'")
+	require.Contains(t, result.Text, "ansible_python_interpreter: '\"/usr/bin/python3\"'")
 	require.NotContains(t, result.Text, "token-secret")
 	require.NotContains(t, result.Text, "password-secret")
 	require.Equal(t, "token-secret", result.Env["PROXMOX_TOKEN_SECRET"])
 	require.Equal(t, "password-secret", result.Env["PROXMOX_PASSWORD"])
+}
+
+func TestBuildCommunityProxmoxInventory_UserComposeOverridesDefaultSSHUser(t *testing.T) {
+	result, err := BuildCommunityProxmoxInventory(CommunityProxmoxOptions{
+		NodeSSHUser: "ansible",
+		Compose: map[string]string{
+			"ansible_user": "'root'",
+		},
+	})
+
+	require.NoError(t, err)
+	require.Contains(t, result.Text, "ansible_user: '''root'''")
+	require.NotContains(t, result.Text, "ansible_user: '\"ansible\"'")
 }
 
 func TestNormalizeInventorySource(t *testing.T) {

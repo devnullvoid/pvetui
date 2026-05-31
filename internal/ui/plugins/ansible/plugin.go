@@ -2426,6 +2426,7 @@ func (p *Plugin) communityProxmoxOptions(ansibleCfg cfgpkg.AnsiblePluginConfig) 
 	if _, ok := ansibleCfg.Env["PROXMOX_PASSWORD"]; ok {
 		password = ""
 	}
+	nodeSSHUser, vmSSHUser := resolveAnsibleInventoryUsers(ansibleCfg, p.resolveNodeUser(), p.resolveVMUser())
 
 	return coreansible.CommunityProxmoxOptions{
 		URL:                         url,
@@ -2433,6 +2434,11 @@ func (p *Plugin) communityProxmoxOptions(ansibleCfg cfgpkg.AnsiblePluginConfig) 
 		TokenID:                     tokenID,
 		Password:                    password,
 		TokenSecret:                 tokenSecret,
+		NodeSSHUser:                 nodeSSHUser,
+		VMSSHUser:                   vmSSHUser,
+		SSHPrivateKeyFile:           strings.TrimSpace(ansibleCfg.SSHPrivateKeyFile),
+		DefaultPassword:             strings.TrimSpace(ansibleCfg.DefaultPassword),
+		InventoryVars:               cloneStringMap(ansibleCfg.InventoryVars),
 		ValidateCerts:               validateCerts,
 		WantFacts:                   community.WantFacts,
 		WantPostFilterFacts:         community.WantPostFilterFacts,
@@ -2462,6 +2468,13 @@ func proxmoxInventoryUser(user, realm string) string {
 		realm = "pam"
 	}
 	return user + "@" + realm
+}
+
+func resolveAnsibleInventoryUsers(ansibleCfg cfgpkg.AnsiblePluginConfig, nodeFallback, vmFallback string) (string, string) {
+	if user := strings.TrimSpace(ansibleCfg.DefaultUser); user != "" {
+		return user, user
+	}
+	return strings.TrimSpace(nodeFallback), strings.TrimSpace(vmFallback)
 }
 
 func (p *Plugin) currentSelectionForLimit() (*api.Node, *api.VM) {
