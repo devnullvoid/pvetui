@@ -75,6 +75,18 @@ go install github.com/devnullvoid/pvetui/cmd/pvetui@latest
 1. Download from [Releases](https://github.com/devnullvoid/pvetui/releases)
 2. Extract and run: `./pvetui`
 
+**Linux DEB/RPM Packages:**
+
+Prebuilt `.deb` and `.rpm` packages are published with each GitHub release. Download the package for your architecture from [Releases](https://github.com/devnullvoid/pvetui/releases), then install it with your system package manager:
+
+```bash
+# Debian/Ubuntu
+sudo apt install ./pvetui_*_linux_amd64.deb
+
+# Fedora/RHEL/openSUSE
+sudo dnf install ./pvetui_*_linux_amd64.rpm
+```
+
 > **macOS Users**: You may encounter Gatekeeper warnings with pre-compiled binaries. See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-macos-issues) for solutions including bypassing the warning or building from source.
 
 ### Package Managers
