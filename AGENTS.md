@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** March 2026 (CLI subcommands) | **For:** pvetui - Proxmox TUI
+**Last Updated:** June 2026 (Cloudsmith packaging) | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -274,6 +274,7 @@ Key architectural decisions and rationale:
 - **CLI subcommands via `cliSession`**: Non-interactive CLI shares all auth/config/group logic with the TUI through a `cliSession` struct that wraps either `*api.Client` (single profile) or `*api.GroupClientManager` (group/aggregate). Subcommand handlers call methods on `cliSession` without knowing which mode they're in. `BootstrapOptions.Quiet = true` suppresses TUI banners; `SilenceUsage: true` on the Cobra root prevents runtime errors from printing the full help menu.
 - **LXC exec via SSH + pct exec**: LXC containers have no API exec equivalent (unlike QEMU guest agent). Use `SSHClientImpl.ExecuteContainerCommandDetailed` from the command-runner package to run `pct exec <ctid> -- <cmd>` over SSH to the Proxmox node. SSH credentials are resolved per-VM via `vm.SourceProfile` → global config fallback.
 - **Agent skill packaging**: Skills for the skills.sh ecosystem live in `skills/<skill-name>/SKILL.md` at the repo root. Install via `npx skills add owner/repo`. The `skills/` path is auto-discovered; `docs/skills/` is not.
+- **Cloudsmith DEB/RPM publishing**: GitHub release workflows publish nfpm-generated `.deb` and `.rpm` artifacts through `scripts/publish-cloudsmith.sh` to `devnullvoid/pvetui`. CI authentication uses the `CLOUDSMITH_API_KEY` repository secret; local seeding can use an authenticated Cloudsmith CLI. Keep the README Cloudsmith attribution and link in place to satisfy the OSS hosting policy.
 
 ## Common Pitfalls
 

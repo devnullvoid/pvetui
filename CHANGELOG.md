@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cloudsmith Linux package repository**: Added release publishing for DEB/RPM packages to the public Cloudsmith OSS repository, plus README install instructions and OSS hosting attribution.
 - **Ansible community Proxmox inventory**: The Ansible plugin can now use a generated `community.proxmox.proxmox` dynamic inventory source via `plugins.ansible.inventory_source: community_proxmox`, deriving non-secret connection fields plus secret environment variables from the active pvetui profile so saved inventory files can be reused without writing Proxmox secrets into them.
 - **Ansible bootstrap UID**: Bootstrap Access can now create or update the managed Ansible user with a configured numeric UID via `plugins.ansible.bootstrap.uid`.
 - **Application settings dialog**: Added in-app editing for icon display, debug logging, cache/age directories, theme configuration, and key bindings, plus SSH key path fields in profile editing.

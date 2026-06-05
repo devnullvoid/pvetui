@@ -87,6 +87,23 @@ sudo apt install ./pvetui_*_linux_amd64.deb
 sudo dnf install ./pvetui_*_linux_amd64.rpm
 ```
 
+**Linux Package Repository (Cloudsmith):**
+
+```bash
+# Debian/Ubuntu
+curl -sLf 'https://dl.cloudsmith.io/public/devnullvoid/pvetui/cfg/setup/bash.deb.sh' | sudo bash
+sudo apt update
+sudo apt install pvetui
+
+# Fedora/RHEL/openSUSE
+curl -sLf 'https://dl.cloudsmith.io/public/devnullvoid/pvetui/cfg/setup/bash.rpm.sh' | sudo bash
+sudo dnf install pvetui
+```
+
+[![OSS hosting by Cloudsmith](https://img.shields.io/badge/OSS%20hosting%20by-cloudsmith-blue?logo=cloudsmith&style=flat-square)](https://cloudsmith.com)
+
+Package repository hosting is graciously provided by [Cloudsmith](https://cloudsmith.com) as free hosting for open-source projects.
+
 > **macOS Users**: You may encounter Gatekeeper warnings with pre-compiled binaries. See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-macos-issues) for solutions including bypassing the warning or building from source.
 
 ### Package Managers
