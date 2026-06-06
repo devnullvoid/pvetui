@@ -1,0 +1,53 @@
+name: test-cloudsmith
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag whose DEB/RPM assets should be used for the dry run"
+        required: true
+        default: "v1.4.0"
+
+jobs:
+  publish-dry-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check Cloudsmith publishing configuration
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDSMITH_API_KEY:-}" ]; then
+            echo "CLOUDSMITH_API_KEY is not configured." >&2
+            exit 1
+          fi
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+
+      - name: Download release package assets
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pvetui-cloudsmith-test
+          gh release download "${TAG}" \
+            --pattern '*.deb' \
+            --pattern '*.rpm' \
+            --dir /tmp/pvetui-cloudsmith-test \
+            --clobber
+          find /tmp/pvetui-cloudsmith-test -maxdepth 1 -type f | sort
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+
+      - name: Set up Cloudsmith CLI
+        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        with:
+          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+
+      - name: Dry run Cloudsmith publish
+        run: ./scripts/publish-cloudsmith.sh /tmp/pvetui-cloudsmith-test
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          CLOUDSMITH_DRY_RUN: "true"

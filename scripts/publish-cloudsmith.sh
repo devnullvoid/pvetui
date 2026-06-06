@@ -14,6 +14,14 @@ else
 	cloudsmith whoami >/dev/null
 fi
 
+dry_run_args=()
+case "${CLOUDSMITH_DRY_RUN:-}" in
+	true|TRUE|True|1|yes|YES|Yes)
+		dry_run_args=(--dry-run)
+		printf 'Cloudsmith dry-run enabled; no packages will be uploaded.\n'
+		;;
+esac
+
 if [[ ! -d "$artifact_dir" ]]; then
 	printf 'Artifact directory not found: %s\n' "$artifact_dir" >&2
 	exit 1
@@ -32,6 +40,7 @@ for package in "${deb_packages[@]}"; do
 	printf 'Publishing %s to Cloudsmith DEB repository %s/%s\n' "$package" "$repo" "$deb_target"
 	cloudsmith push deb \
 		"${auth_args[@]}" \
+		"${dry_run_args[@]}" \
 		--component "$component" \
 		--republish \
 		"$repo/$deb_target" \
@@ -42,6 +51,7 @@ for package in "${rpm_packages[@]}"; do
 	printf 'Publishing %s to Cloudsmith RPM repository %s/%s\n' "$package" "$repo" "$rpm_target"
 	cloudsmith push rpm \
 		"${auth_args[@]}" \
+		"${dry_run_args[@]}" \
 		--republish \
 		"$repo/$rpm_target" \
 		"$package"
