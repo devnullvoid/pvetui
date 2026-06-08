@@ -5,7 +5,7 @@ package version
 // They serve as a fallback for builds that lack ldflags injection and VCS info,
 // most notably `go install github.com/devnullvoid/pvetui/cmd/pvetui@latest`.
 const (
-	releaseVersion = "1.4.0"
-	releaseCommit  = "5a7f81c"
-	releaseDate    = "2026-05-23T00:00:00Z"
+	releaseVersion = "1.4.1"
+	releaseCommit  = "1fdf077"
+	releaseDate    = "2026-06-08T00:00:00Z"
 )

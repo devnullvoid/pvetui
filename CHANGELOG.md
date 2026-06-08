@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-06-08
+
 ### Added
 
 - **Cloudsmith Linux package repository**: Added release publishing for DEB/RPM packages to the public Cloudsmith OSS repository, plus README install instructions and OSS hosting attribution.
