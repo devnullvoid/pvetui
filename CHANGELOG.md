@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLI Community Scripts**: Added `pvetui community-scripts` commands for enabled Community Scripts plugin users to search available scripts, show script details, and install a selected script on a chosen Proxmox node over SSH.
+
 ## [1.4.1] - 2026-06-08
 
 ### Added

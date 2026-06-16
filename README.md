@@ -226,7 +226,7 @@ pvetui includes an opt-in plugin system for optional features. Plugins are **dis
 #### Built-in Plugins
 
 - **`ansible`**: Global-menu Ansible toolkit with pvetui YAML/INI inventory generation, optional `community.proxmox.proxmox` dynamic inventory support, ad-hoc module execution, playbook execution, and SSH setup guidance
-- **`community-scripts`**: Adds the popular Community Scripts installer to node context menus
+- **`community-scripts`**: Adds the popular Community Scripts installer to node context menus and CLI mode
 - **`command-runner`**: Execute whitelisted commands on Proxmox hosts via SSH (requires SSH key setup)
 - **`guest-insights`** *(legacy alias: `demo-guest-list`)*: Full guest insights modal (filter/sort/jump-to-guest)
 
@@ -506,6 +506,25 @@ pvetui storage download oci pve01 local registry.example.com/myimage:latest
 pvetui storage restore pve01 local local:backup/vzdump-qemu-100-2024.tar.zst 100
 pvetui storage restore pve01 local local:backup/vzdump-qemu-100-2024.tar.zst 100 --confirm
 ```
+
+### Community Scripts
+
+The `community-scripts` plugin also exposes CLI commands when it is enabled in `plugins.enabled`.
+
+```bash
+# Search available Proxmox Community Scripts
+pvetui community-scripts search nextcloud
+pvetui community-scripts search docker --output table
+
+# Show metadata and install command details
+pvetui community-scripts show nextcloud
+pvetui community-scripts show nextcloud --output table
+
+# Install on a selected Proxmox node over SSH
+pvetui community-scripts install nextcloud --node pve01
+```
+
+`install` resolves SSH settings from the node source profile, the active profile, or global `ssh_user` settings. Upstream installer output is streamed to stderr so stdout can still contain the final JSON/table result.
 
 ### Tasks
 

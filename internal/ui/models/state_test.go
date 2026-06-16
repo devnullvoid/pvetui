@@ -32,8 +32,7 @@ func TestFilterVMs_WithAdvancedFilters(t *testing.T) {
 		for i, vm := range GlobalState.FilteredVMs {
 			if vm == nil {
 				t.Fatalf("filtered VM %d is nil", i)
-			}
-			if vm.ID != expected[i] {
+			} else if vm.ID != expected[i] {
 				t.Fatalf("expected VM ID %d at index %d, got %d", expected[i], i, vm.ID)
 			}
 		}

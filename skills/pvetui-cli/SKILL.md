@@ -1,10 +1,10 @@
 ---
 name: pvetui-cli
-description: Use when querying or managing a Proxmox VE cluster via the pvetui CLI — listing nodes, guests, and tasks; creating and migrating VMs and LXC containers; managing storage content, downloading templates and OCI images, and restoring backups. Requires pvetui to be installed and configured.
+description: Use when querying or managing a Proxmox VE cluster via the pvetui CLI — listing nodes, guests, and tasks; creating and migrating VMs and LXC containers; managing storage content, downloading templates and OCI images, restoring backups, and installing Proxmox Community Scripts when the plugin is enabled. Requires pvetui to be installed and configured.
 license: MIT
 metadata:
   author: github.com/devnullvoid/pvetui
-  version: "1.1"
+  version: "1.2"
 ---
 
 # pvetui CLI
@@ -33,6 +33,7 @@ npx skills add devnullvoid/pvetui
 - Listing and managing storage content (ISOs, templates, backups, disk images)
 - Downloading ISOs, appliance templates, or OCI images into storage
 - Restoring guests from vzdump backups
+- Searching, inspecting, and installing Proxmox Community Scripts when `community-scripts` is enabled
 - Listing recent cluster task history
 - Scripting or automating Proxmox operations without root access to a node
 
@@ -43,6 +44,7 @@ npx skills add devnullvoid/pvetui
 - API token or password auth configured in the profile
 - For `guests exec` / `guests shell` on LXC containers: `ssh_user` configured in the profile
 - For `guests shell` on QEMU VMs: `ssh_user` (and optionally `vm_ssh_user`) configured
+- For `community-scripts install`: `plugins.enabled` includes `community-scripts`, and node SSH settings are configured
 
 ## Quick Reference
 
@@ -72,6 +74,9 @@ npx skills add devnullvoid/pvetui
 | `pvetui storage download template <node> <storage> <template>` | Download an appliance template |
 | `pvetui storage download oci <node> <storage> <reference>` | Pull an OCI image |
 | `pvetui storage restore <node> <storage> <volid> <vmid>` | Restore a guest from backup |
+| `pvetui community-scripts search <query>` | Search available Proxmox Community Scripts |
+| `pvetui community-scripts show <slug-or-name>` | Show Community Script metadata |
+| `pvetui community-scripts install <slug-or-name> --node <node>` | Install a Community Script on a node over SSH |
 
 ## Global Flags
 
@@ -107,6 +112,32 @@ Commands that trigger a Proxmox task (`guests create`, `guests migrate`, `storag
 ```
 
 A non-`"OK"` `exit_status` causes a non-zero process exit.
+
+## Community Scripts
+
+The `community-scripts` command group is available only when the opt-in plugin is enabled:
+
+```yaml
+plugins:
+  enabled:
+    - community-scripts
+```
+
+Use `search` before installing and `show` to inspect the upstream metadata, source repo, script path, and documentation links.
+
+```bash
+# Search by name, slug, or description
+pvetui community-scripts search nextcloud
+pvetui community-scripts search docker --output table
+
+# Show one script by exact slug or name
+pvetui community-scripts show nextcloud
+
+# Install on a selected Proxmox node
+pvetui community-scripts install nextcloud --node pve01
+```
+
+`install` SSHes to the selected node and runs the same Community Scripts installer flow as the TUI. It resolves SSH settings from the node source profile, active profile, or global `ssh_user`; set `--ssh-user` when needed. Upstream installer output is streamed to stderr so stdout can contain the final JSON/table result. Many upstream installers are interactive, so do not assume this command is unattended unless you know that specific script is non-interactive.
 
 ## Nodes
 

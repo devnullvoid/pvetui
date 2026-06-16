@@ -176,6 +176,7 @@ The following conventions must be followed for any changes in this repository.
   - `nodes.go` - Node list/show/shell
   - `tasks.go` - Task list
   - `storage.go` - Storage list/show, content list/delete, download (url/template/oci), restore
+  - `community_scripts.go` - Community Scripts search/show/install CLI commands, gated by `plugins.enabled: ["community-scripts"]`
   - All subcommands work with single-profile and aggregate group profiles transparently
 
 - **`internal/ui/`** - TUI components using tview library
@@ -308,6 +309,7 @@ Key architectural decisions and rationale:
 - **Cobra `SilenceUsage`**: Set `SilenceUsage: true` on the root command so runtime errors (API failures, not-found, wrong guest type) don't print the full help menu. Without it, any `RunE` error dumps usage, which is confusing for CLI consumers.
 - **CLI group mode detection**: Check `result.InitialGroup != ""` (from `bootstrap.Bootstrap`) to determine group mode; build a `GroupClientManager` with one `api.Client` per profile using `cfg.GetProfileNamesInGroup()`. Don't rely on single-client code paths when group mode is active — they only see one node's data.
 - **CLI SSH credential resolution**: For operations that need SSH to a node (e.g., LXC exec), resolve credentials with: source profile from `vm.SourceProfile` → active profile → global config `SSHUser`/`SSHJumpHost`. The same pattern is in `internal/ui/plugins/commandrunner/plugin.go:resolveSSHUser`.
+- **Community Scripts core package**: Shared Community Scripts metadata/search/install logic lives in `internal/plugins/communityscripts`. The TUI plugin wraps it from `internal/ui/plugins/communityscripts`; CLI code should depend on the core package, not UI plugin code.
 - **Shell quoting for pct exec**: When building `pct exec <ctid> -- <cmd>` as a shell string for `session.Run()`, shell-quote each argument with single quotes and escape embedded single quotes as `'\''`. Passing unquoted arguments silently mis-parses commands with spaces or special characters.
 
 ## Troubleshooting

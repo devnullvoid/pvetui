@@ -43,6 +43,7 @@ func init() {
 	RootCmd.AddCommand(newGuestsCmd())
 	RootCmd.AddCommand(newTasksCmd())
 	RootCmd.AddCommand(newStorageCmd())
+	RootCmd.AddCommand(newCommunityScriptsCmd())
 
 	// Output format flag (inherited by all subcommands)
 	RootCmd.PersistentFlags().StringP("output", "o", outputJSON, "Output format: json, table")
