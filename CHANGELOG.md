@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **CLI Community Scripts**: Added `pvetui community-scripts` commands for enabled Community Scripts plugin users to search available scripts, show script details, and install a selected script on a chosen Proxmox node over SSH.
+- **CLI Community Scripts**: Added `pvetui community-scripts` commands for enabled Community Scripts plugin users to search available scripts, show script details, preview install plans, and install/deploy a selected script on a chosen Proxmox node over SSH. Deployments support validated Community Scripts `var_*` overrides plus `--yes` non-interactive mode for agent-friendly provisioning; unattended LXC deploys with explicit template/rootfs storage overrides avoid upstream first-run storage prompts and restore any existing Community Scripts defaults afterward. Successful installs refresh guest inventory cache so newly created guests are visible to follow-up CLI commands.
 
 ## [1.4.1] - 2026-06-08
 

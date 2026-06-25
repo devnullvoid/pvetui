@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -80,14 +81,35 @@ type Script struct {
 
 // InstallOptions describes a community script installation over SSH.
 type InstallOptions struct {
-	User     string
-	Host     string
-	Keyfile  string
-	JumpHost config.SSHJumpHost
-	Script   Script
-	Stdin    io.Reader
-	Stdout   io.Writer
-	Stderr   io.Writer
+	User           string
+	Host           string
+	Keyfile        string
+	JumpHost       config.SSHJumpHost
+	Script         Script
+	Env            []EnvOverride
+	Preset         string
+	NonInteractive bool
+	Stdin          io.Reader
+	Stdout         io.Writer
+	Stderr         io.Writer
+}
+
+// EnvOverride is a validated Community Scripts environment variable override.
+type EnvOverride struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+var allowedEnvOverrideNames = map[string]struct{}{
+	"var_apt_cacher": {}, "var_apt_cacher_ip": {}, "var_brg": {}, "var_cpu": {}, "var_disk": {},
+	"var_fuse": {}, "var_gateway": {}, "var_github_token": {}, "var_gpu": {}, "var_hostname": {},
+	"var_http_no_proxy": {}, "var_http_proxy": {}, "var_ipv6_method": {}, "var_keyctl": {},
+	"var_mac": {}, "var_mknod": {}, "var_mount_fs": {}, "var_mtu": {}, "var_net": {},
+	"var_nesting": {}, "var_ns": {}, "var_os": {}, "var_post_install": {}, "var_protection": {},
+	"var_pw": {}, "var_ram": {}, "var_sdn_vnet": {}, "var_searchdomain": {}, "var_ssh": {},
+	"var_ssh_authorized_key": {}, "var_tags": {}, "var_template_storage": {}, "var_timezone": {},
+	"var_tun": {}, "var_unprivileged": {}, "var_verbose": {}, "var_version": {}, "var_vlan": {},
+	"var_container_storage": {},
 }
 
 // GitHubContent represents a file or directory in the GitHub API.
@@ -546,9 +568,81 @@ func validateScriptPath(scriptPath string) error {
 	return nil
 }
 
+// ParseEnvOverride parses and validates a KEY=VALUE Community Scripts override.
+func ParseEnvOverride(raw string) (EnvOverride, error) {
+	name, value, ok := strings.Cut(raw, "=")
+	if !ok {
+		return EnvOverride{}, fmt.Errorf("override %q must use KEY=VALUE format", raw)
+	}
+
+	override := EnvOverride{
+		Name:  strings.TrimSpace(name),
+		Value: value,
+	}
+	if err := ValidateEnvOverride(override); err != nil {
+		return EnvOverride{}, err
+	}
+
+	return override, nil
+}
+
+// ValidateEnvOverride validates a Community Scripts var_* override.
+func ValidateEnvOverride(override EnvOverride) error {
+	if override.Name == "" {
+		return fmt.Errorf("override name is required")
+	}
+	if _, ok := allowedEnvOverrideNames[override.Name]; !ok {
+		return fmt.Errorf("unsupported community script override %q", override.Name)
+	}
+	if strings.ContainsAny(override.Value, "\x00\r\n") {
+		return fmt.Errorf("override %q contains unsupported control characters", override.Name)
+	}
+
+	return nil
+}
+
+// IsSensitiveEnvOverride reports whether an override value should be redacted in output.
+func IsSensitiveEnvOverride(name string) bool {
+	switch name {
+	case "var_pw", "var_github_token":
+		return true
+	default:
+		return false
+	}
+}
+
+// RedactEnvOverrides returns a copy with sensitive values replaced.
+func RedactEnvOverrides(env []EnvOverride) []EnvOverride {
+	redacted := make([]EnvOverride, 0, len(env))
+	for _, override := range env {
+		if IsSensitiveEnvOverride(override.Name) {
+			override.Value = "[redacted]"
+		}
+		redacted = append(redacted, override)
+	}
+
+	return redacted
+}
+
+// AllowedEnvOverrideNames returns the supported Community Scripts var_* keys.
+func AllowedEnvOverrideNames() []string {
+	names := make([]string, 0, len(allowedEnvOverrideNames))
+	for name := range allowedEnvOverrideNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	return names
+}
+
 // ShellSingleQuote escapes a value for inclusion inside a single-quoted shell string.
 func ShellSingleQuote(s string) string {
 	return strings.ReplaceAll(s, "'", `'"'"'`)
+}
+
+// ShellQuote wraps a value in single quotes for POSIX shell usage.
+func ShellQuote(s string) string {
+	return "'" + ShellSingleQuote(s) + "'"
 }
 
 // WrapRemoteCommandWithBash wraps a remote command in /bin/bash -lc.
@@ -585,6 +679,104 @@ func BuildInstallScriptCommand(scriptURL string) string {
 
 func buildInstallScriptCommand(scriptURL string) string {
 	return BuildInstallScriptCommand(scriptURL)
+}
+
+// BuildInstallScriptCommandWithEnv builds the shell command that runs a remote
+// script with Community Scripts var_* environment overrides.
+func BuildInstallScriptCommandWithEnv(scriptURL string, env []EnvOverride) (string, error) {
+	return BuildInstallScriptCommandWithEnvAndPreset(scriptURL, env, "")
+}
+
+// BuildInstallScriptCommandWithEnvAndPreset builds the shell command that runs
+// a remote script with var_* overrides and an optional Community Scripts preset.
+func BuildInstallScriptCommandWithEnvAndPreset(scriptURL string, env []EnvOverride, preset string) (string, error) {
+	prefix := "TERM=" + ShellQuote("xterm-256color") + " "
+	for _, override := range env {
+		if err := ValidateEnvOverride(override); err != nil {
+			return "", err
+		}
+		prefix += override.Name + "=" + ShellQuote(override.Value) + " "
+	}
+
+	bashArgs := ""
+	if strings.TrimSpace(preset) != "" {
+		if err := ValidateInstallPreset(preset); err != nil {
+			return "", err
+		}
+		prefix += "DISABLE_UPDATE=" + ShellQuote("yes") + " "
+		prefix += "PHS_SILENT=" + ShellQuote("1") + " "
+		prefix += "mode=" + ShellQuote(preset) + " "
+		bashArgs = " -s -- " + ShellQuote(preset)
+	}
+
+	prelude := buildStorageDefaultsPrelude(env)
+	return fmt.Sprintf("set -o pipefail && %scurl -fsSL %s | %s/bin/bash%s", prelude, scriptURL, prefix, bashArgs), nil
+}
+
+func buildStorageDefaultsPrelude(env []EnvOverride) string {
+	var templateStorage, containerStorage string
+	for _, override := range env {
+		switch override.Name {
+		case "var_template_storage":
+			templateStorage = override.Value
+		case "var_container_storage":
+			containerStorage = override.Value
+		}
+	}
+
+	if templateStorage == "" || containerStorage == "" {
+		return ""
+	}
+
+	// Upstream first-run defaults bootstrap reads this file before honoring
+	// storage env vars. Seed only the storage lines needed for unattended runs,
+	// then restore or remove the file when the installer process exits.
+	lines := []string{
+		"var_template_storage=" + templateStorage,
+		"var_container_storage=" + containerStorage,
+	}
+
+	return fmt.Sprintf(
+		"cs_defaults=/usr/local/community-scripts/default.vars && cs_backup= && "+
+			"if [ -f \"$cs_defaults\" ]; then cs_backup=$(mktemp) && cp \"$cs_defaults\" \"$cs_backup\"; fi && "+
+			"mkdir -p /usr/local/community-scripts && "+
+			"touch \"$cs_defaults\" && "+
+			"sed -i '/^[#[:space:]]*var_template_storage=/d;/^[#[:space:]]*var_container_storage=/d' \"$cs_defaults\" && "+
+			"printf '%%s\\n' %s %s >> \"$cs_defaults\" && "+
+			"trap 'if [ -n \"$cs_backup\" ]; then cp \"$cs_backup\" \"$cs_defaults\"; rm -f \"$cs_backup\"; else rm -f \"$cs_defaults\"; fi' EXIT && ",
+		ShellQuote(lines[0]),
+		ShellQuote(lines[1]),
+	)
+}
+
+// BuildRemoteInstallCommand returns the shell command executed on the target node.
+func BuildRemoteInstallCommand(user string, script Script, env []EnvOverride, preset string) (string, error) {
+	if err := validateScriptPath(script.ScriptPath); err != nil {
+		return "", err
+	}
+
+	installCmd, err := BuildInstallScriptCommandWithEnvAndPreset(RawScriptURL(script), env, preset)
+	if err != nil {
+		return "", err
+	}
+
+	remoteCmd := installCmd
+	if !strings.EqualFold(user, "root") {
+		quotedInstallCmd := ShellQuote(installCmd)
+		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c %s; else su - root -c %s; fi", quotedInstallCmd, quotedInstallCmd)
+	}
+
+	return WrapRemoteCommandWithBash(remoteCmd), nil
+}
+
+// ValidateInstallPreset validates a Community Scripts menu preset argument.
+func ValidateInstallPreset(preset string) error {
+	switch strings.ToLower(strings.TrimSpace(preset)) {
+	case "", "1", "default", "2", "advanced", "3", "mydefaults", "userdefaults", "4", "appdefaults":
+		return nil
+	default:
+		return fmt.Errorf("unsupported community script install preset %q", preset)
+	}
 }
 
 // ScriptURLExists checks whether the raw install script exists.
@@ -645,7 +837,11 @@ func InstallScriptWithOptions(ctx context.Context, opts InstallOptions) (int, er
 		return -1, fmt.Errorf("SSH host is required")
 	}
 	if opts.Stdin == nil {
-		opts.Stdin = os.Stdin
+		if opts.NonInteractive {
+			opts.Stdin = strings.NewReader("")
+		} else {
+			opts.Stdin = os.Stdin
+		}
 	}
 	if opts.Stdout == nil {
 		opts.Stdout = os.Stdout
@@ -654,31 +850,33 @@ func InstallScriptWithOptions(ctx context.Context, opts InstallOptions) (int, er
 		opts.Stderr = os.Stderr
 	}
 
-	script := opts.Script
-	if err := validateScriptPath(script.ScriptPath); err != nil {
+	preset := opts.Preset
+	if opts.NonInteractive && strings.TrimSpace(preset) == "" {
+		preset = "default"
+	}
+
+	remoteCmd, err := BuildRemoteInstallCommand(opts.User, opts.Script, opts.Env, preset)
+	if err != nil {
 		return -1, err
 	}
 
-	getScriptsLogger().Debug("Installing script: %s on node %s", script.ScriptPath, opts.Host)
-
-	// Build the script installation command using curl (matches official instructions)
-	scriptURL := rawScriptURL(script)
-	// Switch to root user completely and run in bash environment. On PVE, sudo
-	// may not be installed; when SSHing as root we don't need elevation.
-	installCmd := buildInstallScriptCommand(scriptURL)
-	remoteCmd := installCmd
-	if !strings.EqualFold(opts.User, "root") {
-		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c '%s'; else su - root -c '%s'; fi", installCmd, installCmd)
+	getScriptsLogger().Debug("Installing script: %s on node %s", opts.Script.ScriptPath, opts.Host)
+	logRemoteCmd := remoteCmd
+	if redactedCmd, err := BuildRemoteInstallCommand(opts.User, opts.Script, RedactEnvOverrides(opts.Env), preset); err == nil {
+		logRemoteCmd = redactedCmd
 	}
-	remoteCmd = wrapRemoteCommandWithBash(remoteCmd)
-	getScriptsLogger().Debug("community-script install via SSH: user=%s host=%s cmd=%s", opts.User, opts.Host, remoteCmd)
+	getScriptsLogger().Debug("community-script install via SSH: user=%s host=%s cmd=%s", opts.User, opts.Host, logRemoteCmd)
 
 	sshArgs := ssh.BuildSSHArgs(opts.User, opts.Host, opts.JumpHost)
 	args := make([]string, 0, len(sshArgs)+4)
 	if opts.Keyfile != "" {
 		args = append(args, "-i", opts.Keyfile)
 	}
-	args = append(args, "-t")
+	if opts.NonInteractive {
+		args = append(args, "-T")
+	} else {
+		args = append(args, "-t")
+	}
 	args = append(args, sshArgs...)
 	args = append(args, remoteCmd)
 
@@ -696,7 +894,7 @@ func InstallScriptWithOptions(ctx context.Context, opts InstallOptions) (int, er
 	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
 	// Run the command interactively
-	err := sshCmd.Run()
+	err = sshCmd.Run()
 	exitCode := 0
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

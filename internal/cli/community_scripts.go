@@ -3,12 +3,14 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	core "github.com/devnullvoid/pvetui/internal/plugins/communityscripts"
+	"github.com/devnullvoid/pvetui/pkg/api"
 )
 
 const communityScriptsPluginID = "community-scripts"
@@ -35,11 +37,25 @@ type communityScriptOutput struct {
 }
 
 type communityScriptInstallOutput struct {
-	Node     string                `json:"node"`
-	Host     string                `json:"host"`
-	SSHUser  string                `json:"ssh_user"`
-	ExitCode int                   `json:"exit_code"`
-	Script   communityScriptOutput `json:"script"`
+	Node           string                `json:"node"`
+	Host           string                `json:"host"`
+	SSHUser        string                `json:"ssh_user"`
+	ExitCode       int                   `json:"exit_code"`
+	NonInteractive bool                  `json:"non_interactive"`
+	Env            []core.EnvOverride    `json:"env,omitempty"`
+	Script         communityScriptOutput `json:"script"`
+	CreatedGuests  []guestOutput         `json:"created_guests,omitempty"`
+	Warnings       []string              `json:"warnings,omitempty"`
+}
+
+type communityScriptPlanOutput struct {
+	Node           string                `json:"node"`
+	Host           string                `json:"host"`
+	SSHUser        string                `json:"ssh_user"`
+	NonInteractive bool                  `json:"non_interactive"`
+	Env            []core.EnvOverride    `json:"env,omitempty"`
+	RemoteCommand  string                `json:"remote_command"`
+	Script         communityScriptOutput `json:"script"`
 }
 
 func newCommunityScriptsCmd() *cobra.Command {
@@ -55,6 +71,7 @@ selected Proxmox node and runs the same remote installer flow as the TUI plugin.
 
 	cmd.AddCommand(newCommunityScriptsSearchCmd())
 	cmd.AddCommand(newCommunityScriptsShowCmd())
+	cmd.AddCommand(newCommunityScriptsPlanCmd())
 	cmd.AddCommand(newCommunityScriptsInstallCmd())
 
 	return cmd
@@ -85,24 +102,52 @@ func newCommunityScriptsShowCmd() *cobra.Command {
 
 func newCommunityScriptsInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "install <slug-or-name> --node <node>",
-		Short: "Install a community script on a Proxmox node",
+		Use:     "install <slug-or-name> --node <node>",
+		Aliases: []string{"deploy"},
+		Short:   "Install a community script on a Proxmox node",
 		Long: `Install a Proxmox Community Script on the selected node.
 
 Installer output is streamed to stderr so stdout can contain the final structured
-result. Many upstream installers are interactive and may prompt in the terminal.`,
+result. Many upstream installers are interactive and may prompt in the terminal.
+Use --yes with --set var_name=value overrides for unattended deployments.`,
 		Example: `  pvetui community-scripts install nextcloud --node pve01
-  pvetui --profile prod community-scripts install docker --node pve02`,
+  pvetui --profile prod community-scripts deploy grafana --node pve02 --yes --set var_hostname=grafana --set var_cpu=2 --set var_ram=2048`,
 		Args:              cobra.ExactArgs(1),
 		RunE:              runCommunityScriptsInstall,
 		ValidArgsFunction: completeCommunityScriptSlugs,
 	}
 
-	cmd.Flags().String("node", "", "Target Proxmox node")
-	cmd.Flags().Bool("skip-url-check", false, "Skip checking that the raw install script URL exists before SSH")
+	addCommunityScriptDeployFlags(cmd)
 	_ = cmd.MarkFlagRequired("node")
 
 	return cmd
+}
+
+func newCommunityScriptsPlanCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "plan <slug-or-name> --node <node>",
+		Short: "Show the planned community script install command",
+		Long: `Show the resolved node, script metadata, environment overrides, and
+redacted remote command that would be used for a Community Scripts install.`,
+		Example: `  pvetui community-scripts plan grafana --node pve01 --yes --set var_hostname=grafana
+  pvetui community-scripts plan docker --node pve01 --set var_nesting=1 --output table`,
+		Args:              cobra.ExactArgs(1),
+		RunE:              runCommunityScriptsPlan,
+		ValidArgsFunction: completeCommunityScriptSlugs,
+	}
+
+	addCommunityScriptDeployFlags(cmd)
+	_ = cmd.MarkFlagRequired("node")
+
+	return cmd
+}
+
+func addCommunityScriptDeployFlags(cmd *cobra.Command) {
+	cmd.Flags().String("node", "", "Target Proxmox node")
+	cmd.Flags().Bool("skip-url-check", false, "Skip checking that the raw install script URL exists before SSH")
+	cmd.Flags().StringArray("set", nil, "Community Scripts var_* override in KEY=VALUE form (repeatable)")
+	cmd.Flags().Bool("yes", false, "Run without allocating a TTY and fail instead of waiting for interactive prompts")
+	cmd.Flags().Bool("non-interactive", false, "Alias for --yes")
 }
 
 func runCommunityScriptsSearch(cmd *cobra.Command, args []string) error {
@@ -167,6 +212,23 @@ func runCommunityScriptsShow(cmd *cobra.Command, args []string) error {
 	return printJSON(out)
 }
 
+func runCommunityScriptsPlan(cmd *cobra.Command, args []string) error {
+	plan, err := buildCommunityScriptPlan(cmd, args[0])
+	if err != nil {
+		return printError(err)
+	}
+	if plan == nil {
+		return nil
+	}
+
+	if getOutputFormat(cmd) == outputTable {
+		printCommunityScriptPlanTable(*plan)
+		return nil
+	}
+
+	return printJSON(plan)
+}
+
 func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 	session, err := initCLISession(cmd)
 	if err != nil {
@@ -181,6 +243,11 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 
 	nodeName, _ := cmd.Flags().GetString("node")
 	skipURLCheck, _ := cmd.Flags().GetBool("skip-url-check")
+	env, err := parseCommunityScriptEnvFlags(cmd)
+	if err != nil {
+		return printError(err)
+	}
+	nonInteractive := communityScriptNonInteractive(cmd)
 
 	ctx := context.Background()
 	node, err := session.findNodeByName(ctx, nodeName)
@@ -218,25 +285,56 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 		host = node.Name
 	}
 
+	var warnings []string
+	beforeVMs, beforeErr := session.getVMs(ctx)
+	if beforeErr != nil {
+		warnings = append(warnings, fmt.Sprintf("could not snapshot guests before install: %v", beforeErr))
+	}
+
 	fmt.Fprintf(os.Stderr, "Installing %s on node %s (%s) as %s...\n", script.Slug, node.Name, host, sshUser)
 
+	var installStdin io.Reader = os.Stdin
+	if nonInteractive {
+		installStdin = nil
+	}
+
 	exitCode, err := core.InstallScriptWithOptions(ctx, core.InstallOptions{
-		User:     sshUser,
-		Host:     host,
-		Keyfile:  session.resolveNodeSSHKeyfile(node),
-		JumpHost: jumpHost,
-		Script:   script,
-		Stdin:    os.Stdin,
-		Stdout:   os.Stderr,
-		Stderr:   os.Stderr,
+		User:           sshUser,
+		Host:           host,
+		Keyfile:        session.resolveNodeSSHKeyfile(node),
+		JumpHost:       jumpHost,
+		Script:         script,
+		Env:            env,
+		NonInteractive: nonInteractive,
+		Stdin:          installStdin,
+		Stdout:         os.Stderr,
+		Stderr:         os.Stderr,
 	})
 
+	createdGuests := []guestOutput(nil)
+	if err == nil && beforeErr == nil {
+		if cacheErr := session.clearNodeInventoryCache(ctx, node.Name); cacheErr != nil {
+			warnings = append(warnings, fmt.Sprintf("could not clear guest inventory cache after install: %v", cacheErr))
+		}
+
+		afterVMs, afterErr := session.getVMs(ctx)
+		if afterErr != nil {
+			warnings = append(warnings, fmt.Sprintf("could not refresh guests after install: %v", afterErr))
+		} else {
+			createdGuests = detectCreatedGuests(beforeVMs, afterVMs, node.Name)
+		}
+	}
+
 	out := communityScriptInstallOutput{
-		Node:     node.Name,
-		Host:     host,
-		SSHUser:  sshUser,
-		ExitCode: exitCode,
-		Script:   communityScriptToOutput(script),
+		Node:           node.Name,
+		Host:           host,
+		SSHUser:        sshUser,
+		ExitCode:       exitCode,
+		NonInteractive: nonInteractive,
+		Env:            redactCommunityScriptEnv(env),
+		Script:         communityScriptToOutput(script),
+		CreatedGuests:  createdGuests,
+		Warnings:       warnings,
 	}
 
 	if err != nil {
@@ -247,6 +345,73 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 	return printInstallResult(cmd, out)
 }
 
+func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*communityScriptPlanOutput, error) {
+	session, err := initCLISession(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if session == nil {
+		return nil, nil
+	}
+	if err := ensureCommunityScriptsEnabled(session); err != nil {
+		return nil, err
+	}
+
+	nodeName, _ := cmd.Flags().GetString("node")
+	env, err := parseCommunityScriptEnvFlags(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+	node, err := session.findNodeByName(ctx, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	if !node.Online {
+		return nil, fmt.Errorf("node %q is offline", nodeName)
+	}
+
+	script, err := findCommunityScript(nameOrSlug)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateCommunityScriptInstall(script); err != nil {
+		return nil, err
+	}
+
+	sshUser, _ := session.resolveNodeSSHCreds(node)
+	if sshUser == "" {
+		return nil, fmt.Errorf("SSH user not configured; set ssh_user in config or use --ssh-user")
+	}
+
+	host := node.IP
+	if host == "" {
+		host = node.Name
+	}
+
+	redactedEnv := redactCommunityScriptEnv(env)
+	preset := ""
+	if communityScriptNonInteractive(cmd) {
+		preset = "default"
+	}
+
+	remoteCmd, err := core.BuildRemoteInstallCommand(sshUser, script, redactedEnv, preset)
+	if err != nil {
+		return nil, err
+	}
+
+	return &communityScriptPlanOutput{
+		Node:           node.Name,
+		Host:           host,
+		SSHUser:        sshUser,
+		NonInteractive: communityScriptNonInteractive(cmd),
+		Env:            redactedEnv,
+		RemoteCommand:  remoteCmd,
+		Script:         communityScriptToOutput(script),
+	}, nil
+}
+
 func printInstallResult(cmd *cobra.Command, out communityScriptInstallOutput) error {
 	if getOutputFormat(cmd) == outputTable {
 		printTable([]string{"FIELD", "VALUE"}, [][]string{
@@ -254,12 +419,128 @@ func printInstallResult(cmd *cobra.Command, out communityScriptInstallOutput) er
 			{"Host", out.Host},
 			{"SSH User", out.SSHUser},
 			{"Script", out.Script.Slug},
+			{"Non-interactive", fmt.Sprintf("%t", out.NonInteractive)},
+			{"Overrides", formatCommunityScriptEnv(out.Env)},
+			{"Created Guests", formatGuestOutputs(out.CreatedGuests)},
+			{"Warnings", strings.Join(out.Warnings, "; ")},
 			{"Exit Code", fmt.Sprintf("%d", out.ExitCode)},
 		})
 		return nil
 	}
 
 	return printJSON(out)
+}
+
+func printCommunityScriptPlanTable(plan communityScriptPlanOutput) {
+	printTable([]string{"FIELD", "VALUE"}, [][]string{
+		{"Node", plan.Node},
+		{"Host", plan.Host},
+		{"SSH User", plan.SSHUser},
+		{"Script", plan.Script.Slug},
+		{"Script URL", plan.Script.ScriptURL},
+		{"Non-interactive", fmt.Sprintf("%t", plan.NonInteractive)},
+		{"Overrides", formatCommunityScriptEnv(plan.Env)},
+		{"Remote Command", plan.RemoteCommand},
+	})
+}
+
+func parseCommunityScriptEnvFlags(cmd *cobra.Command) ([]core.EnvOverride, error) {
+	rawOverrides, _ := cmd.Flags().GetStringArray("set")
+	overrides := make([]core.EnvOverride, 0, len(rawOverrides))
+
+	seen := map[string]struct{}{}
+	for _, raw := range rawOverrides {
+		override, err := core.ParseEnvOverride(raw)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := seen[override.Name]; exists {
+			return nil, fmt.Errorf("duplicate community script override %q", override.Name)
+		}
+		seen[override.Name] = struct{}{}
+		overrides = append(overrides, override)
+	}
+
+	return overrides, nil
+}
+
+func communityScriptNonInteractive(cmd *cobra.Command) bool {
+	yes, _ := cmd.Flags().GetBool("yes")
+	nonInteractive, _ := cmd.Flags().GetBool("non-interactive")
+
+	return yes || nonInteractive
+}
+
+func redactCommunityScriptEnv(env []core.EnvOverride) []core.EnvOverride {
+	return core.RedactEnvOverrides(env)
+}
+
+func formatCommunityScriptEnv(env []core.EnvOverride) string {
+	if len(env) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(env))
+	for _, override := range env {
+		parts = append(parts, override.Name+"="+override.Value)
+	}
+
+	return strings.Join(parts, ", ")
+}
+
+func detectCreatedGuests(before, after []*api.VM, nodeName string) []guestOutput {
+	beforeGuests := map[guestIdentity]struct{}{}
+	for _, vm := range before {
+		if vm != nil {
+			beforeGuests[guestIdentityFromVM(vm)] = struct{}{}
+		}
+	}
+
+	var created []guestOutput
+	for _, vm := range after {
+		if vm == nil || vm.Node != nodeName {
+			continue
+		}
+		if _, existed := beforeGuests[guestIdentityFromVM(vm)]; existed {
+			continue
+		}
+		created = append(created, vmToGuestOutput(vm))
+	}
+
+	return created
+}
+
+type guestIdentity struct {
+	id            int
+	node          string
+	guestType     string
+	sourceProfile string
+}
+
+func guestIdentityFromVM(vm *api.VM) guestIdentity {
+	if vm == nil {
+		return guestIdentity{}
+	}
+
+	return guestIdentity{
+		id:            vm.ID,
+		node:          vm.Node,
+		guestType:     vm.Type,
+		sourceProfile: vm.SourceProfile,
+	}
+}
+
+func formatGuestOutputs(guests []guestOutput) string {
+	if len(guests) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(guests))
+	for _, guest := range guests {
+		parts = append(parts, fmt.Sprintf("%d/%s/%s", guest.ID, guest.Name, guest.Type))
+	}
+
+	return strings.Join(parts, ", ")
 }
 
 func ensureCommunityScriptsEnabled(session *cliSession) error {

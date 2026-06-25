@@ -76,7 +76,9 @@ npx skills add devnullvoid/pvetui
 | `pvetui storage restore <node> <storage> <volid> <vmid>` | Restore a guest from backup |
 | `pvetui community-scripts search <query>` | Search available Proxmox Community Scripts |
 | `pvetui community-scripts show <slug-or-name>` | Show Community Script metadata |
+| `pvetui community-scripts plan <slug-or-name> --node <node>` | Preview a Community Script install command |
 | `pvetui community-scripts install <slug-or-name> --node <node>` | Install a Community Script on a node over SSH |
+| `pvetui community-scripts deploy <slug-or-name> --node <node>` | Alias for `install`, useful for agent deployment wording |
 
 ## Global Flags
 
@@ -133,11 +135,21 @@ pvetui community-scripts search docker --output table
 # Show one script by exact slug or name
 pvetui community-scripts show nextcloud
 
-# Install on a selected Proxmox node
-pvetui community-scripts install nextcloud --node pve01
+# Preview and then deploy with validated var_* overrides
+pvetui community-scripts plan grafana --node pve01 --yes \
+  --set var_hostname=grafana --set var_cpu=2 --set var_ram=2048 \
+  --set var_container_storage=local-lvm --set var_template_storage=local
+
+pvetui community-scripts deploy grafana --node pve01 --yes \
+  --set var_hostname=grafana --set var_brg=vmbr0 --set var_net=dhcp \
+  --set var_cpu=2 --set var_ram=2048 --set var_disk=8 \
+  --set var_ssh=yes --set 'var_tags=monitoring;grafana' \
+  --set var_container_storage=local-lvm --set var_template_storage=local
 ```
 
-`install` SSHes to the selected node and runs the same Community Scripts installer flow as the TUI. It resolves SSH settings from the node source profile, active profile, or global `ssh_user`; set `--ssh-user` when needed. Upstream installer output is streamed to stderr so stdout can contain the final JSON/table result. Many upstream installers are interactive, so do not assume this command is unattended unless you know that specific script is non-interactive.
+`install`/`deploy` SSHes to the selected node and runs the same Community Scripts installer flow as the TUI. It resolves SSH settings from the node source profile, active profile, or global `ssh_user`; set `--ssh-user` when needed. Upstream installer output is streamed to stderr so stdout can contain the final JSON/table result.
+
+For agent-driven deployments, prefer `plan` first, then `deploy --yes` with explicit `--set var_*=value` overrides. For unattended LXC deploys, include `var_container_storage` and `var_template_storage`; otherwise upstream scripts can open a storage picker and fail without a TTY. `var_container_storage` selects the LXC rootfs storage, `var_template_storage` selects where the OS template is downloaded, `var_disk` is the LXC rootfs size in GB, `var_brg` selects the bridge, `var_net=dhcp` requests DHCP, and `var_vlan` sets the Proxmox `net0` VLAN tag. When both storage overrides are present, pvetui temporarily seeds `/usr/local/community-scripts/default.vars` on the target node so upstream first-run defaults do not prompt; the file is restored if it existed and removed if pvetui created it. `--yes` disables TTY allocation, selects the upstream default preset, skips the Community Scripts host-update prompt, and feeds empty stdin so unexpected prompts fail instead of hanging. Supported overrides are the Community Scripts allowlisted variables, including `var_hostname`, `var_cpu`, `var_ram`, `var_disk`, `var_brg`, `var_net`, `var_gateway`, `var_vlan`, `var_container_storage`, `var_template_storage`, `var_ssh`, `var_tags`, `var_unprivileged`, `var_nesting`, `var_fuse`, `var_tun`, and related `var_*` settings.
 
 ## Nodes
 

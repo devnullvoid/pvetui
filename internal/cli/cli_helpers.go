@@ -107,6 +107,20 @@ func (s *cliSession) clientForNode(ctx context.Context, nodeName string) (*api.C
 	return s.single, nil
 }
 
+// clearNodeInventoryCache invalidates API cache entries that affect guest
+// inventory for operations performed outside the Proxmox API client.
+func (s *cliSession) clearNodeInventoryCache(ctx context.Context, nodeName string) error {
+	client, err := s.clientForNode(ctx, nodeName)
+	if err != nil {
+		return err
+	}
+
+	client.ClearClusterCache()
+	client.ClearNodeCache(nodeName)
+
+	return nil
+}
+
 // clientForVM returns the API client responsible for the given guest. In group
 // mode it resolves via SourceProfile; in single mode it returns the single client.
 func (s *cliSession) clientForVM(vm *api.VM) (*api.Client, error) {

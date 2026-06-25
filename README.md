@@ -520,11 +520,23 @@ pvetui community-scripts search docker --output table
 pvetui community-scripts show nextcloud
 pvetui community-scripts show nextcloud --output table
 
+# Preview an unattended deployment command
+pvetui community-scripts plan grafana --node pve01 --yes \
+  --set var_hostname=grafana --set var_cpu=2 --set var_ram=2048 \
+  --set var_container_storage=local-lvm --set var_template_storage=local
+
 # Install on a selected Proxmox node over SSH
 pvetui community-scripts install nextcloud --node pve01
+
+# Deploy with Community Scripts var_* overrides and no interactive TTY
+pvetui community-scripts deploy grafana --node pve01 --yes \
+  --set var_hostname=grafana --set var_brg=vmbr0 --set var_net=dhcp \
+  --set var_cpu=2 --set var_ram=2048 --set var_disk=8 \
+  --set var_ssh=yes --set 'var_tags=monitoring;grafana' \
+  --set var_container_storage=local-lvm --set var_template_storage=local
 ```
 
-`install` resolves SSH settings from the node source profile, the active profile, or global `ssh_user` settings. Upstream installer output is streamed to stderr so stdout can still contain the final JSON/table result.
+`install`/`deploy` resolves SSH settings from the node source profile, the active profile, or global `ssh_user` settings. Upstream installer output is streamed to stderr so stdout can still contain the final JSON/table result. `--set` accepts validated Community Scripts `var_*` overrides; for unattended LXC deploys, include explicit `var_container_storage` and `var_template_storage` values so the upstream storage picker is not opened. `var_container_storage` is used for the LXC rootfs storage, `var_template_storage` is used for the downloaded template storage, and values such as `var_disk`, `var_brg`, `var_net`, and `var_vlan` map to the upstream `pct create` disk and network options. When both storage overrides are present, pvetui temporarily seeds the upstream Community Scripts defaults file on the target node and restores or removes it after the installer exits. `--yes` disables TTY allocation, selects the upstream default preset, skips the Community Scripts host-update prompt, and uses empty stdin so unexpected prompts fail instead of waiting indefinitely.
 
 ### Tasks
 
