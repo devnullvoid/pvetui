@@ -45,7 +45,7 @@ builds:
 archives:
   - id: default
     # ids: [pvetui, pvetui-windows-amd64]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     formats: ["tar.gz"]
     format_overrides:
       - goos: windows
