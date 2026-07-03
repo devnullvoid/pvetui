@@ -11,7 +11,8 @@
   <a href="#-usage">Usage</a> •
   <a href="#-cli-subcommands">CLI</a> •
   <a href="#-theming">Theming</a> •
-  <a href="#-vnc-console-access">VNC Console</a>
+  <a href="#-vnc-console-access">VNC Console</a> •
+  <a href="#-support-pvetui">Support</a>
 </p>
 
 <!-- Badges -->
@@ -657,6 +658,20 @@ If a roadmap item is critical for your environment, open an issue with your use 
 ## 🤝 Contributing
 
 Contributions welcome! Check the [issues page](https://github.com/devnullvoid/pvetui/issues).
+
+## 💜 Support pvetui
+
+pvetui is free, open-source software, and it will stay that way. If it saves you time managing Proxmox, helps run your homelab, or supports work you rely on, please consider sponsoring the project.
+
+Maintaining and testing pvetui depends on real Proxmox hardware. That homelab has ongoing costs, including hardware upkeep and a meaningful monthly power bill. Even a small one-time contribution helps keep development, packaging, testing, and support sustainable.
+
+Ways to support:
+
+- [GitHub Sponsors](https://github.com/sponsors/devnullvoid)
+- [Ko-fi](https://ko-fi.com/devnullvoid)
+- [Buy Me a Coffee](https://www.buymeacoffee.com/devnullvoid)
+
+Financial support is always optional. Bug reports, documentation improvements, testing feedback, and thoughtful pull requests are also valuable contributions to the project.
 
 ## 📝 License
 
