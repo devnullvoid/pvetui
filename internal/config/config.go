@@ -24,6 +24,7 @@
 //   - PROXMOX_DEBUG: Enable debug logging ("true"/"false")
 //   - PROXMOX_CACHE_DIR: Custom cache directory (overrides platform defaults)
 //   - PVETUI_SHOW_ICONS: Show icons/emojis in the UI ("true"/"false", default: "true")
+//   - PVETUI_CLI_DEFAULT_OUTPUT: Default CLI output format ("json"/"table")
 //
 // Configuration File Format (YAML):
 //
@@ -119,6 +120,7 @@ type Config struct {
 	KeyBindings   KeyBindings                    `yaml:"key_bindings"`
 	Theme         ThemeConfig                    `yaml:"theme"`
 	Plugins       PluginConfig                   `yaml:"plugins"`
+	CLI           CLIConfig                      `yaml:"cli,omitempty"`
 	ShowIcons     bool                           `yaml:"show_icons"`
 	GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings,omitempty"`
 	// Deprecated: legacy single-profile fields for migration
@@ -135,6 +137,13 @@ type Config struct {
 	SSHKeyfile   string      `yaml:"ssh_keyfile,omitempty"`
 	VMSSHKeyfile string      `yaml:"vm_ssh_keyfile,omitempty"`
 	SSHJumpHost  SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
+}
+
+// CLIConfig holds defaults for non-interactive CLI subcommands.
+type CLIConfig struct {
+	// DefaultOutput controls CLI output when --output is not explicitly passed.
+	// Valid values are "json" and "table".
+	DefaultOutput string `yaml:"default_output,omitempty"`
 }
 
 func (c *Config) HasCleartextSensitiveData() bool {
@@ -343,6 +352,7 @@ func ValidateKeyBindings(kb KeyBindings) error {
 //   - PVETUI_DEBUG: Enable debug logging ("true"/"false")
 //   - PVETUI_CACHE_DIR: Custom cache directory (overrides platform defaults)
 //   - PVETUI_SHOW_ICONS: Show icons/emojis in the UI ("true"/"false", default: "true")
+//   - PVETUI_CLI_DEFAULT_OUTPUT: Default CLI output format ("json"/"table")
 //
 // The returned Config should typically be further configured with command-line
 // flags and/or configuration files before validation.
@@ -391,6 +401,9 @@ func NewConfig() *Config {
 					DryRunDefault:        true,
 				},
 			},
+		},
+		CLI: CLIConfig{
+			DefaultOutput: os.Getenv("PVETUI_CLI_DEFAULT_OUTPUT"),
 		},
 		ShowIcons: strings.ToLower(os.Getenv("PVETUI_SHOW_ICONS")) != "false",
 	}
@@ -527,6 +540,9 @@ func (c *Config) MergeWithFile(path string) error {
 				} `yaml:"bootstrap"`
 			} `yaml:"ansible"`
 		} `yaml:"plugins"`
+		CLI struct {
+			DefaultOutput string `yaml:"default_output"`
+		} `yaml:"cli"`
 		ShowIcons     *bool                          `yaml:"show_icons"`
 		GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings"`
 		// Legacy fields for migration
@@ -933,6 +949,9 @@ func (c *Config) MergeWithFile(path string) error {
 	if fileConfig.Plugins.Ansible.Bootstrap.FailFast != nil {
 		c.Plugins.Ansible.Bootstrap.FailFast = *fileConfig.Plugins.Ansible.Bootstrap.FailFast
 	}
+	if fileConfig.CLI.DefaultOutput != "" {
+		c.CLI.DefaultOutput = fileConfig.CLI.DefaultOutput
+	}
 
 	// Merge show_icons configuration if provided
 	if fileConfig.ShowIcons != nil {
@@ -998,6 +1017,10 @@ func hasCleartextSensitiveValue(value string) bool {
 }
 
 func (c *Config) Validate() error {
+	if err := c.validateCLIConfig(); err != nil {
+		return err
+	}
+
 	// Validate profile-based configuration if profiles exist.
 	if len(c.Profiles) > 0 {
 		if err := c.ValidateGroups(); err != nil {
@@ -1098,6 +1121,15 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) validateCLIConfig() error {
+	switch strings.TrimSpace(strings.ToLower(c.CLI.DefaultOutput)) {
+	case "", "json", "table":
+		return nil
+	default:
+		return fmt.Errorf("invalid cli.default_output %q: must be json or table", c.CLI.DefaultOutput)
+	}
 }
 
 // IsUsingTokenAuth returns true if the configuration is set up for API token authentication.
@@ -1334,6 +1366,11 @@ func (c *Config) SetDefaults() {
 
 	if c.Plugins.Enabled == nil {
 		c.Plugins.Enabled = []string{}
+	}
+	if c.CLI.DefaultOutput == "" {
+		c.CLI.DefaultOutput = "json"
+	} else {
+		c.CLI.DefaultOutput = strings.ToLower(strings.TrimSpace(c.CLI.DefaultOutput))
 	}
 	if c.Plugins.Ansible.InventoryFormat == "" {
 		c.Plugins.Ansible.InventoryFormat = "yaml"

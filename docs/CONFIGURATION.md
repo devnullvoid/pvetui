@@ -67,6 +67,9 @@ show_icons: true               # Optional: toggle icons/emojis in the UI
 cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 
+cli:
+  default_output: "json"       # CLI default output: "json" (default) or "table"
+
 # Key bindings customization
 key_bindings:
   switch_view: "]"
@@ -117,6 +120,17 @@ The built-in profile manager allows you to:
 
 Access the profile manager through the global menu (`Esc`) or context menus.
 Application-wide options such as `show_icons`, debug logging, cache/age directories, themes, and key bindings can be edited from **Global Actions > Application Settings**.
+
+### CLI Defaults
+
+CLI subcommands default to JSON output for automation compatibility. To make human-readable tables the default without passing `--output table` every time:
+
+```yaml
+cli:
+  default_output: table
+```
+
+`cli.default_output` accepts `json` or `table`. The `PVETUI_CLI_DEFAULT_OUTPUT` environment variable provides the same default, and an explicit `--output json` or `--output table` flag always takes precedence.
 
 ## Group Settings
 

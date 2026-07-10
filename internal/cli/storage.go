@@ -84,7 +84,6 @@ once per node they are active on, matching the TUI storage browser layout.`,
 	}
 
 	cmd.Flags().String("node", "", "Filter to a specific node")
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
 
 	return cmd
 }
@@ -192,8 +191,6 @@ func newStorageShowCmd() *cobra.Command {
 		RunE:    runStorageShow,
 	}
 
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
-
 	cmd.ValidArgsFunction = completeStorageNames
 
 	return cmd
@@ -284,7 +281,6 @@ func newStorageContentListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("type", "", "Filter by content type (iso, vztmpl, backup, snippets, images)")
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
 
 	cmd.ValidArgsFunction = completeStorageNames
 
@@ -362,7 +358,6 @@ func newStorageContentDeleteCmd() *cobra.Command {
 		RunE: runStorageContentDelete,
 	}
 
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
 	addNoWaitFlag(cmd)
 
 	cmd.ValidArgsFunction = completeStorageNames
@@ -450,7 +445,6 @@ func newStorageDownloadURLCmd() *cobra.Command {
 
 	cmd.Flags().String("filename", "", "Override the destination filename")
 	cmd.Flags().String("content-type", "", "Content type override (iso, vztmpl, import); inferred from URL extension when omitted")
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
 	addNoWaitFlag(cmd)
 
 	cmd.ValidArgsFunction = completeStorageNames
@@ -553,7 +547,6 @@ version is resolved automatically and the resolved filename is printed to stderr
 	}
 
 	cmd.Flags().String("section", "", "Narrow template resolution by section (system, mail, turnkeylinux)")
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
 	addNoWaitFlag(cmd)
 
 	cmd.ValidArgsFunction = completeTemplateNames
@@ -633,7 +626,6 @@ func newStorageDownloadOCICmd() *cobra.Command {
 		RunE: runStorageDownloadOCI,
 	}
 
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
 	addNoWaitFlag(cmd)
 
 	cmd.ValidArgsFunction = completeStorageNames
@@ -720,7 +712,6 @@ use --type to override when inference fails.`,
 
 	cmd.Flags().Bool("confirm", false, "Actually perform the restore (required; without it a dry-run summary is printed)")
 	cmd.Flags().String("type", "", "Guest type override: qemu or lxc (inferred from volid when omitted)")
-	cmd.Flags().StringP("output", "o", "json", "Output format: json or table")
 	addNoWaitFlag(cmd)
 
 	cmd.ValidArgsFunction = completeStorageNames

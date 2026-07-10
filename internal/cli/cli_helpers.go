@@ -162,6 +162,7 @@ func initCLISession(cmd *cobra.Command) (*cliSession, error) {
 	}
 
 	cfg := result.Config
+	applyConfiguredOutputFormat(cmd, cfg)
 
 	// Normalize the API URL the same way the TUI does.
 	cfg.Addr = strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.ApiPath, "/")
@@ -242,9 +243,32 @@ func initCLISession(cmd *cobra.Command) (*cliSession, error) {
 	return &cliSession{group: manager, cfg: cfg}, nil
 }
 
-// getOutputFormat reads the --output flag value from the command.
+// applyConfiguredOutputFormat makes cli.default_output the effective output
+// format unless --output was explicitly set for this invocation.
+func applyConfiguredOutputFormat(cmd *cobra.Command, cfg *config.Config) {
+	if cmd == nil || cfg == nil {
+		return
+	}
+
+	flag := cmd.Flag("output")
+	if flag == nil || flag.Changed {
+		return
+	}
+
+	defaultOutput := strings.TrimSpace(cfg.CLI.DefaultOutput)
+	if defaultOutput == "" {
+		return
+	}
+
+	_ = flag.Value.Set(defaultOutput)
+}
+
+// getOutputFormat reads the effective --output flag value from the command.
 func getOutputFormat(cmd *cobra.Command) string {
-	f, _ := cmd.Flags().GetString("output")
+	var f string
+	if flag := cmd.Flag("output"); flag != nil {
+		f = flag.Value.String()
+	}
 	if f == "" {
 		return outputJSON
 	}

@@ -365,7 +365,7 @@ Windows legacy fallback:
 | Flag | Short | Environment Variable | Description |
 |------|-------|----------------------|-------------|
 | `--config` | `-c` | n/a | Path to YAML config file |
-| `--output` | `-o` | n/a | CLI subcommand output format: `json` (default) or `table` |
+| `--output` | `-o` | `PVETUI_CLI_DEFAULT_OUTPUT` | CLI subcommand output format: `json` or `table`; overrides `cli.default_output` |
 | `--profile` | `-p` | n/a | Connection profile to use (overrides default_profile) |
 | `--no-cache` | `-n` | n/a | Disable caching |
 | `--version` | `-v` | n/a | Show version information |
@@ -413,7 +413,7 @@ Customize keys via the `key_bindings` section in your config. This includes task
 
 `pvetui` doubles as a non-interactive CLI tool. Running any subcommand skips the TUI entirely, making it easy to use in shell scripts, cron jobs, and AI agent workflows.
 
-All subcommands share the same config file, `--profile` selection, and group/aggregate profile support as the TUI. Output defaults to JSON (stdout); pass `--output table` for human-readable output. Errors are written as JSON to stderr and the process exits non-zero on failure.
+All subcommands share the same config file, `--profile` selection, and group/aggregate profile support as the TUI. Output defaults to JSON (stdout); set `cli.default_output: table` in config or `PVETUI_CLI_DEFAULT_OUTPUT=table` for a human-readable default. Pass `--output json` or `--output table` to override the configured default per command. Errors are written as JSON to stderr and the process exits non-zero on failure.
 
 ### Nodes
 

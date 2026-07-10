@@ -79,6 +79,9 @@ theme:
     # usagehigh: "red"
     # usagecritical: "fuchsia"
 
+cli:
+  default_output: "json" # CLI default output: "json" (default) or "table"; --output overrides this
+
 plugins:
   enabled: []
   # ansible:

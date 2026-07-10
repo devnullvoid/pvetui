@@ -12,6 +12,7 @@ func TestGetBuildInfo(t *testing.T) {
 
 	if info == nil {
 		t.Fatal("GetBuildInfo() returned nil")
+		return
 	}
 
 	// Check that required fields are present

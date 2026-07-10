@@ -87,17 +87,17 @@ These flags work with every subcommand:
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--profile <name>` | `-p` | Use a specific connection profile or aggregate group |
-| `--output <format>` | `-o` | Output format: `json` (default) or `table` |
+| `--output <format>` | `-o` | Output format: `json` or `table`; overrides `cli.default_output` |
 | `--config <path>` | `-c` | Path to config file (default: `~/.config/pvetui/config.yml`) |
 | `--no-cache` | `-n` | Disable caching |
 
 ## Output Format
 
-**Default (JSON):** structured output to stdout; errors as JSON to stderr; non-zero exit on failure.
+**Default (JSON unless configured):** structured output to stdout; errors as JSON to stderr; non-zero exit on failure.
 
 **Table (`--output table`):** aligned human-readable output to stdout.
 
-All commands default to JSON — prefer JSON when parsing output in scripts or agents.
+Set `cli.default_output: table` in config or `PVETUI_CLI_DEFAULT_OUTPUT=table` to make table output the default. Prefer `--output json` explicitly when parsing output in scripts or agents, because users may configure table as their default.
 
 ## Task-Producing Commands
 

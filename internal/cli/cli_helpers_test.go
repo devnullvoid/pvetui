@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/devnullvoid/pvetui/internal/adapters"
 	"github.com/devnullvoid/pvetui/internal/config"
 	"github.com/devnullvoid/pvetui/pkg/api"
@@ -120,6 +122,59 @@ func TestPrintTable(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("output missing %q\nfull output:\n%s", want, got)
 		}
+	}
+}
+
+func TestApplyConfiguredOutputFormat(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfg        *config.Config
+		setFlag    string
+		want       string
+		wantChange bool
+	}{
+		{
+			name: "uses config default when flag omitted",
+			cfg: &config.Config{
+				CLI: config.CLIConfig{DefaultOutput: outputTable},
+			},
+			want: outputTable,
+		},
+		{
+			name: "keeps explicit flag over config default",
+			cfg: &config.Config{
+				CLI: config.CLIConfig{DefaultOutput: outputTable},
+			},
+			setFlag:    outputJSON,
+			want:       outputJSON,
+			wantChange: true,
+		},
+		{
+			name: "keeps built-in default when config empty",
+			cfg:  &config.Config{},
+			want: outputJSON,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "test"}
+			cmd.Flags().StringP("output", "o", outputJSON, "Output format")
+			if tt.setFlag != "" {
+				if err := cmd.Flags().Set("output", tt.setFlag); err != nil {
+					t.Fatalf("set output flag: %v", err)
+				}
+			}
+
+			applyConfiguredOutputFormat(cmd, tt.cfg)
+
+			if got := getOutputFormat(cmd); got != tt.want {
+				t.Fatalf("getOutputFormat() = %q, want %q", got, tt.want)
+			}
+			if got := cmd.Flag("output").Changed; got != tt.wantChange {
+				t.Fatalf("flag Changed = %v, want %v", got, tt.wantChange)
+			}
+		})
 	}
 }
 

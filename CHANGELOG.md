@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLI output defaults**: Added `cli.default_output` and `PVETUI_CLI_DEFAULT_OUTPUT` so users can make CLI subcommands default to `table` output while preserving `json` as the built-in automation-safe default. The `--output` flag still takes precedence per command.
+
 ## [1.4.2] - 2026-07-03
 
 ### Added

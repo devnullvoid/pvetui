@@ -10,6 +10,7 @@ type marshaledConfig struct {
 	KeyBindings    KeyBindings                    `yaml:"key_bindings,omitempty"`
 	Theme          ThemeConfig                    `yaml:"theme,omitempty"`
 	Plugins        PluginConfig                   `yaml:"plugins"`
+	CLI            CLIConfig                      `yaml:"cli,omitempty"`
 	GroupSettings  map[string]GroupSettingsConfig `yaml:"group_settings,omitempty"`
 	ShowIcons      bool                           `yaml:"show_icons"`
 	Addr           string                         `yaml:"addr,omitempty"`
@@ -43,6 +44,7 @@ func (cfg *Config) MarshalYAML() (any, error) {
 		KeyBindings:    cfg.KeyBindings,
 		Theme:          cfg.Theme,
 		Plugins:        cfg.Plugins,
+		CLI:            cfg.CLI,
 		GroupSettings:  cfg.GroupSettings,
 		ShowIcons:      cfg.ShowIcons,
 	}

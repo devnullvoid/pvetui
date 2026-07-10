@@ -47,6 +47,7 @@ func TestNewConfig(t *testing.T) {
 				"PVETUI_DEBUG":                "true",
 				"PVETUI_CACHE_DIR":            "/tmp/cache",
 				"PVETUI_AGE_DIR":              "/tmp/age",
+				"PVETUI_CLI_DEFAULT_OUTPUT":   "table",
 			},
 			expected: &Config{
 				Addr:        "https://proxmox.example.com:8006",
@@ -67,6 +68,9 @@ func TestNewConfig(t *testing.T) {
 				Debug:    true,
 				CacheDir: "/tmp/cache",
 				AgeDir:   "/tmp/age",
+				CLI: CLIConfig{
+					DefaultOutput: "table",
+				},
 			},
 		},
 		{
@@ -110,6 +114,7 @@ func TestNewConfig(t *testing.T) {
 			assert.Equal(t, tt.expected.SSHJumpHost, config.SSHJumpHost)
 			assert.Equal(t, tt.expected.Debug, config.Debug)
 			assert.Equal(t, tt.expected.CacheDir, config.CacheDir)
+			assert.Equal(t, tt.expected.CLI, config.CLI)
 
 			// Clean up
 			clearProxmoxEnvVars()
@@ -202,6 +207,19 @@ func TestConfig_Validate(t *testing.T) {
 			expectError: true,
 			errorMsg:    "authentication required",
 		},
+		{
+			name: "invalid cli default output",
+			config: &Config{
+				Addr:     "https://proxmox.example.com:8006",
+				User:     "testuser",
+				Password: "testpass",
+				CLI: CLIConfig{
+					DefaultOutput: "yaml",
+				},
+			},
+			expectError: true,
+			errorMsg:    "invalid cli.default_output",
+		},
 	}
 
 	for _, tt := range tests {
@@ -216,6 +234,28 @@ func TestConfig_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConfig_MergeWithFile_CLI(t *testing.T) {
+	tempFile, err := os.CreateTemp(t.TempDir(), "config-cli-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	content := `
+cli:
+  default_output: table
+`
+
+	_, err = tempFile.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tempFile.Close())
+
+	cfg := &Config{}
+	require.NoError(t, cfg.MergeWithFile(tempFile.Name()))
+	assert.Equal(t, "table", cfg.CLI.DefaultOutput)
+
+	cfg.SetDefaults()
+	assert.Equal(t, "table", cfg.CLI.DefaultOutput)
 }
 
 func TestExpandHomePath(t *testing.T) {
@@ -678,6 +718,7 @@ func TestConfig_SetDefaults(t *testing.T) {
 	assert.Equal(t, "2m", config.Plugins.Ansible.Bootstrap.Timeout)
 	assert.Equal(t, 10, config.Plugins.Ansible.Bootstrap.Parallelism)
 	assert.Equal(t, "Ctrl+f", config.KeyBindings.AdvancedGuestFilter)
+	assert.Equal(t, "json", config.CLI.DefaultOutput)
 }
 
 func TestNewConfigDoesNotSeedDefaultProfile(t *testing.T) {
@@ -1256,6 +1297,7 @@ func clearProxmoxEnvVars() {
 		"PVETUI_AGE_DIR",
 		"PVETUI_DEBUG",
 		"PVETUI_CACHE_DIR",
+		"PVETUI_CLI_DEFAULT_OUTPUT",
 	}
 
 	for _, envVar := range envVars {
