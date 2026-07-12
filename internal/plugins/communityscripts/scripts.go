@@ -751,6 +751,13 @@ func buildStorageDefaultsPrelude(env []EnvOverride) string {
 
 // BuildRemoteInstallCommand returns the shell command executed on the target node.
 func BuildRemoteInstallCommand(user string, script Script, env []EnvOverride, preset string) (string, error) {
+	return BuildRemoteInstallCommandWithMode(user, script, env, preset, false)
+}
+
+// BuildRemoteInstallCommandWithMode returns the shell command executed on the
+// target node. In non-interactive mode, sudo uses -n so password prompts fail
+// immediately instead of blocking automation.
+func BuildRemoteInstallCommandWithMode(user string, script Script, env []EnvOverride, preset string, nonInteractive bool) (string, error) {
 	if err := validateScriptPath(script.ScriptPath); err != nil {
 		return "", err
 	}
@@ -763,7 +770,11 @@ func BuildRemoteInstallCommand(user string, script Script, env []EnvOverride, pr
 	remoteCmd := installCmd
 	if !strings.EqualFold(user, "root") {
 		quotedInstallCmd := ShellQuote(installCmd)
-		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then sudo su - root -c %s; else su - root -c %s; fi", quotedInstallCmd, quotedInstallCmd)
+		sudoCmd := "sudo"
+		if nonInteractive {
+			sudoCmd = "sudo -n"
+		}
+		remoteCmd = fmt.Sprintf("if command -v sudo >/dev/null 2>&1; then %s su - root -c %s; else su - root -c %s; fi", sudoCmd, quotedInstallCmd, quotedInstallCmd)
 	}
 
 	return WrapRemoteCommandWithBash(remoteCmd), nil
@@ -855,14 +866,14 @@ func InstallScriptWithOptions(ctx context.Context, opts InstallOptions) (int, er
 		preset = "default"
 	}
 
-	remoteCmd, err := BuildRemoteInstallCommand(opts.User, opts.Script, opts.Env, preset)
+	remoteCmd, err := BuildRemoteInstallCommandWithMode(opts.User, opts.Script, opts.Env, preset, opts.NonInteractive)
 	if err != nil {
 		return -1, err
 	}
 
 	getScriptsLogger().Debug("Installing script: %s on node %s", opts.Script.ScriptPath, opts.Host)
 	logRemoteCmd := remoteCmd
-	if redactedCmd, err := BuildRemoteInstallCommand(opts.User, opts.Script, RedactEnvOverrides(opts.Env), preset); err == nil {
+	if redactedCmd, err := BuildRemoteInstallCommandWithMode(opts.User, opts.Script, RedactEnvOverrides(opts.Env), preset, opts.NonInteractive); err == nil {
 		logRemoteCmd = redactedCmd
 	}
 	getScriptsLogger().Debug("community-script install via SSH: user=%s host=%s cmd=%s", opts.User, opts.Host, logRemoteCmd)

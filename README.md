@@ -537,7 +537,16 @@ pvetui community-scripts deploy grafana --node pve01 --yes \
   --set var_container_storage=local-lvm --set var_template_storage=local
 ```
 
-`install`/`deploy` resolves SSH settings from the node source profile, the active profile, or global `ssh_user` settings. Upstream installer output is streamed to stderr so stdout can still contain the final JSON/table result. `--set` accepts validated Community Scripts `var_*` overrides; for unattended LXC deploys, include explicit `var_container_storage` and `var_template_storage` values so the upstream storage picker is not opened. `var_container_storage` is used for the LXC rootfs storage, `var_template_storage` is used for the downloaded template storage, and values such as `var_disk`, `var_brg`, `var_net`, and `var_vlan` map to the upstream `pct create` disk and network options. When both storage overrides are present, pvetui temporarily seeds the upstream Community Scripts defaults file on the target node and restores or removes it after the installer exits. `--yes` disables TTY allocation, selects the upstream default preset, skips the Community Scripts host-update prompt, and uses empty stdin so unexpected prompts fail instead of waiting indefinitely.
+`install`/`deploy` resolves SSH settings from the node source profile, the active profile, or global `ssh_user` settings. Upstream installer output is streamed to stderr so stdout can still contain the final JSON/table result. `--set` accepts validated Community Scripts `var_*` overrides; for unattended LXC deploys, include explicit `var_container_storage` and `var_template_storage` values so the upstream storage picker is not opened. `var_container_storage` is used for the LXC rootfs storage, `var_template_storage` is used for the downloaded template storage, and values such as `var_disk`, `var_brg`, `var_net`, and `var_vlan` map to the upstream `pct create` disk and network options. When both storage overrides are present, pvetui temporarily seeds the upstream Community Scripts defaults file on the target node and restores or removes it after the installer exits. `--yes` disables TTY allocation, selects the upstream default preset, skips the Community Scripts host-update prompt, uses `sudo -n` for non-root SSH users, and uses empty stdin so unexpected prompts fail instead of waiting indefinitely.
+
+If `ssh_user` is not `root`, Community Scripts installs need privilege escalation because upstream installers create guests and modify node files. pvetui runs the installer through `sudo su - root -c ...` (`sudo -n` when `--yes` is used). To allow unattended installs without a sudo password prompt, add a sudoers drop-in on each Proxmox node, adjusting `youruser` and the `su` path reported by `command -v su`:
+
+```sudoers
+Cmnd_Alias PVETUI_COMMUNITY_SCRIPTS = /usr/bin/su - root -c *, /bin/su - root -c *
+youruser ALL=(root) NOPASSWD: PVETUI_COMMUNITY_SCRIPTS
+```
+
+This grants the configured SSH user broad root command execution through `su - root -c`, which is effectively what Community Scripts installation requires. Use a dedicated automation account and SSH key, or connect as `root` if you do not want to manage sudoers rules.
 
 ### Tasks
 
@@ -618,6 +627,8 @@ Built-in noVNC client provides seamless console access:
   ```
   youruser ALL=(ALL) NOPASSWD: /usr/sbin/pct enter *, /usr/sbin/pct exec *
   ```
+
+- **Passwordless Community Scripts installs**: For non-root `ssh_user` accounts, unattended `pvetui community-scripts deploy --yes ...` runs `sudo -n su - root -c ...`. Add the `PVETUI_COMMUNITY_SCRIPTS` sudoers alias from the Community Scripts CLI section, or connect as `root`.
 
 ### 🛠️ Troubleshooting
 

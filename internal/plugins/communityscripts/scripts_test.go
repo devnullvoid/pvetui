@@ -99,3 +99,9 @@ func TestBuildRemoteInstallCommandEscapesNonRootCommand(t *testing.T) {
 	require.Contains(t, cmd, "-s --")
 	require.Contains(t, cmd, "default")
 }
+
+func TestBuildRemoteInstallCommandNonInteractiveUsesSudoNonInteractive(t *testing.T) {
+	cmd, err := BuildRemoteInstallCommandWithMode("admin", Script{ScriptPath: "ct/grafana.sh"}, nil, "default", true)
+	require.NoError(t, err)
+	require.Contains(t, cmd, "sudo -n su - root -c")
+}

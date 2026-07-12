@@ -149,7 +149,16 @@ pvetui community-scripts deploy grafana --node pve01 --yes \
 
 `install`/`deploy` SSHes to the selected node and runs the same Community Scripts installer flow as the TUI. It resolves SSH settings from the node source profile, active profile, or global `ssh_user`; set `--ssh-user` when needed. Upstream installer output is streamed to stderr so stdout can contain the final JSON/table result.
 
-For agent-driven deployments, prefer `plan` first, then `deploy --yes` with explicit `--set var_*=value` overrides. For unattended LXC deploys, include `var_container_storage` and `var_template_storage`; otherwise upstream scripts can open a storage picker and fail without a TTY. `var_container_storage` selects the LXC rootfs storage, `var_template_storage` selects where the OS template is downloaded, `var_disk` is the LXC rootfs size in GB, `var_brg` selects the bridge, `var_net=dhcp` requests DHCP, and `var_vlan` sets the Proxmox `net0` VLAN tag. When both storage overrides are present, pvetui temporarily seeds `/usr/local/community-scripts/default.vars` on the target node so upstream first-run defaults do not prompt; the file is restored if it existed and removed if pvetui created it. `--yes` disables TTY allocation, selects the upstream default preset, skips the Community Scripts host-update prompt, and feeds empty stdin so unexpected prompts fail instead of hanging. Supported overrides are the Community Scripts allowlisted variables, including `var_hostname`, `var_cpu`, `var_ram`, `var_disk`, `var_brg`, `var_net`, `var_gateway`, `var_vlan`, `var_container_storage`, `var_template_storage`, `var_ssh`, `var_tags`, `var_unprivileged`, `var_nesting`, `var_fuse`, `var_tun`, and related `var_*` settings.
+For agent-driven deployments, prefer `plan` first, then `deploy --yes` with explicit `--set var_*=value` overrides. For unattended LXC deploys, include `var_container_storage` and `var_template_storage`; otherwise upstream scripts can open a storage picker and fail without a TTY. `var_container_storage` selects the LXC rootfs storage, `var_template_storage` selects where the OS template is downloaded, `var_disk` is the LXC rootfs size in GB, `var_brg` selects the bridge, `var_net=dhcp` requests DHCP, and `var_vlan` sets the Proxmox `net0` VLAN tag. When both storage overrides are present, pvetui temporarily seeds `/usr/local/community-scripts/default.vars` on the target node so upstream first-run defaults do not prompt; the file is restored if it existed and removed if pvetui created it. `--yes` disables TTY allocation, selects the upstream default preset, skips the Community Scripts host-update prompt, uses `sudo -n` for non-root SSH users, and feeds empty stdin so unexpected prompts fail instead of hanging. Supported overrides are the Community Scripts allowlisted variables, including `var_hostname`, `var_cpu`, `var_ram`, `var_disk`, `var_brg`, `var_net`, `var_gateway`, `var_vlan`, `var_container_storage`, `var_template_storage`, `var_ssh`, `var_tags`, `var_unprivileged`, `var_nesting`, `var_fuse`, `var_tun`, and related `var_*` settings.
+
+If the profile uses a non-root `ssh_user`, unattended Community Scripts installs require passwordless sudo for the escalation command. pvetui runs `sudo -n su - root -c ...` when `--yes` is used. On each Proxmox node, add a sudoers drop-in like this, adjusting the username and `su` path from `command -v su`:
+
+```sudoers
+Cmnd_Alias PVETUI_COMMUNITY_SCRIPTS = /usr/bin/su - root -c *, /bin/su - root -c *
+youruser ALL=(root) NOPASSWD: PVETUI_COMMUNITY_SCRIPTS
+```
+
+This grants broad root command execution via `su - root -c`, which Community Scripts installation effectively requires. Prefer a dedicated automation account and SSH key, or connect as `root`.
 
 ## Nodes
 
@@ -721,4 +730,5 @@ pvetui storage list | jq '[.[] | {name, node, used_pct: (.used / .total * 100 | 
 | `{"error": "cannot infer content type from URL ..."}` | URL extension not recognised | Pass `--content-type iso` (or `vztmpl`/`import`) |
 | `ip` field empty in guest list | Agent not running or no IP yet | Check guest agent; `ip` populates only for running QEMU VMs with agent |
 | LXC exec fails with permission denied | Non-root user needs sudo | Add `NOPASSWD: /usr/sbin/pct exec *` to sudoers on node |
+| Community Scripts deploy fails with `sudo: a password is required` | Non-root user lacks passwordless sudo for installer escalation | Add the `PVETUI_COMMUNITY_SCRIPTS` sudoers rule above, or use `root` SSH |
 | Template name not resolved | Package not in aplinfo catalog | Use the full filename from `pvetui storage content list` |

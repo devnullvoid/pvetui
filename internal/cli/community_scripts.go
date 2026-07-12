@@ -391,12 +391,13 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 	}
 
 	redactedEnv := redactCommunityScriptEnv(env)
+	nonInteractive := communityScriptNonInteractive(cmd)
 	preset := ""
-	if communityScriptNonInteractive(cmd) {
+	if nonInteractive {
 		preset = "default"
 	}
 
-	remoteCmd, err := core.BuildRemoteInstallCommand(sshUser, script, redactedEnv, preset)
+	remoteCmd, err := core.BuildRemoteInstallCommandWithMode(sshUser, script, redactedEnv, preset, nonInteractive)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +406,7 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 		Node:           node.Name,
 		Host:           host,
 		SSHUser:        sshUser,
-		NonInteractive: communityScriptNonInteractive(cmd),
+		NonInteractive: nonInteractive,
 		Env:            redactedEnv,
 		RemoteCommand:  remoteCmd,
 		Script:         communityScriptToOutput(script),
