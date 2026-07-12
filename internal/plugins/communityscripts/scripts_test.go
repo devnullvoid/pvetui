@@ -68,7 +68,7 @@ func TestBuildInstallScriptCommandWithEnv(t *testing.T) {
 		{Name: "var_tags", Value: "monitoring;grafana"},
 	})
 	require.NoError(t, err)
-	require.Equal(t, "set -o pipefail && curl -fsSL https://example.invalid/script.sh | TERM='xterm-256color' var_hostname='grafana' var_tags='monitoring;grafana' /bin/bash", cmd)
+	require.Equal(t, "set -o pipefail && curl -fsSL https://example.invalid/script.sh | TERM='xterm-256color' IP='' var_hostname='grafana' var_tags='monitoring;grafana' /bin/bash", cmd)
 }
 
 func TestBuildInstallScriptCommandWithStorageDefaultsPrelude(t *testing.T) {

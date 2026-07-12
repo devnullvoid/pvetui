@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CLI output defaults**: Added `cli.default_output` and `PVETUI_CLI_DEFAULT_OUTPUT` so users can make CLI subcommands default to `table` output while preserving `json` as the built-in automation-safe default. The `--output` flag still takes precedence per command.
 - **Community Scripts sudo guidance**: Documented the sudoers rule needed for non-root SSH users running unattended Community Scripts installs, and made non-interactive installs use `sudo -n` so missing passwordless sudo fails instead of waiting for a password prompt.
+- **Community Scripts IP guard**: Initialized the upstream `IP` variable for CLI and TUI Community Scripts installs so scripts that fail to populate it do not roll back otherwise successful containers during their final access-URL message.
 
 ## [1.4.2] - 2026-07-03
 

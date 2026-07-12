@@ -217,7 +217,7 @@ func TestWrapRemoteCommandWithBash(t *testing.T) {
 
 func TestBuildInstallScriptCommand(t *testing.T) {
 	cmd := buildInstallScriptCommand("https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/nextcloud.sh")
-	assert.Equal(t, "set -o pipefail && curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/nextcloud.sh | /bin/bash", cmd)
+	assert.Equal(t, "set -o pipefail && curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/nextcloud.sh | TERM='xterm-256color' IP='' /bin/bash", cmd)
 }
 
 func TestRawRepoForScript(t *testing.T) {

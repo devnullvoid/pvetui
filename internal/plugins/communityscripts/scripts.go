@@ -674,7 +674,8 @@ func rawScriptURL(script Script) string {
 
 // BuildInstallScriptCommand builds the shell command that runs a remote script.
 func BuildInstallScriptCommand(scriptURL string) string {
-	return fmt.Sprintf("set -o pipefail && curl -fsSL %s | /bin/bash", scriptURL)
+	cmd, _ := BuildInstallScriptCommandWithEnvAndPreset(scriptURL, nil, "")
+	return cmd
 }
 
 func buildInstallScriptCommand(scriptURL string) string {
@@ -690,7 +691,10 @@ func BuildInstallScriptCommandWithEnv(scriptURL string, env []EnvOverride) (stri
 // BuildInstallScriptCommandWithEnvAndPreset builds the shell command that runs
 // a remote script with var_* overrides and an optional Community Scripts preset.
 func BuildInstallScriptCommandWithEnvAndPreset(scriptURL string, env []EnvOverride, preset string) (string, error) {
-	prefix := "TERM=" + ShellQuote("xterm-256color") + " "
+	// Several upstream scripts print ${IP} after creation. The shared
+	// description helper normally sets it, but if that helper misses the
+	// assignment, set -u can make an otherwise successful install roll back.
+	prefix := "TERM=" + ShellQuote("xterm-256color") + " IP='' "
 	for _, override := range env {
 		if err := ValidateEnvOverride(override); err != nil {
 			return "", err
