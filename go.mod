@@ -6,7 +6,7 @@ require (
 	filippo.io/age v1.3.1
 	github.com/dgraph-io/badger/v4 v4.9.3
 	github.com/gdamore/tcell/v2 v2.13.10
-	github.com/getkin/kin-openapi v0.140.0
+	github.com/getkin/kin-openapi v0.142.0
 	github.com/getsops/sops/v3 v3.13.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -119,8 +119,8 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/oasdiff/yaml v0.1.0 // indirect
-	github.com/oasdiff/yaml3 v0.0.13 // indirect
+	github.com/oasdiff/yaml v0.1.1 // indirect
+	github.com/oasdiff/yaml3 v0.0.14 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
