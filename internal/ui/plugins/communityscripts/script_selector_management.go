@@ -27,6 +27,9 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 	} else {
 		fmt.Fprintf(&sb, "[%s]Type:[-] %s\n", labelColor, script.Type)
 	}
+	if script.Target != "" {
+		fmt.Fprintf(&sb, "[%s]Target:[-] %s\n", labelColor, script.Target)
+	}
 
 	if script.IsDev {
 		fmt.Fprintf(&sb, "[%s]Status:[-] In Development\n", labelColor)
@@ -67,7 +70,11 @@ func (s *ScriptSelector) formatScriptInfo(script Script) string {
 		fmt.Fprintf(&sb, "[%s]Context:[-] VM %s\n", labelColor, s.vm.Name)
 	}
 
-	fmt.Fprintf(&sb, "\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor)
+	if s.vm != nil {
+		fmt.Fprintf(&sb, "\n[%s]Note:[-] This will execute the script inside the selected LXC via pct exec over SSH.", labelColor)
+	} else {
+		fmt.Fprintf(&sb, "\n[%s]Note:[-] This will execute the script on the selected node via SSH.", labelColor)
+	}
 
 	if script.Type == scriptTypeCT {
 		sb.WriteString(" This will create a new LXC container.")
@@ -227,6 +234,8 @@ func (s *ScriptSelector) fetchScriptsForCategory(category ScriptCategory) {
 				return
 			}
 
+			fetchedScripts = s.filterScriptsForTarget(fetchedScripts)
+
 			// Sort scripts alphabetically by name
 			sort.Slice(fetchedScripts, func(i, j int) bool {
 				return fetchedScripts[i].Name < fetchedScripts[j].Name
@@ -350,6 +359,21 @@ func (s *ScriptSelector) fetchScriptsForCategory(category ScriptCategory) {
 			s.app.Header().ShowSuccess(fmt.Sprintf("Loaded %d %s scripts", len(fetchedScripts), category.Name))
 		})
 	}()
+}
+
+func (s *ScriptSelector) filterScriptsForTarget(scripts []Script) []Script {
+	if s.vm == nil {
+		return scripts
+	}
+
+	filtered := make([]Script, 0, len(scripts))
+	for _, script := range scripts {
+		if script.SupportsGuestInstall() {
+			filtered = append(filtered, script)
+		}
+	}
+
+	return filtered
 }
 
 // createScriptSelectFunc creates a script selection handler for a specific script.

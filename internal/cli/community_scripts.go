@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/devnullvoid/pvetui/internal/config"
 	core "github.com/devnullvoid/pvetui/internal/plugins/communityscripts"
 	"github.com/devnullvoid/pvetui/pkg/api"
 )
@@ -21,6 +22,8 @@ type communityScriptOutput struct {
 	Description   string   `json:"description,omitempty"`
 	Categories    []string `json:"categories,omitempty"`
 	Type          string   `json:"type"`
+	SourceType    string   `json:"source_type,omitempty"`
+	Target        string   `json:"target,omitempty"`
 	ScriptPath    string   `json:"script_path"`
 	SourceRepo    string   `json:"source_repo"`
 	ScriptURL     string   `json:"script_url"`
@@ -44,6 +47,7 @@ type communityScriptInstallOutput struct {
 	NonInteractive bool                  `json:"non_interactive"`
 	Env            []core.EnvOverride    `json:"env,omitempty"`
 	Script         communityScriptOutput `json:"script"`
+	Guest          *guestOutput          `json:"guest,omitempty"`
 	CreatedGuests  []guestOutput         `json:"created_guests,omitempty"`
 	Warnings       []string              `json:"warnings,omitempty"`
 }
@@ -56,6 +60,7 @@ type communityScriptPlanOutput struct {
 	Env            []core.EnvOverride    `json:"env,omitempty"`
 	RemoteCommand  string                `json:"remote_command"`
 	Script         communityScriptOutput `json:"script"`
+	Guest          *guestOutput          `json:"guest,omitempty"`
 }
 
 func newCommunityScriptsCmd() *cobra.Command {
@@ -102,7 +107,7 @@ func newCommunityScriptsShowCmd() *cobra.Command {
 
 func newCommunityScriptsInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "install <slug-or-name> --node <node>",
+		Use:     "install <slug-or-name> (--node <node>|--guest <vmid>)",
 		Aliases: []string{"deploy"},
 		Short:   "Install a community script on a Proxmox node",
 		Long: `Install a Proxmox Community Script on the selected node.
@@ -111,39 +116,40 @@ Installer output is streamed to stderr so stdout can contain the final structure
 result. Many upstream installers are interactive and may prompt in the terminal.
 Use --yes with --set var_name=value overrides for unattended deployments.`,
 		Example: `  pvetui community-scripts install nextcloud --node pve01
-  pvetui --profile prod community-scripts deploy grafana --node pve02 --yes --set var_hostname=grafana --set var_cpu=2 --set var_ram=2048`,
+  pvetui --profile prod community-scripts deploy grafana --node pve02 --yes --set var_hostname=grafana --set var_cpu=2 --set var_ram=2048
+  pvetui community-scripts install dockge --guest 200`,
 		Args:              cobra.ExactArgs(1),
 		RunE:              runCommunityScriptsInstall,
 		ValidArgsFunction: completeCommunityScriptSlugs,
 	}
 
 	addCommunityScriptDeployFlags(cmd)
-	_ = cmd.MarkFlagRequired("node")
 
 	return cmd
 }
 
 func newCommunityScriptsPlanCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "plan <slug-or-name> --node <node>",
+		Use:   "plan <slug-or-name> (--node <node>|--guest <vmid>)",
 		Short: "Show the planned community script install command",
 		Long: `Show the resolved node, script metadata, environment overrides, and
 redacted remote command that would be used for a Community Scripts install.`,
 		Example: `  pvetui community-scripts plan grafana --node pve01 --yes --set var_hostname=grafana
-  pvetui community-scripts plan docker --node pve01 --set var_nesting=1 --output table`,
+  pvetui community-scripts plan docker --node pve01 --set var_nesting=1 --output table
+  pvetui community-scripts plan dockge --guest 200`,
 		Args:              cobra.ExactArgs(1),
 		RunE:              runCommunityScriptsPlan,
 		ValidArgsFunction: completeCommunityScriptSlugs,
 	}
 
 	addCommunityScriptDeployFlags(cmd)
-	_ = cmd.MarkFlagRequired("node")
 
 	return cmd
 }
 
 func addCommunityScriptDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().String("node", "", "Target Proxmox node")
+	cmd.Flags().Int("guest", 0, "Target running LXC container VMID for tools/addon scripts")
 	cmd.Flags().Bool("skip-url-check", false, "Skip checking that the raw install script URL exists before SSH")
 	cmd.Flags().StringArray("set", nil, "Community Scripts var_* override in KEY=VALUE form (repeatable)")
 	cmd.Flags().Bool("yes", false, "Run without allocating a TTY and fail instead of waiting for interactive prompts")
@@ -177,9 +183,9 @@ func runCommunityScriptsSearch(cmd *cobra.Command, args []string) error {
 			if script.IsDev {
 				state = "dev"
 			}
-			rows = append(rows, []string{script.Name, script.Slug, script.Type, state, script.Description})
+			rows = append(rows, []string{script.Name, script.Slug, script.Type, script.Target, state, script.Description})
 		}
-		printTable([]string{"NAME", "SLUG", "TYPE", "SOURCE", "DESCRIPTION"}, rows)
+		printTable([]string{"NAME", "SLUG", "TYPE", "TARGET", "SOURCE", "DESCRIPTION"}, rows)
 		return nil
 	}
 
@@ -242,6 +248,7 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	nodeName, _ := cmd.Flags().GetString("node")
+	guestID, _ := cmd.Flags().GetInt("guest")
 	skipURLCheck, _ := cmd.Flags().GetBool("skip-url-check")
 	env, err := parseCommunityScriptEnvFlags(cmd)
 	if err != nil {
@@ -249,21 +256,15 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 	}
 	nonInteractive := communityScriptNonInteractive(cmd)
 
-	ctx := context.Background()
-	node, err := session.findNodeByName(ctx, nodeName)
-	if err != nil {
-		return printError(err)
-	}
-	if !node.Online {
-		return printError(fmt.Errorf("node %q is offline", nodeName))
-	}
-
 	script, err := findCommunityScript(args[0])
 	if err != nil {
 		return printError(err)
 	}
 	if err := validateCommunityScriptInstall(script); err != nil {
 		return printError(err)
+	}
+	if guestID > 0 && !script.SupportsGuestInstall() {
+		return printError(fmt.Errorf("script %q is not a tools/addon script and cannot be installed into an existing LXC", script.Slug))
 	}
 	if !skipURLCheck {
 		ok, err := core.ScriptURLExists(script)
@@ -275,7 +276,21 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	sshUser, jumpHost := session.resolveNodeSSHCreds(node)
+	ctx := context.Background()
+	node, guest, guestOut, err := resolveCommunityScriptTarget(ctx, session, nodeName, guestID)
+	if err != nil {
+		return printError(err)
+	}
+
+	var sshUser string
+	var sshKeyfile string
+	var jumpHost config.SSHJumpHost
+	if guest != nil {
+		sshUser, sshKeyfile, jumpHost = session.resolveSSHCreds(guest)
+	} else {
+		sshUser, jumpHost = session.resolveNodeSSHCreds(node)
+		sshKeyfile = session.resolveNodeSSHKeyfile(node)
+	}
 	if sshUser == "" {
 		return printError(fmt.Errorf("SSH user not configured; set ssh_user in config or use --ssh-user"))
 	}
@@ -291,17 +306,21 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 		warnings = append(warnings, fmt.Sprintf("could not snapshot guests before install: %v", beforeErr))
 	}
 
-	fmt.Fprintf(os.Stderr, "Installing %s on node %s (%s) as %s...\n", script.Slug, node.Name, host, sshUser)
+	if guest != nil {
+		fmt.Fprintf(os.Stderr, "Installing %s in LXC %d on node %s (%s) as %s...\n", script.Slug, guest.ID, node.Name, host, sshUser)
+	} else {
+		fmt.Fprintf(os.Stderr, "Installing %s on node %s (%s) as %s...\n", script.Slug, node.Name, host, sshUser)
+	}
 
 	var installStdin io.Reader = os.Stdin
 	if nonInteractive {
 		installStdin = nil
 	}
 
-	exitCode, err := core.InstallScriptWithOptions(ctx, core.InstallOptions{
+	installOptions := core.InstallOptions{
 		User:           sshUser,
 		Host:           host,
-		Keyfile:        session.resolveNodeSSHKeyfile(node),
+		Keyfile:        sshKeyfile,
 		JumpHost:       jumpHost,
 		Script:         script,
 		Env:            env,
@@ -309,10 +328,16 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 		Stdin:          installStdin,
 		Stdout:         os.Stderr,
 		Stderr:         os.Stderr,
-	})
+	}
+	var exitCode int
+	if guest != nil {
+		exitCode, err = core.InstallScriptInLXCWithOptions(ctx, installOptions, guest.ID)
+	} else {
+		exitCode, err = core.InstallScriptWithOptions(ctx, installOptions)
+	}
 
 	createdGuests := []guestOutput(nil)
-	if err == nil && beforeErr == nil {
+	if err == nil && beforeErr == nil && guest == nil {
 		if cacheErr := session.clearNodeInventoryCache(ctx, node.Name); cacheErr != nil {
 			warnings = append(warnings, fmt.Sprintf("could not clear guest inventory cache after install: %v", cacheErr))
 		}
@@ -333,6 +358,7 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 		NonInteractive: nonInteractive,
 		Env:            redactCommunityScriptEnv(env),
 		Script:         communityScriptToOutput(script),
+		Guest:          guestOut,
 		CreatedGuests:  createdGuests,
 		Warnings:       warnings,
 	}
@@ -358,18 +384,10 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 	}
 
 	nodeName, _ := cmd.Flags().GetString("node")
+	guestID, _ := cmd.Flags().GetInt("guest")
 	env, err := parseCommunityScriptEnvFlags(cmd)
 	if err != nil {
 		return nil, err
-	}
-
-	ctx := context.Background()
-	node, err := session.findNodeByName(ctx, nodeName)
-	if err != nil {
-		return nil, err
-	}
-	if !node.Online {
-		return nil, fmt.Errorf("node %q is offline", nodeName)
 	}
 
 	script, err := findCommunityScript(nameOrSlug)
@@ -379,8 +397,22 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 	if err := validateCommunityScriptInstall(script); err != nil {
 		return nil, err
 	}
+	if guestID > 0 && !script.SupportsGuestInstall() {
+		return nil, fmt.Errorf("script %q is not a tools/addon script and cannot be installed into an existing LXC", script.Slug)
+	}
 
-	sshUser, _ := session.resolveNodeSSHCreds(node)
+	ctx := context.Background()
+	node, guest, guestOut, err := resolveCommunityScriptTarget(ctx, session, nodeName, guestID)
+	if err != nil {
+		return nil, err
+	}
+
+	var sshUser string
+	if guest != nil {
+		sshUser, _, _ = session.resolveSSHCreds(guest)
+	} else {
+		sshUser, _ = session.resolveNodeSSHCreds(node)
+	}
 	if sshUser == "" {
 		return nil, fmt.Errorf("SSH user not configured; set ssh_user in config or use --ssh-user")
 	}
@@ -397,7 +429,12 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 		preset = "default"
 	}
 
-	remoteCmd, err := core.BuildRemoteInstallCommandWithMode(sshUser, script, redactedEnv, preset, nonInteractive)
+	var remoteCmd string
+	if guest != nil {
+		remoteCmd, err = core.BuildRemoteInstallInLXCCommandWithEnv(sshUser, guest.ID, script, redactedEnv, preset, nonInteractive)
+	} else {
+		remoteCmd, err = core.BuildRemoteInstallCommandWithMode(sshUser, script, redactedEnv, preset, nonInteractive)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -410,6 +447,7 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 		Env:            redactedEnv,
 		RemoteCommand:  remoteCmd,
 		Script:         communityScriptToOutput(script),
+		Guest:          guestOut,
 	}, nil
 }
 
@@ -420,6 +458,7 @@ func printInstallResult(cmd *cobra.Command, out communityScriptInstallOutput) er
 			{"Host", out.Host},
 			{"SSH User", out.SSHUser},
 			{"Script", out.Script.Slug},
+			{"Guest", formatOptionalGuest(out.Guest)},
 			{"Non-interactive", fmt.Sprintf("%t", out.NonInteractive)},
 			{"Overrides", formatCommunityScriptEnv(out.Env)},
 			{"Created Guests", formatGuestOutputs(out.CreatedGuests)},
@@ -439,6 +478,7 @@ func printCommunityScriptPlanTable(plan communityScriptPlanOutput) {
 		{"SSH User", plan.SSHUser},
 		{"Script", plan.Script.Slug},
 		{"Script URL", plan.Script.ScriptURL},
+		{"Guest", formatOptionalGuest(plan.Guest)},
 		{"Non-interactive", fmt.Sprintf("%t", plan.NonInteractive)},
 		{"Overrides", formatCommunityScriptEnv(plan.Env)},
 		{"Remote Command", plan.RemoteCommand},
@@ -470,6 +510,52 @@ func communityScriptNonInteractive(cmd *cobra.Command) bool {
 	nonInteractive, _ := cmd.Flags().GetBool("non-interactive")
 
 	return yes || nonInteractive
+}
+
+func resolveCommunityScriptTarget(ctx context.Context, session *cliSession, nodeName string, guestID int) (*api.Node, *api.VM, *guestOutput, error) {
+	if guestID > 0 && strings.TrimSpace(nodeName) != "" {
+		return nil, nil, nil, fmt.Errorf("--node and --guest are mutually exclusive")
+	}
+
+	var guest *api.VM
+	var guestOut *guestOutput
+	if guestID > 0 {
+		vm, err := session.findVM(ctx, guestID)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if vm.Type != api.VMTypeLXC {
+			return nil, nil, nil, fmt.Errorf("guest %d is type %q; community tools can only be installed into LXC containers", guestID, vm.Type)
+		}
+		if vm.Status != "running" {
+			return nil, nil, nil, fmt.Errorf("guest %d is not running (status: %s)", guestID, vm.Status)
+		}
+		guest = vm
+		nodeName = vm.Node
+		out := vmToGuestOutput(vm)
+		guestOut = &out
+	}
+
+	if strings.TrimSpace(nodeName) == "" {
+		return nil, nil, nil, fmt.Errorf("target required: pass --node <node> or --guest <vmid>")
+	}
+
+	node, err := session.findNodeByName(ctx, nodeName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if !node.Online {
+		return nil, nil, nil, fmt.Errorf("node %q is offline", nodeName)
+	}
+
+	return node, guest, guestOut, nil
+}
+
+func formatOptionalGuest(guest *guestOutput) string {
+	if guest == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d/%s/%s", guest.ID, guest.Name, guest.Type)
 }
 
 func redactCommunityScriptEnv(env []core.EnvOverride) []core.EnvOverride {
@@ -600,6 +686,8 @@ func communityScriptToOutput(script core.Script) communityScriptOutput {
 		Description:   script.Description,
 		Categories:    append([]string(nil), script.Categories...),
 		Type:          script.Type,
+		SourceType:    script.SourceType,
+		Target:        script.Target,
 		ScriptPath:    script.ScriptPath,
 		SourceRepo:    sourceRepo,
 		ScriptURL:     core.RawScriptURL(script),
@@ -621,6 +709,8 @@ func printCommunityScriptDetailsTable(script communityScriptOutput) {
 		{"Name", script.Name},
 		{"Slug", script.Slug},
 		{"Type", script.Type},
+		{"Source Type", script.SourceType},
+		{"Target", script.Target},
 		{"Description", script.Description},
 		{"Categories", strings.Join(script.Categories, ", ")},
 		{"Source Repo", script.SourceRepo},

@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -65,6 +67,8 @@ type Script struct {
 	Description   string   `json:"description"`
 	Categories    []string `json:"categories"`
 	Type          string   `json:"type"` // "ct" for containers, "vm" for VMs
+	SourceType    string   `json:"source_type,omitempty"`
+	Target        string   `json:"target,omitempty"`
 	Updateable    bool     `json:"updateable"`
 	Privileged    bool     `json:"privileged"`
 	InterfacePort int      `json:"interface_port"`
@@ -167,6 +171,8 @@ var (
 	pluginCacheOnce   sync.Once
 )
 
+var htmlTagPattern = regexp.MustCompile(`<[^>]+>`)
+
 // getScriptsLogger returns the scripts logger, initializing it if necessary.
 func getScriptsLogger() interfaces.Logger {
 	scriptsLoggerOnce.Do(func() {
@@ -242,18 +248,95 @@ func normalizeScriptType(scriptType string) string {
 	}
 }
 
+func inferInstallTarget(scriptType string) string {
+	switch scriptType {
+	case "lxc", "vm", "turnkey":
+		return "node-create"
+	case "pve":
+		return "node"
+	case "addon":
+		return "node-or-guest"
+	default:
+		return "unknown"
+	}
+}
+
+func inferSourceType(script Script) string {
+	if script.SourceType != "" {
+		return script.SourceType
+	}
+
+	switch {
+	case strings.HasPrefix(script.ScriptPath, "ct/"):
+		return "lxc"
+	case strings.HasPrefix(script.ScriptPath, "vm/"):
+		return "vm"
+	case strings.HasPrefix(script.ScriptPath, "tools/addon/"):
+		return "addon"
+	case strings.HasPrefix(script.ScriptPath, "tools/pve/"):
+		return "pve"
+	case strings.HasPrefix(script.ScriptPath, "turnkey/"):
+		return "turnkey"
+	}
+
+	switch script.Type {
+	case "ct":
+		return "lxc"
+	case "vm":
+		return "vm"
+	default:
+		return script.Type
+	}
+}
+
+func cleanDescription(description string) string {
+	description = html.UnescapeString(description)
+	description = htmlTagPattern.ReplaceAllString(description, " ")
+	return strings.Join(strings.Fields(description), " ")
+}
+
+// NormalizeScript fills derived metadata and cleans display text for cached scripts.
+func NormalizeScript(script Script) Script {
+	script.Description = cleanDescription(script.Description)
+
+	sourceType := inferSourceType(script)
+	if sourceType != "" {
+		script.SourceType = sourceType
+	}
+	if script.Type == "" && sourceType != "" {
+		script.Type = normalizeScriptType(sourceType)
+	}
+	if script.Target == "" && sourceType != "" {
+		script.Target = inferInstallTarget(sourceType)
+	}
+
+	return script
+}
+
+// SupportsGuestInstall reports whether the script can be run inside an existing LXC.
+func (s Script) SupportsGuestInstall() bool {
+	return strings.HasPrefix(s.ScriptPath, "tools/addon/")
+}
+
+// SupportsNodeInstall reports whether the script can be run on a Proxmox node.
+func (s Script) SupportsNodeInstall() bool {
+	return s.ScriptPath != ""
+}
+
 func mapPocketBaseRecord(record pocketBaseScriptRecord) Script {
 	sourceType := record.Expand.Type.Type
 	if sourceType == "" {
 		sourceType = record.Type
 	}
 
-	return Script{
+	return NormalizeScript(Script{
 		Name:          record.Name,
 		Slug:          record.Slug,
 		Description:   record.Description,
 		Categories:    record.Categories,
 		Type:          normalizeScriptType(sourceType),
+		SourceType:    sourceType,
+		Target:        inferInstallTarget(sourceType),
 		Updateable:    record.Updateable,
 		Privileged:    record.Privileged,
 		InterfacePort: record.Port,
@@ -266,7 +349,7 @@ func mapPocketBaseRecord(record pocketBaseScriptRecord) Script {
 		IsDev:         record.IsDev,
 		IsDisabled:    record.IsDisabled,
 		IsDeleted:     record.IsDeleted,
-	}
+	})
 }
 
 func fetchPocketBase(url string, target any) error {
@@ -407,6 +490,7 @@ func GetScriptMetadata(metadataURL string) (*Script, error) {
 		getScriptsLogger().Debug("Cache error for script %s: %v", metadataURL, err)
 	} else if found && cachedScript.Name != "" {
 		getScriptsLogger().Debug("Using cached script metadata for %s", cachedScript.Name)
+		cachedScript = NormalizeScript(cachedScript)
 
 		return &cachedScript, nil
 	}
@@ -440,6 +524,9 @@ func FetchScripts() ([]Script, error) {
 		getScriptsLogger().Debug("Cache error for fetched scripts: %v", err)
 	} else if found && len(cachedScripts) > 0 {
 		getScriptsLogger().Debug("Using cached fetched scripts (%d items)", len(cachedScripts))
+		for i := range cachedScripts {
+			cachedScripts[i] = NormalizeScript(cachedScripts[i])
+		}
 
 		return cachedScripts, nil
 	}
@@ -676,10 +763,6 @@ func rawScriptURL(script Script) string {
 func BuildInstallScriptCommand(scriptURL string) string {
 	cmd, _ := BuildInstallScriptCommandWithEnvAndPreset(scriptURL, nil, "")
 	return cmd
-}
-
-func buildInstallScriptCommand(scriptURL string) string {
-	return BuildInstallScriptCommand(scriptURL)
 }
 
 // BuildInstallScriptCommandWithEnv builds the shell command that runs a remote
@@ -929,30 +1012,104 @@ func InstallScriptWithOptions(ctx context.Context, opts InstallOptions) (int, er
 }
 
 // InstallScriptInLXC installs a script inside an existing LXC container via pct exec.
-// It SSHes to the node, then runs pct exec <vmid> -- bash -c "curl ... | bash".
 func InstallScriptInLXC(user, nodeIP string, vmid int, script Script) (int, error) {
+	return InstallScriptInLXCWithOptions(context.Background(), InstallOptions{
+		User:   user,
+		Host:   nodeIP,
+		Script: script,
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}, vmid)
+}
+
+// BuildRemoteInstallInLXCCommand returns the shell command executed on a Proxmox
+// node to run a Community Scripts addon inside an existing LXC.
+func BuildRemoteInstallInLXCCommand(user string, vmid int, script Script, nonInteractive bool) (string, error) {
+	return BuildRemoteInstallInLXCCommandWithEnv(user, vmid, script, nil, "", nonInteractive)
+}
+
+// BuildRemoteInstallInLXCCommandWithEnv returns the shell command executed on a
+// Proxmox node to run a Community Scripts addon inside an existing LXC with
+// optional environment overrides.
+func BuildRemoteInstallInLXCCommandWithEnv(user string, vmid int, script Script, env []EnvOverride, preset string, nonInteractive bool) (string, error) {
 	if err := validateScriptPath(script.ScriptPath); err != nil {
+		return "", err
+	}
+	if vmid <= 0 {
+		return "", fmt.Errorf("vmid must be positive")
+	}
+
+	innerCmd, err := BuildInstallScriptCommandWithEnvAndPreset(rawScriptURL(script), env, preset)
+	if err != nil {
+		return "", err
+	}
+	pctCmd := fmt.Sprintf("pct exec %d -- /bin/bash -lc %s", vmid, ShellQuote(innerCmd))
+	if !strings.EqualFold(user, "root") {
+		if nonInteractive {
+			pctCmd = "sudo -n " + pctCmd
+		} else {
+			pctCmd = "sudo " + pctCmd
+		}
+	}
+	return wrapRemoteCommandWithBash(pctCmd), nil
+}
+
+// InstallScriptInLXCWithOptions installs a script inside an existing LXC container via pct exec.
+func InstallScriptInLXCWithOptions(ctx context.Context, opts InstallOptions, vmid int) (int, error) {
+	if opts.User == "" {
+		return -1, fmt.Errorf("SSH user is required")
+	}
+	if opts.Host == "" {
+		return -1, fmt.Errorf("SSH host is required")
+	}
+	if opts.Stdin == nil {
+		if opts.NonInteractive {
+			opts.Stdin = strings.NewReader("")
+		} else {
+			opts.Stdin = os.Stdin
+		}
+	}
+	if opts.Stdout == nil {
+		opts.Stdout = os.Stdout
+	}
+	if opts.Stderr == nil {
+		opts.Stderr = os.Stderr
+	}
+
+	preset := opts.Preset
+	if opts.NonInteractive && strings.TrimSpace(preset) == "" {
+		preset = "default"
+	}
+
+	remoteCmd, err := BuildRemoteInstallInLXCCommandWithEnv(opts.User, vmid, opts.Script, opts.Env, preset, opts.NonInteractive)
+	if err != nil {
 		return -1, err
 	}
 
-	getScriptsLogger().Debug("Installing script %s in LXC %d on %s", script.ScriptPath, vmid, nodeIP)
+	getScriptsLogger().Debug("Installing script %s in LXC %d on %s", opts.Script.ScriptPath, vmid, opts.Host)
 
-	scriptURL := rawScriptURL(script)
-	innerCmd := buildInstallScriptCommand(scriptURL)
-	pctCmd := fmt.Sprintf("pct exec %d -- %s", vmid, innerCmd)
-	if !strings.EqualFold(user, "root") {
-		pctCmd = "sudo " + pctCmd
+	sshArgs := ssh.BuildSSHArgs(opts.User, opts.Host, opts.JumpHost)
+	args := make([]string, 0, len(sshArgs)+4)
+	if opts.Keyfile != "" {
+		args = append(args, "-i", opts.Keyfile)
 	}
-	pctCmd = wrapRemoteCommandWithBash(pctCmd)
+	if opts.NonInteractive {
+		args = append(args, "-T")
+	} else {
+		args = append(args, "-t")
+	}
+	args = append(args, sshArgs...)
+	args = append(args, remoteCmd)
 
-	// #nosec G204 -- command arguments are constructed from validated paths and vmid.
-	sshCmd := exec.Command("ssh", "-t", fmt.Sprintf("%s@%s", user, nodeIP), pctCmd)
-	sshCmd.Stdin = os.Stdin
-	sshCmd.Stdout = os.Stdout
-	sshCmd.Stderr = os.Stderr
+	// #nosec G204 -- command arguments are constructed from validated node metadata, script path, and vmid.
+	sshCmd := exec.CommandContext(ctx, "ssh", args...)
+	sshCmd.Stdin = opts.Stdin
+	sshCmd.Stdout = opts.Stdout
+	sshCmd.Stderr = opts.Stderr
 	sshCmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
-	err := sshCmd.Run()
+	err = sshCmd.Run()
 	exitCode := 0
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

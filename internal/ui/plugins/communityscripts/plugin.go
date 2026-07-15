@@ -51,10 +51,11 @@ func (p *Plugin) Initialize(ctx context.Context, app *components.App, registrar 
 	})
 
 	registrar.RegisterGuestAction(components.GuestAction{
-		ID:    "community-scripts.install-guest",
-		Label: "Install Community Script",
+		ID:       "community-scripts.install-guest",
+		Label:    "Install Community Script",
+		Shortcut: 'i',
 		IsAvailable: func(node *api.Node, vm *api.VM) bool {
-			return false // Disabled for LXC guests for now (compat issues). Re-enable by restoring vm.Type check.
+			return node != nil && vm != nil && vm.Type == api.VMTypeLXC
 		},
 		Handler: p.openSelectorForLXC,
 	})

@@ -76,8 +76,10 @@ npx skills add devnullvoid/pvetui
 | `pvetui storage restore <node> <storage> <volid> <vmid>` | Restore a guest from backup |
 | `pvetui community-scripts search <query>` | Search available Proxmox Community Scripts |
 | `pvetui community-scripts show <slug-or-name>` | Show Community Script metadata |
-| `pvetui community-scripts plan <slug-or-name> --node <node>` | Preview a Community Script install command |
+| `pvetui community-scripts plan <slug-or-name> --node <node>` | Preview a Community Script node install command |
+| `pvetui community-scripts plan <slug-or-name> --guest <vmid>` | Preview a tools/addon install inside an existing LXC |
 | `pvetui community-scripts install <slug-or-name> --node <node>` | Install a Community Script on a node over SSH |
+| `pvetui community-scripts install <slug-or-name> --guest <vmid>` | Install a tools/addon script inside an existing LXC |
 | `pvetui community-scripts deploy <slug-or-name> --node <node>` | Alias for `install`, useful for agent deployment wording |
 
 ## Global Flags
@@ -145,9 +147,13 @@ pvetui community-scripts deploy grafana --node pve01 --yes \
   --set var_cpu=2 --set var_ram=2048 --set var_disk=8 \
   --set var_ssh=yes --set 'var_tags=monitoring;grafana' \
   --set var_container_storage=local-lvm --set var_template_storage=local
+
+# Install a tools/addon script inside an existing LXC
+pvetui community-scripts plan dockge --guest 200 --output table
+pvetui community-scripts install dockge --guest 200
 ```
 
-`install`/`deploy` SSHes to the selected node and runs the same Community Scripts installer flow as the TUI. It resolves SSH settings from the node source profile, active profile, or global `ssh_user`; set `--ssh-user` when needed. Upstream installer output is streamed to stderr so stdout can contain the final JSON/table result.
+`install`/`deploy` SSHes to the selected node and runs the same Community Scripts installer flow as the TUI. It resolves SSH settings from the node source profile, active profile, or global `ssh_user`; set `--ssh-user` when needed. Use `--node` for scripts that create resources from, or modify, a Proxmox node. Use `--guest <vmid>` for `tools/addon` scripts such as Dockge, Coolify, and Komodo that should run inside an existing LXC; pvetui resolves the guest's node and runs the script through `pct exec`. Upstream installer output is streamed to stderr so stdout can contain the final JSON/table result. `search`/`show` output includes a derived `target` value: `node-create`, `node`, `node-or-guest`, or `unknown`.
 
 For agent-driven deployments, prefer `plan` first, then `deploy --yes` with explicit `--set var_*=value` overrides. For unattended LXC deploys, include `var_container_storage` and `var_template_storage`; otherwise upstream scripts can open a storage picker and fail without a TTY. `var_container_storage` selects the LXC rootfs storage, `var_template_storage` selects where the OS template is downloaded, `var_disk` is the LXC rootfs size in GB, `var_brg` selects the bridge, `var_net=dhcp` requests DHCP, and `var_vlan` sets the Proxmox `net0` VLAN tag. When both storage overrides are present, pvetui temporarily seeds `/usr/local/community-scripts/default.vars` on the target node so upstream first-run defaults do not prompt; the file is restored if it existed and removed if pvetui created it. `--yes` disables TTY allocation, selects the upstream default preset, skips the Community Scripts host-update prompt, uses `sudo -n` for non-root SSH users, and feeds empty stdin so unexpected prompts fail instead of hanging. Supported overrides are the Community Scripts allowlisted variables, including `var_hostname`, `var_cpu`, `var_ram`, `var_disk`, `var_brg`, `var_net`, `var_gateway`, `var_vlan`, `var_container_storage`, `var_template_storage`, `var_ssh`, `var_tags`, `var_unprivileged`, `var_nesting`, `var_fuse`, `var_tun`, and related `var_*` settings.
 

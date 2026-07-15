@@ -47,6 +47,21 @@ func TestFindScript(t *testing.T) {
 	require.ErrorContains(t, err, "not found")
 }
 
+func TestNormalizeScriptDerivesCachedAddonMetadata(t *testing.T) {
+	script := NormalizeScript(Script{
+		Name:        "FileBrowser Quantum",
+		Slug:        "filebrowser-quantum",
+		Type:        "tools",
+		Description: "<p>Files &amp; shares</p>",
+		ScriptPath:  "tools/addon/filebrowser-quantum.sh",
+	})
+
+	require.Equal(t, "tools", script.Type)
+	require.Equal(t, "addon", script.SourceType)
+	require.Equal(t, "node-or-guest", script.Target)
+	require.Equal(t, "Files & shares", script.Description)
+}
+
 func TestParseEnvOverride(t *testing.T) {
 	override, err := ParseEnvOverride("var_hostname=grafana")
 	require.NoError(t, err)
@@ -104,4 +119,13 @@ func TestBuildRemoteInstallCommandNonInteractiveUsesSudoNonInteractive(t *testin
 	cmd, err := BuildRemoteInstallCommandWithMode("admin", Script{ScriptPath: "ct/grafana.sh"}, nil, "default", true)
 	require.NoError(t, err)
 	require.Contains(t, cmd, "sudo -n su - root -c")
+}
+
+func TestBuildRemoteInstallInLXCCommandUsesPctExecBash(t *testing.T) {
+	cmd, err := BuildRemoteInstallInLXCCommand("admin", 200, Script{ScriptPath: "tools/addon/dockge.sh"}, true)
+	require.NoError(t, err)
+	require.Contains(t, cmd, "sudo -n pct exec 200 -- /bin/bash -lc")
+	require.Contains(t, cmd, "tools/addon/dockge.sh")
+	require.Contains(t, cmd, "xterm-256color")
+	require.Contains(t, cmd, "IP=")
 }

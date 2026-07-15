@@ -2,12 +2,17 @@ package communityscripts
 
 import (
 	"fmt"
+	"html"
+	"regexp"
+	"strings"
 
 	"github.com/devnullvoid/pvetui/internal/logger"
 	core "github.com/devnullvoid/pvetui/internal/plugins/communityscripts"
 	"github.com/devnullvoid/pvetui/internal/ui/utils"
 	"github.com/devnullvoid/pvetui/pkg/api/interfaces"
 )
+
+var htmlTagPattern = regexp.MustCompile(`<[^>]+>`)
 
 const (
 	GitHubRepo                 = core.GitHubRepo
@@ -155,6 +160,25 @@ func normalizeScriptType(scriptType string) string {
 	}
 }
 
+func inferInstallTarget(scriptType string) string {
+	switch scriptType {
+	case "lxc", "vm", "turnkey":
+		return "node-create"
+	case "pve":
+		return "node"
+	case "addon":
+		return "node-or-guest"
+	default:
+		return "unknown"
+	}
+}
+
+func cleanDescription(description string) string {
+	description = html.UnescapeString(description)
+	description = htmlTagPattern.ReplaceAllString(description, " ")
+	return strings.Join(strings.Fields(description), " ")
+}
+
 func mapPocketBaseRecord(record pocketBaseScriptRecord) Script {
 	sourceType := record.Expand.Type.Type
 	if sourceType == "" {
@@ -164,9 +188,11 @@ func mapPocketBaseRecord(record pocketBaseScriptRecord) Script {
 	return Script{
 		Name:          record.Name,
 		Slug:          record.Slug,
-		Description:   record.Description,
+		Description:   cleanDescription(record.Description),
 		Categories:    record.Categories,
 		Type:          normalizeScriptType(sourceType),
+		SourceType:    sourceType,
+		Target:        inferInstallTarget(sourceType),
 		Updateable:    record.Updateable,
 		Privileged:    record.Privileged,
 		InterfacePort: record.Port,

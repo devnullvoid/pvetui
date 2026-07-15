@@ -1,6 +1,7 @@
 package communityscripts
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -8,8 +9,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/devnullvoid/pvetui/internal/cache"
+	"github.com/devnullvoid/pvetui/internal/ui/components"
+	"github.com/devnullvoid/pvetui/pkg/api"
 	"github.com/devnullvoid/pvetui/pkg/api/testutils"
 	"golang.org/x/term"
 )
@@ -82,6 +86,47 @@ func TestGetScriptCategories(t *testing.T) {
 		assert.NotEmpty(t, category.Description)
 		assert.NotEmpty(t, category.Path)
 	}
+}
+
+func TestScriptSelectorCategoriesForTarget(t *testing.T) {
+	categories := GetScriptCategories()
+
+	nodeSelector := &ScriptSelector{}
+	require.Len(t, nodeSelector.categoriesForTarget(categories), len(categories))
+
+	guestSelector := &ScriptSelector{vm: &api.VM{ID: 200, Type: api.VMTypeLXC}}
+	guestCategories := guestSelector.categoriesForTarget(categories)
+	require.Len(t, guestCategories, 1)
+	assert.Equal(t, "Tools", guestCategories[0].Name)
+	assert.Equal(t, "tools", guestCategories[0].Path)
+}
+
+type captureRegistrar struct {
+	nodeActions  []components.NodeAction
+	guestActions []components.GuestAction
+}
+
+func (r *captureRegistrar) RegisterNodeAction(action components.NodeAction) {
+	r.nodeActions = append(r.nodeActions, action)
+}
+
+func (r *captureRegistrar) RegisterGuestAction(action components.GuestAction) {
+	r.guestActions = append(r.guestActions, action)
+}
+
+func TestPluginRegistersGuestShortcut(t *testing.T) {
+	registrar := &captureRegistrar{}
+
+	err := New().Initialize(context.Background(), nil, registrar)
+	require.NoError(t, err)
+	require.Len(t, registrar.guestActions, 1)
+
+	action := registrar.guestActions[0]
+	assert.Equal(t, "community-scripts.install-guest", action.ID)
+	assert.Equal(t, "Install Community Script", action.Label)
+	assert.Equal(t, 'i', action.Shortcut)
+	assert.True(t, action.IsAvailable(&api.Node{Name: "pve1"}, &api.VM{Type: api.VMTypeLXC}))
+	assert.False(t, action.IsAvailable(&api.Node{Name: "pve1"}, &api.VM{Type: api.VMTypeQemu}))
 }
 
 // Note: Complex integration tests for GitHub API calls are moved to
@@ -444,7 +489,7 @@ func TestMapPocketBaseRecord(t *testing.T) {
 	record := pocketBaseScriptRecord{
 		Name:        "AFFiNE",
 		Slug:        "affine",
-		Description: "Docs",
+		Description: "<p>Docs &amp; notes</p>",
 		Categories:  []string{"scriptcat00012"},
 		Updateable:  true,
 		Privileged:  false,
@@ -462,6 +507,9 @@ func TestMapPocketBaseRecord(t *testing.T) {
 
 	script := mapPocketBaseRecord(record)
 	assert.Equal(t, "ct", script.Type)
+	assert.Equal(t, "lxc", script.SourceType)
+	assert.Equal(t, "node-create", script.Target)
+	assert.Equal(t, "Docs & notes", script.Description)
 	assert.Equal(t, "ct/affine.sh", script.ScriptPath)
 	assert.True(t, script.IsDev)
 	assert.False(t, script.IsDisabled)

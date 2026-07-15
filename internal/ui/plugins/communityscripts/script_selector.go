@@ -61,8 +61,23 @@ func NewScriptSelector(app *components.App, node *api.Node, vm *api.VM, user str
 	}
 
 	// Initialize the layout
-	s.categories = GetScriptCategories()
+	s.categories = s.categoriesForTarget(GetScriptCategories())
 	s.createLayout()
 
 	return s
+}
+
+func (s *ScriptSelector) categoriesForTarget(categories []ScriptCategory) []ScriptCategory {
+	if s.vm == nil {
+		return categories
+	}
+
+	filtered := make([]ScriptCategory, 0, len(categories))
+	for _, category := range categories {
+		if category.Path == "tools" {
+			filtered = append(filtered, category)
+		}
+	}
+
+	return filtered
 }
