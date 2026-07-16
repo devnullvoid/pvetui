@@ -249,18 +249,24 @@ func runGuestsShow(cmd *cobra.Command, args []string) error {
 // ── guests lifecycle ─────────────────────────────────────────────────────────
 
 func newGuestsStartCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "start <vmid>",
 		Short: "Start a guest",
 		Long:  "Start a stopped VM or container.",
 		Example: `  pvetui guests start 100
-  pvetui --profile prod guests start 100`,
+  pvetui --profile prod guests start 100
+  pvetui --profile prod guests start 100 --node pve1 --type qemu`,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("start", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.StartVM(vm)
 		}),
 	}
+
+	cmd.Flags().String("node", "", "Target node hosting the guest; skips cluster-wide guest discovery when set")
+	cmd.Flags().String("type", string(api.VMTypeQemu), "Guest type for direct targeting: qemu or lxc")
+
+	return cmd
 }
 
 func newGuestsStopCmd() *cobra.Command {
@@ -423,18 +429,44 @@ func makeLifecycleCmd(
 
 		ctx := context.Background()
 
-		vm, err := session.findVM(ctx, vmid)
-		if err != nil {
-			return printError(err)
-		}
+		var (
+			client *api.Client
+			vm     *api.VM
+		)
 
-		if vm.Template {
-			return printError(fmt.Errorf("guest %d is a template; lifecycle operations are not supported", vmid))
-		}
+		nodeName, _ := cmd.Flags().GetString("node")
+		if nodeName != "" {
+			guestType, _ := cmd.Flags().GetString("type")
+			if guestType != string(api.VMTypeQemu) && guestType != string(api.VMTypeLXC) {
+				return printError(fmt.Errorf("invalid guest type %q; expected qemu or lxc", guestType))
+			}
 
-		client, err := session.clientForVM(vm)
-		if err != nil {
-			return printError(err)
+			vm = &api.VM{
+				ID:   vmid,
+				Node: nodeName,
+				Type: guestType,
+			}
+
+			var err error
+			client, err = session.clientForNode(ctx, nodeName)
+			if err != nil {
+				return printError(err)
+			}
+		} else {
+			var err error
+			vm, err = session.findVM(ctx, vmid)
+			if err != nil {
+				return printError(err)
+			}
+
+			if vm.Template {
+				return printError(fmt.Errorf("guest %d is a template; lifecycle operations are not supported", vmid))
+			}
+
+			client, err = session.clientForVM(vm)
+			if err != nil {
+				return printError(err)
+			}
 		}
 
 		upid, err := fn(client, vm)
@@ -1196,6 +1228,9 @@ Migration mode is selected automatically:
   # Force offline migration for a running QEMU VM
   pvetui guests migrate 100 pve02 --offline
 
+  # Offline migrate local disks to storage available on the target node
+  pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd
+
   # Return UPID immediately
   pvetui guests migrate 100 pve02 --no-wait`,
 		Args:              cobra.ExactArgs(2),
@@ -1205,6 +1240,7 @@ Migration mode is selected automatically:
 
 	cmd.Flags().Bool("online", false, "Force online migration (QEMU only)")
 	cmd.Flags().Bool("offline", false, "Force offline migration (QEMU only)")
+	cmd.Flags().String("target-storage", "", "Target storage for offline disk migration")
 	addNoWaitFlag(cmd)
 
 	return cmd
@@ -1246,12 +1282,16 @@ func runGuestsMigrate(cmd *cobra.Command, args []string) error {
 
 	forceOnline, _ := cmd.Flags().GetBool("online")
 	forceOffline, _ := cmd.Flags().GetBool("offline")
+	targetStorage, _ := cmd.Flags().GetString("target-storage")
 
 	if vm.Type == api.VMTypeLXC && (forceOnline || forceOffline) {
 		return printError(fmt.Errorf("--online/--offline are not applicable to LXC containers"))
 	}
 	if forceOnline && forceOffline {
 		return printError(fmt.Errorf("--online and --offline are mutually exclusive"))
+	}
+	if targetStorage != "" && vm.Type != api.VMTypeQemu {
+		return printError(fmt.Errorf("--target-storage is only applicable to QEMU VMs"))
 	}
 
 	// Build migration options with auto mode selection.
@@ -1272,6 +1312,12 @@ func runGuestsMigrate(cmd *cobra.Command, args []string) error {
 		if online {
 			mode = "online"
 		}
+	}
+	if targetStorage != "" {
+		if options.Online != nil && *options.Online {
+			return printError(fmt.Errorf("--target-storage requires an offline migration; pass --offline"))
+		}
+		options.TargetStorage = targetStorage
 	}
 
 	client, err := session.clientForVM(vm)
