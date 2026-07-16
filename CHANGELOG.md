@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Community Scripts sudo guidance**: Documented the sudoers rule needed for non-root SSH users running unattended Community Scripts installs, and made non-interactive installs use `sudo -n` so missing passwordless sudo fails instead of waiting for a password prompt.
 - **Community Scripts IP guard**: Initialized the upstream `IP` variable for CLI and TUI Community Scripts installs so scripts that fail to populate it do not roll back otherwise successful containers during their final access-URL message.
 - **Community Scripts guest add-ons**: Added CLI and TUI support for installing `tools/addon` scripts inside existing LXC containers, exposed derived script target metadata, sanitized HTML tags from upstream script descriptions, and limited guest-launched TUI selection to applicable tool scripts with the same `i` shortcut used by node installs.
+- **CLI emergency recovery paths**: Added node-local guest listing with `guests list --node <node> --node-local`, direct lifecycle targeting with `--node`/`--type` on start/stop/shutdown/restart, LXC-compatible `guests migrate --target-storage`, and configurable migration task waits via `--wait-timeout`.
 
 ## [1.4.2] - 2026-07-03
 

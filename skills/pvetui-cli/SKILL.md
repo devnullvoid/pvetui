@@ -215,6 +215,9 @@ pvetui guests list --status running
 pvetui guests list --type qemu
 pvetui guests list --node pve01 --status running --type lxc
 
+# Emergency/degraded mode: query only one node instead of full cluster guest inventory
+pvetui guests list --node pve01 --node-local --status running
+
 # Show a specific guest by VMID
 pvetui guests show 100
 ```
@@ -245,6 +248,10 @@ pvetui guests start 100       # start a stopped guest
 pvetui guests shutdown 100    # graceful ACPI shutdown (preferred)
 pvetui guests stop 100        # force power-off (data loss risk)
 pvetui guests restart 100     # graceful restart
+
+# Direct targeting skips guest discovery when you already know the node/type
+pvetui guests start 100 --node pve01 --type qemu
+pvetui guests shutdown 200 --node pve01 --type lxc
 ```
 
 **JSON shape — lifecycle:**
@@ -258,6 +265,8 @@ pvetui guests restart 100     # graceful restart
 ```
 
 The `upid` is a Proxmox task ID. Use `pvetui tasks list` to monitor task completion.
+
+Use `--node <node> --type qemu|lxc` on `start`, `stop`, `shutdown`, or `restart` when full guest discovery is slow or degraded but the guest's current node and type are known.
 
 ### Guest Delete
 
@@ -394,6 +403,13 @@ pvetui guests migrate 100 pve02
 pvetui guests migrate 100 pve02 --online
 pvetui guests migrate 100 pve02 --offline
 
+# Move migrated disks or LXC rootfs volumes to a target storage when supported
+pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd
+pvetui guests migrate 200 pve02 --target-storage shared-ssd
+
+# Wait longer for large disk copies
+pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd --wait-timeout 2h
+
 # Return task UPID immediately
 pvetui guests migrate 100 pve02 --no-wait
 ```
@@ -402,6 +418,8 @@ Migration mode is selected automatically:
 - QEMU running → online migration
 - QEMU stopped → offline migration
 - LXC (any state) → restart migration
+
+`--target-storage` is valid for QEMU offline migrations and LXC restart migrations. Proxmox may keep volumes on storage it considers shared; use `pvetui tasks list` and `guests show` or node tooling to verify final placement. `--wait-timeout` controls how long pvetui waits for the migration task before returning a timeout error; it does not cancel the underlying Proxmox task.
 
 **JSON shape — guests migrate:**
 ```json
@@ -683,6 +701,9 @@ err=$(pvetui guests show 999 2>&1 >/dev/null)
 # Find all running VMs on a specific node
 pvetui guests list --node pve01 --status running --type qemu
 
+# Emergency drain inventory that avoids full cluster guest discovery
+pvetui guests list --node pve01 --node-local --status running --output json
+
 # Get IP addresses of all running guests
 pvetui guests list --status running | jq '.[].ip'
 
@@ -696,6 +717,13 @@ vmid=$(echo "$result" | jq -r '.vmid')
 # Migrate a guest and verify it landed on the target
 pvetui guests migrate 100 pve02
 pvetui guests show 100 | jq -r '.node'   # should now be "pve02"
+
+# Emergency node drain pattern
+pvetui guests list --node pve01 --node-local --status running --output table
+pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd --wait-timeout 2h
+pvetui guests shutdown 200 --node pve01 --type lxc
+pvetui guests shutdown 101 --node pve01 --type qemu
+pvetui tasks list --recent 20 --output table
 
 # Download a template and create a container from it in sequence
 pvetui storage download template pve01 local debian-12-standard

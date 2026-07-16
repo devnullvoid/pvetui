@@ -627,9 +627,13 @@ func getNoWait(cmd *cobra.Command) bool {
 func waitForTask(ctx context.Context, client *api.Client, node, upid, operationName string) (exitStatus string, err error) {
 	const defaultTimeout = 10 * time.Minute
 
+	return waitForTaskWithTimeout(ctx, client, node, upid, operationName, defaultTimeout)
+}
+
+func waitForTaskWithTimeout(ctx context.Context, client *api.Client, node, upid, operationName string, timeout time.Duration) (exitStatus string, err error) {
 	done := make(chan error, 1)
 	go func() {
-		done <- client.WaitForTaskCompletion(upid, operationName, defaultTimeout)
+		done <- client.WaitForTaskCompletion(upid, operationName, timeout)
 	}()
 
 	select {

@@ -6,6 +6,54 @@ import (
 	"sync"
 )
 
+// ListNodeGuests retrieves QEMU VMs and LXC containers directly from a single
+// node. Unlike cluster-wide inventory calls, it does not scan other nodes or
+// enrich guest details, which makes it useful when one cluster resource path is
+// slow or degraded.
+func (c *Client) ListNodeGuests(nodeName string) ([]*VM, error) {
+	var guests []*VM
+
+	for _, guestType := range []string{VMTypeQemu, VMTypeLXC} {
+		path := fmt.Sprintf("/nodes/%s/%s", nodeName, guestType)
+		var res map[string]interface{}
+		if err := c.GetNoRetry(path, &res); err != nil {
+			return nil, fmt.Errorf("failed to list %s guests on node %s: %w", guestType, nodeName, err)
+		}
+
+		data, ok := res["data"].([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("unexpected %s guest list response for node %s", guestType, nodeName)
+		}
+
+		for _, item := range data {
+			row, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			vmid := getInt(row, "vmid")
+			if vmid == 0 {
+				vmid = getInt(row, "id")
+			}
+
+			guests = append(guests, &VM{
+				ID:       vmid,
+				Name:     getString(row, "name"),
+				Node:     nodeName,
+				Type:     guestType,
+				Status:   getString(row, "status"),
+				Tags:     getString(row, "tags"),
+				Template: getBool(row, "template"),
+				MaxMem:   int64(getFloat(row, "maxmem")),
+				MaxDisk:  int64(getFloat(row, "maxdisk")),
+				Uptime:   int64(getFloat(row, "uptime")),
+			})
+		}
+	}
+
+	return guests, nil
+}
+
 // GetVmStatus retrieves current status metrics for a VM or LXC.
 func (c *Client) GetVmStatus(vm *VM) error {
 	vm.mu.Lock()

@@ -435,6 +435,7 @@ pvetui guests list --output table
 
 # Filter by node, status, or type
 pvetui guests list --node pve01 --status running --type qemu
+pvetui guests list --node pve01 --node-local --status running  # skip cluster-wide guest discovery
 
 # Show a specific guest
 pvetui guests show 100
@@ -444,6 +445,8 @@ pvetui guests start 100
 pvetui guests shutdown 100   # graceful ACPI shutdown
 pvetui guests stop 100       # force power-off
 pvetui guests restart 100
+pvetui guests start 100 --node pve01 --type qemu       # direct target when discovery is slow
+pvetui guests shutdown 200 --node pve01 --type lxc     # direct target for LXC lifecycle
 pvetui guests delete 100     # permanently delete (guest must be stopped)
 pvetui guests delete 100 --purge   # also remove from backup/replication jobs
 
@@ -469,12 +472,17 @@ pvetui guests create lxc --node pve01 --hostname myct --rootfs-storage local-zfs
 
 # Migrate a guest to another node (mode selected automatically)
 pvetui guests migrate 100 pve02
+pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd
+pvetui guests migrate 200 pve02 --target-storage shared-ssd
+pvetui guests migrate 100 pve02 --wait-timeout 2h
 pvetui guests migrate 100 pve02 --no-wait   # return UPID immediately
 ```
 
 `exec` automatically wraps commands in `/bin/sh -c` on Linux guests and `powershell.exe` on Windows guests. The guest must be running with the QEMU guest agent active.
 
 Commands that produce Proxmox tasks (`create`, `migrate`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
+
+For emergency node drains, use `guests list --node <node> --node-local --status running` to avoid full cluster guest discovery, migrate critical guests first, then use direct lifecycle targeting (`--node <node> --type qemu|lxc`) for the remaining shutdown/start operations. `guests migrate --target-storage <storage>` asks Proxmox to place migrated disks or LXC rootfs volumes on a target storage when the migration mode supports it; shared storage can still remain shared by Proxmox design.
 
 ### Storage
 

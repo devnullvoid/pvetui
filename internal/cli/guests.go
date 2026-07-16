@@ -102,6 +102,7 @@ func newGuestsListCmd() *cobra.Command {
 
   # Filter by node and status
   pvetui guests list --node pve01 --status running
+  pvetui guests list --node pve01 --node-local --status running
 
   # Only QEMU VMs, table format
   pvetui guests list --type qemu --output table
@@ -114,6 +115,7 @@ func newGuestsListCmd() *cobra.Command {
 	cmd.Flags().String("node", "", "Filter by node name")
 	cmd.Flags().String("status", "", "Filter by status (running, stopped, paused)")
 	cmd.Flags().String("type", "", "Filter by type (qemu, lxc)")
+	cmd.Flags().Bool("node-local", false, "When --node is set, query that node directly instead of scanning cluster-wide inventory")
 
 	return cmd
 }
@@ -131,8 +133,24 @@ func runGuestsList(cmd *cobra.Command, _ []string) error {
 	nodeFilter, _ := cmd.Flags().GetString("node")
 	statusFilter, _ := cmd.Flags().GetString("status")
 	typeFilter, _ := cmd.Flags().GetString("type")
+	nodeLocal, _ := cmd.Flags().GetBool("node-local")
 
-	vms, err := session.getVMs(context.Background())
+	ctx := context.Background()
+	var vms []*api.VM
+	if nodeLocal {
+		if nodeFilter == "" {
+			return printError(fmt.Errorf("--node-local requires --node"))
+		}
+
+		client, clientErr := session.clientForNode(ctx, nodeFilter)
+		if clientErr != nil {
+			return printError(clientErr)
+		}
+
+		vms, err = client.ListNodeGuests(nodeFilter)
+	} else {
+		vms, err = session.getVMs(ctx)
+	}
 	if err != nil {
 		return printError(fmt.Errorf("failed to fetch guests: %w", err))
 	}
@@ -263,55 +281,69 @@ func newGuestsStartCmd() *cobra.Command {
 		}),
 	}
 
-	cmd.Flags().String("node", "", "Target node hosting the guest; skips cluster-wide guest discovery when set")
-	cmd.Flags().String("type", string(api.VMTypeQemu), "Guest type for direct targeting: qemu or lxc")
+	addDirectGuestTargetFlags(cmd)
 
 	return cmd
 }
 
 func newGuestsStopCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "stop <vmid>",
 		Short: "Force stop a guest (immediate power off)",
 		Long: `Force stop a running VM or container.
 
 This is equivalent to pulling the power cord and may cause data loss.
 For a graceful shutdown, use 'guests shutdown' instead.`,
-		Example:           `  pvetui guests stop 100`,
+		Example: `  pvetui guests stop 100
+  pvetui --profile prod guests stop 100 --node pve1 --type qemu`,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("stop", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.StopVM(vm)
 		}),
 	}
+
+	addDirectGuestTargetFlags(cmd)
+
+	return cmd
 }
 
 func newGuestsShutdownCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:               "shutdown <vmid>",
-		Short:             "Gracefully shut down a guest",
-		Long:              "Request a graceful ACPI shutdown of a running VM or container.",
-		Example:           `  pvetui guests shutdown 100`,
+	cmd := &cobra.Command{
+		Use:   "shutdown <vmid>",
+		Short: "Gracefully shut down a guest",
+		Long:  "Request a graceful ACPI shutdown of a running VM or container.",
+		Example: `  pvetui guests shutdown 100
+  pvetui --profile prod guests shutdown 100 --node pve1 --type lxc`,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("shutdown", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.ShutdownVM(vm)
 		}),
 	}
+
+	addDirectGuestTargetFlags(cmd)
+
+	return cmd
 }
 
 func newGuestsRestartCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:               "restart <vmid>",
-		Short:             "Restart a guest",
-		Long:              "Request a graceful restart of a running VM or container.",
-		Example:           `  pvetui guests restart 100`,
+	cmd := &cobra.Command{
+		Use:   "restart <vmid>",
+		Short: "Restart a guest",
+		Long:  "Request a graceful restart of a running VM or container.",
+		Example: `  pvetui guests restart 100
+  pvetui --profile prod guests restart 100 --node pve1 --type qemu`,
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeVMIDs,
 		RunE: makeLifecycleCmd("restart", func(client *api.Client, vm *api.VM) (string, error) {
 			return client.RestartVM(vm)
 		}),
 	}
+
+	addDirectGuestTargetFlags(cmd)
+
+	return cmd
 }
 
 func newGuestsDeleteCmd() *cobra.Command {
@@ -405,6 +437,11 @@ func runGuestsDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func addDirectGuestTargetFlags(cmd *cobra.Command) {
+	cmd.Flags().String("node", "", "Target node hosting the guest; skips cluster-wide guest discovery when set")
+	cmd.Flags().String("type", string(api.VMTypeQemu), "Guest type for direct targeting: qemu or lxc")
 }
 
 // makeLifecycleCmd returns a RunE handler for start/stop/shutdown/restart.
@@ -1230,9 +1267,13 @@ Migration mode is selected automatically:
 
   # Offline migrate local disks to storage available on the target node
   pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd
+  pvetui guests migrate 200 pve02 --target-storage shared-ssd
 
   # Return UPID immediately
-  pvetui guests migrate 100 pve02 --no-wait`,
+  pvetui guests migrate 100 pve02 --no-wait
+
+  # Wait longer for large disk copies
+  pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd --wait-timeout 2h`,
 		Args:              cobra.ExactArgs(2),
 		RunE:              runGuestsMigrate,
 		ValidArgsFunction: completeVMIDs,
@@ -1240,7 +1281,8 @@ Migration mode is selected automatically:
 
 	cmd.Flags().Bool("online", false, "Force online migration (QEMU only)")
 	cmd.Flags().Bool("offline", false, "Force offline migration (QEMU only)")
-	cmd.Flags().String("target-storage", "", "Target storage for offline disk migration")
+	cmd.Flags().String("target-storage", "", "Target storage for migrated disks or LXC rootfs")
+	cmd.Flags().Duration("wait-timeout", 10*time.Minute, "Maximum time to wait for migration task completion")
 	addNoWaitFlag(cmd)
 
 	return cmd
@@ -1283,6 +1325,7 @@ func runGuestsMigrate(cmd *cobra.Command, args []string) error {
 	forceOnline, _ := cmd.Flags().GetBool("online")
 	forceOffline, _ := cmd.Flags().GetBool("offline")
 	targetStorage, _ := cmd.Flags().GetString("target-storage")
+	waitTimeout, _ := cmd.Flags().GetDuration("wait-timeout")
 
 	if vm.Type == api.VMTypeLXC && (forceOnline || forceOffline) {
 		return printError(fmt.Errorf("--online/--offline are not applicable to LXC containers"))
@@ -1290,8 +1333,8 @@ func runGuestsMigrate(cmd *cobra.Command, args []string) error {
 	if forceOnline && forceOffline {
 		return printError(fmt.Errorf("--online and --offline are mutually exclusive"))
 	}
-	if targetStorage != "" && vm.Type != api.VMTypeQemu {
-		return printError(fmt.Errorf("--target-storage is only applicable to QEMU VMs"))
+	if waitTimeout <= 0 {
+		return printError(fmt.Errorf("--wait-timeout must be greater than zero"))
 	}
 
 	// Build migration options with auto mode selection.
@@ -1344,7 +1387,7 @@ func runGuestsMigrate(cmd *cobra.Command, args []string) error {
 		return printJSON(out)
 	}
 
-	exitStatus, waitErr := waitForTask(ctx, client, vm.Node, upid, "migrate")
+	exitStatus, waitErr := waitForTaskWithTimeout(ctx, client, vm.Node, upid, "migrate", waitTimeout)
 	out.Status = "completed"
 	out.ExitStatus = exitStatus
 	if waitErr != nil {
