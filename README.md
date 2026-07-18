@@ -450,6 +450,11 @@ pvetui guests shutdown 200 --node pve01 --type lxc     # direct target for LXC l
 pvetui guests delete 100     # permanently delete (guest must be stopped)
 pvetui guests delete 100 --purge   # also remove from backup/replication jobs
 
+# Resize guest storage
+pvetui guests resize 200 rootfs +10G      # grow an LXC rootfs by 10 GiB
+pvetui guests resize 100 scsi0 +50G       # grow a QEMU disk
+pvetui guests resize 200 rootfs +10G --node pve01 --type lxc
+
 # Execute a command in a QEMU VM via the guest agent (no SSH to the guest needed)
 pvetui guests exec 100 "uptime"
 # Execute a command in an LXC container via pct exec over SSH to the node
@@ -480,7 +485,7 @@ pvetui guests migrate 100 pve02 --no-wait   # return UPID immediately
 
 `exec` automatically wraps commands in `/bin/sh -c` on Linux guests and `powershell.exe` on Windows guests. The guest must be running with the QEMU guest agent active.
 
-Commands that produce Proxmox tasks (`create`, `migrate`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
+Commands that produce Proxmox tasks (`create`, `migrate`, `resize`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
 
 For emergency node drains, use `guests list --node <node> --node-local --status running` to avoid full cluster guest discovery, migrate critical guests first, then use direct lifecycle targeting (`--node <node> --type qemu|lxc`) for the remaining shutdown/start operations. `guests migrate --target-storage <storage>` asks Proxmox to place migrated disks or LXC rootfs volumes on a target storage when the migration mode supports it; shared storage can still remain shared by Proxmox design.
 

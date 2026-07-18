@@ -46,6 +46,17 @@ type execOutput struct {
 	DurationMS int64  `json:"duration_ms"`
 }
 
+type resizeOutput struct {
+	VMID       int    `json:"vmid"`
+	Node       string `json:"node"`
+	Type       string `json:"type"`
+	Disk       string `json:"disk"`
+	Size       string `json:"size"`
+	UPID       string `json:"upid,omitempty"`
+	Status     string `json:"status"`
+	ExitStatus string `json:"exit_status,omitempty"`
+}
+
 func vmToGuestOutput(vm *api.VM) guestOutput {
 	return guestOutput{
 		ID:            vm.ID,
@@ -82,6 +93,7 @@ func newGuestsCmd() *cobra.Command {
 	cmd.AddCommand(newGuestsShutdownCmd())
 	cmd.AddCommand(newGuestsRestartCmd())
 	cmd.AddCommand(newGuestsDeleteCmd())
+	cmd.AddCommand(newGuestsResizeCmd())
 	cmd.AddCommand(newGuestsExecCmd())
 	cmd.AddCommand(newGuestsShellCmd())
 	cmd.AddCommand(newGuestsCreateCmd())
@@ -437,6 +449,166 @@ func runGuestsDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func newGuestsResizeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resize <vmid> <disk> <size>",
+		Short: "Resize a guest disk or LXC rootfs",
+		Long: `Resize a guest storage volume.
+
+For LXC containers, use rootfs for the root filesystem. For QEMU VMs, use the
+disk device key from the VM config, such as scsi0, virtio0, or sata0.
+The size value is passed to Proxmox as-is, for example +10G to grow by 10 GiB
+or 32G to set an absolute size.`,
+		Example: `  # Grow an LXC root filesystem by 10 GiB
+  pvetui guests resize 140 rootfs +10G
+
+  # Direct-target an LXC when cluster-wide guest discovery is slow
+  pvetui guests resize 140 rootfs +10G --node uranus --type lxc
+
+  # Grow a QEMU disk and wait longer for completion
+  pvetui guests resize 100 scsi0 +50G --wait-timeout 30m`,
+		Args:              cobra.ExactArgs(3),
+		ValidArgsFunction: completeVMIDs,
+		RunE:              runGuestsResize,
+	}
+
+	addDirectGuestTargetFlags(cmd)
+	cmd.Flags().Duration("wait-timeout", 10*time.Minute, "Maximum time to wait for resize task completion")
+	addNoWaitFlag(cmd)
+
+	return cmd
+}
+
+func runGuestsResize(cmd *cobra.Command, args []string) error {
+	vmid, err := parseVMID(args[0])
+	if err != nil {
+		return printError(err)
+	}
+
+	disk := strings.TrimSpace(args[1])
+	size := strings.TrimSpace(args[2])
+	if disk == "" {
+		return printError(fmt.Errorf("disk is required"))
+	}
+	if strings.ContainsAny(disk, " \t\r\n") {
+		return printError(fmt.Errorf("disk %q must not contain whitespace", disk))
+	}
+	if size == "" {
+		return printError(fmt.Errorf("size is required"))
+	}
+	if strings.ContainsAny(size, " \t\r\n") {
+		return printError(fmt.Errorf("size %q must not contain whitespace", size))
+	}
+
+	waitTimeout, _ := cmd.Flags().GetDuration("wait-timeout")
+	if waitTimeout <= 0 {
+		return printError(fmt.Errorf("--wait-timeout must be greater than zero"))
+	}
+
+	session, initErr := initCLISession(cmd)
+	if initErr != nil {
+		return printError(initErr)
+	}
+	if session == nil {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	var (
+		client *api.Client
+		vm     *api.VM
+	)
+
+	nodeName, _ := cmd.Flags().GetString("node")
+	if nodeName != "" {
+		guestType, _ := cmd.Flags().GetString("type")
+		if guestType != string(api.VMTypeQemu) && guestType != string(api.VMTypeLXC) {
+			return printError(fmt.Errorf("invalid guest type %q; expected qemu or lxc", guestType))
+		}
+
+		vm = &api.VM{
+			ID:   vmid,
+			Node: nodeName,
+			Type: guestType,
+		}
+
+		client, err = session.clientForNode(ctx, nodeName)
+		if err != nil {
+			return printError(err)
+		}
+	} else {
+		vm, err = session.findVM(ctx, vmid)
+		if err != nil {
+			return printError(err)
+		}
+
+		if vm.Template {
+			return printError(fmt.Errorf("guest %d is a template; resize operations are not supported", vmid))
+		}
+
+		client, err = session.clientForVM(vm)
+		if err != nil {
+			return printError(err)
+		}
+	}
+
+	upid, err := client.ResizeVMStorageTask(vm, disk, size)
+	if err != nil {
+		return printError(fmt.Errorf("failed to resize guest %d disk %s: %w", vmid, disk, err))
+	}
+
+	out := resizeOutput{
+		VMID:   vmid,
+		Node:   vm.Node,
+		Type:   vm.Type,
+		Disk:   disk,
+		Size:   size,
+		UPID:   upid,
+		Status: "queued",
+	}
+
+	if getNoWait(cmd) || upid == "" {
+		if upid == "" {
+			out.Status = "submitted"
+		}
+		return printResizeOutput(cmd, out)
+	}
+
+	exitStatus, waitErr := waitForTaskWithTimeout(ctx, client, vm.Node, upid, "resize", waitTimeout)
+	out.Status = "completed"
+	out.ExitStatus = exitStatus
+	if waitErr != nil {
+		out.Status = "failed"
+		_ = printResizeOutput(cmd, out)
+		return printError(waitErr)
+	}
+
+	return printResizeOutput(cmd, out)
+}
+
+func printResizeOutput(cmd *cobra.Command, out resizeOutput) error {
+	if getOutputFormat(cmd) == outputTable {
+		printTable(
+			[]string{"FIELD", "VALUE"},
+			[][]string{
+				{"VMID", strconv.Itoa(out.VMID)},
+				{"Node", out.Node},
+				{"Type", out.Type},
+				{"Disk", out.Disk},
+				{"Size", out.Size},
+				{"UPID", out.UPID},
+				{"Status", out.Status},
+				{"Exit Status", out.ExitStatus},
+			},
+		)
+
+		return nil
+	}
+
+	return printJSON(out)
 }
 
 func addDirectGuestTargetFlags(cmd *cobra.Command) {
