@@ -75,6 +75,17 @@ func (c *Client) GetVmStatus(vm *VM) error {
 		return fmt.Errorf("unexpected format for VM status")
 	}
 
+	if name := getString(data, "name"); name != "" {
+		vm.Name = name
+	}
+	if status := getString(data, "status"); status != "" {
+		vm.Status = status
+	}
+	if tags := getString(data, "tags"); tags != "" {
+		vm.Tags = tags
+	}
+	vm.Template = getBool(data, "template")
+
 	// Enrich VM with additional metrics
 	if cpuVal, ok := data["cpu"]; ok {
 		if cpuFloat, ok := cpuVal.(float64); ok && isFiniteFloat(cpuFloat) {

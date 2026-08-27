@@ -114,7 +114,7 @@ func newGuestsListCmd() *cobra.Command {
 
   # Filter by node and status
   pvetui guests list --node pve01 --status running
-  pvetui guests list --node pve01 --node-local --status running
+  pvetui guests list --node pve01 --cluster-scan --status running
 
   # Only QEMU VMs, table format
   pvetui guests list --type qemu --output table
@@ -127,7 +127,8 @@ func newGuestsListCmd() *cobra.Command {
 	cmd.Flags().String("node", "", "Filter by node name")
 	cmd.Flags().String("status", "", "Filter by status (running, stopped, paused)")
 	cmd.Flags().String("type", "", "Filter by type (qemu, lxc)")
-	cmd.Flags().Bool("node-local", false, "When --node is set, query that node directly instead of scanning cluster-wide inventory")
+	cmd.Flags().Bool("node-local", false, "When --node is set, query that node directly instead of scanning cluster-wide inventory (default with --node)")
+	cmd.Flags().Bool("cluster-scan", false, "When --node is set, scan cluster-wide inventory before filtering")
 
 	return cmd
 }
@@ -146,14 +147,23 @@ func runGuestsList(cmd *cobra.Command, _ []string) error {
 	statusFilter, _ := cmd.Flags().GetString("status")
 	typeFilter, _ := cmd.Flags().GetString("type")
 	nodeLocal, _ := cmd.Flags().GetBool("node-local")
+	clusterScan, _ := cmd.Flags().GetBool("cluster-scan")
 
 	ctx := context.Background()
 	var vms []*api.VM
+	if nodeLocal && clusterScan {
+		return printError(fmt.Errorf("--node-local and --cluster-scan are mutually exclusive"))
+	}
+
+	useNodeLocal := nodeFilter != "" && !clusterScan
 	if nodeLocal {
 		if nodeFilter == "" {
 			return printError(fmt.Errorf("--node-local requires --node"))
 		}
+		useNodeLocal = true
+	}
 
+	if useNodeLocal {
 		client, clientErr := session.clientForNode(ctx, nodeFilter)
 		if clientErr != nil {
 			return printError(clientErr)
@@ -221,16 +231,21 @@ func runGuestsList(cmd *cobra.Command, _ []string) error {
 // ── guests show ──────────────────────────────────────────────────────────────
 
 func newGuestsShowCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "show <vmid>",
 		Short: "Show details for a specific guest",
 		Long:  "Show detailed information for a guest identified by VMID.",
 		Example: `  pvetui guests show 100
-  pvetui --profile prod guests show 100`,
+  pvetui --profile prod guests show 100
+  pvetui --profile prod guests show 100 --node pve1 --type lxc`,
 		Args:              cobra.ExactArgs(1),
 		RunE:              runGuestsShow,
 		ValidArgsFunction: completeVMIDs,
 	}
+
+	addDirectGuestTargetFlags(cmd)
+
+	return cmd
 }
 
 func runGuestsShow(cmd *cobra.Command, args []string) error {
@@ -248,7 +263,8 @@ func runGuestsShow(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	vm, err := session.findVM(context.Background(), vmid)
+	ctx := context.Background()
+	vm, err := findVMForCommand(ctx, cmd, session, vmid, true)
 	if err != nil {
 		return printError(err)
 	}
@@ -616,6 +632,41 @@ func addDirectGuestTargetFlags(cmd *cobra.Command) {
 	cmd.Flags().String("type", string(api.VMTypeQemu), "Guest type for direct targeting: qemu or lxc")
 }
 
+func findVMForCommand(ctx context.Context, cmd *cobra.Command, session *cliSession, vmid int, enrichDirect bool) (*api.VM, error) {
+	nodeName, _ := cmd.Flags().GetString("node")
+	if nodeName == "" {
+		return session.findVM(ctx, vmid)
+	}
+
+	guestType, _ := cmd.Flags().GetString("type")
+	if guestType != string(api.VMTypeQemu) && guestType != string(api.VMTypeLXC) {
+		return nil, fmt.Errorf("invalid guest type %q; expected qemu or lxc", guestType)
+	}
+
+	client, err := session.clientForNode(ctx, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	if enrichDirect {
+		vm, err := client.GetDetailedVmInfo(nodeName, guestType, vmid)
+		if err == nil {
+			return vm, nil
+		}
+	}
+
+	vm := &api.VM{
+		ID:   vmid,
+		Node: nodeName,
+		Type: guestType,
+	}
+	if err := client.GetVmStatus(vm); err != nil {
+		return nil, err
+	}
+
+	return vm, nil
+}
+
 // makeLifecycleCmd returns a RunE handler for start/stop/shutdown/restart.
 func makeLifecycleCmd(
 	operation string,
@@ -729,13 +780,15 @@ The caller is responsible for what they run. Security is enforced by the
 Proxmox API token permissions and SSH access granted to this client.`,
 		Example: `  pvetui guests exec 100 "uptime"
   pvetui guests exec 200 "df -h"
-  pvetui --profile prod guests exec 100 "systemctl status nginx"`,
+  pvetui --profile prod guests exec 100 "systemctl status nginx"
+  pvetui --profile prod guests exec 200 "df -h" --node pve1 --type lxc`,
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: completeVMIDs,
 		RunE:              runGuestsExec,
 	}
 
 	cmd.Flags().Duration("timeout", 30*time.Second, "Command execution timeout")
+	addDirectGuestTargetFlags(cmd)
 
 	return cmd
 }
@@ -760,7 +813,7 @@ func runGuestsExec(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
-	vm, err := session.findVM(ctx, vmid)
+	vm, err := findVMForCommand(ctx, cmd, session, vmid, false)
 	if err != nil {
 		return printError(err)
 	}

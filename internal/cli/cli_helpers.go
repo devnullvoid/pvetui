@@ -360,7 +360,7 @@ func formatUptime(seconds int64) string {
 
 // findNodeIP returns the IP address of the named node.
 func (s *cliSession) findNodeIP(ctx context.Context, nodeName string) (string, error) {
-	nodes, err := s.getNodes(ctx)
+	nodes, err := s.getBasicNodes(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch nodes: %w", err)
 	}
@@ -372,6 +372,14 @@ func (s *cliSession) findNodeIP(ctx context.Context, nodeName string) (string, e
 	}
 
 	return "", fmt.Errorf("node %q not found", nodeName)
+}
+
+func (s *cliSession) getBasicNodes(ctx context.Context) ([]*api.Node, error) {
+	if s.group != nil {
+		return s.group.GetGroupNodes(ctx)
+	}
+
+	return s.single.ListBasicNodes()
 }
 
 // resolveSSHCreds returns the SSH username, keyfile path, and jump-host config

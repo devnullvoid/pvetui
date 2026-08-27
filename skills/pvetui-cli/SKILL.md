@@ -216,11 +216,12 @@ pvetui guests list --status running
 pvetui guests list --type qemu
 pvetui guests list --node pve01 --status running --type lxc
 
-# Emergency/degraded mode: query only one node instead of full cluster guest inventory
-pvetui guests list --node pve01 --node-local --status running
+# Force cluster-wide enriched inventory before filtering by node
+pvetui guests list --node pve01 --cluster-scan --status running
 
 # Show a specific guest by VMID
 pvetui guests show 100
+pvetui guests show 100 --node pve01 --type lxc
 ```
 
 **JSON shape — guests list:**
@@ -484,6 +485,7 @@ pvetui guests exec 100 "systemctl status nginx"
 # LXC container — uses pct exec over SSH to the node (ssh_user must be configured)
 pvetui guests exec 200 "uptime"
 pvetui guests exec 200 "cat /etc/os-release"
+pvetui guests exec 200 "df -h" --node pve01 --type lxc
 
 # Custom timeout (default 30s)
 pvetui guests exec 100 "apt-get update" --timeout 120s
@@ -738,13 +740,14 @@ err=$(pvetui guests show 999 2>&1 >/dev/null)
 pvetui guests list --node pve01 --status running --type qemu
 
 # Emergency drain inventory that avoids full cluster guest discovery
-pvetui guests list --node pve01 --node-local --status running --output json
+pvetui guests list --node pve01 --status running --output json
 
 # Get IP addresses of all running guests
 pvetui guests list --status running | jq '.[].ip'
 
 # Check if a specific guest is running
 pvetui guests show 100 | jq -r '.status'
+pvetui guests show 100 --node pve01 --type lxc | jq -r '.status'
 
 # Create an LXC and wait for it to finish, then get its VMID
 result=$(pvetui guests create lxc --node pve01 --hostname myct --rootfs-storage local-zfs --template debian-12-standard)
@@ -755,7 +758,7 @@ pvetui guests migrate 100 pve02
 pvetui guests show 100 | jq -r '.node'   # should now be "pve02"
 
 # Emergency node drain pattern
-pvetui guests list --node pve01 --node-local --status running --output table
+pvetui guests list --node pve01 --status running --output table
 pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd --wait-timeout 2h
 pvetui guests shutdown 200 --node pve01 --type lxc
 pvetui guests shutdown 101 --node pve01 --type qemu
@@ -779,6 +782,9 @@ for vmid in 100 101 102; do
   echo "=== $vmid ==="
   pvetui guests exec $vmid "systemctl is-active nginx"
 done
+
+# Direct LXC health check when node/type are known
+pvetui guests exec 200 "df -h /" --node pve01 --type lxc --output table
 
 # Find guests with a specific tag
 pvetui guests list | jq '[.[] | select(.tags | contains("prod"))]'

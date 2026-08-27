@@ -57,6 +57,38 @@ type Node struct {
 	// lastLoadAvg       []string      `json:"-"`
 }
 
+// ListBasicNodes retrieves node names, IPs, and online state from
+// /cluster/status without loading cluster resources or enriching guests.
+func (c *Client) ListBasicNodes() ([]*Node, error) {
+	var statusResp map[string]interface{}
+	if err := c.GetWithCache("/cluster/status", &statusResp, ClusterDataTTL); err != nil {
+		return nil, fmt.Errorf("failed to get cluster status: %w", err)
+	}
+
+	statusData, ok := statusResp["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid cluster status response format")
+	}
+
+	nodes := make([]*Node, 0)
+	for _, item := range statusData {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok || getString(itemMap, "type") != "node" {
+			continue
+		}
+
+		nodeName := getString(itemMap, "name")
+		nodes = append(nodes, &Node{
+			ID:     nodeName,
+			Name:   nodeName,
+			IP:     getString(itemMap, "ip"),
+			Online: getInt(itemMap, "online") == 1,
+		})
+	}
+
+	return nodes, nil
+}
+
 // ListNodes retrieves nodes from cached cluster data.
 func (c *Client) ListNodes() ([]Node, error) {
 	if c.Cluster == nil {

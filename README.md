@@ -435,10 +435,11 @@ pvetui guests list --output table
 
 # Filter by node, status, or type
 pvetui guests list --node pve01 --status running --type qemu
-pvetui guests list --node pve01 --node-local --status running  # skip cluster-wide guest discovery
+pvetui guests list --node pve01 --cluster-scan --status running  # force enriched cluster scan
 
 # Show a specific guest
 pvetui guests show 100
+pvetui guests show 100 --node pve01 --type lxc
 
 # Lifecycle operations (returns UPID)
 pvetui guests start 100
@@ -459,6 +460,7 @@ pvetui guests resize 200 rootfs +10G --node pve01 --type lxc
 pvetui guests exec 100 "uptime"
 # Execute a command in an LXC container via pct exec over SSH to the node
 pvetui guests exec 200 "df -h" --timeout 60s
+pvetui guests exec 200 "df -h" --node pve01 --type lxc --timeout 60s
 
 # Open an interactive shell (node SSH or container/VM shell)
 pvetui nodes shell pve01
@@ -487,7 +489,7 @@ pvetui guests migrate 100 pve02 --no-wait   # return UPID immediately
 
 Commands that produce Proxmox tasks (`create`, `migrate`, `resize`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
 
-For emergency node drains, use `guests list --node <node> --node-local --status running` to avoid full cluster guest discovery, migrate critical guests first, then use direct lifecycle targeting (`--node <node> --type qemu|lxc`) for the remaining shutdown/start operations. `guests migrate --target-storage <storage>` asks Proxmox to place migrated disks or LXC rootfs volumes on a target storage when the migration mode supports it; shared storage can still remain shared by Proxmox design.
+For emergency node drains, use `guests list --node <node> --status running` to avoid full cluster guest discovery, migrate critical guests first, then use direct targeting (`--node <node> --type qemu|lxc`) for show/exec/lifecycle/resize operations when the guest's node and type are already known. Pass `--cluster-scan` to `guests list --node` when you explicitly want the older cluster-wide enriched inventory path. `guests migrate --target-storage <storage>` asks Proxmox to place migrated disks or LXC rootfs volumes on a target storage when the migration mode supports it; shared storage can still remain shared by Proxmox design.
 
 ### Storage
 
