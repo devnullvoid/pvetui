@@ -3,7 +3,7 @@ module github.com/devnullvoid/pvetui
 go 1.26.0
 
 require (
-	filippo.io/age v1.3.1
+	filippo.io/age v1.3.2
 	github.com/dgraph-io/badger/v4 v4.9.6
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/getkin/kin-openapi v0.149.0
