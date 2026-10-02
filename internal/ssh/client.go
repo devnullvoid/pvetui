@@ -30,6 +30,7 @@ func sshLogger() interfaces.Logger {
 type SSHClient struct {
 	Host     string
 	User     string
+	Keyfile  string
 	JumpHost config.SSHJumpHost
 	executor CommandExecutor
 }
@@ -46,6 +47,11 @@ func WithExecutor(exec CommandExecutor) Option {
 // WithJumpHost sets the SSH jump host configuration.
 func WithJumpHost(jumpHost config.SSHJumpHost) Option {
 	return func(c *SSHClient) { c.JumpHost = jumpHost }
+}
+
+// WithKeyfile sets the SSH private key file used for authentication.
+func WithKeyfile(keyfile string) Option {
+	return func(c *SSHClient) { c.Keyfile = keyfile }
 }
 
 // NewSSHClient creates a new SSHClient instance with the specified connection parameters.
@@ -90,7 +96,7 @@ func (c *SSHClient) Shell() error {
 		return fmt.Errorf("ssh client is nil")
 	}
 
-	return ExecuteNodeShellWith(context.Background(), c.executor, c.User, c.Host, c.JumpHost)
+	return ExecuteNodeShellWithKeyfile(context.Background(), c.executor, c.User, c.Host, c.JumpHost, c.Keyfile)
 }
 
 // ExecuteNodeShell opens an interactive SSH session to a Proxmox node.
@@ -125,7 +131,13 @@ func ExecuteNodeShell(user, nodeIP string, jumphost config.SSHJumpHost) error {
 //
 // Returns an error if the SSH connection fails.
 func ExecuteNodeShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, jumphost config.SSHJumpHost) error {
-	args := buildSSHArgs(user, nodeIP, jumphost)
+	return ExecuteNodeShellWithKeyfile(ctx, execer, user, nodeIP, jumphost, "")
+}
+
+// ExecuteNodeShellWithKeyfile opens an interactive SSH session to a Proxmox node
+// using a configured private key file when keyfile is non-empty.
+func ExecuteNodeShellWithKeyfile(ctx context.Context, execer CommandExecutor, user, nodeIP string, jumphost config.SSHJumpHost, keyfile string) error {
+	args := buildSSHArgsWithKeyfile(user, nodeIP, jumphost, keyfile)
 	sshLogger().Debug("SSH node shell: user=%s host=%s jumphost=%+v args=%v", user, nodeIP, jumphost, args)
 	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
@@ -185,6 +197,12 @@ func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM, jumphost config.SSHJ
 	return ExecuteLXCShellWith(context.Background(), NewDefaultExecutor(), user, nodeIP, vm.ID, vm, jumphost)
 }
 
+// ExecuteLXCShellWithVMKeyfile opens an interactive LXC shell using a configured
+// private key file when keyfile is non-empty.
+func ExecuteLXCShellWithVMKeyfile(user, nodeIP string, vm *api.VM, jumphost config.SSHJumpHost, keyfile string) error {
+	return ExecuteLXCShellWithKeyfile(context.Background(), NewDefaultExecutor(), user, nodeIP, vm.ID, vm, jumphost, keyfile)
+}
+
 // ExecuteLXCShellWith opens an interactive session to an LXC container with full control options.
 //
 // This function provides comprehensive control over LXC container access with automatic
@@ -222,6 +240,12 @@ func ExecuteLXCShellWithVM(user, nodeIP string, vm *api.VM, jumphost config.SSHJ
 //
 // Returns an error if the connection fails.
 func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int, vm *api.VM, jumphost config.SSHJumpHost) error {
+	return ExecuteLXCShellWithKeyfile(ctx, execer, user, nodeIP, vmID, vm, jumphost, "")
+}
+
+// ExecuteLXCShellWithKeyfile opens an interactive session to an LXC container,
+// using a configured private key file when keyfile is non-empty.
+func ExecuteLXCShellWithKeyfile(ctx context.Context, execer CommandExecutor, user, nodeIP string, vmID int, vm *api.VM, jumphost config.SSHJumpHost, keyfile string) error {
 	var sshArgs []string
 
 	var sessionType string
@@ -241,13 +265,13 @@ func ExecuteLXCShellWith(ctx context.Context, execer CommandExecutor, user, node
 	if isNixOS {
 		// Use the NixOS-specific command for containers
 		pctExec := buildPct(fmt.Sprintf("pct exec %d -- /bin/sh -c 'if [ -f /etc/set-environment ]; then . /etc/set-environment; fi; exec bash'", vmID))
-		sshArgs = buildSSHArgsBase(user, nodeIP, jumphost)
+		sshArgs = buildSSHArgsBase(user, nodeIP, jumphost, keyfile)
 		sshArgs = append(sshArgs, "-t", pctExec)
 		sessionType = "NixOS LXC"
 	} else {
 		// Use the standard pct enter command
 		pctEnter := buildPct(fmt.Sprintf("pct enter %d", vmID))
-		sshArgs = buildSSHArgsBase(user, nodeIP, jumphost)
+		sshArgs = buildSSHArgsBase(user, nodeIP, jumphost, keyfile)
 		sshArgs = append(sshArgs, "-t", pctEnter)
 		sessionType = "LXC"
 	}
@@ -311,11 +335,17 @@ func ExecuteQemuShell(user, vmIP string, jumphost config.SSHJumpHost) error {
 //
 // Returns an error if the VM IP is empty or if the SSH connection fails.
 func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmIP string, jumphost config.SSHJumpHost) error {
+	return ExecuteQemuShellWithKeyfile(ctx, execer, user, vmIP, jumphost, "")
+}
+
+// ExecuteQemuShellWithKeyfile attempts to connect to a QEMU VM using SSH and a
+// configured private key file when keyfile is non-empty.
+func ExecuteQemuShellWithKeyfile(ctx context.Context, execer CommandExecutor, user, vmIP string, jumphost config.SSHJumpHost, keyfile string) error {
 	if vmIP == "" {
 		return fmt.Errorf("no IP address available for VM")
 	}
 
-	args := buildSSHArgs(user, vmIP, jumphost)
+	args := buildSSHArgsWithKeyfile(user, vmIP, jumphost, keyfile)
 	sshLogger().Debug("SSH QEMU shell: user=%s host=%s jumphost=%+v args=%v", user, vmIP, jumphost, args)
 	sshCmd := execer.CommandContext(ctx, "ssh", args...)
 	sshCmd.Stdin = os.Stdin
@@ -341,17 +371,21 @@ func ExecuteQemuShellWith(ctx context.Context, execer CommandExecutor, user, vmI
 }
 
 func buildSSHArgs(user, host string, jumphost config.SSHJumpHost) []string {
-	return buildSSHArgsBase(user, host, jumphost)
+	return buildSSHArgsBase(user, host, jumphost, "")
 }
 
 // BuildSSHArgs constructs the argument list for the ssh binary to connect to
 // host as user, optionally via jumphost. Exported for use by CLI subcommands
 // that need to exec ssh directly (without the TUI's "press Enter" prompt).
 func BuildSSHArgs(user, host string, jumphost config.SSHJumpHost) []string {
-	return buildSSHArgsBase(user, host, jumphost)
+	return buildSSHArgsBase(user, host, jumphost, "")
 }
 
-func buildSSHArgsBase(user, host string, jumphost config.SSHJumpHost) []string {
+func buildSSHArgsWithKeyfile(user, host string, jumphost config.SSHJumpHost, keyfile string) []string {
+	return buildSSHArgsBase(user, host, jumphost, keyfile)
+}
+
+func buildSSHArgsBase(user, host string, jumphost config.SSHJumpHost, keyfile string) []string {
 	var args []string
 	target := fmt.Sprintf("%s@%s", user, host)
 
@@ -378,6 +412,10 @@ func buildSSHArgsBase(user, host string, jumphost config.SSHJumpHost) []string {
 			}
 			args = append(args, "-J", jumpSpec)
 		}
+	}
+
+	if keyfile != "" {
+		args = append(args, "-i", keyfile, "-o", "IdentitiesOnly=yes")
 	}
 
 	args = append(args, target)

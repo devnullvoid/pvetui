@@ -181,7 +181,7 @@ func (c *Client) GetVmStatus(vm *VM) error {
 					case int:
 						vm.AgentEnabled = v != 0
 					case string:
-						vm.AgentEnabled = v == "1" || v == StringTrue
+						vm.AgentEnabled = parseQEMUAgentEnabled(v)
 					}
 				}
 			}

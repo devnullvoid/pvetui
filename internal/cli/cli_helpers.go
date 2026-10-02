@@ -539,9 +539,9 @@ func (s *cliSession) resolveVMSSHKeyfile(vm *api.VM) string {
 // argument list, inheriting stdin/stdout/stderr. Unlike the TUI's ssh helpers
 // it does not display a "Press Enter to return to TUI" prompt on exit.
 func execInteractiveShell(sshArgs []string, keyfile string) error {
-	args := make([]string, 0, len(sshArgs)+2)
+	args := make([]string, 0, len(sshArgs)+4)
 	if keyfile != "" {
-		args = append(args, "-i", keyfile)
+		args = append(args, "-i", keyfile, "-o", "IdentitiesOnly=yes")
 	}
 
 	args = append(args, sshArgs...)

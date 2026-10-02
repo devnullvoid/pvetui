@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **TUI SSH key precedence**: TUI-launched node, LXC, and QEMU shell sessions now honor configured `ssh_keyfile` / `vm_ssh_keyfile` paths before SSH agent or default keys, matching CLI shell behavior.
+- **QEMU guest agent detection**: Running QEMU guests whose Proxmox config reports compound agent settings such as `enabled=1,fstrim_cloned_disks=0,type=virtio` are now detected as guest-agent enabled so IP enrichment can run.
+
 ## [1.4.3] - 2026-07-16
 
 ### Added

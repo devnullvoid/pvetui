@@ -37,6 +37,18 @@ func TestSSHClient_WithExecutor(t *testing.T) {
 	require.Equal(t, []string{"testuser@192.0.2.1"}, me.lastArgs)
 }
 
+func TestSSHClient_WithKeyfile(t *testing.T) {
+	me := &mockExecutor{}
+	client, err := NewSSHClient("192.0.2.1", "testuser", "", WithExecutor(me), WithKeyfile("/home/test/.ssh/id_custom"))
+	require.NoError(t, err)
+
+	err = client.Shell()
+	require.NoError(t, err)
+	require.Equal(t, 1, me.called)
+	require.Equal(t, "ssh", me.lastName)
+	require.Equal(t, []string{"-i", "/home/test/.ssh/id_custom", "-o", "IdentitiesOnly=yes", "testuser@192.0.2.1"}, me.lastArgs)
+}
+
 func TestExecuteLXCShellWith_StandardContainer(t *testing.T) {
 	me := &mockExecutor{}
 	ctx := context.Background()
@@ -47,6 +59,17 @@ func TestExecuteLXCShellWith_StandardContainer(t *testing.T) {
 	require.Equal(t, 1, me.called)
 	require.Equal(t, "ssh", me.lastName)
 	require.Equal(t, []string{"testuser@192.0.2.1", "-t", "sudo pct enter 100"}, me.lastArgs)
+}
+
+func TestExecuteLXCShellWithKeyfile_StandardContainer(t *testing.T) {
+	me := &mockExecutor{}
+	ctx := context.Background()
+
+	err := ExecuteLXCShellWithKeyfile(ctx, me, "testuser", "192.0.2.1", 100, nil, config.SSHJumpHost{}, "/home/test/.ssh/id_custom")
+	require.NoError(t, err)
+	require.Equal(t, 1, me.called)
+	require.Equal(t, "ssh", me.lastName)
+	require.Equal(t, []string{"-i", "/home/test/.ssh/id_custom", "-o", "IdentitiesOnly=yes", "testuser@192.0.2.1", "-t", "sudo pct enter 100"}, me.lastArgs)
 }
 
 func TestExecuteLXCShellWith_NonNixOSContainer(t *testing.T) {
@@ -159,6 +182,25 @@ func TestExecuteNodeShellWith_JumpHostProxyCommand(t *testing.T) {
 	require.Equal(t, []string{"-o", expectedProxy, "testuser@192.0.2.1"}, me.lastArgs)
 }
 
+func TestExecuteNodeShellWithKeyfile_JumpHostProxyCommand(t *testing.T) {
+	me := &mockExecutor{}
+	ctx := context.Background()
+
+	jumpHost := config.SSHJumpHost{
+		Addr:    "jump.example.com",
+		User:    "jumpuser",
+		Keyfile: "/home/test/.ssh/jump key",
+		Port:    2222,
+	}
+
+	err := ExecuteNodeShellWithKeyfile(ctx, me, "testuser", "192.0.2.1", jumpHost, "/home/test/.ssh/id_custom")
+	require.NoError(t, err)
+	require.Equal(t, "ssh", me.lastName)
+
+	expectedProxy := "ProxyCommand=ssh -W %h:%p -i '/home/test/.ssh/jump key' -l 'jumpuser' -p 2222 'jump.example.com'"
+	require.Equal(t, []string{"-o", expectedProxy, "-i", "/home/test/.ssh/id_custom", "-o", "IdentitiesOnly=yes", "testuser@192.0.2.1"}, me.lastArgs)
+}
+
 func TestExecuteNodeShellWith_JumpHostProxyJump(t *testing.T) {
 	me := &mockExecutor{}
 	ctx := context.Background()
@@ -173,4 +215,14 @@ func TestExecuteNodeShellWith_JumpHostProxyJump(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "ssh", me.lastName)
 	require.Equal(t, []string{"-J", "jumpuser@jump.example.com:2222", "testuser@192.0.2.1"}, me.lastArgs)
+}
+
+func TestExecuteQemuShellWithKeyfile(t *testing.T) {
+	me := &mockExecutor{}
+	ctx := context.Background()
+
+	err := ExecuteQemuShellWithKeyfile(ctx, me, "vmuser", "192.0.2.10", config.SSHJumpHost{}, "/home/test/.ssh/id_vm")
+	require.NoError(t, err)
+	require.Equal(t, "ssh", me.lastName)
+	require.Equal(t, []string{"-i", "/home/test/.ssh/id_vm", "-o", "IdentitiesOnly=yes", "vmuser@192.0.2.10"}, me.lastArgs)
 }

@@ -926,8 +926,7 @@ For QEMU VMs: opens a direct SSH connection to the VM's IP address.
 Requires the VM to have an IP address visible to pvetui (e.g. via QEMU guest
 agent) and vm_ssh_user (or ssh_user as fallback) to be configured.
 
-Authentication follows the standard SSH priority: agent > configured keyfile
-> ~/.ssh defaults.`,
+Authentication uses configured keyfiles first, then SSH agent / ~/.ssh defaults.`,
 		Example: `  pvetui guests shell 100
   pvetui --profile prod guests shell 200
   pvetui --ssh-user root guests shell 100`,

@@ -216,7 +216,7 @@ debug: false
 show_icons: true # Controls decorative TUI and startup/status message emoji prefixes
 ```
 
-`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_keyfile` is optional; when omitted, pvetui uses the running SSH agent (`SSH_AUTH_SOCK`) if available, then falls back to `~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, and `~/.ssh/id_ecdsa`. `vm_ssh_keyfile` follows the same logic and falls back to `ssh_keyfile`. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
+`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_keyfile` is optional; when configured, pvetui uses that explicit key before SSH agent or default key paths. When omitted, pvetui uses the running SSH agent (`SSH_AUTH_SOCK`) if available, then falls back to `~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, and `~/.ssh/id_ecdsa`. `vm_ssh_keyfile` follows the same logic and falls back to `ssh_keyfile`. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
 
 Guest tags can be edited from the VM/LXC **Edit Configuration** form using a semicolon-separated list (for example: `prod;monitoring;db`).
 
@@ -381,7 +381,7 @@ Windows legacy fallback:
 | `--api-path` | | `PVETUI_API_PATH` | Proxmox API path |
 | `--ssh-user` | | `PVETUI_SSH_USER` | SSH username |
 | `--vm-ssh-user` | | `PVETUI_VM_SSH_USER` | QEMU VM SSH username (defaults to ssh-user) |
-| `--ssh-keyfile` | | `PVETUI_SSH_KEYFILE` | SSH private key file (defaults to SSH agent / standard paths) |
+| `--ssh-keyfile` | | `PVETUI_SSH_KEYFILE` | SSH private key file (used before SSH agent / standard paths) |
 | `--vm-ssh-keyfile` | | `PVETUI_VM_SSH_KEYFILE` | SSH private key for QEMU VM connections (defaults to ssh-keyfile) |
 | `--ssh-jumphost-addr` | | `PVETUI_SSH_JUMPHOST_ADDR` | SSH jump host address |
 | `--ssh-jumphost-user` | | `PVETUI_SSH_JUMPHOST_USER` | SSH jump host user |

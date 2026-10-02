@@ -28,6 +28,7 @@ func (a *App) openNodeShell() {
 
 	sshSettings := a.config.ResolveSSHSettings(node.SourceProfile)
 	sshUser := sshSettings.SSHUser
+	sshKeyfile := sshSettings.SSHKeyfile
 	jumpHost := sshSettings.SSHJumpHost
 
 	if sshUser == "" {
@@ -41,7 +42,7 @@ func (a *App) openNodeShell() {
 		fmt.Printf("\nConnecting to node %s (%s) as user %s...\n", node.Name, node.IP, sshUser)
 
 		// Execute SSH command
-		err := ssh.ExecuteNodeShell(sshUser, node.IP, jumpHost)
+		err := ssh.ExecuteNodeShellWithKeyfile(a.ctx, ssh.NewDefaultExecutor(), sshUser, node.IP, jumpHost, sshKeyfile)
 		if err != nil {
 			fmt.Printf("\nError connecting to node: %v\n", err)
 		}
@@ -260,10 +261,15 @@ func (a *App) openVMShell() {
 	sshSettings := a.config.ResolveSSHSettings(vm.SourceProfile)
 	hostShellUser := sshSettings.SSHUser
 	vmShellUser := sshSettings.VMSSHUser
+	hostSSHKeyfile := sshSettings.SSHKeyfile
+	vmSSHKeyfile := sshSettings.VMSSHKeyfile
 	jumpHost := sshSettings.SSHJumpHost
 
 	if vmShellUser == "" {
 		vmShellUser = hostShellUser
+	}
+	if vmSSHKeyfile == "" {
+		vmSSHKeyfile = hostSSHKeyfile
 	}
 
 	if vm.Type == vmTypeLXC && hostShellUser == "" {
@@ -342,7 +348,7 @@ func (a *App) openVMShell() {
 				containerType, vm.Name, vm.ID, vm.Node, nodeIP)
 
 			// Execute LXC shell command with NixOS detection
-			err := ssh.ExecuteLXCShellWithVM(hostShellUser, nodeIP, vm, jumpHost)
+			err := ssh.ExecuteLXCShellWithVMKeyfile(hostShellUser, nodeIP, vm, jumpHost, hostSSHKeyfile)
 			if err != nil {
 				fmt.Printf("\nError connecting to %s: %v\n", containerType, err)
 			}
@@ -351,7 +357,7 @@ func (a *App) openVMShell() {
 			fmt.Printf("\nConnecting to QEMU VM %s (ID: %d) via SSH as %s@%s...\n",
 				vm.Name, vm.ID, vmShellUser, vm.IP)
 
-			err := ssh.ExecuteQemuShell(vmShellUser, vm.IP, jumpHost)
+			err := ssh.ExecuteQemuShellWithKeyfile(a.ctx, ssh.NewDefaultExecutor(), vmShellUser, vm.IP, jumpHost, vmSSHKeyfile)
 			if err != nil {
 				fmt.Printf("\nFailed to SSH to VM: %v\n", err)
 			}
