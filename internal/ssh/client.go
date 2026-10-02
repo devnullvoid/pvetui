@@ -370,10 +370,6 @@ func ExecuteQemuShellWithKeyfile(ctx context.Context, execer CommandExecutor, us
 	return nil
 }
 
-func buildSSHArgs(user, host string, jumphost config.SSHJumpHost) []string {
-	return buildSSHArgsBase(user, host, jumphost, "")
-}
-
 // BuildSSHArgs constructs the argument list for the ssh binary to connect to
 // host as user, optionally via jumphost. Exported for use by CLI subcommands
 // that need to exec ssh directly (without the TUI's "press Enter" prompt).

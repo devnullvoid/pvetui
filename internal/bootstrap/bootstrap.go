@@ -386,9 +386,9 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	logger.SetDebugEnabled(cfg.Debug)
 
 	// Handle validation errors with onboarding
-	if err := cfg.Validate(); err != nil {
-		if err := onboarding.HandleValidationError(cfg, configPath, opts.NoCache, selectedProfile); err != nil {
-			return nil, fmt.Errorf("onboarding failed: %w", err)
+	if validationErr := cfg.Validate(); validationErr != nil {
+		if onboardingErr := onboarding.HandleValidationError(cfg, configPath, opts.NoCache, selectedProfile); onboardingErr != nil {
+			return nil, fmt.Errorf("onboarding failed: %w", onboardingErr)
 		}
 		return nil, nil
 	}
