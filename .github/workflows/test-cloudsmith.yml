@@ -42,7 +42,7 @@ jobs:
           TAG: ${{ inputs.tag }}
 
       - name: Set up Cloudsmith CLI
-        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        uses: cloudsmith-io/cloudsmith-cli-action@v3
         with:
           api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
 

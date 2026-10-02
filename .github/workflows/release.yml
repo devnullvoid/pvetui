@@ -74,7 +74,7 @@ jobs:
 
       - name: Set up Cloudsmith CLI
         if: steps.cloudsmith.outputs.enabled == 'true'
-        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        uses: cloudsmith-io/cloudsmith-cli-action@v3
         with:
           api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
 
