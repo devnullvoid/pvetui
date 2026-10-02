@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	filippo.io/age v1.3.1
-	github.com/dgraph-io/badger/v4 v4.9.3
+	github.com/dgraph-io/badger/v4 v4.9.6
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/getsops/sops/v3 v3.13.2
