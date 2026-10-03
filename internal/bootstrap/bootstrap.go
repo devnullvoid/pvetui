@@ -55,6 +55,7 @@ type BootstrapOptions struct {
 	FlagCacheDir           string
 	FlagAgeDir             string
 	FlagShowIcons          *bool // Pointer to distinguish "not set" from false
+	StartupPage            string
 
 	// Quiet suppresses startup progress messages. Set by CLI subcommands so
 	// human-facing banners do not pollute structured JSON output.
@@ -89,6 +90,8 @@ func ParseFlags() BootstrapOptions {
 	flag.BoolVar(&configWizard, "config-wizard", false, "Launch interactive config wizard and exit")
 	flag.BoolVar(&configWizard, "w", false, "Short for --config-wizard")
 	flag.BoolVar(&listProfiles, "list-profiles", false, "List available connection profiles/groups and exit")
+	var startupPage string
+	flag.StringVar(&startupPage, "startup-page", "", "Initial TUI view: nodes, guests, tasks, storage")
 
 	// Config flags (these will be applied to the config object later)
 	var flagAddr, flagUser, flagPassword, flagTokenID, flagTokenSecret, flagRealm, flagApiPath, flagSSHUser, flagVMSSHUser, flagCacheDir, flagAgeDir string
@@ -123,6 +126,7 @@ func ParseFlags() BootstrapOptions {
 	flag.Parse()
 
 	return BootstrapOptions{
+		StartupPage:  startupPage,
 		ConfigPath:   configPath,
 		Profile:      profile,
 		NoCache:      noCache,
@@ -242,8 +246,14 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			return nil, fmt.Errorf("failed to load config file: %w", err)
 		}
 	}
+	if opts.StartupPage != "" {
+		cfg.StartupPage = opts.StartupPage
+	}
+	if err := cfg.ValidateTUIPreferences(); err != nil {
+		return nil, fmt.Errorf("invalid TUI preferences: %w", err)
+	}
 	showIcons := effectiveShowIcons(cfg, opts)
-	if !opts.Quiet {
+	if !opts.Quiet && !cfg.QuietStartup {
 		fmt.Println(display.IconText("🚀", "Starting pvetui...", showIcons))
 	}
 
@@ -304,7 +314,7 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 			members := cfg.GetProfileNamesInGroup(selectedProfile)
 			if len(members) > 0 {
 				startupProfile = members[0]
-				if !opts.Quiet {
+				if !opts.Quiet && !cfg.QuietStartup {
 					fmt.Println(display.IconText("🔄", fmt.Sprintf("Selected group '%s' (bootstrapping via '%s')", selectedProfile, startupProfile), showIcons))
 				}
 			} else {
@@ -386,11 +396,8 @@ func Bootstrap(opts BootstrapOptions) (*BootstrapResult, error) {
 	logger.SetDebugEnabled(cfg.Debug)
 
 	// Handle validation errors with onboarding
-	if err := cfg.Validate(); err != nil {
-		if err := onboarding.HandleValidationError(cfg, configPath, opts.NoCache, selectedProfile); err != nil {
-			return nil, fmt.Errorf("onboarding failed: %w", err)
-		}
-		return nil, nil
+	if validationErr := cfg.Validate(); validationErr != nil {
+		return nil, fmt.Errorf("onboarding failed: %w", onboarding.HandleValidationError(cfg, configPath, opts.NoCache, selectedProfile))
 	}
 
 	return &BootstrapResult{
@@ -483,10 +490,12 @@ func StartApplication(result *BootstrapResult) error {
 		return fmt.Errorf("bootstrap result is nil")
 	}
 
-	if result.ConfigPath != "" {
-		fmt.Println(display.IconText("✅", fmt.Sprintf("Configuration loaded from %s", result.ConfigPath), result.Config.ShowIcons))
-	} else {
-		fmt.Println(display.IconText("✅", "Configuration loaded from environment variables", result.Config.ShowIcons))
+	if !result.Config.QuietStartup {
+		if result.ConfigPath != "" {
+			fmt.Println(display.IconText("✅", fmt.Sprintf("Configuration loaded from %s", result.ConfigPath), result.Config.ShowIcons))
+		} else {
+			fmt.Println(display.IconText("✅", "Configuration loaded from environment variables", result.Config.ShowIcons))
+		}
 	}
 
 	// Apply theme configuration
@@ -501,7 +510,9 @@ func StartApplication(result *BootstrapResult) error {
 		return handleStartupError(err, result.Config)
 	}
 
-	fmt.Println(display.IconText("🚪", "Exiting.", result.Config.ShowIcons))
+	if !result.Config.QuietStartup {
+		fmt.Println(display.IconText("🚪", "Exiting.", result.Config.ShowIcons))
+	}
 	return nil
 }
 

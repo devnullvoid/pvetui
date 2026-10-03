@@ -14,6 +14,51 @@ import (
 
 const testDefaultProfile = "default"
 
+func TestTUIPreferences(t *testing.T) {
+	cfg := NewConfig()
+	cfg.SetDefaults()
+	assert.True(t, cfg.ConfirmQuit)
+	assert.Equal(t, "nodes", cfg.StartupPage)
+	assert.False(t, cfg.QuietStartup)
+	assert.Equal(t, AutoRefreshConfig{Interval: 10}, cfg.AutoRefresh)
+
+	path := filepath.Join(t.TempDir(), "preferences.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("confirm_quit: false\nstartup_page: guests\nquiet_startup: true\nauto_refresh:\n  enabled: true\n  interval: 30\n"), 0o600))
+	require.NoError(t, cfg.MergeWithFile(path))
+	cfg.SetDefaults()
+	assert.False(t, cfg.ConfirmQuit)
+	assert.Equal(t, "guests", cfg.StartupPage)
+	assert.True(t, cfg.QuietStartup)
+	assert.Equal(t, AutoRefreshConfig{Enabled: true, Interval: 30}, cfg.AutoRefresh)
+
+	data, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+	reloaded := NewConfig()
+	require.NoError(t, reloaded.MergeWithFile(path))
+	assert.Equal(t, cfg.ConfirmQuit, reloaded.ConfirmQuit)
+	assert.Equal(t, cfg.StartupPage, reloaded.StartupPage)
+	assert.Equal(t, cfg.QuietStartup, reloaded.QuietStartup)
+	assert.Equal(t, cfg.AutoRefresh, reloaded.AutoRefresh)
+
+	for _, interval := range []string{"0", "-1", "4"} {
+		require.NoError(t, os.WriteFile(path, []byte("auto_refresh:\n  interval: "+interval+"\n"), 0o600))
+		require.ErrorContains(t, reloaded.MergeWithFile(path), "at least 5 seconds")
+	}
+	for _, page := range []string{"nodes", "guests", "tasks", "storage", "invalid"} {
+		t.Run(page, func(t *testing.T) {
+			c := NewConfig()
+			c.Addr, c.User, c.Password = "https://example.com:8006", "root", "test"
+			c.StartupPage = page
+			if page == "invalid" {
+				require.ErrorContains(t, c.Validate(), "invalid startup_page")
+			} else {
+				require.NoError(t, c.Validate())
+			}
+		})
+	}
+}
+
 func TestNewConfig(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -48,6 +48,11 @@ npx skills add devnullvoid/pvetui
 
 ## Quick Reference
 
+TUI-only preferences (`confirm_quit`, `startup_page`, `quiet_startup`, and
+`auto_refresh.enabled` / `auto_refresh.interval`) do not change CLI query output
+or task polling. Use `cli.default_output` for CLI output defaults. Launch the TUI
+with `pvetui --startup-page guests` to override its configured initial view.
+
 | Command | Purpose |
 |---------|---------|
 | `pvetui nodes list` | List all cluster nodes |
@@ -60,6 +65,7 @@ npx skills add devnullvoid/pvetui
 | `pvetui guests shutdown <vmid>` | Graceful ACPI shutdown |
 | `pvetui guests restart <vmid>` | Graceful restart |
 | `pvetui guests delete <vmid>` | Permanently delete a guest and its disks |
+| `pvetui guests resize <vmid> <disk> <size>` | Resize a guest disk or LXC rootfs |
 | `pvetui guests exec <vmid> <cmd>` | Run a command inside a guest |
 | `pvetui guests shell <vmid>` | Open an interactive shell inside a guest |
 | `pvetui guests create vm` | Create a QEMU VM |
@@ -83,6 +89,21 @@ npx skills add devnullvoid/pvetui
 | `pvetui community-scripts deploy <slug-or-name> --node <node>` | Alias for `install`, useful for agent deployment wording |
 
 ## Global Flags
+
+Guest commands targeting existing guests accept either `<vmid>` or an exact,
+case-sensitive name, for example `pvetui guests shell docker-test`. Numeric
+arguments always mean IDs. Duplicate names cause an error listing the matching
+IDs, nodes, and profiles; narrow with `--profile` or `--node`, or use an ID.
+With names, `--node` uses node-local inventory and infers the guest type unless
+`--type` is explicitly set. Aggregate name lookup requires complete inventory;
+never assume a match is unique when a profile is unavailable. Keep numeric
+`--node` / `--type` targeting for discovery-free lifecycle and resize recovery.
+Community Scripts tools accept `--guest <id-or-name>` as well. Creation and
+backup restore VMID arguments remain numeric.
+
+Shell completion suggests both IDs and names. Discovery allows up to 30 seconds,
+and suggestions are cached for one minute unless `--no-cache` is used. This cache
+is advisory only; commands resolve names using fresh inventory.
 
 These flags work with every subcommand:
 
@@ -215,11 +236,12 @@ pvetui guests list --status running
 pvetui guests list --type qemu
 pvetui guests list --node pve01 --status running --type lxc
 
-# Emergency/degraded mode: query only one node instead of full cluster guest inventory
-pvetui guests list --node pve01 --node-local --status running
+# Force cluster-wide enriched inventory before filtering by node
+pvetui guests list --node pve01 --cluster-scan --status running
 
 # Show a specific guest by VMID
 pvetui guests show 100
+pvetui guests show 100 --node pve01 --type lxc
 ```
 
 **JSON shape — guests list:**
@@ -267,6 +289,41 @@ pvetui guests shutdown 200 --node pve01 --type lxc
 The `upid` is a Proxmox task ID. Use `pvetui tasks list` to monitor task completion.
 
 Use `--node <node> --type qemu|lxc` on `start`, `stop`, `shutdown`, or `restart` when full guest discovery is slow or degraded but the guest's current node and type are known.
+
+### Guest Resize
+
+Resize a guest storage volume. For LXC containers, the root filesystem disk key is `rootfs`. For QEMU VMs, use the disk key from the VM config, such as `scsi0`, `virtio0`, or `sata0`.
+
+```bash
+# Grow an LXC rootfs by 10 GiB
+pvetui guests resize 200 rootfs +10G
+
+# Grow a QEMU disk by 50 GiB
+pvetui guests resize 100 scsi0 +50G
+
+# Direct-target an LXC when full guest discovery is slow
+pvetui guests resize 200 rootfs +10G --node pve01 --type lxc
+
+# Return the task UPID immediately or wait longer for large operations
+pvetui guests resize 200 rootfs +10G --no-wait
+pvetui guests resize 100 scsi0 +50G --wait-timeout 30m
+```
+
+**JSON shape — guests resize:**
+```json
+{
+  "vmid": 200,
+  "node": "pve01",
+  "type": "lxc",
+  "disk": "rootfs",
+  "size": "+10G",
+  "upid": "UPID:pve01:...",
+  "status": "completed",
+  "exit_status": "OK"
+}
+```
+
+Resize operations can grow disks; shrinking is storage- and guest-dependent and can be destructive. Prefer additive sizes such as `+10G` for automation.
 
 ### Guest Delete
 
@@ -448,6 +505,7 @@ pvetui guests exec 100 "systemctl status nginx"
 # LXC container — uses pct exec over SSH to the node (ssh_user must be configured)
 pvetui guests exec 200 "uptime"
 pvetui guests exec 200 "cat /etc/os-release"
+pvetui guests exec 200 "df -h" --node pve01 --type lxc
 
 # Custom timeout (default 30s)
 pvetui guests exec 100 "apt-get update" --timeout 120s
@@ -702,13 +760,14 @@ err=$(pvetui guests show 999 2>&1 >/dev/null)
 pvetui guests list --node pve01 --status running --type qemu
 
 # Emergency drain inventory that avoids full cluster guest discovery
-pvetui guests list --node pve01 --node-local --status running --output json
+pvetui guests list --node pve01 --status running --output json
 
 # Get IP addresses of all running guests
 pvetui guests list --status running | jq '.[].ip'
 
 # Check if a specific guest is running
 pvetui guests show 100 | jq -r '.status'
+pvetui guests show 100 --node pve01 --type lxc | jq -r '.status'
 
 # Create an LXC and wait for it to finish, then get its VMID
 result=$(pvetui guests create lxc --node pve01 --hostname myct --rootfs-storage local-zfs --template debian-12-standard)
@@ -719,11 +778,14 @@ pvetui guests migrate 100 pve02
 pvetui guests show 100 | jq -r '.node'   # should now be "pve02"
 
 # Emergency node drain pattern
-pvetui guests list --node pve01 --node-local --status running --output table
+pvetui guests list --node pve01 --status running --output table
 pvetui guests migrate 100 pve02 --offline --target-storage shared-ssd --wait-timeout 2h
 pvetui guests shutdown 200 --node pve01 --type lxc
 pvetui guests shutdown 101 --node pve01 --type qemu
 pvetui tasks list --recent 20 --output table
+
+# Expand an LXC rootfs
+pvetui guests resize 200 rootfs +10G --output json
 
 # Download a template and create a container from it in sequence
 pvetui storage download template pve01 local debian-12-standard
@@ -740,6 +802,9 @@ for vmid in 100 101 102; do
   echo "=== $vmid ==="
   pvetui guests exec $vmid "systemctl is-active nginx"
 done
+
+# Direct LXC health check when node/type are known
+pvetui guests exec 200 "df -h /" --node pve01 --type lxc --output table
 
 # Find guests with a specific tag
 pvetui guests list | jq '[.[] | select(.tags | contains("prod"))]'

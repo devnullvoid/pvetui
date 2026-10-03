@@ -174,7 +174,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 		configPath:         configPath,
 		vncService:         vnc.NewServiceWithLogger(client, vncLogger),
 		pages:              tview.NewPages(),
-		autoRefreshEnabled: false,
+		autoRefreshEnabled: cfg.AutoRefresh.Enabled,
 		ctx:                ctx,
 		cancel:             cancel,
 		logger:             uiLogger,
@@ -222,6 +222,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	app.header = NewHeader()
 	utils.SetShowIcons(cfg.ShowIcons)
 	app.footer = NewFooter()
+	app.footer.UpdateAutoRefreshStatus(cfg.AutoRefresh.Enabled)
 	app.footer.UpdateKeybindings(FormatFooterText(cfg.KeyBindings))
 	app.nodeList = NewNodeList()
 	app.vmList = NewVMList()
@@ -230,7 +231,7 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	app.tasksList = NewTasksList()
 	app.storageBrowser = NewStorageBrowser()
 	app.clusterStatus = NewClusterStatus()
-	app.helpModal = NewHelpModal(cfg.KeyBindings)
+	app.helpModal = NewHelpModal(cfg.KeyBindings, app.refreshInterval())
 
 	// Set app reference for components that need it
 	app.header.SetApp(app.Application)
@@ -426,6 +427,14 @@ func NewApp(ctx context.Context, client *api.Client, cfg *config.Config, configP
 	// Set the root and focus
 	app.SetRoot(app.mainLayout, true)
 	app.SetFocus(app.nodeList)
+	switch cfg.StartupPage {
+	case "guests":
+		app.SetFocus(app.vmList)
+	case "tasks":
+		app.SetFocus(app.tasksList)
+	case "storage":
+		app.SetFocus(app.storageBrowser)
+	}
 
 	// Start VNC session monitoring
 	app.startVNCSessionMonitoring()

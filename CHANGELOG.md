@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-10-03
+
+### Added
+
+- **CLI guest names**: Guest show, shell, exec, lifecycle, delete, resize, and migrate commands now accept exact guest names as well as IDs, including node-local lookup and duplicate-name errors. Community Scripts `--guest` also accepts names. Dynamic completion inserts IDs or names with identifying details, allows up to 30 seconds for discovery, and caches suggestions for one minute to speed up repeated Tab presses.
+
+- **TUI preferences**: Added `confirm_quit` ([#159](https://github.com/devnullvoid/pvetui/issues/159)), `startup_page` with `--startup-page` override ([#157](https://github.com/devnullvoid/pvetui/issues/157)), `quiet_startup` ([#158](https://github.com/devnullvoid/pvetui/issues/158)), and `auto_refresh.enabled` / `auto_refresh.interval` ([#156](https://github.com/devnullvoid/pvetui/issues/156)), editable through Application Settings. Existing defaults are preserved, and refresh intervals must be at least five seconds.
+
+### Fixed
+
+- **Version display**: Avoid a duplicate `v` prefix in `--version` and other version displays when building from a Git tag.
+
+- **Guest SSH profile routing**: CLI LXC shell, exec, and Community Scripts guest installs resolve their node through the guest's owning profile, avoiding incorrect SSH destinations when aggregate profiles reuse node names.
+
+- **TUI SSH key precedence**: TUI-launched node, LXC, and QEMU shell sessions now honor configured `ssh_keyfile` / `vm_ssh_keyfile` paths before SSH agent or default keys, matching CLI shell behavior.
+- **QEMU guest agent detection**: Running QEMU guests whose Proxmox config reports compound agent settings such as `enabled=1,fstrim_cloned_disks=0,type=virtio` are now detected as guest-agent enabled so IP enrichment can run.
+
 ## [1.4.3] - 2026-07-16
 
 ### Added
@@ -16,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Community Scripts IP guard**: Initialized the upstream `IP` variable for CLI and TUI Community Scripts installs so scripts that fail to populate it do not roll back otherwise successful containers during their final access-URL message.
 - **Community Scripts guest add-ons**: Added CLI and TUI support for installing `tools/addon` scripts inside existing LXC containers, exposed derived script target metadata, sanitized HTML tags from upstream script descriptions, and limited guest-launched TUI selection to applicable tool scripts with the same `i` shortcut used by node installs.
 - **CLI emergency recovery paths**: Added node-local guest listing with `guests list --node <node> --node-local`, direct lifecycle targeting with `--node`/`--type` on start/stop/shutdown/restart, LXC-compatible `guests migrate --target-storage`, and configurable migration task waits via `--wait-timeout`.
+- **CLI guest resize**: Added `pvetui guests resize <vmid> <disk> <size>` for expanding LXC rootfs volumes and QEMU disks, with direct `--node`/`--type` targeting plus `--no-wait` and `--wait-timeout` task handling.
+- **CLI degraded discovery improvements**: `guests list --node` now uses node-local inventory by default, `--cluster-scan` opts back into enriched cluster-wide discovery, and `guests show`/`guests exec` now support direct `--node`/`--type` targeting.
 
 ## [1.4.2] - 2026-07-03
 

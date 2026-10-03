@@ -95,13 +95,30 @@ func (c *Client) UpdateVMConfig(vm *VM, config *VMConfig) error {
 
 // ResizeVMStorage resizes a disk for a VM or container.
 func (c *Client) ResizeVMStorage(vm *VM, disk string, size string) error {
+	_, err := c.ResizeVMStorageTask(vm, disk, size)
+	return err
+}
+
+// ResizeVMStorageTask resizes a disk for a VM or container and returns the
+// Proxmox task UPID when the API provides one.
+func (c *Client) ResizeVMStorageTask(vm *VM, disk string, size string) (string, error) {
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%d/resize", vm.Node, vm.Type, vm.ID)
 	data := map[string]interface{}{
 		"disk": disk,
 		"size": size, // Proxmox expects size as string (e.g., "+10G")
 	}
 
-	return c.httpClient.Put(context.Background(), endpoint, data, nil)
+	var response map[string]interface{}
+	if err := c.httpClient.Put(context.Background(), endpoint, data, &response); err != nil {
+		return "", err
+	}
+
+	upid, err := c.extractUPID(response)
+	if err != nil {
+		return "", nil
+	}
+
+	return upid, nil
 }
 
 // UpdateVMResources updates CPU and memory for a VM or container.

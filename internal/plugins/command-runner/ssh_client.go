@@ -203,45 +203,52 @@ func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
 	return ssh.NewClient(clientConn, chans, reqs), cleanup, nil
 }
 
-// loadSSHKeys returns SSH signers from all available sources in priority order:
-//  1. SSH agent (if SSH_AUTH_SOCK is set) — supports encrypted and hardware keys
-//  2. Explicit keyPath if provided
+// loadSSHKeys returns SSH signers from available sources in priority order:
+//  1. Explicit keyPath if provided
+//  2. SSH agent (if SSH_AUTH_SOCK is set) — supports encrypted and hardware keys
 //  3. Standard key paths (~/.ssh/id_ed25519, id_rsa, id_ecdsa) as fallback
 func (c *SSHClientImpl) loadSSHKeys(keyPath string) ([]ssh.Signer, error) {
-	var signers []ssh.Signer
+	if keyPath != "" {
+		return loadSSHKeyfiles([]string{keyPath})
+	}
 
-	// 1. SSH agent
+	if signers := loadSSHAgentSigners(); len(signers) > 0 {
+		return signers, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	keyPaths := []string{
+		filepath.Join(homeDir, ".ssh", "id_ed25519"),
+		filepath.Join(homeDir, ".ssh", "id_rsa"),
+		filepath.Join(homeDir, ".ssh", "id_ecdsa"),
+	}
+	return loadSSHKeyfiles(keyPaths)
+}
+
+func loadSSHAgentSigners() []ssh.Signer {
 	if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
 		// nolint:gosec // G704: sock is sourced from SSH_AUTH_SOCK env var, not user input
 		if conn, err := net.Dial("unix", sock); err == nil {
+			defer func() {
+				_ = conn.Close()
+			}()
 			agentSigners, err := agent.NewClient(conn).Signers()
 			if err == nil && len(agentSigners) > 0 {
 				crSSHLogger().Debug("SSH auth: loaded %d signer(s) from SSH agent", len(agentSigners))
-				signers = append(signers, agentSigners...)
+				return agentSigners
 			}
 		}
 	}
 
-	// 2. Explicit keyfile or standard paths
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		if len(signers) > 0 {
-			return signers, nil
-		}
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
-	}
+	return nil
+}
 
-	var keyPaths []string
-	if keyPath != "" {
-		keyPaths = []string{keyPath}
-	} else {
-		keyPaths = []string{
-			filepath.Join(homeDir, ".ssh", "id_ed25519"),
-			filepath.Join(homeDir, ".ssh", "id_rsa"),
-			filepath.Join(homeDir, ".ssh", "id_ecdsa"),
-		}
-	}
-
+func loadSSHKeyfiles(keyPaths []string) ([]ssh.Signer, error) {
+	var signers []ssh.Signer
 	for _, candidate := range keyPaths {
 		// nolint:gosec // G304: Reading SSH keys from configured/standard paths is expected behavior
 		keyBytes, err := os.ReadFile(candidate)

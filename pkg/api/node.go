@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -57,6 +58,38 @@ type Node struct {
 	// lastLoadAvg       []string      `json:"-"`
 }
 
+// ListBasicNodes retrieves node names, IPs, and online state from
+// /cluster/status without loading cluster resources or enriching guests.
+func (c *Client) ListBasicNodes() ([]*Node, error) {
+	var statusResp map[string]interface{}
+	if err := c.GetWithCache("/cluster/status", &statusResp, ClusterDataTTL); err != nil {
+		return nil, fmt.Errorf("failed to get cluster status: %w", err)
+	}
+
+	statusData, ok := statusResp["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid cluster status response format")
+	}
+
+	nodes := make([]*Node, 0)
+	for _, item := range statusData {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok || getString(itemMap, "type") != "node" {
+			continue
+		}
+
+		nodeName := getString(itemMap, "name")
+		nodes = append(nodes, &Node{
+			ID:     nodeName,
+			Name:   nodeName,
+			IP:     getString(itemMap, "ip"),
+			Online: getInt(itemMap, "online") == 1,
+		})
+	}
+
+	return nodes, nil
+}
+
 // ListNodes retrieves nodes from cached cluster data.
 func (c *Client) ListNodes() ([]Node, error) {
 	if c.Cluster == nil {
@@ -73,6 +106,34 @@ func (c *Client) ListNodes() ([]Node, error) {
 		}
 	}
 
+	return nodes, nil
+}
+
+// ListNodesContext lists node identities directly from the API without loading
+// guest inventory. It honors caller cancellation and the default API timeout.
+func (c *Client) ListNodesContext(ctx context.Context) ([]Node, error) {
+	ctx, cancel := context.WithTimeout(ctx, DefaultAPITimeout)
+	defer cancel()
+	var result map[string]interface{}
+	if err := c.httpClient.Get(ctx, "/nodes", &result); err != nil {
+		return nil, err
+	}
+	rows, ok := result["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid node list response")
+	}
+	var nodes []Node
+	for _, item := range rows {
+		row, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name := getString(row, "node")
+		if name == "" {
+			continue
+		}
+		nodes = append(nodes, Node{ID: name, Name: name, Online: getString(row, "status") == "online"})
+	}
 	return nodes, nil
 }
 

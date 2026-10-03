@@ -149,7 +149,10 @@ redacted remote command that would be used for a Community Scripts install.`,
 
 func addCommunityScriptDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().String("node", "", "Target Proxmox node")
-	cmd.Flags().Int("guest", 0, "Target running LXC container VMID for tools/addon scripts")
+	cmd.Flags().String("guest", "", "Target running LXC container ID or exact name for tools/addon scripts")
+	_ = cmd.RegisterFlagCompletionFunc("guest", func(cmd *cobra.Command, _ []string, prefix string) ([]string, cobra.ShellCompDirective) {
+		return completeGuestTargets(cmd, nil, prefix)
+	})
 	cmd.Flags().Bool("skip-url-check", false, "Skip checking that the raw install script URL exists before SSH")
 	cmd.Flags().StringArray("set", nil, "Community Scripts var_* override in KEY=VALUE form (repeatable)")
 	cmd.Flags().Bool("yes", false, "Run without allocating a TTY and fail instead of waiting for interactive prompts")
@@ -248,7 +251,7 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	nodeName, _ := cmd.Flags().GetString("node")
-	guestID, _ := cmd.Flags().GetInt("guest")
+	guestTarget, _ := cmd.Flags().GetString("guest")
 	skipURLCheck, _ := cmd.Flags().GetBool("skip-url-check")
 	env, err := parseCommunityScriptEnvFlags(cmd)
 	if err != nil {
@@ -263,7 +266,7 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 	if err := validateCommunityScriptInstall(script); err != nil {
 		return printError(err)
 	}
-	if guestID > 0 && !script.SupportsGuestInstall() {
+	if guestTarget != "" && !script.SupportsGuestInstall() {
 		return printError(fmt.Errorf("script %q is not a tools/addon script and cannot be installed into an existing LXC", script.Slug))
 	}
 	if !skipURLCheck {
@@ -277,7 +280,7 @@ func runCommunityScriptsInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-	node, guest, guestOut, err := resolveCommunityScriptTarget(ctx, session, nodeName, guestID)
+	node, guest, guestOut, err := resolveCommunityScriptTarget(ctx, session, nodeName, guestTarget)
 	if err != nil {
 		return printError(err)
 	}
@@ -384,7 +387,7 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 	}
 
 	nodeName, _ := cmd.Flags().GetString("node")
-	guestID, _ := cmd.Flags().GetInt("guest")
+	guestTarget, _ := cmd.Flags().GetString("guest")
 	env, err := parseCommunityScriptEnvFlags(cmd)
 	if err != nil {
 		return nil, err
@@ -397,12 +400,12 @@ func buildCommunityScriptPlan(cmd *cobra.Command, nameOrSlug string) (*community
 	if err := validateCommunityScriptInstall(script); err != nil {
 		return nil, err
 	}
-	if guestID > 0 && !script.SupportsGuestInstall() {
+	if guestTarget != "" && !script.SupportsGuestInstall() {
 		return nil, fmt.Errorf("script %q is not a tools/addon script and cannot be installed into an existing LXC", script.Slug)
 	}
 
 	ctx := context.Background()
-	node, guest, guestOut, err := resolveCommunityScriptTarget(ctx, session, nodeName, guestID)
+	node, guest, guestOut, err := resolveCommunityScriptTarget(ctx, session, nodeName, guestTarget)
 	if err != nil {
 		return nil, err
 	}
@@ -512,18 +515,22 @@ func communityScriptNonInteractive(cmd *cobra.Command) bool {
 	return yes || nonInteractive
 }
 
-func resolveCommunityScriptTarget(ctx context.Context, session *cliSession, nodeName string, guestID int) (*api.Node, *api.VM, *guestOutput, error) {
-	if guestID > 0 && strings.TrimSpace(nodeName) != "" {
+func resolveCommunityScriptTarget(ctx context.Context, session *cliSession, nodeName string, guestTarget string) (*api.Node, *api.VM, *guestOutput, error) {
+	if guestTarget != "" && strings.TrimSpace(nodeName) != "" {
 		return nil, nil, nil, fmt.Errorf("--node and --guest are mutually exclusive")
 	}
 
 	var guest *api.VM
 	var guestOut *guestOutput
-	if guestID > 0 {
-		vm, err := session.findVM(ctx, guestID)
+	if guestTarget != "" {
+		targetCmd := &cobra.Command{}
+		targetCmd.Flags().String("type", api.VMTypeLXC, "")
+		_ = targetCmd.Flags().Set("type", api.VMTypeLXC)
+		vm, err := resolveGuestTarget(ctx, targetCmd, session, guestTarget, false)
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		guestID := vm.ID
 		if vm.Type != api.VMTypeLXC {
 			return nil, nil, nil, fmt.Errorf("guest %d is type %q; community tools can only be installed into LXC containers", guestID, vm.Type)
 		}
@@ -537,10 +544,16 @@ func resolveCommunityScriptTarget(ctx context.Context, session *cliSession, node
 	}
 
 	if strings.TrimSpace(nodeName) == "" {
-		return nil, nil, nil, fmt.Errorf("target required: pass --node <node> or --guest <vmid>")
+		return nil, nil, nil, fmt.Errorf("target required: pass --node <node> or --guest <id-or-name>")
 	}
 
-	node, err := session.findNodeByName(ctx, nodeName)
+	var node *api.Node
+	var err error
+	if guest != nil {
+		node, err = session.findGuestNode(guest)
+	} else {
+		node, err = session.findNodeByName(ctx, nodeName)
+	}
 	if err != nil {
 		return nil, nil, nil, err
 	}

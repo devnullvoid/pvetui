@@ -196,7 +196,7 @@ func newNodesShellCmd() *cobra.Command {
 
 The SSH user is resolved from the node's source profile (in group mode), the
 active profile, or the global ssh_user config / --ssh-user flag. Authentication
-follows the standard SSH priority: agent > configured keyfile > ~/.ssh defaults.`,
+uses configured keyfiles first, then SSH agent / ~/.ssh defaults.`,
 		Example: `  pvetui nodes shell pve01
   pvetui --profile prod nodes shell pve01
   pvetui --ssh-user root nodes shell pve01`,

@@ -30,6 +30,14 @@ func (a *App) createMainLayout() *tview.Flex {
 	a.pages.AddPage(api.PageGuests, vmsPage, true, false)
 	a.pages.AddPage(api.PageTasks, tasksPage, true, false)
 	a.pages.AddPage(api.PageStorage, storagePage, true, false)
+	switch a.config.StartupPage {
+	case "guests":
+		a.pages.SwitchToPage(api.PageGuests)
+	case "tasks":
+		a.pages.SwitchToPage(api.PageTasks)
+	case "storage":
+		a.pages.SwitchToPage(api.PageStorage)
+	}
 
 	// Build main layout
 	return tview.NewFlex().

@@ -24,6 +24,11 @@ type Options struct {
 
 // RunWithStartupVerification constructs the API client, performs connectivity verification with user feedback, and starts the TUI.
 func RunWithStartupVerification(cfg *config.Config, configPath string, opts Options) error {
+	progress := func(message string) {
+		if !cfg.QuietStartup {
+			fmt.Println(message)
+		}
+	}
 	// Initialize logger first (but don't output startup messages in debug mode)
 	level := logger.LevelInfo
 	if cfg.Debug {
@@ -65,7 +70,7 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 	cacheAdapter := adapters.NewCacheAdapter()
 
 	// Initialize API client (this just sets up the client, doesn't test connectivity)
-	fmt.Println(display.IconText("🔧", "Initializing API client...", cfg.ShowIcons))
+	progress(display.IconText("🔧", "Initializing API client...", cfg.ShowIcons))
 
 	var client *api.Client
 	var profilesToTry []string
@@ -109,9 +114,9 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 		}
 
 		if profileName != "" {
-			fmt.Println(display.IconText("🔗", fmt.Sprintf("Testing connection to %s (%s)...", profileName, strings.TrimSuffix(cfg.Addr, "/api2/json")), cfg.ShowIcons))
+			progress(display.IconText("🔗", fmt.Sprintf("Testing connection to %s (%s)...", profileName, strings.TrimSuffix(cfg.Addr, "/api2/json")), cfg.ShowIcons))
 		} else {
-			fmt.Println(display.IconText("🔗", fmt.Sprintf("Testing connection to %s...", strings.TrimSuffix(cfg.Addr, "/api2/json")), cfg.ShowIcons))
+			progress(display.IconText("🔗", fmt.Sprintf("Testing connection to %s...", strings.TrimSuffix(cfg.Addr, "/api2/json")), cfg.ShowIcons))
 		}
 
 		// Try a simple API call to verify connectivity and authentication
@@ -129,7 +134,7 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 		}
 
 		connected = true
-		fmt.Println(display.IconText("✅", "API client initialized", cfg.ShowIcons))
+		progress(display.IconText("✅", "API client initialized", cfg.ShowIcons))
 		break
 	}
 
@@ -143,16 +148,16 @@ func RunWithStartupVerification(cfg *config.Config, configPath string, opts Opti
 		return fmt.Errorf("failed to connect to any profile")
 	}
 
-	fmt.Println(display.IconText("✅", "Connected successfully", cfg.ShowIcons))
-	fmt.Println(display.IconText("✅", "Authentication successful", cfg.ShowIcons))
+	progress(display.IconText("✅", "Connected successfully", cfg.ShowIcons))
+	progress(display.IconText("✅", "Authentication successful", cfg.ShowIcons))
 
 	autoEncryptConfig(cfg, configPath)
 
-	fmt.Println(display.IconText("🖥️", "Loading interface...", cfg.ShowIcons))
+	progress(display.IconText("🖥️", "Loading interface...", cfg.ShowIcons))
 	if opts.InitialGroup != "" {
-		fmt.Println(display.IconText("🔄", fmt.Sprintf("Will automatically switch to group mode: %s", opts.InitialGroup), cfg.ShowIcons))
+		progress(display.IconText("🔄", fmt.Sprintf("Will automatically switch to group mode: %s", opts.InitialGroup), cfg.ShowIcons))
 	}
-	fmt.Println()
+	progress("")
 
 	// Start the UI
 	ctx, cancel := context.WithCancel(context.Background())
@@ -190,6 +195,8 @@ func autoEncryptConfig(cfg *config.Config, configPath string) {
 		return
 	}
 
-	fmt.Println(display.IconText("🔐", "Encrypted sensitive fields in config file", cfg.ShowIcons))
+	if !cfg.QuietStartup {
+		fmt.Println(display.IconText("🔐", "Encrypted sensitive fields in config file", cfg.ShowIcons))
+	}
 	cfg.MarkSensitiveDataEncrypted()
 }

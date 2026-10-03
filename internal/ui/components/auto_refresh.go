@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/devnullvoid/pvetui/internal/ui/models"
@@ -27,7 +28,7 @@ func (a *App) toggleAutoRefresh() {
 		a.autoRefreshEnabled = true
 		a.startAutoRefresh()
 		a.footer.UpdateAutoRefreshStatus(true)
-		a.header.ShowSuccess("Auto-refresh enabled (10s interval)")
+		a.header.ShowSuccess(fmt.Sprintf("Auto-refresh enabled (%ds interval)", a.refreshInterval()))
 		uiLogger.Debug("Auto-refresh enabled by user")
 	}
 }
@@ -44,7 +45,7 @@ func (a *App) startAutoRefresh() {
 	}
 
 	a.autoRefreshRunning = true
-	a.autoRefreshCountdown = 10
+	a.autoRefreshCountdown = a.refreshInterval()
 	a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 	a.autoRefreshCountdownStop = make(chan bool, 1)
 
@@ -90,8 +91,8 @@ func (a *App) startAutoRefresh() {
 						} else {
 							uiLogger.Debug("Auto-refresh skipped - pending VM/node operations in progress")
 						}
-						// Reset countdown to try again in 10 seconds
-						a.autoRefreshCountdown = 10
+						// Retry after the configured interval.
+						a.autoRefreshCountdown = a.refreshInterval()
 					}
 				}
 
@@ -126,6 +127,13 @@ func (a *App) startAutoRefresh() {
 			}
 		}
 	}()
+}
+
+func (a *App) refreshInterval() int {
+	if a.config.AutoRefresh.Interval < 5 {
+		return 10
+	}
+	return a.config.AutoRefresh.Interval
 }
 
 // stopAutoRefresh stops the auto-refresh timer.

@@ -214,11 +214,21 @@ group_settings:
     mode: cluster    # connect to one healthy profile with automatic failover
 debug: false
 show_icons: true # Controls decorative TUI and startup/status message emoji prefixes
+confirm_quit: true # Set false to quit immediately, including with active VNC sessions
+startup_page: nodes # nodes, guests, tasks, or storage; override with --startup-page
+quiet_startup: false # Hide routine startup/status banners
+auto_refresh:
+  enabled: false # Enable automatic refresh on startup
+  interval: 10 # Seconds between refreshes; minimum 5
 ```
 
-`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_keyfile` is optional; when omitted, pvetui uses the running SSH agent (`SSH_AUTH_SOCK`) if available, then falls back to `~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, and `~/.ssh/id_ecdsa`. `vm_ssh_keyfile` follows the same logic and falls back to `ssh_keyfile`. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
+`vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_keyfile` is optional; when configured, pvetui uses that explicit key before SSH agent or default key paths. When omitted, pvetui uses the running SSH agent (`SSH_AUTH_SOCK`) if available, then falls back to `~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, and `~/.ssh/id_ecdsa`. `vm_ssh_keyfile` follows the same logic and falls back to `ssh_keyfile`. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
 
 Guest tags can be edited from the VM/LXC **Edit Configuration** form using a semicolon-separated list (for example: `prod;monitoring;db`).
+
+These TUI preferences are global and apply to both individual profiles and groups. For example, `pvetui --startup-page guests` opens the Guests view. `quiet_startup: true` hides routine terminal startup messages while keeping errors, warnings, and interactive prompts visible; debug logging still goes to the log file. Auto-refresh pauses during loading and pending operations, and the footer shows the countdown for the configured interval.
+
+You can also edit these preferences in **Global Menu > Application Settings**. Startup view, quiet startup, and auto-refresh on startup apply on the next launch. Quit confirmation changes apply immediately; a changed refresh interval takes effect at the next countdown reset. The auto-refresh hotkey still controls the current session independently of the saved startup preference.
 
 ### Plugins
 
@@ -381,7 +391,7 @@ Windows legacy fallback:
 | `--api-path` | | `PVETUI_API_PATH` | Proxmox API path |
 | `--ssh-user` | | `PVETUI_SSH_USER` | SSH username |
 | `--vm-ssh-user` | | `PVETUI_VM_SSH_USER` | QEMU VM SSH username (defaults to ssh-user) |
-| `--ssh-keyfile` | | `PVETUI_SSH_KEYFILE` | SSH private key file (defaults to SSH agent / standard paths) |
+| `--ssh-keyfile` | | `PVETUI_SSH_KEYFILE` | SSH private key file (used before SSH agent / standard paths) |
 | `--vm-ssh-keyfile` | | `PVETUI_VM_SSH_KEYFILE` | SSH private key for QEMU VM connections (defaults to ssh-keyfile) |
 | `--ssh-jumphost-addr` | | `PVETUI_SSH_JUMPHOST_ADDR` | SSH jump host address |
 | `--ssh-jumphost-user` | | `PVETUI_SSH_JUMPHOST_USER` | SSH jump host user |
@@ -435,10 +445,11 @@ pvetui guests list --output table
 
 # Filter by node, status, or type
 pvetui guests list --node pve01 --status running --type qemu
-pvetui guests list --node pve01 --node-local --status running  # skip cluster-wide guest discovery
+pvetui guests list --node pve01 --cluster-scan --status running  # force enriched cluster scan
 
 # Show a specific guest
 pvetui guests show 100
+pvetui guests show 100 --node pve01 --type lxc
 
 # Lifecycle operations (returns UPID)
 pvetui guests start 100
@@ -450,14 +461,23 @@ pvetui guests shutdown 200 --node pve01 --type lxc     # direct target for LXC l
 pvetui guests delete 100     # permanently delete (guest must be stopped)
 pvetui guests delete 100 --purge   # also remove from backup/replication jobs
 
+# Resize guest storage
+pvetui guests resize 200 rootfs +10G      # grow an LXC rootfs by 10 GiB
+pvetui guests resize 100 scsi0 +50G       # grow a QEMU disk
+pvetui guests resize 200 rootfs +10G --node pve01 --type lxc
+
 # Execute a command in a QEMU VM via the guest agent (no SSH to the guest needed)
 pvetui guests exec 100 "uptime"
 # Execute a command in an LXC container via pct exec over SSH to the node
 pvetui guests exec 200 "df -h" --timeout 60s
+pvetui guests exec 200 "df -h" --node pve01 --type lxc --timeout 60s
 
 # Open an interactive shell (node SSH or container/VM shell)
 pvetui nodes shell pve01
 pvetui guests shell 100
+pvetui guests shell docker-test
+pvetui guests show docker-test --node mars
+pvetui guests resize docker-test rootfs +10G
 
 # Create a VM (auto-assigns VMID if omitted)
 pvetui guests create vm --node pve01 --name myvm --disk-storage local-zfs --disk-size 32
@@ -480,9 +500,13 @@ pvetui guests migrate 100 pve02 --no-wait   # return UPID immediately
 
 `exec` automatically wraps commands in `/bin/sh -c` on Linux guests and `powershell.exe` on Windows guests. The guest must be running with the QEMU guest agent active.
 
-Commands that produce Proxmox tasks (`create`, `migrate`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
+Commands that produce Proxmox tasks (`create`, `migrate`, `resize`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
 
-For emergency node drains, use `guests list --node <node> --node-local --status running` to avoid full cluster guest discovery, migrate critical guests first, then use direct lifecycle targeting (`--node <node> --type qemu|lxc`) for the remaining shutdown/start operations. `guests migrate --target-storage <storage>` asks Proxmox to place migrated disks or LXC rootfs volumes on a target storage when the migration mode supports it; shared storage can still remain shared by Proxmox design.
+Guest commands accept either a numeric ID or an exact, case-sensitive guest name. Numeric arguments always mean IDs. Duplicate names are rejected with matching IDs, nodes, and profiles; use `--profile`, `--node`, or an ID to select the intended guest. With a name and `--node`, pvetui uses node-local inventory and infers the guest type unless `--type` is explicitly provided. Name lookup across aggregate groups requires complete inventory; narrow the scope when a profile is unavailable. Existing numeric `--node` / `--type` lifecycle and resize targeting still skips guest discovery.
+
+Community Scripts tools also accept names with `--guest`, for example `pvetui community-scripts plan dockge --guest docker-test`.
+
+For emergency node drains, use `guests list --node <node> --status running` to avoid full cluster guest discovery, migrate critical guests first, then use direct targeting (`--node <node> --type qemu|lxc`) for show/exec/lifecycle/resize operations when the guest's node and type are already known. Pass `--cluster-scan` to `guests list --node` when you explicitly want the older cluster-wide enriched inventory path. `guests migrate --target-storage <storage>` asks Proxmox to place migrated disks or LXC rootfs volumes on a target storage when the migration mode supports it; shared storage can still remain shared by Proxmox design.
 
 ### Storage
 
@@ -605,6 +629,8 @@ pvetui completion powershell | Out-String | Invoke-Expression
 ```
 
 Run `pvetui completion <shell> --help` for full installation instructions for your shell.
+
+Guest completion inserts IDs or names, with descriptions showing the guest ID/name, type, node, and profile where applicable. Completion honors target filters and completes migration destination nodes. Initial discovery allows up to 30 seconds; guest suggestions are cached for one minute to speed up repeated Tab presses (`--no-cache` disables this). Actual commands always resolve names against fresh inventory. Reload or regenerate your shell completion script after upgrading if it does not invoke dynamic completion.
 
 ## 🎨 Theming
 

@@ -19,8 +19,9 @@ type HelpModal struct {
 	textView *tview.TextView
 }
 
-// NewHelpModal creates a new help modal.
-func NewHelpModal(keys config.KeyBindings) *HelpModal {
+// NewHelpModal creates a help modal with an optional refresh interval in seconds.
+// Omitting the interval displays the default ten-second interval.
+func NewHelpModal(keys config.KeyBindings, refreshInterval ...int) *HelpModal {
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(true).
@@ -31,7 +32,7 @@ func NewHelpModal(keys config.KeyBindings) *HelpModal {
 		SetTitleColor(theme.Colors.Primary).
 		SetBorderColor(theme.Colors.Border)
 
-	helpText := buildHelpText(keys)
+	helpText := buildHelpText(keys, refreshInterval...)
 	textView.SetText(helpText)
 
 	// Create a flex container to center the text view with better proportions
@@ -55,7 +56,11 @@ func NewHelpModal(keys config.KeyBindings) *HelpModal {
 }
 
 // buildHelpText constructs the formatted and aligned help text.
-func buildHelpText(keys config.KeyBindings) string {
+func buildHelpText(keys config.KeyBindings, refreshInterval ...int) string {
+	interval := 10
+	if len(refreshInterval) > 0 && refreshInterval[0] >= 5 {
+		interval = refreshInterval[0]
+	}
 	globalMenuBinding := "Esc"
 	if strings.TrimSpace(keys.GlobalMenu) != "" {
 		globalMenuBinding = fmt.Sprintf("Esc / %s", keys.GlobalMenu)
@@ -80,7 +85,7 @@ func buildHelpText(keys config.KeyBindings) string {
 		{Key: keys.Menu, Desc: "Open context menu"},
 		{Key: globalMenuBinding, Desc: "Open global menu"},
 		{Key: keys.Refresh, Desc: "Manual refresh"},
-		{Key: keys.AutoRefresh, Desc: "Toggle auto-refresh (10s interval)"},
+		{Key: keys.AutoRefresh, Desc: fmt.Sprintf("Toggle auto-refresh (%ds interval)", interval)},
 		{Key: keys.Quit, Desc: "Quit application"},
 		{Cat: ""},
 		{Cat: "[warning]Nodes/Guests Page[-]"},

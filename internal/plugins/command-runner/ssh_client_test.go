@@ -155,8 +155,9 @@ func TestLoadSSHKeys_StandardPathFallback(t *testing.T) {
 	}
 }
 
-// TestLoadSSHKeys_AgentAndKeyfileCombined verifies that agent and file signers are merged.
-func TestLoadSSHKeys_AgentAndKeyfileCombined(t *testing.T) {
+// TestLoadSSHKeys_ExplicitKeyfileOverridesAgent verifies that an explicitly
+// configured keyfile is used instead of agent signers.
+func TestLoadSSHKeys_ExplicitKeyfileOverridesAgent(t *testing.T) {
 	agentKeyPEM, agentPub := generateTestKey(t)
 	fileKeyPEM, filePub := generateTestKey(t)
 
@@ -173,25 +174,16 @@ func TestLoadSSHKeys_AgentAndKeyfileCombined(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(signers) != 2 {
-		t.Fatalf("expected 2 signers (agent + file), got %d", len(signers))
+	if len(signers) != 1 {
+		t.Fatalf("expected 1 signer from explicit keyfile, got %d", len(signers))
 	}
 
-	// Verify both public keys are present.
-	pubKeys := map[string]bool{
-		string(agentPub.Marshal()): false,
-		string(filePub.Marshal()):  false,
+	got := string(signers[0].PublicKey().Marshal())
+	if got != string(filePub.Marshal()) {
+		t.Error("explicit keyfile signer does not match expected public key")
 	}
-	for _, s := range signers {
-		key := string(s.PublicKey().Marshal())
-		if _, ok := pubKeys[key]; ok {
-			pubKeys[key] = true
-		}
-	}
-	for k, found := range pubKeys {
-		if !found {
-			t.Errorf("expected public key %x not found in signers", k)
-		}
+	if got == string(agentPub.Marshal()) {
+		t.Error("agent signer was used despite explicit keyfile")
 	}
 }
 

@@ -22,6 +22,12 @@ default_profile: default
 
 debug: false
 show_icons: true
+confirm_quit: true
+startup_page: nodes # nodes, guests, tasks, or storage
+quiet_startup: false # Hide routine startup messages; errors and prompts remain visible
+auto_refresh:
+  enabled: false
+  interval: 10 # Seconds, minimum 5
 # cache_dir: "/custom/cache/path"  # Optional: overrides platform defaults
 # age_dir: "/custom/age/path"      # Optional: overrides where age keys are stored
 

@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -33,9 +34,32 @@ func (a *App) showApplicationSettingsDialog() {
 	themeName := a.config.Theme.Name
 	themeColorsRaw := formatStringMapYAML(a.config.Theme.Colors)
 	bindings := a.config.KeyBindings
+	confirmQuit := a.config.ConfirmQuit
+	quietStartup := a.config.QuietStartup
+	startupPage := a.config.StartupPage
+	autoRefresh := a.config.AutoRefresh
+	refreshInterval := strconv.Itoa(a.refreshInterval())
 
 	form.AddCheckbox("Show Icons", showIcons, func(checked bool) { showIcons = checked })
 	form.AddCheckbox("Debug Logging", debug, func(checked bool) { debug = checked })
+	form.AddCheckbox("Confirm Quit", confirmQuit, func(checked bool) { confirmQuit = checked })
+	form.AddCheckbox("Quiet Startup", quietStartup, func(checked bool) { quietStartup = checked })
+	startupPages := []string{"nodes", "guests", "tasks", "storage"}
+	startupIndex := 0
+	for i, page := range startupPages {
+		if page == startupPage {
+			startupIndex = i
+		}
+	}
+	form.AddDropDown("Startup View", []string{"Nodes", "Guests", "Tasks", "Storage"}, startupIndex, func(_ string, index int) {
+		if index >= 0 && index < len(startupPages) {
+			startupPage = startupPages[index]
+		}
+	})
+	form.AddCheckbox("Auto-refresh on Startup", autoRefresh.Enabled, func(checked bool) { autoRefresh.Enabled = checked })
+	form.AddInputField("Refresh Interval (seconds)", refreshInterval, 10, tview.InputFieldInteger, func(text string) {
+		refreshInterval = strings.TrimSpace(text)
+	})
 	form.AddInputField("Cache Directory", cacheDir, 64, nil, func(text string) {
 		cacheDir = strings.TrimSpace(text)
 	})
@@ -75,6 +99,12 @@ func (a *App) showApplicationSettingsDialog() {
 	}
 
 	form.AddButton("Save", func() {
+		interval, err := strconv.Atoi(refreshInterval)
+		if err != nil || interval < 5 {
+			a.showMessageSafe("Refresh interval must be a whole number of at least 5 seconds.")
+			return
+		}
+		autoRefresh.Interval = interval
 		colors, err := parseStringMapYAML(themeColorsRaw)
 		if err != nil {
 			a.showMessageSafe(fmt.Sprintf("Invalid theme colors: %v", err))
@@ -90,6 +120,11 @@ func (a *App) showApplicationSettingsDialog() {
 			a.config.Theme.Name != themeName ||
 			formatStringMapYAML(a.config.Theme.Colors) != formatStringMapYAML(colors)
 
+		previousConfig := a.config
+		a.config.ConfirmQuit = confirmQuit
+		a.config.QuietStartup = quietStartup
+		a.config.StartupPage = startupPage
+		a.config.AutoRefresh = autoRefresh
 		a.config.ShowIcons = showIcons
 		a.config.Debug = debug
 		a.config.CacheDir = config.ExpandHomePath(cacheDir)
@@ -99,6 +134,7 @@ func (a *App) showApplicationSettingsDialog() {
 		a.config.KeyBindings = bindings
 
 		if err := a.SaveConfigPreservingSOPS(); err != nil {
+			a.config = previousConfig
 			a.showMessageSafe(fmt.Sprintf("Failed to save application settings: %v", err))
 			return
 		}
@@ -108,7 +144,7 @@ func (a *App) showApplicationSettingsDialog() {
 		config.SetAgeDirOverride(a.config.AgeDir)
 		utils.SetShowIcons(showIcons)
 		a.footer.UpdateKeybindings(FormatFooterText(a.config.KeyBindings))
-		a.helpModal = NewHelpModal(a.config.KeyBindings)
+		a.helpModal = NewHelpModal(a.config.KeyBindings, a.refreshInterval())
 		a.helpModal.SetApp(a)
 		a.refreshVisualSettings()
 

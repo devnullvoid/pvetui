@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: .go-version
       - name: Generate release notes from CHANGELOG.md
@@ -74,7 +74,7 @@ jobs:
 
       - name: Set up Cloudsmith CLI
         if: steps.cloudsmith.outputs.enabled == 'true'
-        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        uses: cloudsmith-io/cloudsmith-cli-action@v3
         with:
           api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
 

@@ -2,13 +2,46 @@ package bootstrap
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/devnullvoid/pvetui/internal/config"
+	"github.com/stretchr/testify/require"
 )
+
+func TestBootstrapTUIPreferences(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(`default_profile: test
+quiet_startup: true
+startup_page: nodes
+profiles:
+  test:
+    addr: https://example.com:8006
+    user: root
+    password: test
+`), 0o600))
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	defer func() { _ = reader.Close() }()
+	defer func() { _ = writer.Close() }()
+	stdout := os.Stdout
+	os.Stdout = writer
+	defer func() { os.Stdout = stdout }()
+	result, err := Bootstrap(BootstrapOptions{ConfigPath: path, StartupPage: "guests"})
+	os.Stdout = stdout
+	require.NoError(t, writer.Close())
+	output, readErr := io.ReadAll(reader)
+	require.NoError(t, readErr)
+	require.NoError(t, err)
+	require.Empty(t, string(output))
+	require.Equal(t, "guests", result.Config.StartupPage)
+
+	_, err = Bootstrap(BootstrapOptions{ConfigPath: path, StartupPage: "invalid"})
+	require.ErrorContains(t, err, "invalid startup_page")
+}
 
 func TestResolveConfigPathForWizardFallback(t *testing.T) {
 	baseDir := t.TempDir()
