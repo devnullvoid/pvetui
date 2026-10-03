@@ -228,6 +228,8 @@ Guest tags can be edited from the VM/LXC **Edit Configuration** form using a sem
 
 These TUI preferences are global and apply to both individual profiles and groups. For example, `pvetui --startup-page guests` opens the Guests view. `quiet_startup: true` hides routine terminal startup messages while keeping errors, warnings, and interactive prompts visible; debug logging still goes to the log file. Auto-refresh pauses during loading and pending operations, and the footer shows the countdown for the configured interval.
 
+You can also edit these preferences in **Global Menu > Application Settings**. Startup view, quiet startup, and auto-refresh on startup apply on the next launch. Quit confirmation changes apply immediately; a changed refresh interval takes effect at the next countdown reset. The auto-refresh hotkey still controls the current session independently of the saved startup preference.
+
 ### Plugins
 
 pvetui includes an opt-in plugin system for optional features. Plugins are **disabled by default** and must be explicitly enabled.

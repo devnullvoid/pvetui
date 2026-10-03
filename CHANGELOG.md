@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **TUI preferences**: Added `confirm_quit`, `startup_page` (with `--startup-page` override), `quiet_startup`, and `auto_refresh.enabled` / `auto_refresh.interval` configuration. Existing defaults are preserved, and refresh intervals must be at least five seconds.
+- **TUI preferences**: Added `confirm_quit` ([#159](https://github.com/devnullvoid/pvetui/issues/159)), `startup_page` with `--startup-page` override ([#157](https://github.com/devnullvoid/pvetui/issues/157)), `quiet_startup` ([#158](https://github.com/devnullvoid/pvetui/issues/158)), and `auto_refresh.enabled` / `auto_refresh.interval` ([#156](https://github.com/devnullvoid/pvetui/issues/156)), editable through Application Settings. Existing defaults are preserved, and refresh intervals must be at least five seconds.
 
 ### Fixed
 
