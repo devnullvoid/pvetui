@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-10-03
+
 ### Added
 
 - **CLI guest names**: Guest show, shell, exec, lifecycle, delete, resize, and migrate commands now accept exact guest names as well as IDs, including node-local lookup and duplicate-name errors. Community Scripts `--guest` also accepts names. Dynamic completion inserts IDs or names with identifying details, allows up to 30 seconds for discovery, and caches suggestions for one minute to speed up repeated Tab presses.
