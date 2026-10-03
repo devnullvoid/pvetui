@@ -475,6 +475,9 @@ pvetui guests exec 200 "df -h" --node pve01 --type lxc --timeout 60s
 # Open an interactive shell (node SSH or container/VM shell)
 pvetui nodes shell pve01
 pvetui guests shell 100
+pvetui guests shell docker-test
+pvetui guests show docker-test --node mars
+pvetui guests resize docker-test rootfs +10G
 
 # Create a VM (auto-assigns VMID if omitted)
 pvetui guests create vm --node pve01 --name myvm --disk-storage local-zfs --disk-size 32
@@ -498,6 +501,10 @@ pvetui guests migrate 100 pve02 --no-wait   # return UPID immediately
 `exec` automatically wraps commands in `/bin/sh -c` on Linux guests and `powershell.exe` on Windows guests. The guest must be running with the QEMU guest agent active.
 
 Commands that produce Proxmox tasks (`create`, `migrate`, `resize`) block until completion by default. Pass `--no-wait` to return the task UPID immediately.
+
+Guest commands accept either a numeric ID or an exact, case-sensitive guest name. Numeric arguments always mean IDs. Duplicate names are rejected with matching IDs, nodes, and profiles; use `--profile`, `--node`, or an ID to select the intended guest. With a name and `--node`, pvetui uses node-local inventory and infers the guest type unless `--type` is explicitly provided. Name lookup across aggregate groups requires complete inventory; narrow the scope when a profile is unavailable. Existing numeric `--node` / `--type` lifecycle and resize targeting still skips guest discovery.
+
+Community Scripts tools also accept names with `--guest`, for example `pvetui community-scripts plan dockge --guest docker-test`.
 
 For emergency node drains, use `guests list --node <node> --status running` to avoid full cluster guest discovery, migrate critical guests first, then use direct targeting (`--node <node> --type qemu|lxc`) for show/exec/lifecycle/resize operations when the guest's node and type are already known. Pass `--cluster-scan` to `guests list --node` when you explicitly want the older cluster-wide enriched inventory path. `guests migrate --target-storage <storage>` asks Proxmox to place migrated disks or LXC rootfs volumes on a target storage when the migration mode supports it; shared storage can still remain shared by Proxmox design.
 
@@ -622,6 +629,8 @@ pvetui completion powershell | Out-String | Invoke-Expression
 ```
 
 Run `pvetui completion <shell> --help` for full installation instructions for your shell.
+
+Guest completion inserts IDs or names, with descriptions showing the guest ID/name, type, node, and profile where applicable. Completion honors target filters and completes migration destination nodes. Initial discovery allows up to 30 seconds; guest suggestions are cached for one minute to speed up repeated Tab presses (`--no-cache` disables this). Actual commands always resolve names against fresh inventory. Reload or regenerate your shell completion script after upgrading if it does not invoke dynamic completion.
 
 ## 🎨 Theming
 

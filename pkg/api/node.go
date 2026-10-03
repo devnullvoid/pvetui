@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -105,6 +106,34 @@ func (c *Client) ListNodes() ([]Node, error) {
 		}
 	}
 
+	return nodes, nil
+}
+
+// ListNodesContext lists node identities directly from the API without loading
+// guest inventory. It honors caller cancellation and the default API timeout.
+func (c *Client) ListNodesContext(ctx context.Context) ([]Node, error) {
+	ctx, cancel := context.WithTimeout(ctx, DefaultAPITimeout)
+	defer cancel()
+	var result map[string]interface{}
+	if err := c.httpClient.Get(ctx, "/nodes", &result); err != nil {
+		return nil, err
+	}
+	rows, ok := result["data"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid node list response")
+	}
+	var nodes []Node
+	for _, item := range rows {
+		row, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name := getString(row, "node")
+		if name == "" {
+			continue
+		}
+		nodes = append(nodes, Node{ID: name, Name: name, Online: getString(row, "status") == "online"})
+	}
 	return nodes, nil
 }
 

@@ -90,6 +90,21 @@ with `pvetui --startup-page guests` to override its configured initial view.
 
 ## Global Flags
 
+Guest commands targeting existing guests accept either `<vmid>` or an exact,
+case-sensitive name, for example `pvetui guests shell docker-test`. Numeric
+arguments always mean IDs. Duplicate names cause an error listing the matching
+IDs, nodes, and profiles; narrow with `--profile` or `--node`, or use an ID.
+With names, `--node` uses node-local inventory and infers the guest type unless
+`--type` is explicitly set. Aggregate name lookup requires complete inventory;
+never assume a match is unique when a profile is unavailable. Keep numeric
+`--node` / `--type` targeting for discovery-free lifecycle and resize recovery.
+Community Scripts tools accept `--guest <id-or-name>` as well. Creation and
+backup restore VMID arguments remain numeric.
+
+Shell completion suggests both IDs and names. Discovery allows up to 30 seconds,
+and suggestions are cached for one minute unless `--no-cache` is used. This cache
+is advisory only; commands resolve names using fresh inventory.
+
 These flags work with every subcommand:
 
 | Flag | Short | Description |

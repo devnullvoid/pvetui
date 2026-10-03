@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -11,12 +12,20 @@ import (
 // enrich guest details, which makes it useful when one cluster resource path is
 // slow or degraded.
 func (c *Client) ListNodeGuests(nodeName string) ([]*VM, error) {
+	return c.ListNodeGuestsContext(context.Background(), nodeName)
+}
+
+// ListNodeGuestsContext lists node-local guests without enrichment and respects
+// caller cancellation. Requests also retain the default API timeout.
+func (c *Client) ListNodeGuestsContext(ctx context.Context, nodeName string) ([]*VM, error) {
+	ctx, cancel := context.WithTimeout(ctx, DefaultAPITimeout)
+	defer cancel()
 	var guests []*VM
 
 	for _, guestType := range []string{VMTypeQemu, VMTypeLXC} {
 		path := fmt.Sprintf("/nodes/%s/%s", nodeName, guestType)
 		var res map[string]interface{}
-		if err := c.GetNoRetry(path, &res); err != nil {
+		if err := c.httpClient.Get(ctx, path, &res); err != nil {
 			return nil, fmt.Errorf("failed to list %s guests on node %s: %w", guestType, nodeName, err)
 		}
 
@@ -51,6 +60,30 @@ func (c *Client) ListNodeGuests(nodeName string) ([]*VM, error) {
 		}
 	}
 
+	return guests, nil
+}
+
+// ListClusterGuests returns lightweight guest inventory without status or
+// guest-agent enrichment. It respects caller cancellation and the API timeout.
+func (c *Client) ListClusterGuests(ctx context.Context) ([]*VM, error) {
+	ctx, cancel := context.WithTimeout(ctx, DefaultAPITimeout)
+	defer cancel()
+	rows, err := c.GetVmList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	guests := make([]*VM, 0, len(rows))
+	for _, row := range rows {
+		id := getInt(row, "vmid")
+		if id <= 0 {
+			continue
+		}
+		guests = append(guests, &VM{
+			ID: id, Name: getString(row, "name"), Node: getString(row, "node"),
+			Type: getString(row, "type"), Status: getString(row, "status"),
+			Template: getBool(row, "template"), Tags: getString(row, "tags"),
+		})
+	}
 	return guests, nil
 }
 

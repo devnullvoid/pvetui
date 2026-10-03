@@ -29,9 +29,10 @@ const (
 // cliSession abstracts over single-profile and group-profile connections so
 // that subcommand handlers work identically in both cases.
 type cliSession struct {
-	single *api.Client
-	group  *api.GroupClientManager
-	cfg    *config.Config
+	single          *api.Client
+	group           *api.GroupClientManager
+	cfg             *config.Config
+	completionCache cache.Cache
 }
 
 // getNodes returns all cluster nodes. In group mode it fans out across all
@@ -168,10 +169,12 @@ func initCLISession(cmd *cobra.Command) (*cliSession, error) {
 	cfg.Addr = strings.TrimRight(cfg.Addr, "/") + "/" + strings.TrimPrefix(cfg.ApiPath, "/")
 
 	// Initialize global cache unless disabled.
+	var completionCache cache.Cache
 	if !result.NoCache {
 		if cacheErr := cache.InitGlobalCache(cfg.CacheDir); cacheErr != nil {
 			_ = cacheErr // non-fatal; continue without persistent cache
 		}
+		completionCache = cache.GetGlobalCache()
 	}
 
 	loggerAdapter := adapters.NewLoggerAdapter(cfg)
@@ -190,7 +193,7 @@ func initCLISession(cmd *cobra.Command) (*cliSession, error) {
 			return nil, fmt.Errorf("failed to connect to Proxmox API: %w", err)
 		}
 
-		return &cliSession{single: client, cfg: cfg}, nil
+		return &cliSession{single: client, cfg: cfg, completionCache: completionCache}, nil
 	}
 
 	// Group mode: build a client per profile, fan out queries.
@@ -240,7 +243,7 @@ func initCLISession(cmd *cobra.Command) (*cliSession, error) {
 		return nil, fmt.Errorf("failed to connect to group %q: %w", result.InitialGroup, err)
 	}
 
-	return &cliSession{group: manager, cfg: cfg}, nil
+	return &cliSession{group: manager, cfg: cfg, completionCache: completionCache}, nil
 }
 
 // applyConfiguredOutputFormat makes cli.default_output the effective output
@@ -358,28 +361,26 @@ func formatUptime(seconds int64) string {
 	}
 }
 
-// findNodeIP returns the IP address of the named node.
-func (s *cliSession) findNodeIP(ctx context.Context, nodeName string) (string, error) {
-	nodes, err := s.getBasicNodes(ctx)
+// findGuestNode uses the guest's owning profile, so identical node names in
+// independent clusters cannot redirect SSH to another profile's host.
+func (s *cliSession) findGuestNode(vm *api.VM) (*api.Node, error) {
+	client, err := s.clientForVM(vm)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch nodes: %w", err)
+		return nil, err
+	}
+	nodes, err := client.ListBasicNodes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch guest's node: %w", err)
 	}
 
 	for _, n := range nodes {
-		if n != nil && n.Name == nodeName {
-			return n.IP, nil
+		if n != nil && n.Name == vm.Node {
+			n.SourceProfile = vm.SourceProfile
+			return n, nil
 		}
 	}
 
-	return "", fmt.Errorf("node %q not found", nodeName)
-}
-
-func (s *cliSession) getBasicNodes(ctx context.Context) ([]*api.Node, error) {
-	if s.group != nil {
-		return s.group.GetGroupNodes(ctx)
-	}
-
-	return s.single.ListBasicNodes()
+	return nil, fmt.Errorf("node %q not found in the guest's profile", vm.Node)
 }
 
 // resolveSSHCreds returns the SSH username, keyfile path, and jump-host config
@@ -415,9 +416,13 @@ func (s *cliSession) resolveSSHCreds(vm *api.VM) (sshUser string, sshKeyfile str
 // execLXC executes cmdParts inside an LXC container via SSH to its host node
 // using pct exec. Returns stdout, stderr, exit code, and any transport error.
 func (s *cliSession) execLXC(ctx context.Context, vm *api.VM, cmdParts []string, timeout time.Duration) (stdout, stderr string, exitCode int, err error) {
-	nodeIP, err := s.findNodeIP(ctx, vm.Node)
+	node, err := s.findGuestNode(vm)
 	if err != nil {
 		return "", "", 0, fmt.Errorf("cannot resolve node for guest %d: %w", vm.ID, err)
+	}
+	nodeIP := node.IP
+	if nodeIP == "" {
+		nodeIP = node.Name
 	}
 
 	sshUser, sshKeyfile, jumpHost := s.resolveSSHCreds(vm)
@@ -582,40 +587,6 @@ func completeNodeNames(cmd *cobra.Command, args []string, toComplete string) ([]
 	}
 
 	return names, cobra.ShellCompDirectiveNoFileComp
-}
-
-// completeVMIDs is a Cobra ValidArgsFunction that returns VMID completions
-// with the guest name and type as description. Requires no positional args
-// already provided.
-func completeVMIDs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	session, err := initCLISession(cmd)
-	if err != nil || session == nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	vms, err := session.getVMs(context.Background())
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	var completions []string
-
-	for _, vm := range vms {
-		if vm == nil {
-			continue
-		}
-
-		id := fmt.Sprintf("%d", vm.ID)
-		if strings.HasPrefix(id, toComplete) {
-			completions = append(completions, fmt.Sprintf("%s\t%s (%s)", id, vm.Name, vm.Type))
-		}
-	}
-
-	return completions, cobra.ShellCompDirectiveNoFileComp
 }
 
 // addNoWaitFlag adds a --no-wait flag to cmd for task-producing commands.

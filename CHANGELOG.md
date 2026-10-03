@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI guest names**: Guest show, shell, exec, lifecycle, delete, resize, and migrate commands now accept exact guest names as well as IDs, including node-local lookup and duplicate-name errors. Community Scripts `--guest` also accepts names. Dynamic completion inserts IDs or names with identifying details, allows up to 30 seconds for discovery, and caches suggestions for one minute to speed up repeated Tab presses.
+
 - **TUI preferences**: Added `confirm_quit` ([#159](https://github.com/devnullvoid/pvetui/issues/159)), `startup_page` with `--startup-page` override ([#157](https://github.com/devnullvoid/pvetui/issues/157)), `quiet_startup` ([#158](https://github.com/devnullvoid/pvetui/issues/158)), and `auto_refresh.enabled` / `auto_refresh.interval` ([#156](https://github.com/devnullvoid/pvetui/issues/156)), editable through Application Settings. Existing defaults are preserved, and refresh intervals must be at least five seconds.
 
 ### Fixed
+
+- **Guest SSH profile routing**: CLI LXC shell, exec, and Community Scripts guest installs resolve their node through the guest's owning profile, avoiding incorrect SSH destinations when aggregate profiles reuse node names.
 
 - **TUI SSH key precedence**: TUI-launched node, LXC, and QEMU shell sessions now honor configured `ssh_keyfile` / `vm_ssh_keyfile` paths before SSH agent or default keys, matching CLI shell behavior.
 - **QEMU guest agent detection**: Running QEMU guests whose Proxmox config reports compound agent settings such as `enabled=1,fstrim_cloned_disks=0,type=virtio` are now detected as guest-agent enabled so IP enrichment can run.
