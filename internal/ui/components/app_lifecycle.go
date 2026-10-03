@@ -60,6 +60,10 @@ func (a *App) updateHeaderWithActiveProfile() {
 
 // showQuitConfirmation displays a confirmation dialog before quitting the app.
 func (a *App) showQuitConfirmation() {
+	if !a.config.ConfirmQuit {
+		a.Application.Stop()
+		return
+	}
 	sessionCount := a.vncService.GetActiveSessionCount()
 	if sessionCount > 0 {
 		var message string

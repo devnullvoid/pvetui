@@ -244,7 +244,7 @@ func (a *App) autoRefreshData(snap selSnap) {
 			a.footer.SetLoading(false)
 			a.endRefresh(token)
 
-			a.autoRefreshCountdown = 10
+			a.autoRefreshCountdown = a.refreshInterval()
 			a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 
 		})
@@ -410,7 +410,7 @@ func (a *App) autoRefreshData(snap selSnap) {
 		a.endRefresh(token)
 
 		// Reset countdown after refresh is complete
-		a.autoRefreshCountdown = 10
+		a.autoRefreshCountdown = a.refreshInterval()
 		a.footer.UpdateAutoRefreshCountdown(a.autoRefreshCountdown)
 	})
 }

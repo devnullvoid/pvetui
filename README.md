@@ -214,11 +214,19 @@ group_settings:
     mode: cluster    # connect to one healthy profile with automatic failover
 debug: false
 show_icons: true # Controls decorative TUI and startup/status message emoji prefixes
+confirm_quit: true # Set false to quit immediately, including with active VNC sessions
+startup_page: nodes # nodes, guests, tasks, or storage; override with --startup-page
+quiet_startup: false # Hide routine startup/status banners
+auto_refresh:
+  enabled: false # Enable automatic refresh on startup
+  interval: 10 # Seconds between refreshes; minimum 5
 ```
 
 `vm_ssh_user` is optional; when omitted, pvetui reuses `ssh_user`. Set it if your Proxmox host SSH account differs from the accounts you use to log into QEMU guests so VM shells work without duplicating profiles. `ssh_keyfile` is optional; when configured, pvetui uses that explicit key before SSH agent or default key paths. When omitted, pvetui uses the running SSH agent (`SSH_AUTH_SOCK`) if available, then falls back to `~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, and `~/.ssh/id_ecdsa`. `vm_ssh_keyfile` follows the same logic and falls back to `ssh_keyfile`. `ssh_jump_host` is optional and lets you route SSH connections through a bastion host when your Proxmox nodes or VMs are not directly reachable.
 
 Guest tags can be edited from the VM/LXC **Edit Configuration** form using a semicolon-separated list (for example: `prod;monitoring;db`).
+
+These TUI preferences are global and apply to both individual profiles and groups. For example, `pvetui --startup-page guests` opens the Guests view. `quiet_startup: true` hides routine terminal startup messages while keeping errors, warnings, and interactive prompts visible; debug logging still goes to the log file. Auto-refresh pauses during loading and pending operations, and the footer shows the countdown for the configured interval.
 
 ### Plugins
 

@@ -121,6 +121,10 @@ type Config struct {
 	Theme         ThemeConfig                    `yaml:"theme"`
 	Plugins       PluginConfig                   `yaml:"plugins"`
 	CLI           CLIConfig                      `yaml:"cli,omitempty"`
+	ConfirmQuit   bool                           `yaml:"confirm_quit"`
+	StartupPage   string                         `yaml:"startup_page"`
+	QuietStartup  bool                           `yaml:"quiet_startup"`
+	AutoRefresh   AutoRefreshConfig              `yaml:"auto_refresh"`
 	ShowIcons     bool                           `yaml:"show_icons"`
 	GroupSettings map[string]GroupSettingsConfig `yaml:"group_settings,omitempty"`
 	// Deprecated: legacy single-profile fields for migration
@@ -137,6 +141,12 @@ type Config struct {
 	SSHKeyfile   string      `yaml:"ssh_keyfile,omitempty"`
 	VMSSHKeyfile string      `yaml:"vm_ssh_keyfile,omitempty"`
 	SSHJumpHost  SSHJumpHost `yaml:"ssh_jump_host,omitempty"`
+}
+
+// AutoRefreshConfig controls startup refresh behavior and the interval in seconds.
+type AutoRefreshConfig struct {
+	Enabled  bool `yaml:"enabled"`
+	Interval int  `yaml:"interval"`
 }
 
 // CLIConfig holds defaults for non-interactive CLI subcommands.
@@ -369,7 +379,10 @@ func ValidateKeyBindings(kb KeyBindings) error {
 //	}
 func NewConfig() *Config {
 	config := &Config{
-		Profiles: make(map[string]ProfileConfig),
+		Profiles:    make(map[string]ProfileConfig),
+		ConfirmQuit: true,
+		StartupPage: "nodes",
+		AutoRefresh: AutoRefreshConfig{Interval: 10},
 		// Read environment variables for legacy fields
 		Addr:         os.Getenv("PVETUI_ADDR"),
 		User:         os.Getenv("PVETUI_USER"),
@@ -455,8 +468,6 @@ func (c *Config) MergeWithFile(path string) error {
 		}
 
 		data = decrypted
-
-		fmt.Printf("Decrypted config file: %s\n", path)
 	}
 
 	// Use a struct with pointers to distinguish between unset and explicitly set values
@@ -464,9 +475,16 @@ func (c *Config) MergeWithFile(path string) error {
 		Profiles       map[string]ProfileConfig `yaml:"profiles"`
 		DefaultProfile string                   `yaml:"default_profile"`
 		Debug          *bool                    `yaml:"debug"`
-		CacheDir       string                   `yaml:"cache_dir"`
-		AgeDir         string                   `yaml:"age_dir"`
-		KeyBindings    struct {
+		ConfirmQuit    *bool                    `yaml:"confirm_quit"`
+		StartupPage    *string                  `yaml:"startup_page"`
+		QuietStartup   *bool                    `yaml:"quiet_startup"`
+		AutoRefresh    struct {
+			Enabled  *bool `yaml:"enabled"`
+			Interval *int  `yaml:"interval"`
+		} `yaml:"auto_refresh"`
+		CacheDir    string `yaml:"cache_dir"`
+		AgeDir      string `yaml:"age_dir"`
+		KeyBindings struct {
 			SwitchView          string `yaml:"switch_view"`
 			SwitchViewReverse   string `yaml:"switch_view_reverse"`
 			NodesPage           string `yaml:"nodes_page"`
@@ -567,6 +585,27 @@ func (c *Config) MergeWithFile(path string) error {
 
 	var fileConfigRaw struct {
 		KeyBindings map[string]any `yaml:"key_bindings"`
+	}
+	if fileConfig.ConfirmQuit != nil {
+		c.ConfirmQuit = *fileConfig.ConfirmQuit
+	}
+	if fileConfig.StartupPage != nil {
+		c.StartupPage = *fileConfig.StartupPage
+	}
+	if fileConfig.QuietStartup != nil {
+		c.QuietStartup = *fileConfig.QuietStartup
+	}
+	if isSOPSEncrypted && !c.QuietStartup {
+		fmt.Printf("Decrypted config file: %s\n", path)
+	}
+	if fileConfig.AutoRefresh.Enabled != nil {
+		c.AutoRefresh.Enabled = *fileConfig.AutoRefresh.Enabled
+	}
+	if fileConfig.AutoRefresh.Interval != nil {
+		if *fileConfig.AutoRefresh.Interval < 5 {
+			return fmt.Errorf("auto_refresh.interval must be at least 5 seconds")
+		}
+		c.AutoRefresh.Interval = *fileConfig.AutoRefresh.Interval
 	}
 	if err := yaml.Unmarshal(data, &fileConfigRaw); err != nil {
 		return err
@@ -713,7 +752,7 @@ func (c *Config) MergeWithFile(path string) error {
 	}
 
 	// Migrate legacy configuration to profile-based if needed
-	if migrated := c.MigrateLegacyToProfiles(); migrated {
+	if migrated := c.MigrateLegacyToProfiles(); migrated && !c.QuietStartup {
 		fmt.Printf("Migrated legacy configuration to profile-based format\n")
 	}
 
@@ -1017,6 +1056,27 @@ func hasCleartextSensitiveValue(value string) bool {
 }
 
 func (c *Config) Validate() error {
+	if err := c.ValidateTUIPreferences(); err != nil {
+		return err
+	}
+	return c.validateConnectionConfig()
+}
+
+// ValidateTUIPreferences checks initial page and refresh settings independently
+// of connection credentials, so preference errors do not launch onboarding.
+func (c *Config) ValidateTUIPreferences() error {
+	switch c.StartupPage {
+	case "", "nodes", "guests", "tasks", "storage":
+	default:
+		return fmt.Errorf("invalid startup_page %q: use nodes, guests, tasks, or storage", c.StartupPage)
+	}
+	if c.AutoRefresh.Interval != 0 && c.AutoRefresh.Interval < 5 {
+		return fmt.Errorf("auto_refresh.interval must be at least 5 seconds")
+	}
+	return nil
+}
+
+func (c *Config) validateConnectionConfig() error {
 	if err := c.validateCLIConfig(); err != nil {
 		return err
 	}
@@ -1269,6 +1329,12 @@ func (c *Config) GetInsecure() bool {
 
 // SetDefaults sets default values for unspecified configuration options.
 func (c *Config) SetDefaults() {
+	if c.StartupPage == "" {
+		c.StartupPage = "nodes"
+	}
+	if c.AutoRefresh.Interval == 0 {
+		c.AutoRefresh.Interval = 10
+	}
 	if c.Realm == "" {
 		c.Realm = "pam"
 	}

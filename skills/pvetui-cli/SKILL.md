@@ -48,6 +48,11 @@ npx skills add devnullvoid/pvetui
 
 ## Quick Reference
 
+TUI-only preferences (`confirm_quit`, `startup_page`, `quiet_startup`, and
+`auto_refresh.enabled` / `auto_refresh.interval`) do not change CLI query output
+or task polling. Use `cli.default_output` for CLI output defaults. Launch the TUI
+with `pvetui --startup-page guests` to override its configured initial view.
+
 | Command | Purpose |
 |---------|---------|
 | `pvetui nodes list` | List all cluster nodes |

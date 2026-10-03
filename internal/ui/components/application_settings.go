@@ -108,7 +108,7 @@ func (a *App) showApplicationSettingsDialog() {
 		config.SetAgeDirOverride(a.config.AgeDir)
 		utils.SetShowIcons(showIcons)
 		a.footer.UpdateKeybindings(FormatFooterText(a.config.KeyBindings))
-		a.helpModal = NewHelpModal(a.config.KeyBindings)
+		a.helpModal = NewHelpModal(a.config.KeyBindings, a.refreshInterval())
 		a.helpModal.SetApp(a)
 		a.refreshVisualSettings()
 

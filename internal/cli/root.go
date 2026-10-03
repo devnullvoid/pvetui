@@ -111,7 +111,9 @@ func getBootstrapOptions(cmd *cobra.Command) bootstrap.BootstrapOptions {
 		showIconsPtr = &showIcons
 	}
 
+	startupPage, _ := cmd.Flags().GetString("startup-page")
 	return bootstrap.BootstrapOptions{
+		StartupPage:            startupPage,
 		ConfigPath:             configPath,
 		Profile:                profile,
 		NoCache:                noCache,
@@ -172,6 +174,7 @@ func addPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
 	cmd.PersistentFlags().String("age-dir", "", "Age key directory path")
 	cmd.PersistentFlags().Bool("show-icons", true, "Show icons/emojis in UI (env: PVETUI_SHOW_ICONS)")
+	cmd.PersistentFlags().String("startup-page", "", "Initial TUI view: nodes, guests, tasks, storage")
 
 	// Bind flags to environment variables
 	viper.SetEnvPrefix("PVETUI")
