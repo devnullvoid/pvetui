@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Version display**: Avoid a duplicate `v` prefix in `--version` and other version displays when building from a Git tag.
+
 - **Guest SSH profile routing**: CLI LXC shell, exec, and Community Scripts guest installs resolve their node through the guest's owning profile, avoiding incorrect SSH destinations when aggregate profiles reuse node names.
 
 - **TUI SSH key precedence**: TUI-launched node, LXC, and QEMU shell sessions now honor configured `ssh_keyfile` / `vm_ssh_keyfile` paths before SSH agent or default keys, matching CLI shell behavior.

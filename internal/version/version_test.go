@@ -45,6 +45,36 @@ func TestGetVersionString(t *testing.T) {
 	}
 }
 
+func TestVersionPrefixNormalization(t *testing.T) {
+	originalVersion, originalCommit := version, commit
+	t.Cleanup(func() {
+		version, commit = originalVersion, originalCommit
+	})
+	commit = "abc1234"
+	for _, tc := range []struct {
+		input string
+		want  string
+	}{
+		{"v1.4.3", "1.4.3"},
+		{"1.4.3", "1.4.3"},
+		{"v1.4.3-20-g52c2525-dirty", "1.4.3-20-g52c2525-dirty"},
+		{"abc1234", "abc1234"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			version = tc.input
+			if got := GetBuildInfo().Version; got != tc.want {
+				t.Errorf("GetBuildInfo().Version = %q, want %q", got, tc.want)
+			}
+			if got := GetVersionString(); got != "v"+tc.want {
+				t.Errorf("GetVersionString() = %q, want %q", got, "v"+tc.want)
+			}
+			if got := GetFullVersionString(); got != "v"+tc.want+" (abc1234)" {
+				t.Errorf("GetFullVersionString() = %q, want %q", got, "v"+tc.want+" (abc1234)")
+			}
+		})
+	}
+}
+
 func TestGetFullVersionString(t *testing.T) {
 	fullVersion := GetFullVersionString()
 

@@ -79,6 +79,9 @@ func GetBuildInfo() *BuildInfo {
 		info.BuildDate = releaseDate
 	}
 
+	// Build inputs may include the tag prefix; display helpers add it themselves.
+	info.Version = strings.TrimPrefix(info.Version, "v")
+
 	return info
 }
 
