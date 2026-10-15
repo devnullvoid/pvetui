@@ -2,7 +2,8 @@
   description = "A Terminal User Interface for Proxmox Virtual Environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Nixpkgs 26.11 drops Intel macOS, which this flake still supports.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -10,14 +11,16 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        go = pkgs.go_1_26;
+        buildGoModule = pkgs.buildGoModule.override { inherit go; };
 
-        pvetui = pkgs.buildGoModule {
+        pvetui = buildGoModule {
           pname = "pvetui";
           version = if (self ? rev) then self.shortRev else "dev";
 
           src = self;
 
-          vendorHash = "sha256-pN8hDeDQ6or9QakMWWQBru5vdJHmxhL8euKJ5w8ycK0=";
+          vendorHash = "sha256-ZxJs5j0zSREmsqfufCpQKRhhxaH7mpFW9goMk1Wg63w=";
 
           subPackages = [ "cmd/pvetui" ];
 
@@ -48,11 +51,11 @@
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            go_1_25
-            gopls
-            gotools
-            golangci-lint
+          buildInputs = [
+            go
+            pkgs.gopls
+            pkgs.gotools
+            pkgs.golangci-lint
           ];
 
           shellHook = ''
