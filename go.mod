@@ -6,7 +6,7 @@ require (
 	filippo.io/age v1.3.2
 	github.com/dgraph-io/badger/v4 v4.9.6
 	github.com/gdamore/tcell/v2 v2.13.10
-	github.com/getkin/kin-openapi v0.149.0
+	github.com/getkin/kin-openapi v0.151.0
 	github.com/getsops/sops/v3 v3.13.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
