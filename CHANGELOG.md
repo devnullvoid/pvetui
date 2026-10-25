@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Nix builds**: Updated the pinned Nix package set and aligned the build and development-shell toolchains with Go 1.26. Dependency hash updates now verify the rebuilt binary and fail on unexpected errors rather than reporting false success ([#172](https://github.com/devnullvoid/pvetui/issues/172)).
+
 ## [1.4.4] - 2026-10-03
 
 ### Added
