@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** June 2026 (Cloudsmith packaging) | **For:** pvetui - Proxmox TUI
+**Last Updated:** October 2026 (CI and Nix validation) | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -276,6 +276,7 @@ Key architectural decisions and rationale:
 - **LXC exec via SSH + pct exec**: LXC containers have no API exec equivalent (unlike QEMU guest agent). Use `SSHClientImpl.ExecuteContainerCommandDetailed` from the command-runner package to run `pct exec <ctid> -- <cmd>` over SSH to the Proxmox node. SSH credentials are resolved per-VM via `vm.SourceProfile` → global config fallback.
 - **Agent skill packaging**: Skills for the skills.sh ecosystem live in `skills/<skill-name>/SKILL.md` at the repo root. Install via `npx skills add owner/repo`. The `skills/` path is auto-discovered; `docs/skills/` is not.
 - **Cloudsmith DEB/RPM publishing**: GitHub release workflows publish nfpm-generated `.deb` and `.rpm` artifacts through `scripts/publish-cloudsmith.sh` to `devnullvoid/pvetui`. CI authentication uses the `CLOUDSMITH_API_KEY` repository secret; local seeding can use an authenticated Cloudsmith CLI. Keep the README Cloudsmith attribution and link in place to satisfy the OSS hosting policy.
+- **Nix dependency validation**: Keep the explicit Go toolchain in `flake.nix` aligned with `.go-version` and `go.mod`, including the development shell. Refresh the pinned `nixpkgs` input when the required compiler is unavailable, preserving all advertised systems: the 26.05 stable branch retains Intel macOS support removed in 26.11 unstable. Run `nix flake check --all-systems --no-build` and `bash scripts/update-nix-hash.sh` after dependency changes; the helper repairs only pvetui Go-module hash mismatches and verifies the rebuilt binary before emitting `updated=true`. Fork PRs use `--check` and must commit their own hash updates. Never suppress unexpected Nix errors or commit an unverified hash. Helper regression tests live in `internal/tools/nixhash` and run with `make test`; ordinary PR CI must cover both `master` and `develop`.
 
 ## Common Pitfalls
 

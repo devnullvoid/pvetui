@@ -4,7 +4,7 @@ on:
   push:
     branches: [master, develop]
   pull_request:
-    branches: [master]
+    branches: [master, develop]
 
 # Set default permissions for all jobs
 permissions:
