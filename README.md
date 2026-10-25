@@ -151,6 +151,23 @@ make install  # Build and install from source
 # or: make install-go  # Install via Go toolchain
 ```
 
+**Nix (From Source):**
+
+```bash
+nix run github:devnullvoid/pvetui -- --version
+# From a local checkout:
+nix build
+nix develop
+```
+
+The flake pins the 26.05 stable package set, retaining Intel macOS support, and
+uses Go 1.26 for builds and development.
+After changing Go dependencies or the pinned package set, run
+`bash scripts/update-nix-hash.sh` to update `vendorHash` and verify the build.
+Use `bash scripts/update-nix-hash.sh --check` for validation without modifying it.
+Commit the verified hash with the dependency changes; fork PRs must provide their
+own hash updates because CI does not write to forks.
+
 ## 🔧 Configuration
 
 ### First Run & Interactive Config Wizard
