@@ -250,9 +250,12 @@ func (a *App) openVMVNC() {
 }
 
 // openVMShell opens a shell session to the currently selected VM/container.
-
 func (a *App) openVMShell() {
-	vm := a.vmList.GetSelectedVM()
+	a.openVMShellForVM(a.vmList.GetSelectedVM())
+}
+
+// openVMShellForVM keeps context-menu actions bound to the guest that opened the menu.
+func (a *App) openVMShellForVM(vm *api.VM) {
 	if vm == nil {
 		a.showMessageSafe("Selected VM not found")
 		return

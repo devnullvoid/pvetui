@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** October 2026 (CI and Nix validation) | **For:** pvetui - Proxmox TUI
+**Last Updated:** October 2026 (CI, Nix, and guest actions) | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -303,6 +303,7 @@ Key architectural decisions and rationale:
 - **Guest advanced filter persistence**: When checking whether Guests filters are active, use `SearchState.HasActiveVMFilter()` (not only `SearchState.Filter != ""`) so structured filters (status/type/node/tag) persist across manual refresh, auto-refresh, and VM refresh paths.
 - **Header loading animation**: Multiple overlapping `ShowLoading` calls can spawn concurrent animations and make the spinner appear too fast; ensure loading state is serialized (single animation, cancelable ticker).
 - **Context menu anchoring**: Anchor node/guest context menus to their source list primitives (`nodeList`/`vmList`), not the currently focused pane; focus can be in details and produce inconsistent placement.
+- **Context-menu shell targets**: Pass the guest captured when opening the menu to `openVMShellForVM`; do not re-read `GetSelectedVM()` after closing the menu. Refreshes or filters may have changed the list selection. Direct keyboard shell actions should still read the current selection. Test SSH targeting with a local mock executable and simulation screen, never live guests.
 - **Context menu geometry**: Compute/clamp modal placement against the `pages` container rect (not `mainLayout`) to avoid low/clipped menus on smaller terminals.
 - **Template guests are not ordinary stopped guests**: Proxmox templates often surface with `status=stopped`, but lifecycle UX must treat `VM.Template` as authoritative: label templates explicitly in guest list/details, do not offer start actions, and exclude them from batch lifecycle actions.
 - **Keybind unsetting semantics**: Treat empty string keybinds (for example `global_menu: ""`) as explicit unbinds; do not silently reapply default keys.

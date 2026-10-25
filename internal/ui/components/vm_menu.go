@@ -127,7 +127,7 @@ func (a *App) ShowVMContextMenu() {
 
 		switch action {
 		case vmActionOpenShell:
-			a.openVMShell()
+			a.openVMShellForVM(vm)
 		case vmActionOpenVNC:
 			a.openVMVNC()
 		case vmActionEditConfig:
