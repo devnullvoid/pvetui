@@ -25,7 +25,7 @@ on:
       - '.github/workflows/update-nix-hash.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: nix-hash-${{ github.event.pull_request.number || github.ref }}
@@ -35,6 +35,11 @@ jobs:
   update-nix-hash:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
+    outputs:
+      committed: ${{ steps.commit.outputs.changes_detected }}
+      commit: ${{ steps.commit.outputs.commit_hash }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,8 +66,42 @@ jobs:
           fi
 
       - name: Commit verified hash
+        id: commit
         if: steps.update.outputs.updated == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore(nix): update verified vendorHash"
           file_pattern: flake.nix
+
+  refresh-ci:
+    needs: update-nix-hash
+    if: needs.update-nix-hash.outputs.committed == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+      statuses: write
+    steps:
+      # No checkout: this job only publishes the verified result and dispatches CI.
+      - name: Validate the verified commit with CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARGET_REF: ${{ github.head_ref || github.ref_name }}
+          VERIFIED_SHA: ${{ needs.update-nix-hash.outputs.commit }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid verified commit'; exit 1; }
+          current_sha=$(gh api "repos/$GH_REPO/git/ref/heads/$TARGET_REF" --jq '.object.sha')
+          if [[ "$current_sha" != "$VERIFIED_SHA" ]]; then
+            echo 'Branch advanced; leave validation to the newer update.'
+            exit 0
+          fi
+          gh api --method POST "repos/$GH_REPO/statuses/$VERIFIED_SHA" \
+            -f state=success -f context='Nix / Verified hash' \
+            -f description='Rebuilt and smoke-tested before committing vendorHash' \
+            -f target_url="$RUN_URL"
+          gh api --method POST "repos/$GH_REPO/actions/workflows/ci.yml/dispatches" \
+            -f ref="$TARGET_REF"

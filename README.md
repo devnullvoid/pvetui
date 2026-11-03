@@ -168,6 +168,13 @@ Use `bash scripts/update-nix-hash.sh --check` for validation without modifying i
 Commit the verified hash with the dependency changes; fork PRs must provide their
 own hash updates because CI does not write to forks.
 
+For same-repository updates, CI can commit a verified hash automatically and
+dispatch the normal test, lint, and platform builds on the updated branch. The
+exact hash commit receives a `Nix / Verified hash` status linking to its build.
+This uses only `GITHUB_TOKEN`, with no additional repository secrets. The CI
+workflow's `workflow_dispatch` trigger must also be present on `master` (GitHub's
+default-branch requirement). Fork PRs remain validation-only.
+
 ## 🔧 Configuration
 
 ### First Run & Interactive Config Wizard
