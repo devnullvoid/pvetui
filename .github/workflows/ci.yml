@@ -123,3 +123,31 @@ jobs:
           name: binary-${{ matrix.os }}
           path: dist/
           if-no-files-found: error
+
+  report-dispatched-ci:
+    name: Report final-commit CI
+    needs: [lint, test, build]
+    if: always() && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      # API-only: do not check out code in this write-permission job.
+      - name: Publish final-commit result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS_RESULTS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          state=failure
+          if jq -e '[.lint.result, .test.result, .build.result] | all(. == "success")' <<< "$NEEDS_RESULTS" > /dev/null; then
+            state=success
+          fi
+          gh api --method POST "repos/$GH_REPO/statuses/$GITHUB_SHA" \
+            -f state="$state" -f context='CI / Final commit' \
+            -f description='Dispatched tests, lint, and platform builds completed' \
+            -f target_url="$RUN_URL"

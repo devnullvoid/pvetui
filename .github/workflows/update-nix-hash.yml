@@ -103,5 +103,9 @@ jobs:
             -f state=success -f context='Nix / Verified hash' \
             -f description='Rebuilt and smoke-tested before committing vendorHash' \
             -f target_url="$RUN_URL"
+          gh api --method POST "repos/$GH_REPO/statuses/$VERIFIED_SHA" \
+            -f state=pending -f context='CI / Final commit' \
+            -f description='Waiting for dispatched tests, lint, and platform builds' \
+            -f target_url="$RUN_URL"
           gh api --method POST "repos/$GH_REPO/actions/workflows/ci.yml/dispatches" \
             -f ref="$TARGET_REF"

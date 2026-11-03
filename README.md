@@ -171,6 +171,9 @@ own hash updates because CI does not write to forks.
 For same-repository updates, CI can commit a verified hash automatically and
 dispatch the normal test, lint, and platform builds on the updated branch. The
 exact hash commit receives a `Nix / Verified hash` status linking to its build.
+It also receives a pending `CI / Final commit` status, resolved only after the
+dispatched tests, lint, and platform builds finish; this remains visible even
+when GitHub omits dispatched job checks from the PR summary.
 This uses only `GITHUB_TOKEN`, with no additional repository secrets. The CI
 workflow's `workflow_dispatch` trigger must also be present on `master` (GitHub's
 default-branch requirement). Fork PRs remain validation-only.

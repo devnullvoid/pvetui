@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Dependency CI**: Automatically run test, lint, and platform-build checks after CI commits a verified Nix dependency hash, without manually reopening the PR. Fork PRs remain read-only ([#177](https://github.com/devnullvoid/pvetui/issues/177)).
+- **Dependency CI**: Automatically run test, lint, and platform-build checks after CI commits a verified Nix dependency hash, with a final-commit status that stays pending until all checks finish, without manually reopening the PR. Fork PRs remain read-only ([#177](https://github.com/devnullvoid/pvetui/issues/177)).
 
 - **Guest shell targeting**: Keep context-menu Shell actions bound to the guest that opened the menu, preventing selection changes or filtered-list refreshes from redirecting SSH to another guest ([#174](https://github.com/devnullvoid/pvetui/issues/174)).
 
