@@ -280,7 +280,7 @@ Key architectural decisions and rationale:
 
 ## Common Pitfalls
 
-- **CI after bot hash commits**: `GITHUB_TOKEN` pushes do not reliably start ordinary CI. After an actual verified hash commit, the Nix workflow uses an API-only job (no checkout) to publish `Nix / Verified hash` on that exact SHA and dispatch `ci.yml` on the unchanged branch. Keep `workflow_dispatch` enabled in `ci.yml` on both development and default branches; GitHub requires default-branch registration. Do not use `pull_request_target` to execute PR code, dispatch the hash updater recursively, or grant refresh permissions to fork validation.
+- **CI after bot hash commits**: `GITHUB_TOKEN` pushes do not reliably start ordinary CI. After an actual verified hash commit, the Nix workflow uses an API-only job (no checkout) to publish `Nix / Verified hash` and a pending `CI / Final commit` on that exact SHA, then dispatch `ci.yml` on the unchanged branch. Dispatched job checks may be absent from the PR rollup, so keep the API-only reporting job that resolves the pending status from all test/lint/build results (including failures/skips). Keep `workflow_dispatch` enabled in `ci.yml` on both development and default branches; GitHub requires default-branch registration. Do not use `pull_request_target` to execute PR code, dispatch the hash updater recursively, or grant refresh permissions to fork validation.
 - **Do not push without explicit approval**: Always ask for confirmation before pushing to any remote, even after committing locally.
 - BadgerDB requires proper cleanup channel to prevent goroutine leaks
 - Test files should use 0o600 permissions for sensitive data

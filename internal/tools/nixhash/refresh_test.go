@@ -103,12 +103,13 @@ func TestRefreshVerifiedCommit(t *testing.T) {
 		wantCalls int
 		wantError bool
 	}{
-		{name: "current commit", sha: sha, wantCalls: 3},
+		{name: "current commit", sha: sha, wantCalls: 4},
 		{name: "branch advanced", scenario: "advanced", sha: sha, wantCalls: 1},
 		{name: "invalid sha", sha: "not-a-sha", wantError: true},
 		{name: "lookup fails", scenario: "lookup-error", sha: sha, wantCalls: 1, wantError: true},
 		{name: "status fails", scenario: "status-error", sha: sha, wantCalls: 2, wantError: true},
-		{name: "dispatch fails", scenario: "dispatch-error", sha: sha, wantCalls: 3, wantError: true},
+		{name: "pending status fails", scenario: "pending-error", sha: sha, wantCalls: 3, wantError: true},
+		{name: "dispatch fails", scenario: "dispatch-error", sha: sha, wantCalls: 4, wantError: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -123,7 +124,10 @@ case "$*" in
     [[ "$SCENARIO" != lookup-error ]] || exit 1
     if [[ "$SCENARIO" == advanced ]]; then echo different; else echo "$VERIFIED_SHA"; fi
     ;;
-  *'/statuses/'*) [[ "$SCENARIO" != status-error ]] || exit 1 ;;
+  *'/statuses/'*)
+    [[ "$SCENARIO" != status-error ]] || exit 1
+    if [[ "$*" == *'state=pending'* && "$SCENARIO" == pending-error ]]; then exit 1; fi
+    ;;
   *'/actions/workflows/ci.yml/dispatches'*) [[ "$SCENARIO" != dispatch-error ]] || exit 1 ;;
   *) exit 42 ;;
 esac
@@ -152,8 +156,8 @@ esac
 			if count := strings.Count(string(calls), "\n"); count != tc.wantCalls {
 				t.Fatalf("API calls = %d, want %d\n%s", count, tc.wantCalls, calls)
 			}
-			if tc.wantCalls == 3 {
-				for _, want := range []string{"statuses/" + sha, "context=Nix / Verified hash", "ref=dependabot/go_modules/develop/example-1.2.3"} {
+			if tc.wantCalls == 4 {
+				for _, want := range []string{"statuses/" + sha, "context=Nix / Verified hash", "context=CI / Final commit", "state=pending", "ref=dependabot/go_modules/develop/example-1.2.3"} {
 					if !strings.Contains(string(calls), want) {
 						t.Errorf("missing %q in API calls: %s", want, calls)
 					}
