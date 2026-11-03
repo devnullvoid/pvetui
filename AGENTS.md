@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** October 2026 (CI, Nix, and guest actions) | **For:** pvetui - Proxmox TUI
+**Last Updated:** November 2026 (CI dispatch and Nix validation) | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -280,6 +280,7 @@ Key architectural decisions and rationale:
 
 ## Common Pitfalls
 
+- **CI after bot hash commits**: `GITHUB_TOKEN` pushes do not reliably start ordinary CI. After an actual verified hash commit, the Nix workflow uses an API-only job (no checkout) to publish `Nix / Verified hash` on that exact SHA and dispatch `ci.yml` on the unchanged branch. Keep `workflow_dispatch` enabled in `ci.yml` on both development and default branches; GitHub requires default-branch registration. Do not use `pull_request_target` to execute PR code, dispatch the hash updater recursively, or grant refresh permissions to fork validation.
 - **Do not push without explicit approval**: Always ask for confirmation before pushing to any remote, even after committing locally.
 - BadgerDB requires proper cleanup channel to prevent goroutine leaks
 - Test files should use 0o600 permissions for sensitive data
