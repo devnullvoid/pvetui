@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **SSH agent authentication**: Keep command-runner agent connections open until SSH authentication finishes, fixing handshake failures reporting a closed agent socket for direct and jump-host connections.
+
 - **Homebrew cask generation**: Generate the supported `postflight_steps` hook without obsolete RuboCop suppressions, preserving compatibility with current Homebrew validation ([#180](https://github.com/devnullvoid/pvetui/issues/180), [#182](https://github.com/devnullvoid/pvetui/issues/182)).
 
 - **Dependency CI**: Automatically run test, lint, and platform-build checks after CI commits a verified Nix dependency hash, with a final-commit status that stays pending until all checks finish, without manually reopening the PR. Fork PRs remain read-only ([#177](https://github.com/devnullvoid/pvetui/issues/177)).

@@ -122,7 +122,7 @@ func (c *SSHClientImpl) ExecuteCommand(ctx context.Context, host, command string
 	return stdout.String(), nil
 }
 
-func (c *SSHClientImpl) buildClientConfig(user, authValue, keyPath string) (*ssh.ClientConfig, error) {
+func (c *SSHClientImpl) buildClientConfig(user, authValue, keyPath string) (*ssh.ClientConfig, func(), error) {
 	config := &ssh.ClientConfig{
 		User: user,
 		// nolint:gosec // G106: InsecureIgnoreHostKey is acceptable for initial implementation
@@ -131,7 +131,8 @@ func (c *SSHClientImpl) buildClientConfig(user, authValue, keyPath string) (*ssh
 		Timeout:         c.timeout,
 	}
 
-	if signers, err := c.loadSSHKeys(keyPath); err == nil && len(signers) > 0 {
+	signers, cleanup, err := c.loadSSHKeys(keyPath)
+	if err == nil && len(signers) > 0 {
 		config.Auth = append(config.Auth, ssh.PublicKeys(signers...))
 	}
 
@@ -140,16 +141,22 @@ func (c *SSHClientImpl) buildClientConfig(user, authValue, keyPath string) (*ssh
 	}
 
 	if len(config.Auth) == 0 {
-		return nil, fmt.Errorf("no SSH authentication method available (no SSH agent, no keys found, and no password configured)")
+		if cleanup != nil {
+			cleanup()
+		}
+		return nil, nil, fmt.Errorf("no SSH authentication method available (no SSH agent, no keys found, and no password configured)")
 	}
 
-	return config, nil
+	return config, cleanup, nil
 }
 
 func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
-	targetConfig, err := c.buildClientConfig(c.username, c.authValue, c.keyPath)
+	targetConfig, targetAuthCleanup, err := c.buildClientConfig(c.username, c.authValue, c.keyPath)
 	if err != nil {
 		return nil, nil, err
+	}
+	if targetAuthCleanup != nil {
+		defer targetAuthCleanup()
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, c.port)
@@ -168,9 +175,12 @@ func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
 		jumpUser = c.username
 	}
 
-	jumpConfig, err := c.buildClientConfig(jumpUser, "", c.jumpHost.KeyPath)
+	jumpConfig, jumpAuthCleanup, err := c.buildClientConfig(jumpUser, "", c.jumpHost.KeyPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to configure jump host: %w", err)
+	}
+	if jumpAuthCleanup != nil {
+		defer jumpAuthCleanup()
 	}
 
 	jumpPort := c.jumpHost.Port
@@ -207,18 +217,21 @@ func (c *SSHClientImpl) dialHost(host string) (*ssh.Client, func(), error) {
 //  1. Explicit keyPath if provided
 //  2. SSH agent (if SSH_AUTH_SOCK is set) — supports encrypted and hardware keys
 //  3. Standard key paths (~/.ssh/id_ed25519, id_rsa, id_ecdsa) as fallback
-func (c *SSHClientImpl) loadSSHKeys(keyPath string) ([]ssh.Signer, error) {
+//
+// The returned cleanup must be called only after SSH authentication finishes.
+func (c *SSHClientImpl) loadSSHKeys(keyPath string) ([]ssh.Signer, func(), error) {
 	if keyPath != "" {
-		return loadSSHKeyfiles([]string{keyPath})
+		signers, err := loadSSHKeyfiles([]string{keyPath})
+		return signers, nil, err
 	}
 
-	if signers := loadSSHAgentSigners(); len(signers) > 0 {
-		return signers, nil
+	if signers, cleanup := loadSSHAgentSigners(c.timeout); len(signers) > 0 {
+		return signers, cleanup, nil
 	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
+		return nil, nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
 	keyPaths := []string{
@@ -226,25 +239,25 @@ func (c *SSHClientImpl) loadSSHKeys(keyPath string) ([]ssh.Signer, error) {
 		filepath.Join(homeDir, ".ssh", "id_rsa"),
 		filepath.Join(homeDir, ".ssh", "id_ecdsa"),
 	}
-	return loadSSHKeyfiles(keyPaths)
+	signers, err := loadSSHKeyfiles(keyPaths)
+	return signers, nil, err
 }
 
-func loadSSHAgentSigners() []ssh.Signer {
+func loadSSHAgentSigners(timeout time.Duration) ([]ssh.Signer, func()) {
 	if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
 		// nolint:gosec // G704: sock is sourced from SSH_AUTH_SOCK env var, not user input
-		if conn, err := net.Dial("unix", sock); err == nil {
-			defer func() {
-				_ = conn.Close()
-			}()
+		if conn, err := net.DialTimeout("unix", sock, timeout); err == nil {
 			agentSigners, err := agent.NewClient(conn).Signers()
 			if err == nil && len(agentSigners) > 0 {
 				crSSHLogger().Debug("SSH auth: loaded %d signer(s) from SSH agent", len(agentSigners))
-				return agentSigners
+				// Agent signers proxy signing requests over this connection during authentication.
+				return agentSigners, func() { _ = conn.Close() }
 			}
+			_ = conn.Close()
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func loadSSHKeyfiles(keyPaths []string) ([]ssh.Signer, error) {

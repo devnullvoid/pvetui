@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"crypto/ed25519"
 
@@ -68,6 +69,7 @@ func startTestAgent(t *testing.T, keyPEM []byte) (cleanup func()) {
 				return // listener closed
 			}
 			go func() {
+				defer func() { _ = conn.Close() }()
 				_ = agent.ServeAgent(keyring, conn)
 			}()
 		}
@@ -87,7 +89,7 @@ func startTestAgent(t *testing.T, keyPEM []byte) (cleanup func()) {
 }
 
 func newTestClient() *SSHClientImpl {
-	return &SSHClientImpl{timeout: 5}
+	return &SSHClientImpl{timeout: 5 * time.Second}
 }
 
 // TestLoadSSHKeys_AgentOnly verifies that signers are loaded from a running SSH agent.
@@ -99,12 +101,28 @@ func TestLoadSSHKeys_AgentOnly(t *testing.T) {
 	// Point HOME at an empty dir so no file-based keys interfere.
 	t.Setenv("HOME", t.TempDir())
 
-	signers, err := newTestClient().loadSSHKeys("")
+	signers, closeAuth, err := newTestClient().loadSSHKeys("")
 	if err != nil {
 		t.Fatalf("expected signers from agent, got error: %v", err)
 	}
+	if closeAuth == nil {
+		t.Fatal("agent-backed signers must return a cleanup function")
+	}
+	t.Cleanup(closeAuth)
 	if len(signers) == 0 {
 		t.Fatal("expected at least one signer from agent")
+	}
+	payload := []byte("command runner agent authentication regression")
+	signature, err := signers[0].Sign(rand.Reader, payload)
+	if err != nil {
+		t.Fatalf("agent signer must remain usable after loading: %v", err)
+	}
+	if err := signers[0].PublicKey().Verify(payload, signature); err != nil {
+		t.Fatalf("verify agent signature: %v", err)
+	}
+	closeAuth()
+	if _, err := signers[0].Sign(rand.Reader, payload); err == nil {
+		t.Fatal("agent connection must close when authentication cleanup runs")
 	}
 }
 
@@ -121,7 +139,7 @@ func TestLoadSSHKeys_ExplicitKeyfile(t *testing.T) {
 	// No SSH agent.
 	t.Setenv("SSH_AUTH_SOCK", "")
 
-	signers, err := newTestClient().loadSSHKeys(keyPath)
+	signers, _, err := newTestClient().loadSSHKeys(keyPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -146,7 +164,7 @@ func TestLoadSSHKeys_StandardPathFallback(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("SSH_AUTH_SOCK", "")
 
-	signers, err := newTestClient().loadSSHKeys("")
+	signers, _, err := newTestClient().loadSSHKeys("")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -170,7 +188,7 @@ func TestLoadSSHKeys_ExplicitKeyfileOverridesAgent(t *testing.T) {
 		t.Fatalf("write key: %v", err)
 	}
 
-	signers, err := newTestClient().loadSSHKeys(keyPath)
+	signers, _, err := newTestClient().loadSSHKeys(keyPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -192,7 +210,7 @@ func TestLoadSSHKeys_NoAuthAvailable(t *testing.T) {
 	t.Setenv("SSH_AUTH_SOCK", "")
 	t.Setenv("HOME", t.TempDir()) // empty home — no keys
 
-	_, err := newTestClient().loadSSHKeys("")
+	_, _, err := newTestClient().loadSSHKeys("")
 	if err == nil {
 		t.Fatal("expected error when no auth available, got nil")
 	}
@@ -202,7 +220,7 @@ func TestLoadSSHKeys_NoAuthAvailable(t *testing.T) {
 func TestLoadSSHKeys_MissingExplicitKeyfile(t *testing.T) {
 	t.Setenv("SSH_AUTH_SOCK", "")
 
-	_, err := newTestClient().loadSSHKeys("/nonexistent/path/key")
+	_, _, err := newTestClient().loadSSHKeys("/nonexistent/path/key")
 	if err == nil {
 		t.Fatal("expected error for missing keyfile, got nil")
 	}
@@ -225,7 +243,7 @@ func TestLoadSSHKeys_ExplicitKeyfileTakesPrecedence(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("SSH_AUTH_SOCK", "")
 
-	signers, err := newTestClient().loadSSHKeys(explicitPath)
+	signers, _, err := newTestClient().loadSSHKeys(explicitPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
