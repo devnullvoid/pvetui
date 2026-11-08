@@ -13,6 +13,11 @@ This document explains how to distribute `pvetui` through various package manage
 - **DEB/RPM Packages**: Traditional Linux package formats
 - **Docker Images**: Containerized distribution
 
+WinGet is being prepared separately in [#170](https://github.com/devnullvoid/pvetui/issues/170).
+The [WinGet guide](WINGET.md) covers the initial x64 manifests, validation, Windows
+testing, and submission. It is not published yet and is not managed by the
+orchestration script below.
+
 ## Homebrew Cask Validation
 
 For Homebrew release-configuration changes, run `goreleaser check` and

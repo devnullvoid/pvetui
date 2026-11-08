@@ -142,6 +142,16 @@ scoop bucket add pvetui https://github.com/devnullvoid/scoop-pvetui
 scoop install pvetui
 ```
 
+**Windows (WinGet, in preparation):**
+
+An initial x64 portable-package candidate is available in this repository and
+has been [submitted for WinGet review](https://github.com/microsoft/winget-pkgs/pull/474741),
+but is not yet available from the community source. See the
+[WinGet packaging and Windows test guide](docs/WINGET.md) for local validation,
+installation, upgrade, and uninstall checks. Track availability in
+[#170](https://github.com/devnullvoid/pvetui/issues/170); Scoop remains the
+published Windows package-manager option.
+
 **From Source:**
 
 ```bash

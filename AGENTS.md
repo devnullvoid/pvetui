@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS
 
-**Last Updated:** November 2026 (CI dispatch and Nix validation) | **For:** pvetui - Proxmox TUI
+**Last Updated:** November 2026 (CI, Nix, and WinGet preparation) | **For:** pvetui - Proxmox TUI
 
 ## Table of Contents
 - [Initial Setup](#initial-setup)
@@ -280,6 +280,7 @@ Key architectural decisions and rationale:
 
 ## Common Pitfalls
 
+- **WinGet packaging status**: Initial x64 manifests live in `packaging/winget/manifests/d/devnullvoid/pvetui/<version>/`; see `docs/WINGET.md`. Keep the three files aligned, use actual version-specific ZIP checksums and a root `pvetui.exe` portable alias, and preserve package identity. Omit `Scope` for portable installers: native WinGet rejects it even though JSON Schema permits it; request user scope with `--scope user` instead. Offline/schema checks do not prove native install/upgrade/uninstall behavior. Native per-user install, real 1.4.3-to-1.4.4 upgrade, and reinstall/uninstall passed; interactive checks remain. Local unpublished packages may list only by name/ARP identity, not public package ID; verify the exact owned registration before product-code uninstall. Portable installs may use a package-directory PATH fallback rather than a Links symlink; WinGet left a stale PATH entry in testing, so verify cleanup without disturbing other installations. Complete Windows testing before submitting upstream and wait for upstream acceptance before advertising public availability. Keep #170 open for the remaining testing, submission, and release-automation work; additional architectures are a separate follow-up.
 - **CI after bot hash commits**: `GITHUB_TOKEN` pushes do not reliably start ordinary CI. After an actual verified hash commit, the Nix workflow uses an API-only job (no checkout) to publish `Nix / Verified hash` and a pending `CI / Final commit` on that exact SHA, then dispatch `ci.yml` on the unchanged branch. Dispatched job checks may be absent from the PR rollup, so keep the API-only reporting job that resolves the pending status from all test/lint/build results (including failures/skips). Keep `workflow_dispatch` enabled in `ci.yml` on both development and default branches; GitHub requires default-branch registration. Do not use `pull_request_target` to execute PR code, dispatch the hash updater recursively, or grant refresh permissions to fork validation.
 - **Do not push without explicit approval**: Always ask for confirmation before pushing to any remote, even after committing locally.
 - BadgerDB requires proper cleanup channel to prevent goroutine leaks
