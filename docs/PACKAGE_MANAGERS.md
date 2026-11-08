@@ -13,6 +13,23 @@ This document explains how to distribute `pvetui` through various package manage
 - **DEB/RPM Packages**: Traditional Linux package formats
 - **Docker Images**: Containerized distribution
 
+## Homebrew Cask Validation
+
+For Homebrew release-configuration changes, run `goreleaser check` and
+`go test ./internal/tools/releaseconfig`. To verify the actual generated Ruby
+with the installed GoReleaser version, run:
+
+```bash
+PVETUI_GORELEASER_TEST=true go test ./internal/tools/releaseconfig -run TestGeneratedHomebrewCask -count=1 -v -timeout=6m
+```
+
+This snapshot fixture reuses the source cask and archive naming configuration
+but builds small synthetic binaries for Linux/macOS on Intel/ARM64. It never
+publishes or uses a publishing token; its checksums are not real release hashes.
+Keep the generated `postflight_steps` hook and `zap :not_required`, and do not
+add RuboCop suppressions to silence Homebrew validation. The tap's native
+Homebrew CI remains the style/readall/audit acceptance check for published casks.
+
 ## Prerequisites
 
 Before setting up package managers, ensure you have:
