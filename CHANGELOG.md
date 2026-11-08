@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Homebrew cask generation**: Generate the supported `postflight_steps` hook without obsolete RuboCop suppressions, preserving compatibility with current Homebrew validation ([#180](https://github.com/devnullvoid/pvetui/issues/180), [#182](https://github.com/devnullvoid/pvetui/issues/182)).
+
 ## [1.4.4] - 2026-10-03
 
 ### Added

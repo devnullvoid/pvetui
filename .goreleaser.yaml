@@ -173,8 +173,6 @@ homebrew_casks:
           on_macos do
             run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/pvetui"]
           end
-    custom_block: |
-      # rubocop:disable Cask/StanzaOrder, Cask/StanzaGrouping
 
 # Scoop Manifest
 scoops:
