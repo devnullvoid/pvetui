@@ -169,9 +169,10 @@ homebrew_casks:
       Run `pvetui --help` to see configuration options.
     hooks:
       post:
-        install: 'system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/pvetui"] if OS.mac?'
-    custom_block: |
-      # rubocop:disable Cask/StanzaOrder, Cask/StanzaGrouping
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/pvetui"]
+          end
 
 # Scoop Manifest
 scoops:
