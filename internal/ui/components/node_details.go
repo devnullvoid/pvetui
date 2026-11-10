@@ -205,23 +205,39 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	// VMs (running/stopped/templates)
 	vmRunning, vmStopped, vmTemplates := 0, 0, 0
+	lxcRunning, lxcStopped, lxcTemplates := 0, 0, 0
+	guests := node.VMs
 
 	for _, n := range allNodes {
-		if n.Name == node.Name {
-			for _, vm := range n.VMs {
-				switch vm.Status {
-				case statusRunning:
-					vmRunning++
-				case statusStopped:
-					vmStopped++
-				}
-
-				if vm.Template {
-					vmTemplates++
-				}
-			}
-
+		if n != nil && n.Name == node.Name && n.SourceProfile == node.SourceProfile {
+			guests = n.VMs
 			break
+		}
+	}
+
+	for _, vm := range guests {
+		if vm == nil {
+			continue
+		}
+		switch vm.Type {
+		case api.VMTypeQemu:
+			switch {
+			case vm.Template:
+				vmTemplates++
+			case vm.Status == statusRunning:
+				vmRunning++
+			case vm.Status == statusStopped:
+				vmStopped++
+			}
+		case api.VMTypeLXC:
+			switch {
+			case vm.Template:
+				lxcTemplates++
+			case vm.Status == statusRunning:
+				lxcRunning++
+			case vm.Status == statusStopped:
+				lxcStopped++
+			}
 		}
 	}
 
@@ -235,26 +251,8 @@ func (nd *NodeDetails) Update(node *api.Node, allNodes []*api.Node) {
 
 	row++
 
-	// LXC (running/stopped)
-	lxcRunning, lxcStopped := 0, 0
-
-	for _, n := range allNodes {
-		if n.Name == node.Name {
-			for _, vm := range n.VMs {
-				if vm.Type == vmTypeLXC {
-					if vm.Status == statusRunning {
-						lxcRunning++
-					} else {
-						lxcStopped++
-					}
-				}
-			}
-
-			break
-		}
-	}
-
-	lxcText := fmt.Sprintf("[%s]%d running[-], [%s]%d stopped[-]", greenTag, lxcRunning, redTag, lxcStopped)
+	// LXC (running/stopped/templates)
+	lxcText := fmt.Sprintf("[%s]%d running[-], [%s]%d stopped[-], [%s]%d templates[-]", greenTag, lxcRunning, redTag, lxcStopped, yellowTag, lxcTemplates)
 
 	nd.SetCell(row, 0, tview.NewTableCell(utils.GetIconLabel("LXC", "📦", showIcons)).SetTextColor(theme.Colors.HeaderText))
 	nd.SetCell(row, 1, tview.NewTableCell(lxcText))

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Node guest counts**: Separate QEMU VM and LXC counts in node details, count templates separately from stopped guests, and match the source profile when node names repeat across grouped profiles. Unknown LXC states are no longer reported as stopped.
+
 - **SSH agent authentication**: Keep command-runner agent connections open until SSH authentication finishes, fixing handshake failures reporting a closed agent socket for direct and jump-host connections.
 
 - **Homebrew cask generation**: Generate the supported `postflight_steps` hook without obsolete RuboCop suppressions, preserving compatibility with current Homebrew validation ([#180](https://github.com/devnullvoid/pvetui/issues/180), [#182](https://github.com/devnullvoid/pvetui/issues/182)).
