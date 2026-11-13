@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-11-13
+
 ### Added
 
 - **WinGet preparation**: Added initial Windows x64 portable manifests for the existing v1.4.4 release and a local validation, install/upgrade/uninstall, and upstream submission guide. The package is not yet published to WinGet ([#170](https://github.com/devnullvoid/pvetui/issues/170)).
